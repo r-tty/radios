@@ -11,11 +11,13 @@ module tm.kern.thread
 %include "tm/kern.ah"
 %include "tm/process.ah"
 
+publicproc DestroyThread
 publicdata ThreadSyscallTable
 
 externproc R0_Pid2PCBaddr
 
-importproc K_PoolChunkAddr, MT_CreateThread
+importproc K_PoolChunkAddr
+importproc MT_CreateThread, MT_ThrEnqueue
 importproc K_SemV, K_SemP
 
 section .data
@@ -34,7 +36,7 @@ section .text
 		; int ThreadCreate(pid_t pid, void *(func)(void), void *arg, \
 		;			const struct _thread_attr *attr);
 proc sys_ThreadCreate
-		arg	pid, func, targ, attr
+		arg	pid, func, par, attr
 		prologue
 
 		; Get a current thread and its PCB address
@@ -52,13 +54,15 @@ proc sys_ThreadCreate
 
 		; Create the thread and attach it to the process.
 		; Take care about PCB locking too.
-.Create:	mov	ebx,[%$func]
-		xor	ecx,ecx
+.Create:	mov	eax,[%$par]
+		mov	ebx,[%$func]
+		mov	edx,[%$attr]
 		call	MT_CreateThread
 		jc	.Again
 		mLockCB	esi, tProcDesc
 		mEnqueue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB, ecx
 		mUnlockCB esi, tProcDesc
+		call	MT_ThrEnqueue
 
 		; Return TID
 		mov	eax,[ebx+tTCB.TID]
@@ -77,7 +81,10 @@ endp		;---------------------------------------------------------------
 proc sys_ThreadDestroy
 		arg	tid, prio, status
 		prologue
-
+		mov	eax,[%$status]
+		mov	ebx,[%$prio]
+		mov	edx,[%$tid]
+		call	DestroyThread
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -110,5 +117,15 @@ proc sys_SchedInfo
 		prologue
 
 		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; This routine is used by both ThreadDestroy system call and
+		; by thread kill trap handler.
+		; Input: EAX=optional exit status value,
+		;	 EBX=priority for destruction of multiple threads,
+		;	 EDX=TID.
+proc DestroyThread
 		ret
 endp		;---------------------------------------------------------------

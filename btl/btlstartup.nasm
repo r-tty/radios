@@ -5,6 +5,8 @@
 
 %include "bootdefs.ah"
 
+publicproc Reboot
+
 externproc ConsInit, ServiceEntry
 externproc _cmain, _printf, _getc
 
@@ -50,7 +52,8 @@ proc Start
 
 		; Kernel may return some error code
 		Ccall	_printf, TxtKernRet, eax
-		Ccall	_getc
+Reboot:		Ccall	_printf, TxtPressKey
+		call	_getc
 		mov	al,254
 		out	64h,al
 		hlt
@@ -68,8 +71,8 @@ GDT		DD	0,0
 		DW	0FFFFh,0			; Data segment
 		DB	0,92h,0CFh,0
 
-TxtKernRet	DB	10,"Kernel returned with exit code %d",10
-		DB	"Press a key to reboot...",0
+TxtKernRet	DB	10,"Kernel returned with exit code %d",0
+TxtPressKey	DB	10,"Press any key to reboot...",0
 
 section .bss
 

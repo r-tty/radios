@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  opcodes.nasm - locate the opcode table entry for a given opcode byte.
+; opcodes.nasm - locate the opcode table entry for a given opcode byte.
 ;-------------------------------------------------------------------------------
 
 module monitor.opcodes
@@ -2328,22 +2328,22 @@ proc FindOpcode
 		mov	ebx,base386		; Assume it is an 0F opcode
 		inc	esi			; Point to next byte
 		cmp	byte [gs:esi-1],0Fh	; Is it?
-		je	short .GoTable		; Yes, go parse second byte
+		je	.GoTable		; Yes, go parse second byte
 		dec	esi			; Else point back to first byte
 		mov	ebx,floats		; Assume floating
 		xor	eax,eax			;
 		mov	al,[gs:esi]		; Get the opcode
 		and	al,0F8h			; Apply the FLOAT mask
 		cmp	al,0D8h			; Apply FLOAT compare
-		je	short .GoTable		; Yes, go look for opcode
+		je	.GoTable		; Yes, go look for opcode
 		shr	al,5			; Else use upper three bits of
 		mov	ebx,[indexes+eax*4]	; opcode to select a table
 .GoTable:	test	word [ebx],-1		; See if at end of table
-		jz	short .NoEntry		; Yes, not found
+		jz	.NoEntry		; Yes, not found
 		mov	ax,[gs:esi]		; Get the opcode
-		and	ax,[ebx+tOpCode.MSK]	; Mask it
-		cmp	ax,[ebx+tOpCode.COMPARE]; Compare with the compare value
-		je	short .GotEntry		; Quit if found
+		and	ax,[ebx+tOpCode.Mask]	; Mask it
+		cmp	ax,[ebx+tOpCode.Compare]; Compare with the compare value
+		je	.GotEntry		; Quit if found
 		add	ebx,tOpCode_size	; Else go to next entry
 		jmp	.GoTable
 .GotEntry:	clc				; Found, exit

@@ -116,13 +116,13 @@ proc CON_Main
 		; Initialize video device and keyboard
 		call	VTX_Init
 		jc	near .ErrVidInit
-		call	KB_Init
-		jc	near .ErrKbdInit
+;		call	KB_Init
+;		jc	near .ErrKbdInit
 
 		; Default PC speaker beep tone
 		mov	word [?BeepTone],1200
 
-		; Allocate the descriptor
+		; Allocate dispatch handle
 		call	_dispatch_create
 		jc	near .Err1
 		mov	[%$dpp],eax

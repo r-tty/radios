@@ -479,7 +479,7 @@ void print_module_info(const tBMD *btlp)
 	default:
 	    t = '?';
     }
-    printf("%-24s%c\t%-8d", btlp->name, t, btlp->size);
+    printf("%-25s%c\t%-8d", btlp->name, t, btlp->size);
     if (btlp->codeaddr) printf("%#-9X", btlp->codeaddr);
     else printf("%-9s", none);
     if (btlp->dataaddr) printf("%#-9X", btlp->dataaddr);

@@ -18,7 +18,7 @@ struc tStackFrame
 .ECX		RESD	1
 .EAX		RESD	1
 
-.Err		RESD	1		; This is either zero or some error code 
+.Err		RESD	1		; This is either zero or some error code
 
 .EIP		RESD	1		; This is extra bonus from Intel 
 .ECS		RESD	1
@@ -31,13 +31,7 @@ endstruc
 ; Note that this is the same for all traps (CPU traps, interrupts).
 
 %macro mSaveRegs 0
-	push	eax
-	push	ecx
-	push	edx
-	push	ebx
-	push	ebp
-	push	esi
-	push	edi
+	mpush	eax,ecx,edx,ebx,ebp,esi,edi
 o16	push	ds
 o16	push	es
 	mov	ax,ss
@@ -48,13 +42,7 @@ o16	push	es
 %macro mRestoreRegs 0
 o16	pop	es
 o16	pop	ds
-	pop	edi
-	pop	esi
-	pop	ebp
-	pop	ebx
-	pop	edx
-	pop	ecx
-	pop	eax
+	mpop	edi,esi,ebp,ebx,edx,ecx,eax
 %endmacro
 
 %endif

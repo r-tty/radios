@@ -6,7 +6,7 @@
 %define _module_ah
 
 ; Module descriptor
-%define MAXMODNAMELEN	24
+%define MAXMODNAMELEN	25
 
 ; Module descriptor
 struc tModule
@@ -26,7 +26,7 @@ struc tModule
 .Flags		RESD	1		; Flags
 .Type		RESB	1		; Module type (MODTYPE_*)
 .Name		RESB	MAXMODNAMELEN	; Module name (NULL terminated)
-.Pad		RESB	3
+.Pad		RESW	1
 .BinFmt		RESD	1		; Address of binary format driver
 .Next		RESD	1		; List link
 .Prev		RESD	1

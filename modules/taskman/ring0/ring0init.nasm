@@ -11,32 +11,31 @@ module tm.kern.ring0init
 %include "serventry.ah"
 %include "thread.ah"
 %include "pool.ah"
+%include "syscall.ah"
 %include "tm/process.ah"
 
-; --- Exports ---
 
 exportproc Start
 publicproc R0_Pid2PCBaddr, R0_IteratePgrp
 
 publicdata ?BootModsArr, ?KernPCB
 
-; --- Imports ---
 
-externproc TM_Main, TM_InitTimerPool, MapArea
+externproc TM_Main, TM_InitTimerPool, MapArea, DestroyThread
 externdata ClockSyscallTable, TimerSyscallTable
 externdata SignalSyscallTable, ThreadSyscallTable, ConnectSyscallTable
 externdata ?ProcListPtr, ?MaxNumOfProc, ?ProcessPool
 
 library $rmk
-importproc K_InstallSyscallHandler
+importproc K_InstallSyscallHandler, K_InstallSoftIntHandler
 importproc K_PoolInit, K_PoolAllocChunk, K_PoolChunkAddr
+importproc K_SemV, K_SemP
 importproc PG_Alloc, PG_AllocAreaTables
 importproc K_RegisterLDT
-importproc MT_CreateThread
+importproc MT_CreateThread, MT_ThrEnqueue
 importproc BZero, MemSet
 importdata ?UpperMemSize
 
-; --- Data ---
 
 section .data
 
@@ -50,14 +49,11 @@ SyscallTables	DD	SignalSyscallTable
 TxtInitErr	DB	"taskman ring0 init error, code=", 0
 
 
-; --- Variables ---
-
 section .bss
 
 ?BootModsArr	RESD	1
 ?KernPCB	RESD	1
 
-; --- Code ---
 
 section .text
 
@@ -76,6 +72,11 @@ proc Start
 
 		; Install our syscall handlers
 		call	R0_InitSyscalls
+
+		; Install thread termination trap handler
+		mov	al,THRKILL_TRAP
+		mov	ebx,R0_ThrKillHandler
+		call	K_InstallSoftIntHandler
 
 		; Initialize process descriptor pool
 		mov	dword [?MaxNumOfProc],MAXNUMPROCESSES
@@ -160,9 +161,13 @@ proc Start
 
 		; Create a thread within our process
 		mov	ebx,TM_Main
-		xor	ecx,ecx
+		xor	edx,edx
 		call	MT_CreateThread
 		jc	near .Err
+		mLockCB	esi, tProcDesc
+		mEnqueue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB, ecx
+		mUnlockCB esi, tProcDesc
+		call	MT_ThrEnqueue
 
 		; Create page tables for mapping physical memory
 		mov	edx,[esi+tProcDesc.PageDir]
@@ -274,4 +279,11 @@ proc R0_IteratePgrp
 		jne	.Loop
 .Exit:		pop	esi
 		ret
+endp		;---------------------------------------------------------------
+
+
+		; Thread kill trap handler.
+proc R0_ThrKillHandler
+		xor	edx,edx
+		jmp	DestroyThread
 endp		;---------------------------------------------------------------

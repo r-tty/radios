@@ -1,16 +1,17 @@
 ;*******************************************************************************
 ; thread.nasm - RadiOS thread management.
-; Copyright (c) 2000 RET & COM Research.
+; Copyright (c) 2000,2003 RET & COM Research.
 ; Based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
+%include "syscall.ah"
 %include "locstor.ah"
 %include "parameters.ah"
 %include "tm/process.ah"
 
 publicproc MT_ThreadSleep, MT_ThreadWakeup, MT_GetNumThreads
 publicproc MT_SleepTQ, MT_WakeupTQ
-exportproc MT_CreateThread, MT_ThreadExec, MT_FindTCBbyNum
+exportproc MT_CreateThread, MT_ThrEnqueue, MT_ThreadExec, MT_FindTCBbyNum
 
 
 externproc K_PoolInit
@@ -47,11 +48,12 @@ proc MT_InitTCBpool
 endp		;---------------------------------------------------------------
 
 
-		; MT_ThrEnqueue -  add a thread to the list.
-		;		   It also ends up on the ready queue.
+		; MT_ThrEnqueue - add a thread to the list and to the
+		;		  ready queue.
 		; Input: EBX=TCB address.
 		; Output: none.
 proc MT_ThrEnqueue
+		cli
 		cmp	dword [?ReadyThrList],0
 		jne	.NotFirst
 		mov	[?ReadyThrList],ebx
@@ -59,7 +61,7 @@ proc MT_ThrEnqueue
 		mov	[ebx+tTCB.Prev],ebx
 		mov	[ebx+tTCB.ReadyNext],ebx
 		mov	[ebx+tTCB.ReadyPrev],ebx
-		ret
+		jmp	.OK
 
 .NotFirst:	mov	eax,[?ReadyThrList]
 		push	eax
@@ -77,7 +79,8 @@ proc MT_ThrEnqueue
 		mov	[eax+tTCB.ReadyNext],ebx
 		pop	eax
 		mov	[eax+tTCB.ReadyPrev],ebx
-		
+
+.OK:		inc	dword [?ReadyThrCnt]
 		ret
 endp		;---------------------------------------------------------------
 
@@ -199,21 +202,25 @@ endp		;---------------------------------------------------------------
 
 
 		; MT_CreateThread - create new thread.
-		; Input: EBX=start address,
-		;	 ECX=user stack size (if 0, default value of 4096 bytes
-		;	     is assumed),
-		;	 EDI=user stack address (if ECX != 0),
+		; Input: EAX=optional argument to pass to the thread,
+		;	 EBX=start address,
+		;	 EDX=address of thread attributes structure (or 0),
 		;	 ESI=PCB address (may be 0 for kernel).
 		; Output: CF=0 - OK, EBX=TCB address;
 		;	  CF=1 - error, AX=error code.
+		; Note: this procedure doesn't put newly created thread to
+		;	any lists or queues. You must do it by calling
+		;	MT_ThrEnqueue. This allows further manipulations
+		;	on a TCB (e.g. attaching to the process) by the
+		;	upper-level syscalls.
 proc MT_CreateThread
-		locals	entry, ustksize, ustkaddr, pcb
+		locals	par, entry, attr, pcb
 		prologue
-		mpush	ecx,edx,esi,edi
+		savereg	ecx,edx,esi,edi
 
+		mov	[%$par],eax
 		mov	[%$entry],ebx
-		mov	[%$ustksize],ecx
-		mov	[%$ustkaddr],edi
+		mov	[%$attr],edx
 		mov	[%$pcb],esi
 
 		; Allocate a TCB and zero it, initialize lock semaphore
@@ -225,7 +232,9 @@ proc MT_CreateThread
 		call	BZero
 		mSemInit ebx+tTCB.Lock
 
-		; Initialize 'Entry' and 'PCB' fields
+		; Initialize 'Arg', 'Entry' and 'PCB' fields
+		mov	eax,[%$par]
+		mov	[ebx+tTCB.Arg],eax
 		mov	eax,[%$entry]
 		mov	[ebx+tTCB.Entry],eax
 		mov	esi,[%$pcb]
@@ -264,24 +273,28 @@ proc MT_CreateThread
 		jne	.User
 		mov	eax,[edi+tTCB.Entry]
 		mov	[edi+tTCB.Context+tJmpBuf.R_EIP],eax
-		jmp	.EnqReady
+		jmp	.OK
 
 		; Otherwise, we need to set up user stack, get a TID,
 		; fill the TLS and create a small segment pointing it..
 .User:		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing3
-		mov	ecx,[%$ustksize]
+		mov	edx,[%$attr]
+		or	edx,edx
+		jz	.DfltUStk
+		add	edx,USERAREASTART
+		jc	near .BadAttr
+		mov	ecx,[edx+tThreadAttr.StackSize]
 		or	ecx,ecx
 		jz	.DfltUStk
 		cmp	ecx,tTLS_size+64
 		jb	near .BadUserStk
-		mov	edx,[%$ustkaddr]
-		mov	eax,edx
-		add	eax,USERAREACHECK
+		mov	eax,[edx+tThreadAttr.StackAddr]
+		cmp	eax,USERAREACHECK
+		jae	near .BadUserStk
+		mov	ebx,eax
+		add	ebx,ecx
 		jc	near .BadUserStk
-		add	eax,ecx
-		jc	near .BadUserStk
-		lea	eax,[edx+ecx-tTLS_size-16]
-		lea	ebx,[edx+ecx-tTLS_size-4]
+		sub	ebx,byte tTLS_size
 		jmp	.SetUstack
 
 		; User wants default stack. One page is for him (minus TLS)
@@ -289,11 +302,8 @@ proc MT_CreateThread
 		mov	ebx,USERAREASTART+USTACKTOP-400000h
 		call	MT_AllocSpecialPage
 		jc	.Done
-		lea	ebx,[eax+PAGESIZE-tTLS_size-4]
-		add	eax,PAGESIZE-tTLS_size-16
-.SetUstack:	mov	[edi+tTCB.Stack],eax
-
-		; TLS is located on top of stack
+		lea	ebx,[eax+PAGESIZE-tTLS_size]
+.SetUstack:	mov	[edi+tTCB.StackAddr],eax
 		mov	[edi+tTCB.TLS],ebx
 
 		; Find an unused LDT slot. Its number will be also TID
@@ -308,24 +318,20 @@ proc MT_CreateThread
 
 		; Initialize the TLS descriptor
 .FillLDT:	mov	[edi+tTCB.TID],ecx
-		mov	word [eax+ecx*8+tDesc.LimitLo],tTLS_size+3
-		add	ebx,USERAREASTART
+		mov	word [eax+ecx*8+tDesc.LimitLo],3
+		add	ebx,USERAREASTART+tTLS.Self
 		mov	[eax+ecx*8+tDesc.BaseLW],bx
 		ror	ebx,16
 		mov	[eax+ecx*8+tDesc.BaseHLB],bl
 		mov	[eax+ecx*8+tDesc.BaseHHB],bh
-		mov	byte [eax+ecx*8+tDesc.AR],ARpresent+ARsegment+AR_DS_RW+AR_DPL3
+		mov	byte [eax+ecx*8+tDesc.AR],ARpresent+ARsegment+AR_DS_R+AR_DPL3
 		mov	byte [eax+ecx*8+tDesc.LimHiMode],AR_DfltSz
 
-.EnqReady:	cli
-		mov	ebx,edi
-		call	MT_ThrEnqueue
-		inc	dword [?ReadyThrCnt]
+.OK:		mov	ebx,edi
 		inc	dword [?NumThreads]
 		clc
 
-.Done:		mpop	edi,esi,edx,ecx
-		epilogue
+.Done:		epilogue
 		ret
 
 .NoTCB:		mov	ax,ERR_MT_NoFreeTCB
@@ -337,6 +343,10 @@ proc MT_CreateThread
 		jmp	.Done
 
 .NoTID:		mov	ax,ERR_MT_NoFreeTID
+		stc
+		jmp	.Done
+
+.BadAttr:	mov	ax,ERR_MT_BadAttr
 		stc
 		jmp	.Done
 
@@ -398,7 +408,7 @@ proc K_GoRing3
 		locals	rESS, rESP, rEFLAGS, rECS, rEIP, rESDS
 
 		cli
-		prologue
+		enter	%$lc,0
 
 		; Setup ring 0 stack
 		mov	ebx,[?CurrThread]
@@ -421,7 +431,7 @@ proc K_GoRing3
 		mov	[%$rEIP],eax
 		mov	dword [%$rECS],USER_CSEG
 		mov	dword [%$rEFLAGS],FLAG_IF
-		mov	eax,[ebx+tTCB.Stack]
+		mov	eax,[ebx+tTCB.TLS]
 		mov	[%$rESP],eax
 		mov	dword [%$rESS],USER_DSEG
 
@@ -430,13 +440,10 @@ proc K_GoRing3
 	o16	pop	es
 	o16	pop	ds
 		iret
-
-		; To make assembler happy
-		epilogue
 endp		;---------------------------------------------------------------
 
 
-		; Allocate a special page for thread (in stack or TLS area)
+		; Allocate a special (e.g. stack) page for a thread.
 		; Input: EDX=page directory address,
 		;	 EBX=user address of special area (4MB aligned)
 		; Output: CF=0 - OK, EAX=page address (user);
@@ -500,18 +507,25 @@ proc MT_FillTLS
 		; TLS segment, so user can easily obtain TLS linear address.
 		mov	edi,[ebx+tTCB.TLS]
 		mov	eax,edi
-		add	eax,byte 4
 		add	edi,USERAREASTART
-		stosd
+		mov	[edi+tTLS.Self],eax
 
 		; Fill in the TLS structure itself
-		mov	eax,[ebx+tTCB.Stack]
+		mov	eax,[ebx+tTCB.StackAddr]
 		mov	[edi+tTLS.StackAddr],eax
 		mov	esi,[ebx+tTCB.PCB]
 		mov	ecx,[esi+tProcDesc.PID]
 		mov	[edi+tTLS.PID],ecx
 		mov	eax,[ebx+tTCB.TID]
 		mov	[edi+tTLS.TID],eax
+		mov	eax,[ebx+tTCB.Arg]
+		mov	[edi+tTLS.Arg],eax
+		mov	eax,[ebx+tTCB.ExitProc]
+		or	eax,eax
+		jnz	.SetExitProc
+		mov	word [edi+tTLS.Trampoline],0CDh+(THRKILL_TRAP << 8)
+		lea	eax,[edi+tTLS.Trampoline-USERAREASTART]
+.SetExitProc:	mov	[edi+tTLS.ExitFunction],eax
 		ret
 endp		;---------------------------------------------------------------
 

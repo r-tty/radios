@@ -9,6 +9,8 @@ module $monitor
 %include "errors.ah"
 %include "asciictl.ah"
 %include "module.ah"
+%include "syscall.ah"
+%include "cpu/stkframe.ah"
 %include "monitor.ah"
 
 ; --- Imports ---
@@ -17,6 +19,7 @@ library $rmk
 importproc K_GetExceptionVec, K_SetExceptionVec
 importproc K_GetDescriptorBase, K_GetDescriptorAR
 importproc K_DescriptorAddress, K_GetDescriptorLimit
+importproc K_InstallSoftIntHandler
 importproc StrComp
 importproc ExitKernel
 importproc PrintChar, PrintCharRaw, PrintString
@@ -50,6 +53,7 @@ exportproc MonitorInit
 %endif
 
 TxtOptNoPFH	DB "nopfh",0
+TxtOptNoKDB	DB "nokdb",0
 MonPrompt	DB NL,"* ",0
 RegPrompt	DB NL,": ",0
 TxtPageFault	DB NL,"Invalid paging",NL,0
@@ -93,6 +97,8 @@ section .text
 		; Note: this procedure installs all exception handlers.
 		;	If an argument "nopfh" was passed in command line,
 		;	page fault handler won't be installed.
+		;	Also it registers the handler of DebugKDBread unless
+		;	an argument "nokdb" is passed.
 proc MonitorInit
 		pushad
 		call	.CheckArg
@@ -111,7 +117,7 @@ proc MonitorInit
 .Exit:		popad
 		ret
 
-		; Subroutine: check command-line argument
+		; Subroutine: check command-line arguments
 .CheckArg:	or	ebx,ebx				; Loaded as module?
 		jz	.Ret
 		mov	edi,[ebx+tModule.ARGPaddr]
@@ -121,9 +127,47 @@ proc MonitorInit
 		mov	edi,TxtOptNoPFH
 		call	StrComp				; Compare argument
 		or	al,al
-		jnz	.Ret
+		jnz	.ChkKDB
 		mov	dword [ExcVectors+4+14*4],0	; Don't install pfh
+.ChkKDB:	mov	edi,TxtOptNoKDB
+		call	StrComp
+		or	al,al
+		jz	.Ret
+		mov	al,KDEBUG_TRAP
+		mov	ebx,DebugKDBreak
+		call	K_InstallSoftIntHandler
 .Ret:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Handler of DebugKDBreak trap.
+proc DebugKDBreak
+		push	ebp
+		lea	ebp,[esp+8]
+		mov	eax,[ebp+tStackFrame.ESDS]
+		mov	[rES],ax
+		ror	eax,16
+		mov	[rDS],ax
+		mov	eax,fs
+		mov	[rFS],ax
+		mov	eax,gs
+		mov	[rGS],ax
+		Mov16	rCS,ebp+tStackFrame.ECS
+		Mov32	rEIP,ebp+tStackFrame.EIP
+		Mov16	rSS,ebp+tStackFrame.ESS
+		Mov32	rESP,ebp+tStackFrame.ESP
+		Mov32	rEFLAGS,ebp+tStackFrame.EFLAGS
+		Mov32	rEDI,ebp+tStackFrame.EDI
+		Mov32	rESI,ebp+tStackFrame.ESI
+		Mov32	rEBP,ebp+tStackFrame.EBP
+		Mov32	rEBX,ebp+tStackFrame.EBX
+		Mov32	rEDX,ebp+tStackFrame.EDX
+		Mov32	rECX,ebp+tStackFrame.ECX
+		Mov32	rEAX,ebp+tStackFrame.EAX
+		sldt	[rLDTR]
+		mPrintChar NL
+		call	DisplayRegisters
+		jmp	InputHandler
 endp		;---------------------------------------------------------------
 
 
@@ -162,7 +206,7 @@ proc InputHandler
 		je	near MON_Breaks			; Breakpoint
 		cmp	al,'?'
 		je	near MON_Help			; Help
-		add     esp,4				; Restore stack
+		add     esp,byte 4			; Restore stack
 		stc					; if no command
 
 .CheckErr:	jnc	near .WaitCmd
@@ -222,7 +266,7 @@ proc VerifySelector
 		jne	.Err
 %endif
 		clc					; OK
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		stc					; Bad descriptor
 .Exit:		pop	eax
 		ret
@@ -261,7 +305,7 @@ endp		;---------------------------------------------------------------
 		; Temporairy paging exception handler
 proc PageTrapped
 		mov	ss,[sstoss]		; Get top of stack
-		mov	esp,[rtoss]		;
+		mov	esp,[rtoss]
 		call	PageTrapUnerr		; Turn page trap off
 		mPrintString TxtPageFault	; Print 'trapped' message
 		jmp	InputHandler		; Go do more input
@@ -276,11 +320,11 @@ endp		;---------------------------------------------------------------
 		; Output: ESI=pointer to last space or comma.
 proc WadeSpace
 .Wade:		lodsb
-		cmp     al,' '
-		jz      short .Wade
-		cmp     al,','
-		jz      short .Wade
-		dec     esi
+		cmp	al,' '
+		jz	.Wade
+		cmp	al,','
+		jz	.Wade
+		dec	esi
 		ret
 endp		;---------------------------------------------------------------
 
@@ -381,7 +425,7 @@ proc ReadAddress
 		mov	edx,eax			; Else EDX = selector
 		call	VerifySelector		; Verify it
 		jc	.Err			; Get out on error
-		jmp	short .GetAddr
+		jmp	.GetAddr
 
 .GotSel:	cmp	byte [esi],':'		; Make sure is a selector
 		jne	.Err			; Error if not
@@ -393,7 +437,7 @@ proc ReadAddress
 		jc	.Err			; Quit if error
 		mov	ebx,eax
 .OK:		clc                             ; OK, exit
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		stc				; Error
 .Exit:		ret
 endp		;---------------------------------------------------------------

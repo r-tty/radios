@@ -248,15 +248,15 @@ proc DebugKDOutput
 		arg	str, size
 		push	ebp
 		mov	ebp,[esp+8+tStackFrame.ESP]
-		add	ebp,USERAREASTART
-		cmp	ebp,-8
+		add	ebp,USERAREASTART-4
+		cmp	ebp,-12
 		ja	.Exit
 		mov	esi,[%$str]
 		add	esi,USERAREASTART
 		jc	.Exit
 		mov	ecx,[%$size]
-.Loop:		jecxz	.Exit
-		mov	al,[esi]
+		jecxz	.Exit
+.Loop:		mov	al,[esi]
 		call	PrintChar
 		inc	esi
 		jc	.Exit

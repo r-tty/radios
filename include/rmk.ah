@@ -41,6 +41,18 @@ struc tSchedInfo
 .Reserved	RESD	1
 endstruc
 
+; Thread creation attributes
+struc tThreadAttr
+.Flags		RESD	1
+.StackSize	RESD	1
+.StackAddr	RESP	1
+.ExitFunc	RESP	1
+.Policy		RESP	1
+.SchedParam	RESB	tSchedParam_size
+.GuardSize	RESD	1
+.Spare		RESD	3
+endstruc
+
 ; Definitions for type and subtype of any pulse.
 PULSE_TYPE		EQU	0
 PULSE_SUBTYPE		EQU	0

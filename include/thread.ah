@@ -110,8 +110,10 @@ struc tTCB
 .ConnDesc	RESD	1			; Connection descriptor address
 .MsgStatus	RESD	1			; Message send status
 
+.ExitProc	RESD	1			; Exit procedure
 .Entry		RESD	1			; Start entry point
-.Stack		RESD	1			; Stack pointer
+.Arg		RESD	1			; Optional argument
+.StackAddr	RESD	1			; Stack address
 .KStack		RESD	1			; Kernel stack pointer
 .TLS		RESD	1			; User address of TLS
 .LastErrno	RESD	1			; Last error number (signed)

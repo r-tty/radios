@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; operands.nasm - handle 386 operands as dictated by the opcode table;
+; operands.nasm - handle x86 operands as dictated by the opcode table;
 ;		  handle formatting output.
 ;-------------------------------------------------------------------------------
 
@@ -16,19 +16,6 @@ publicdata ?CodeAddress
 
 
 externproc HexD2Str, HexW2Str, HexB2Str
-
-
-section .bss
-
-?CodeAddress	RESD	1
-?Dest2		RESD	1
-?Source2	RESD	1
-?Segs		RESD	1
-?ExtraOperand	RESB	tOperand_size
-?Source		RESB	tOperand_size
-?Dest		RESB	tOperand_size
-?Mnemonic	RESB	10
-?StrictOp	RESB	1
 
 
 section .data
@@ -75,20 +62,31 @@ OPprocedures	DD	42
 		DD	op41,op42,op43
 
 FOMprocedures	DD	17
-		DD	FOM_BASED,FOM_SEGMENT,FOM_REG,FOM_IMMEDIATE
-		DD	FOM_ABSOLUTE,FOM_FARBRANCH,FOM_LONGBRANCH
-		DD	FOM_SHORTBRANCH,FOM_RETURN,FOM_SHIFT,FOM_INT
-		DD	FOM_PORT,FOM_SUD,0,FOM_TRX,FOM_DRX,FOM_CRX,FOM_FSTREG
+		DD	FOM_Based,FOM_Segment,FOM_Reg,FOM_Immediate
+		DD	FOM_Absolute,FOM_FarBranch,FOM_LongBranch
+		DD	FOM_ShortBranch,FOM_Return,FOM_Shift,FOM_Int
+		DD	FOM_Port,FOM_SUD,0,FOM_TRX,FOM_DRX,FOM_CRX,FOM_FstReg
 
 
 FSYprocedures	DD	14
-		DD	FSY_SIGNEDOFS,FSY_WORDOFS,FSY_BYTEOFS,FSY_ABSOLUTE
-		DD	FSY_SIGNEDIMM,FSY_WORDIMM,FSY_BYTEIMM,FSY_PORT
-		DD	FSY_INTR,FSY_RETURN,FSY_ABSBRANCH,FSY_LONGBRANCH
-		DD	FSY_SHORTBRANCH,FSY_SHIFT,FSY_SEGMENT
+		DD	FSY_SignedOfs,FSY_WordOfs,FSY_ByteOfs,FSY_Absolute
+		DD	FSY_SignedImm,FSY_WordImm,FSY_ByteImm,FSY_Port
+		DD	FSY_Intr,FSY_Return,FSY_AbsBranch,FSY_LongBranch
+		DD	FSY_ShortBranch,FSY_Shift,FSY_Segment
 
 
-; --- Procedures ---
+section .bss
+
+?CodeAddress	RESD	1
+?Dest2		RESD	1
+?Source2	RESD	1
+?Segs		RESD	1
+?ExtraOperand	RESB	tOperand_size
+?Source		RESB	tOperand_size
+?Dest		RESB	tOperand_size
+?Mnemonic	RESB	10
+?StrictOp	RESB	1
+
 
 section .text
 
@@ -181,6 +179,31 @@ proc CopyExtra
 endp		;---------------------------------------------------------------
 
 
+		; Set tab position
+proc TabTo
+		cbw
+		cwde
+		mov	ecx,eax
+		call	strlen
+		xchg	eax,ecx
+		sub	eax,ecx
+		jnc	.NoOver
+		add	eax,ecx
+		add	esi,eax
+		jmp	.Done
+.NoOver:
+		add	esi,ecx
+		mov	ecx,eax
+.Loop:
+		mov	byte [esi],' '
+		inc	esi
+		loop	.Loop
+.Done:
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; Put a word and terminating zero byte to the string.
 		; Input: ESI=string address,
 		;	 AX=word.
@@ -195,7 +218,9 @@ proc put2
 endp		;---------------------------------------------------------------
 
 
-		;
+		; Put three bytes and terminating zero to the string.
+		; Input: ESI=string address,
+		;	 EAX=what to put (24 bits).
 proc put3
 		push	eax
 		shr	eax,8
@@ -222,6 +247,7 @@ proc SetReg
 		ret
 endp		;---------------------------------------------------------------
 
+
 proc ReadRM
 		push	ecx
 		sub	ecx,ecx
@@ -231,17 +257,17 @@ proc ReadRM
 		MODX	esi
 		mov	ch,al
 		cmp	ch,MOD_REG
-		jnz	short notregreg
+		jnz	.NotRegReg
 		mov	byte [edi + tOperand.Code],OM_REG
 		mov	byte [?StrictOp],FALSE
 		sub	eax,eax
 		pop	ecx
 		ret
-notregreg:
+.NotRegReg:
 		bt	word [edi + tOperand.Flags],OMF_ADR32
-		jnc	adr16
+		jnc	.Adr16
 		cmp	byte [edi + tOperand.TheReg],RM_32_SCALED
-		jnz	notscaled
+		jnz	.NotScaled
 		inc	cl
 		RM	esi+1
 		mov	[edi + tOperand.TheReg],al
@@ -250,13 +276,13 @@ notregreg:
 		MODX	esi+1
 		mov	[edi + tOperand.Scale],al
 		cmp	byte [edi + tOperand.ScaleReg],RM_32_STACKINDEX
-		jz	hassp
+		jz	.HasSP
 		bts	word [edi + tOperand.Flags],OMF_SCALED
-hassp:
+.HasSP:
 		cmp	byte [edi + tOperand.TheReg],RM_32_ABSOLUTE
-		jnz	basedAndScaled
+		jnz	.BasedAndScaled
 		cmp	ch,MOD_NOOFS
-		jnz	short basedAndScaled
+		jnz	.BasedAndScaled
 		mov	byte [edi + tOperand.Code],OM_ABSOLUTE
 		LONG	esi+3
 		mov	[edi + tOperand.Address],eax
@@ -264,11 +290,11 @@ hassp:
 		mov	al,5
 		pop	ecx
 		ret
-notscaled:
+.NotScaled:
 		cmp	ch,MOD_NOOFS
-		jnz	basedAndScaled
+		jnz	.BasedAndScaled
 		cmp	byte [edi + tOperand.TheReg], RM_32_ABSOLUTE
-		jnz	basedAndScaled
+		jnz	.BasedAndScaled
 		mov	byte [edi + tOperand.Code], OM_ABSOLUTE
 		LONG	esi+2
 		mov	[edi + tOperand.Address],eax
@@ -276,11 +302,11 @@ notscaled:
 		mov	al,4
 		pop	ecx
 		ret
-adr16:
+.Adr16:
 		cmp	ch,MOD_NOOFS
-		jnz	basedAndScaled
+		jnz	.BasedAndScaled
 		cmp	byte [edi + tOperand.TheReg], RM_16_ABSOLUTE
-		jnz	basedAndScaled
+		jnz	.BasedAndScaled
 		mov	byte [edi + tOperand.Code], OM_ABSOLUTE
 		UINT	esi+2
 		mov	[edi + tOperand.Address],eax
@@ -288,26 +314,26 @@ adr16:
 		mov	al,2
 		pop	ecx
 		ret
-basedAndScaled:
+.BasedAndScaled:
 		mov	byte [edi + tOperand.Code], OM_BASED
 		cmp	ch,MOD_ADDR
-		jnz	short checksigned
+		jnz	.CheckSigned
 		bts	word [edi + tOperand.Flags], OMF_WORD_OFFSET
 		push	ecx
 		sub	ch,ch
 		mov	eax,[gs:esi+ecx]
 		pop	ecx
 		bt	word [edi + tOperand.Flags], OMF_ADR32
-		jc	dwordx
+		jc	.Dword
 		and	eax,0ffffh
 		sub	cl,2
-dwordx:
+.Dword:
 		mov	[edi + tOperand.Address],eax
 		add	cl,4
-		jmp	short readrmdone
-checksigned:
+		jmp	.Done
+.CheckSigned:
 		cmp	ch, MOD_SIGNED
-		jnz	short readrmdone
+		jnz	.Done
 		bts	word [edi + tOperand.Flags],OMF_SIGNED_OFFSET
 		push	ecx
 		sub	ch,ch
@@ -316,7 +342,7 @@ checksigned:
 		pop	ecx
 		mov	[edi + tOperand.Address],eax
 		inc	cl
-readrmdone:
+.Done:
 		mov	eax,ecx
 		sub	al,2
 		cbw
@@ -324,6 +350,7 @@ readrmdone:
 		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
+
 
 proc RegRM
 		mov	edi,[?Dest2]
@@ -334,39 +361,40 @@ proc RegRM
 		ret
 endp		;---------------------------------------------------------------
 
+
 proc Immediate
 		push	ecx
 		sub	ecx,ecx
 		mov	byte [edi + tOperand.Code],OM_IMMEDIATE
 		bt	word [edi + tOperand.Flags],OMF_BYTE
-		jnc	short inotbyte
+		jnc	.NotByte
 		inc	cl
 		sub	eax,eax
 		mov	al,[gs:esi]
-		jmp	short i_ret
-inotbyte:
+		jmp	.Done
+.NotByte:
 		bt	word [edi + tOperand.Flags], OMF_OP32
-		jnc	iword
+		jnc	.Word
 		add	cl,4
 		LONG	esi
-		jmp	short i_ret
-iword:
+		jmp	.Done
+.Word:
 		add	cl,2
 		UINT	esi
-i_ret:
+.Done:
 		mov	[edi + tOperand.Address],eax
 		mov	eax,ecx
 		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
 
+
 proc MnemonicChar
 		push	edi
 		mov	edi,?Mnemonic
-mc2:
-		inc	edi
+.Loop:		inc	edi
 		cmp	byte [edi-1],0
-		jnz	mc2
+		jnz	.Loop
 		mov	[edi-1],al
 		mov	byte [edi],0
 		pop	edi
@@ -374,696 +402,748 @@ mc2:
 endp		;---------------------------------------------------------------
 
 
-;/*****************************************************************************/
+;--- OP routines ---------------------------------------------------------------
 
-;/* op 1- word reg from bits 0 - 2 of opcode */
+		; Op1 - word reg from bits 0 - 2 of opcode
 proc op1
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	mov	al,[gs:esi]
-	B02
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		mov	al,[gs:esi]
+		B02
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op2 acc, reg bits 0-2 of opcode */
+
+		; Op2 - acc, reg bits 0-2 of opcode
 proc op2
-	mov	al,REG_EAX
-	btr	word [edi+tOperand.Flags],OMF_BYTE	; Bugfix in original
-	call	SetReg
-	mov	edi,ebx
-	mov	al,[gs:esi]
-	B02						; Bugfix in original
-	btr	word [edi+tOperand.Flags],OMF_BYTE	; Bugfix in original
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
+		mov	al,REG_EAX
+		btr	word [edi+tOperand.Flags],OMF_BYTE
+		call	SetReg
+		mov	edi,ebx
+		mov	al,[gs:esi]
+		B02
+		btr	word [edi+tOperand.Flags],OMF_BYTE
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op3 - seg from b3-5 of opcode */
+
+		; Op3 - seg from b3-5 of opcode
 proc op3
-	mov	al,[gs:esi]
-	B35
-	call	SetSeg
-	sub	eax,eax
-	ret
-endp
+		mov	al,[gs:esi]
+		B35
+		call	SetSeg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op4 - REGRM with b1 of opcode set reg is dest else source */
+
+		; Op4 - REGRM with b1 of opcode set reg is dest else source
 proc op4
-	bt	dword [gs:esi],1
-	jc	short op4nox
-	xchg	ebx,edi
-op4nox:
-	mov	[?Dest2],edi
-	mov	[?Source2],ebx
-	call	RegRM
-	ret
-endp
+		bt	dword [gs:esi],1
+		jc	.NoXch
+		xchg	ebx,edi
+.NoXch:		mov	[?Dest2],edi
+		mov	[?Source2],ebx
+		call	RegRM
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op5 - use RM only */
+
+		; Op5 - use RM only
 proc op5
-	call	ReadRM
-	ret
-endp
+		jmp	ReadRM
+endp		;---------------------------------------------------------------
 
-;/* op6 READRM for shift */
+
+		; Op6 - READRM for shift
 proc op6
-	call	ReadRM
-	sub	ecx,ecx
-	mov	cl,al
-	mov	edi,ebx
-	mov	byte [edi + tOperand.Code],OM_SHIFT
-	bt	dword [gs:esi],4
-	jnc	short op6cnt
-	bt	dword [gs:esi],1
-	jnc	op61
-	bts	word [edi + tOperand.Flags],OMF_CL
-	jmp	short op6done
-op61:
-	mov	dword [edi + tOperand.Address],1
-	jmp	short op6done
-op6cnt:
-	sub	eax,eax
-	movzx	eax,byte [gs:esi+ecx+2]
-	inc	cl
-	mov	[edi + tOperand.Address],eax
-op6done:
-	mov	eax,ecx
-	ret
-endp
+		call	ReadRM
+		sub	ecx,ecx
+		mov	cl,al
+		mov	edi,ebx
+		mov	byte [edi + tOperand.Code],OM_SHIFT
+		bt	dword [gs:esi],4
+		jnc	.Cnt
+		bt	dword [gs:esi],1
+		jnc	.1
+		bts	word [edi + tOperand.Flags],OMF_CL
+		jmp	.Done
+.1:		mov	dword [edi + tOperand.Address],1
+		jmp	.Done
 
-;/* op 7 regrm with reg dest */
+.Cnt:		sub	eax,eax
+		movzx	eax,byte [gs:esi+ecx+2]
+		inc	cl
+		mov	[edi + tOperand.Address],eax
+
+.Done:		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op7 - regrm with reg dest
 proc op7
-	mov	[?Dest2],edi
-	mov	[?Source2],ebx
-	call	RegRM
-	ret
-endp
+		mov	[?Dest2],edi
+		mov	[?Source2],ebx
+		call	RegRM
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op8 - word regrm with reg dest */
+
+		; Op8 - word regrm with reg dest
 proc op8
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	jmp	op7
-endp
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		jmp	op7
+endp		;---------------------------------------------------------------
 
-;/* op 9 - interrupts */
+
+		; Op9 - interrupts
 proc op9
-	mov	byte [?StrictOp],FALSE
-	sub	eax,eax
-	mov	al,3
-	bt	dword [gs:esi],0
-	jnc	short op9int3
-	mov	al,[gs:esi+1]
-op9int3:
-	mov	[edi + tOperand.Address],eax
-	mov	byte [edi + tOperand.Code],OM_INT
-	sub	al,al
-	ret
-endp
-;/* op 10, short relative branch */
+		mov	byte [?StrictOp],FALSE
+		sub	eax,eax
+		mov	al,3
+		bt	dword [gs:esi],0
+		jnc	.Int3
+		mov	al,[gs:esi+1]
+.Int3:		mov	[edi + tOperand.Address],eax
+		mov	byte [edi + tOperand.Code],OM_INT
+		sub	al,al
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op10 - relative branch
 proc op10
-	mov	byte [?StrictOp],FALSE
-	mov	byte [edi + tOperand.Code],OM_SHORTBRANCH
-	movsx	eax,byte [gs:esi+1]
-	inc	eax
-	inc	eax
-	add	eax,[?CodeAddress]
-	mov	[edi + tOperand.Address],eax
-	bt	word [edi + tOperand.Flags],OMF_OP32
-	jc	short op10notword
-	and	dword [edi + tOperand.Address],0ffffh
-op10notword:
-	sub	eax,eax
-	ret
-endp
-;/* op 11 RM, immediate */
+		mov	byte [?StrictOp],FALSE
+		mov	byte [edi + tOperand.Code],OM_SHORTBRANCH
+		movsx	eax,byte [gs:esi+1]
+		inc	eax
+		inc	eax
+		add	eax,[?CodeAddress]
+		mov	[edi + tOperand.Address],eax
+		bt	word [edi + tOperand.Flags],OMF_OP32
+		jc	.NotWord
+		and	dword [edi + tOperand.Address],0ffffh
+.NotWord:	sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; op11 - RM, immediate
 proc op11
-	call	ReadRM
-	movzx	ecx,al
-	mov	edi,ebx
-	push	esi
-	add	esi,ecx
-	add	esi,2
-	call	Immediate
-	add	cl,al
-	pop	esi
-	mov	eax,ecx
-	ret
-endp
-;/* op 12 - acc, immediate */
+		call	ReadRM
+		movzx	ecx,al
+		mov	edi,ebx
+		push	esi
+		add	esi,ecx
+		add	esi,byte 2
+		call	Immediate
+		add	cl,al
+		pop	esi
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op12 - acc, immediate
 proc op12
-	mov	al,REG_EAX
-	call	SetReg
-	mov	edi,ebx
-	inc	esi
-	call	Immediate
-	dec	esi
-	ret
-endp
-;/* op 13 absolute, acc*/
+		mov	al,REG_EAX
+		call	SetReg
+		mov	edi,ebx
+		inc	esi
+		call	Immediate
+		dec	esi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op13 - absolute, acc
 proc op13
-	sub	ecx,ecx
-	mov	byte [edi + tOperand.Code],OM_ABSOLUTE
-	bt	word [edi + tOperand.Flags],OMF_ADR32
-	jnc	short op13word
-	LONG	esi+1
-	inc	cl
-	inc	cl
-	jmp	short op13fin
-op13word:
-	UINT	esi+1
-op13fin:
-	mov	[edi + tOperand.Address],eax
-	mov	edi,ebx
-	mov	al,REG_EAX
-	call	SetReg
-	mov	eax,ecx
-	ret
-endp
-;/* op 14 - RM, immediate, b01 of opcode != 1 for byte */
+		sub	ecx,ecx
+		mov	byte [edi + tOperand.Code],OM_ABSOLUTE
+		bt	word [edi + tOperand.Flags],OMF_ADR32
+		jnc	.Word
+		LONG	esi+1
+		inc	cl
+		inc	cl
+		jmp	.1
+.Word:		UINT	esi+1
+.1:		mov	[edi + tOperand.Address],eax
+		mov	edi,ebx
+		mov	al,REG_EAX
+		call	SetReg
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op14 - RM, immediate, B01 of opcode != 1 for byte
 proc op14
-	call	ReadRM
-	movzx	ecx,al
-	mov	al,[gs:esi]
-	B01
-	jnz	short op14checkbyte
-	bts	word [ebx + tOperand.Flags],OMF_BYTE
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	jmp	short op14source
-op14checkbyte:
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	cmp	al,1
-	jz	short op14check2
-	bts	word [ebx + tOperand.Flags],OMF_BYTE
-op14check2:
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-op14source:
-	mov	edi,ebx
-	push	esi
-	add	esi,ecx
-	add	esi,2
-	call	Immediate
-	pop	esi
-	add	cl,al
-	mov	al,[gs:esi]
-	B01
-	cmp	al,3
-	jnz	op14done
-	bt	word [edi + tOperand.Flags],OMF_BYTE
-	jnc	op14done
-	bts	word [edi + tOperand.Flags],OMF_SIGNED
-	mov	eax,[edi + tOperand.Address]
-	cbw
-	cwde
-	mov	[edi + tOperand.Address],eax
-op14done:
-	mov	eax,ecx
-	ret
-endp
-;/* op 15 - acc, immediate, B3 of opcode clear for byte */
+		call	ReadRM
+		movzx	ecx,al
+		mov	al,[gs:esi]
+		B01
+		jnz	.CheckByte
+		bts	word [ebx + tOperand.Flags],OMF_BYTE
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		jmp	.Source
+.CheckByte:
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		cmp	al,1
+		jz	.1
+		bts	word [ebx + tOperand.Flags],OMF_BYTE
+.1:		btr	word [edi + tOperand.Flags],OMF_BYTE
+.Source:	mov	edi,ebx
+		push	esi
+		add	esi,ecx
+		add	esi,byte 2
+		call	Immediate
+		pop	esi
+		add	cl,al
+		mov	al,[gs:esi]
+		B01
+		cmp	al,3
+		jnz	.Done
+		bt	word [edi + tOperand.Flags],OMF_BYTE
+		jnc	.Done
+		bts	word [edi + tOperand.Flags],OMF_SIGNED
+		mov	eax,[edi + tOperand.Address]
+		cbw
+		cwde
+		mov	[edi + tOperand.Address],eax
+
+.Done:		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op15 - acc, immediate, B3 of opcode clear for byte
 proc op15
-	mov	al,[gs:esi]
-	B02
-	call	SetReg
-	bt	dword [gs:esi],3
-	jnc	op15byte
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	jmp	short op15source
-op15byte:
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	bts	word [ebx + tOperand.Flags],OMF_BYTE
-op15source:
-	mov	edi,ebx
-	inc	esi
-	call	Immediate
-	dec	esi
-	ret
-endp
-;/* op 16 - seg,readrm, if B1 of opcode seg is dest else source */
+		mov	al,[gs:esi]
+		B02
+		call	SetReg
+		bt	dword [gs:esi],3
+		jnc	.Byte
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		jmp	.Source
+.Byte:
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		bts	word [ebx + tOperand.Flags],OMF_BYTE
+.Source:
+		mov	edi,ebx
+		inc	esi
+		call	Immediate
+		dec	esi
+		ret
+endp		;---------------------------------------------------------------
+
+		; Op16 - seg, readrm, if B1 of opcode seg is dest else source
 proc op16
-	bt	dword [gs:esi],1
-	jc	noswap
-	xchg	ebx,edi
-noswap:
-	REG	esi
-	call	SetSeg
-	mov	edi,ebx
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	call	ReadRM
-	ret
-endp
-;/* op 17, far return */
+		bt	dword [gs:esi],1
+		jc	.NoSwap
+		xchg	ebx,edi
+.NoSwap:
+		REG	esi
+		call	SetSeg
+		mov	edi,ebx
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		call	ReadRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op17 - far return
 proc op17
-	mov	byte [?StrictOp],FALSE
-	mov	byte [edi + tOperand.Code],OM_RETURN
-	btr	word [edi + tOperand.Flags],OMF_ADR32
-	btr	word [edi + tOperand.Flags],OMF_OP32
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	UINT	esi+1
-	mov	[edi + tOperand.Address],eax
-	sub	eax,eax
-	ret
-endp
-;/* op 18, far branch/call */
+		mov	byte [?StrictOp],FALSE
+		mov	byte [edi + tOperand.Code],OM_RETURN
+		btr	word [edi + tOperand.Flags],OMF_ADR32
+		btr	word [edi + tOperand.Flags],OMF_OP32
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		UINT	esi+1
+		mov	[edi + tOperand.Address],eax
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op18 - far branch/call
 proc op18
-	sub	ecx,ecx
-	mov	byte [?StrictOp],FALSE
-	mov	byte [edi + tOperand.Code],OM_FARBRANCH
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	bt	word [edi + tOperand.Flags],OMF_OP32
-	jnc	short op18word
-	inc	cl
-	inc	cl
-	LONG	esi+1
-	jmp	short	op18fin
-op18word:
-	UINT	esi+1
-op18fin:
-	mov	[edi + tOperand.Address],eax
-	UINT	esi+ecx+3
-	mov	[edi + tOperand.Seg],ax
-	mov	eax,ecx
-	ret
-endp
-;/* op 19 - ESC, mnem of bits 0-2 of opcode, imm,readrm */
+		sub	ecx,ecx
+		mov	byte [?StrictOp],FALSE
+		mov	byte [edi + tOperand.Code],OM_FARBRANCH
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		bt	word [edi + tOperand.Flags],OMF_OP32
+		jnc	.Word
+		inc	cl
+		inc	cl
+		LONG	esi+1
+		jmp	.Fin
+.Word:
+		UINT	esi+1
+.Fin:
+		mov	[edi + tOperand.Address],eax
+		UINT	esi+ecx+3
+		mov	[edi + tOperand.Seg],ax
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op19 - ESC, mnem of bits 0-2 of opcode, imm, readrm
 proc op19
-	mov	byte [edi + tOperand.Code],OM_IMMEDIATE
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	mov	al,[gs:esi]
-	and	al,7
-	shl	al,3
-	mov	ah,[gs:esi+1]
-	shr	ah,3
-	and	ah,7
-	or	al,ah
-	sub	ah,ah
-	cwde
-	mov	[edi+ tOperand.Address],eax
-	mov	edi,ebx
-	call	ReadRM
-	ret
-endp
-;/* op 20 - long branch */
+		mov	byte [edi + tOperand.Code],OM_IMMEDIATE
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		mov	al,[gs:esi]
+		and	al,7
+		shl	al,3
+		mov	ah,[gs:esi+1]
+		shr	ah,3
+		and	ah,7
+		or	al,ah
+		sub	ah,ah
+		cwde
+		mov	[edi+ tOperand.Address],eax
+		mov	edi,ebx
+		call	ReadRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op20 - long branch
 proc op20
-	mov	byte [?StrictOp],FALSE
-	sub	ecx,ecx
-	mov	byte [edi + tOperand.Code],OM_LONGBRANCH
-	bt	word [edi + tOperand.Flags],OMF_OP32
-	jnc	short op20word
-	LONG	esi+1
-	inc	cl
-	inc	cl
-	jmp	short op20fin
-op20word:
-	UINT	esi+1
-op20fin:
-	add	eax,[?CodeAddress]
-	add	eax,ecx
-	add	eax,3
-	bt	word [edi + tOperand.Flags],OMF_OP32
-	jc	op20done
-	and	eax,0ffffh
-op20done:
-	mov	[edi + tOperand.Address],eax
-	mov	eax,ecx
-	ret
-endp
-;/* op21 acc,dx */
+		mov	byte [?StrictOp],FALSE
+		sub	ecx,ecx
+		mov	byte [edi + tOperand.Code],OM_LONGBRANCH
+		bt	word [edi + tOperand.Flags],OMF_OP32
+		jnc	.Word
+		LONG	esi+1
+		inc	cl
+		inc	cl
+		jmp	.Fin
+.Word:		UINT	esi+1
+.Fin:		add	eax,[?CodeAddress]
+		add	eax,ecx
+		add	eax,3
+		bt	word [edi + tOperand.Flags],OMF_OP32
+		jc	.Done
+		and	eax,0ffffh
+.Done:
+		mov	[edi + tOperand.Address],eax
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op21 - acc, dx
 proc op21
-	mov	al,REG_EAX
-	call	SetReg
-	mov	edi,ebx
-	btr	word [edi + tOperand.Flags],OMF_OP32
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	mov	al,REG_DX
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
-;/* op22 - dx,acc */
+		mov	al,REG_EAX
+		call	SetReg
+		mov	edi,ebx
+		btr	word [edi + tOperand.Flags],OMF_OP32
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		mov	al,REG_DX
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op22 - dx,acc
 proc op22
-	btr	word [edi + tOperand.Flags],OMF_OP32
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	mov	al,REG_DX
-	call	SetReg
-	mov	edi,ebx
-	mov	al,REG_EAX
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
-;/* op23 - port,acc where B1 of opcode set is port dest */
+		btr	word [edi + tOperand.Flags],OMF_OP32
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		mov	al,REG_DX
+		call	SetReg
+		mov	edi,ebx
+		mov	al,REG_EAX
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op23 - port,acc where B1 of opcode set is port dest
 proc op23
-	bt	dword [gs:esi],1
-	jc	@@NoSwap
-	xchg	ebx,edi
-@@NoSwap:
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	mov	byte [edi + tOperand.Code],OM_PORT
-	movzx	eax,byte [gs:esi+1]
-	mov	[edi + tOperand.Address],eax
-	mov	edi,ebx
-	mov	al,REG_EAX
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
-;/* op 24 acc, absolute */
+		bt	dword [gs:esi],1
+		jc	.NoSwap
+		xchg	ebx,edi
+.NoSwap:
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		mov	byte [edi + tOperand.Code],OM_PORT
+		movzx	eax,byte [gs:esi+1]
+		mov	[edi + tOperand.Address],eax
+		mov	edi,ebx
+		mov	al,REG_EAX
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op24 - acc, absolute
 proc op24
-	sub	ecx,ecx
-	mov	al,REG_EAX
-	call	SetReg
-	mov	edi,ebx
-	mov	byte [edi + tOperand.Code],OM_ABSOLUTE
-	bt	word [edi + tOperand.Flags],OMF_ADR32
-	jnc	short op24word
-	inc	cl
-	inc	cl
-	LONG	esi+1
-	jmp	short op24done
-op24word:
-	UINT	esi+1
-op24done:
-	mov	[edi + tOperand.Address],eax
-	mov	eax,ecx
-	ret
-endp
-;/* op 25 - immediate byte or word */
+		sub	ecx,ecx
+		mov	al,REG_EAX
+		call	SetReg
+		mov	edi,ebx
+		mov	byte [edi + tOperand.Code],OM_ABSOLUTE
+		bt	word [edi + tOperand.Flags],OMF_ADR32
+		jnc	.Word
+		inc	cl
+		inc	cl
+		LONG	esi+1
+		jmp	.Done
+.Word:		UINT	esi+1
+.Done:		mov	[edi + tOperand.Address],eax
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op 25 - immediate byte or word
 proc op25
-	mov	byte [?StrictOp],FALSE
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	bt	dword [gs:esi],1
-	jc	short op25fin
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-op25fin:
-	push	esi
-	inc	esi
-	call	Immediate
-	pop	esi
-	ret
-endp
-;/* op 26, immediate 2byte,byte */
+		mov	byte [?StrictOp],FALSE
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		bt	dword [gs:esi],1
+		jc	.Fin
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+.Fin:		push	esi
+		inc	esi
+		call	Immediate
+		pop	esi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op26 - immediate 2byte, byte
 proc op26
-	mov	byte [?StrictOp],FALSE
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [edi + tOperand.Flags],OMF_OP32
-	push	esi
-	inc	esi
-	call	Immediate
-	mov	edi,ebx
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [edi + tOperand.Flags],OMF_OP32
-	inc	esi
-	inc	esi
-	call	Immediate
-	pop	esi
-	sub	eax,eax
-	ret
-endp
-;/* op 27 - string */
+		mov	byte [?StrictOp],FALSE
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [edi + tOperand.Flags],OMF_OP32
+		push	esi
+		inc	esi
+		call	Immediate
+		mov	edi,ebx
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [edi + tOperand.Flags],OMF_OP32
+		inc	esi
+		inc	esi
+		call	Immediate
+		pop	esi
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op27 - string
 proc op27
-	mov	al,'d'
-	bt	word [edi + tOperand.Flags],OMF_OP32
-	jc	short op27pc
-	mov	al,'w'
-op27pc:
-	call	MnemonicChar
-	sub	eax,eax
-	ret
-endp
-;/* op 28 - source = REG, dest = RM */
+		mov	al,'d'
+		bt	word [edi + tOperand.Flags],OMF_OP32
+		jc	.1
+		mov	al,'w'
+.1:		call	MnemonicChar
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op28 - source = REG, dest = RM
 proc op28
-	REG	esi
-	call	SetReg
-	mov	edi,ebx
-	RM	esi
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
-;/* op 29 - dest = RM, immediate */
+		REG	esi
+		call	SetReg
+		mov	edi,ebx
+		RM	esi
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op29 - dest = RM, immediate
 proc op29
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	RM	esi
-	call	SetReg
-	mov	edi,ebx
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	push	esi
-	inc	esi
-	inc	esi
-	call	Immediate
-	pop	esi
-	sub	eax,eax
-	ret
-endp
-;/* op30 - RM, shift with B3 of stream selecting COUNT or CL*/
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		RM	esi
+		call	SetReg
+		mov	edi,ebx
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		push	esi
+		inc	esi
+		inc	esi
+		call	Immediate
+		pop	esi
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op30 - RM, shift with B3 of stream selecting COUNT or CL
 proc op30
-	call	ReadRM
-	mov	ecx,eax
-	mov	edi,ebx
-	mov	dword [edi + tOperand.Code],OM_SHIFT
-	bt	dword [gs:esi],3
-	jnc	op30cl
-	mov	eax,[esi+ecx+2]
-	inc	ecx
-	jmp	short op30done
-op30cl:
-	bts	word [edi + tOperand.Flags],OMF_CL
-op30done:
-	mov	eax,ecx
-	ret
-endp
-;/* op 31- reg, rm, count where B1 of opcode = byte/word */
+		call	ReadRM
+		mov	ecx,eax
+		mov	edi,ebx
+		mov	dword [edi + tOperand.Code],OM_SHIFT
+		bt	dword [gs:esi],3
+		jnc	.CL
+		mov	eax,[esi+ecx+2]
+		inc	ecx
+		jmp	.Done
+.CL:		bts	word [edi + tOperand.Flags],OMF_CL
+.Done:		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op31 - reg, rm, count where B1 of opcode = byte/word
 proc op31
-	call	CopyExtra
-	REG	esi
-	call	SetReg
-	mov	edi,ebx
-	call	ReadRM
-	mov	ecx,eax
-	mov	edi,?ExtraOperand
-	bts	word [edi + tOperand.Flags],OMF_BYTE
-	bt	dword [gs:esi],1
-	jc	short op31byte
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-op31byte:
-	push	esi
-	inc	esi
-	inc	esi
-	call	Immediate
-	pop	esi
-	add	eax,ecx
-	ret
-endp
+		call	CopyExtra
+		REG	esi
+		call	SetReg
+		mov	edi,ebx
+		call	ReadRM
+		mov	ecx,eax
+		mov	edi,?ExtraOperand
+		bts	word [edi + tOperand.Flags],OMF_BYTE
+		bt	dword [gs:esi],1
+		jc	.Byte
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+.Byte:
+		push	esi
+		inc	esi
+		inc	esi
+		call	Immediate
+		pop	esi
+		add	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
 
-;/* op32 - 386 special regs */
+
+		; Op32 - 386 special regs
 proc op32
-	movzx	ecx,word [gs:esi]
-	and	cx,0c005h
-	cmp	cx,0c000h
-	mov	al,OM_CRX
-	jz	short op32gotype
-	cmp	cx,0c001h
-	mov	al,OM_DRX
-	jz	short op32gotype
-	cmp	cx,0c004h
-	mov	al,OM_TRX
-	jz	short op32gotype
-	mov	al,OM_SUD
-op32gotype:
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	bts	word [edi + tOperand.Flags],OMF_OP32
-	bts	word [ebx + tOperand.Flags],OMF_OP32
-	bt	dword [gs:esi],1
-	jc	op32noswap
-	xchg	ebx,edi
-op32noswap:
-	mov	[edi + tOperand.Code],al
-	REG	esi
-	mov	[edi + tOperand.TheReg],al
-	mov	edi,ebx
-	RM	esi
-	call	SetReg
-	sub	eax,eax
-	ret
-endp
-;/* op33 - reg,rm,shiftcnt where B3 = reg source, b0 = shift cl */
+		movzx	ecx,word [gs:esi]
+		and	cx,0c005h
+		cmp	cx,0c000h
+		mov	al,OM_CRX
+		jz	.1
+		cmp	cx,0c001h
+		mov	al,OM_DRX
+		jz	.1
+		cmp	cx,0c004h
+		mov	al,OM_TRX
+		jz	.1
+		mov	al,OM_SUD
+.1:		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		bts	word [edi + tOperand.Flags],OMF_OP32
+		bts	word [ebx + tOperand.Flags],OMF_OP32
+
+		bt	dword [gs:esi],1
+		jc	.NoSwap
+		xchg	ebx,edi
+.NoSwap:	mov	[edi + tOperand.Code],al
+		REG	esi
+		mov	[edi + tOperand.TheReg],al
+		mov	edi,ebx
+		RM	esi
+		call	SetReg
+		sub	eax,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op33 - reg,rm,shiftcnt where B3 = reg source, b0 = shift cl
 proc op33
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	call	CopyExtra
-	call	ReadRM
-	mov	ecx,eax
-	REG	esi
-	mov	edi,ebx
-	call	SetReg
-	mov	edi,?ExtraOperand
-	mov	byte [edi + tOperand.Code],OM_SHIFT
-	bt	dword [gs:esi],0
-	jnc	short getofs
-	bts	word [edi + tOperand.Flags],OMF_CL
-	jmp	short op33done
-getofs:
-	movzx	eax,byte [esi+ecx+2]
-op33done:
-	mov	eax,ecx
-	ret
-endp
-;/* op 34 - push & pop word */
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		call	CopyExtra
+		call	ReadRM
+		mov	ecx,eax
+		REG	esi
+		mov	edi,ebx
+		call	SetReg
+		mov	edi,?ExtraOperand
+		mov	byte [edi + tOperand.Code],OM_SHIFT
+		bt	dword [gs:esi],0
+		jnc	.GetOfs
+		bts	word [edi + tOperand.Flags],OMF_CL
+		jmp	.Done
+.GetOfs:	movzx	eax,byte [esi+ecx+2]
+
+.Done:		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op34 - push & pop word
 proc op34
-	test	dword [?Segs],SG_TWOBYTEOP
-	jnz	short op34twobyte
-	test	dword [?Segs],SG_OPSIZ
-	jnz	short op34fin
-	mov	byte [?StrictOp],FALSE
-op34fin:
-	call	ReadRM
-	ret
-op34twobyte:
-	btr	word [edi+tOperand.Flags],OMF_OP32
-	btr	word [edi+tOperand.Flags],OMF_OP32
-	jmp	op34fin
-endp
-;/* op 35 -floating RM */
+		test	dword [?Segs],SG_TWOBYTEOP
+		jnz	.TwoByte
+		test	dword [?Segs],SG_OPSIZ
+		jnz	.Fin
+		mov	byte [?StrictOp],FALSE
+.Fin:		call	ReadRM
+		ret
+
+.TwoByte:	btr	word [edi+tOperand.Flags],OMF_OP32
+		btr	word [edi+tOperand.Flags],OMF_OP32
+		jmp	.Fin
+endp		;---------------------------------------------------------------
+
+
+		; Op35 - floating RM
 proc op35
-	mov	byte [?StrictOp],FALSE
-	mov	ax,[gs:esi]
-	and	ax,0d0deh
-	cmp	ax,0d0deh
-	jnz	short op35nop
-	mov	al,'p'
-	call	MnemonicChar
-op35nop:
-	MODX	esi
-	cmp	al,3
-	jnz	short op35fsttab
-	bts	word [edi + tOperand.Flags],OMF_FST
-	jmp	short op35fin
-op35fsttab:
-	bts	word [edi + tOperand.Flags],OMF_FSTTAB
-	movzx	eax,byte [gs:edi]
-	B12
-	shl	eax, OM_FTAB
-	or	[edi + tOperand.Flags],ax
-op35fin:
-	call	ReadRM
-	ret
-endp
-;/* op 36 - sized floating RM */
+		mov	byte [?StrictOp],FALSE
+		mov	ax,[gs:esi]
+		and	ax,0D0DEh
+		cmp	ax,0D0DEh
+		jnz	.Nop
+		mov	al,'p'
+		call	MnemonicChar
+.Nop:
+		MODX	esi
+		cmp	al,3
+		jnz	.FstTab
+		bts	word [edi + tOperand.Flags],OMF_FST
+		jmp	.Fin
+.FstTab:
+		bts	word [edi + tOperand.Flags],OMF_FSTTAB
+		movzx	eax,byte [gs:edi]
+		B12
+		shl	eax, OM_FTAB
+		or	[edi + tOperand.Flags],ax
+.Fin:
+		call	ReadRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op36 - sized floating RM
 proc op36
-	mov	cx,SZ_QWORD
-	mov	byte [?StrictOp],FALSE
-	mov	ax,[gs:esi]
-	and	ax,2807h
-	cmp	ax,2807h
-	jz	short op36notbyte
-	mov	cx,SZ_TBYTE
+		mov	cx,SZ_QWORD
+		mov	byte [?StrictOp],FALSE
+		mov	ax,[gs:esi]
+		and	ax,2807h
+		cmp	ax,2807h
+		jz	op36notbyte
+		mov	cx,SZ_TBYTE
 op36notbyte:
-	bts	word [edi + tOperand.Flags],OMF_FSTTAB
-	shl	ecx,OM_FTAB
-	or	[edi + tOperand.Flags],cx
-	call	ReadRM
-	ret
-endp
-;/* OP 37 - floating MATH */
+		bts	word [edi + tOperand.Flags],OMF_FSTTAB
+		shl	ecx,OM_FTAB
+		or	[edi + tOperand.Flags],cx
+		call	ReadRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op37 - floating math
 proc op37
-	sub	edx,edx
-	mov	byte [?StrictOp],FALSE
-	mov	ax,[gs:esi]
-	and	ax,0c0deh
-	cmp	ax,0c0deh
-	jnz	short op37noflop
-	inc	edx
-op37noflop:
-	REG	esi
-	and	al,5
-	xor	al,dl
-	cmp	al,5
-	jnz	short op37nor
-	mov	al,'r'
-	call	MnemonicChar
-op37nor:
-	MODX	esi
-	cmp	al,3
-	jz	op37reg
-	bts	word [edi + tOperand.Flags],OMF_FSTTAB
-	mov	al,[gs:esi]
-	B12
-	shl	eax,OM_FTAB
-	or	[edi + tOperand.Flags],ax
-	call	ReadRM
-	jmp	short op37done
-op37reg:
-	test	byte [gs:esi],6
-	jz	short op37nop
-	mov	al,'p'
-	call	MnemonicChar
-op37nop:
-	bt	dword [gs:esi],2
-	jc	short op37noswap
-	xchg	ebx,edi
-op37noswap:
-	RM	esi
-	call	SetReg
-	bts	word [edi + tOperand.Flags],OMF_FST
-	mov	edi,ebx
-	mov	byte [edi + tOperand.Code],OM_FSTREG
-	sub	eax,eax
-op37done:
-	ret
-endp
+		sub	edx,edx
+		mov	byte [?StrictOp],FALSE
+		mov	ax,[gs:esi]
+		and	ax,0C0DEh
+		cmp	ax,0C0DEh
+		jnz	.NoFlop
+		inc	edx
+.NoFlop:
+		REG	esi
+		and	al,5
+		xor	al,dl
+		cmp	al,5
+		jnz	.NoR
+		mov	al,'r'
+		call	MnemonicChar
+.NoR:
+		MODX	esi
+		cmp	al,3
+		jz	.Reg
+		bts	word [edi + tOperand.Flags],OMF_FSTTAB
+		mov	al,[gs:esi]
+		B12
+		shl	eax,OM_FTAB
+		or	[edi + tOperand.Flags],ax
+		call	ReadRM
+		jmp	.Done
+.Reg:
+		test	byte [gs:esi],6
+		jz	.NoP
+		mov	al,'p'
+		call	MnemonicChar
+.NoP:
+		bt	dword [gs:esi],2
+		jc	.NoSwap
+		xchg	ebx,edi
+.NoSwap:
+		RM	esi
+		call	SetReg
+		bts	word [edi + tOperand.Flags],OMF_FST
+		mov	edi,ebx
+		mov	byte [edi + tOperand.Code],OM_FSTREG
+		sub	eax,eax
+.Done:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op38
 proc op38
-	mov	byte [?StrictOp],FALSE
-	bts	word [edi + tOperand.Flags],OMF_FSTTAB
-	call	ReadRM
-	ret
-endp
-;/* OP39 - word regrm with reg source */
+		mov	byte [?StrictOp],FALSE
+		bts	word [edi + tOperand.Flags],OMF_FSTTAB
+		call	ReadRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op39 - word regrm with reg source
 proc op39
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_BYTE
-	call	op40
-	ret
-endp
-;/* op 40 regrm with reg source */
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_BYTE
+		call	op40
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op40 - regrm with reg source
 proc op40
-	mov	[?Dest2],ebx
-	mov	[?Source2],edi
-	call	RegRM
-	ret
-endp
-;/* op 41 reg, bitnum */
+		mov	[?Dest2],ebx
+		mov	[?Source2],edi
+		call	RegRM
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Op41 - reg, bitnum
 proc op41
-	btr	word [edi+tOperand.Flags],OMF_BYTE
-	call	ReadRM
-	mov	ecx,eax
-	mov	edi,ebx
-	bts	word [edi+tOperand.Flags],OMF_BYTE
-	push	esi
-	add	esi,ecx
-	add	esi,2
-	call	Immediate
-	pop	esi
-	mov	eax,ecx
-	ret
-endp
+		btr	word [edi+tOperand.Flags],OMF_BYTE
+		call	ReadRM
+		mov	ecx,eax
+		mov	edi,ebx
+		bts	word [edi+tOperand.Flags],OMF_BYTE
+		push	esi
+		add	esi,ecx
+		add	esi,2
+		call	Immediate
+		pop	esi
+		mov	eax,ecx
+		ret
+endp		;---------------------------------------------------------------
 
-; op 42: mixed regrm with reg dest & strictness enforced
+
+		; Op42 - mixed regrm with reg dest & strictness enforced
 proc op42
-	mov	[?Dest2],edi
-	mov	[?Source2],ebx
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	btr	word [ebx + tOperand.Flags],OMF_OP32
-	mov	byte [?StrictOp],FALSE
-	call	RegRM
-	ret
-endp
+		mov	[?Dest2],edi
+		mov	[?Source2],ebx
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		btr	word [ebx + tOperand.Flags],OMF_OP32
+		mov	byte [?StrictOp],FALSE
+		call	RegRM
+		ret
+endp		;---------------------------------------------------------------
 
-; op 43: CWDE
+
+		; op 43: CWDE
 proc op43
 		bt	word [edi + tOperand.Flags],OMF_OP32
 		jnc	.NoChange
@@ -1076,9 +1156,377 @@ proc op43
 .NoChange:	ret
 endp		;---------------------------------------------------------------
 
-proc ReadOverrides      	
-.Loop:	
+
+;--- FOM routines --------------------------------------------------------------
+
+proc FOM_FstReg
+		mov	edi,esi
+		mov	esi,stalone
+		call	strcat
+		ret
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_CRX
+		mov	ebx,crreg
+		call	GetSpecial
+		ret
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_DRX
+		mov	ebx,drreg
+		call	GetSpecial
+		ret
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_TRX
+		mov	ebx,trreg
+		call	GetSpecial
+		ret
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_SUD
+		mov	ebx,sudreg
+		call	GetSpecial
+		ret
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_Port
+		mov	al,SY_PORT
+		jmp	FormatValue
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_Int
+		mov	al,SY_INTR
+		jmp	FormatValue
+endp 		;---------------------------------------------------------------
+
+
+proc FOM_Shift
+		bt	word [edi + tOperand.Flags],OMF_CL
+		jnc	.NotCL
+		mov	eax,"cl"
+		mov	[esi],eax
+		add	esi,byte 2
+		ret
+.NotCL:
+		cmp	dword [edi + tOperand.Address],1
+		mov	al,SY_SHIFT
+		jnz	near FormatValue
+		mov	byte [esi],'1'
+		inc	esi
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Return
+		mov	al,SY_RETURN
+		jmp	FormatValue
+endp		;---------------------------------------------------------------
+
+
+proc FOM_ShortBranch
+		mov	al,SY_SHORTBRANCH
+		jmp	FormatValue
+endp		;---------------------------------------------------------------
+
+
+proc FOM_LongBranch
+		mov	al,SY_LONGBRANCH
+		jmp	FormatValue
+endp		;---------------------------------------------------------------
+
+
+proc FOM_FarBranch
+		mov	al,SY_SEGMENT
+		call	FormatValue
+		mov	byte [esi],':'
+		inc	esi
+		mov	al,SY_ABSBRANCH
+		call	FormatValue
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Absolute
+		call	DoStrict
+		call	SegOverride
+		mov	byte [esi],'['
+		inc	esi
+		mov	byte [esi],0
+		bt	word [edi + tOperand.Flags],OMF_SCALED
+		jnc	.NotScaled
+		mov	al,SY_WORDOFS
+		call	FormatValue
 		sub	eax,eax
+		call	Scaled
+		jmp	.Fin
+.NotScaled:
+		mov	al,SY_ABSOLUTE
+		call	FormatValue
+.Fin:
+		mov	byte [esi],']'
+		inc	esi
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Immediate
+		bt	word [edi + tOperand.Flags],OMF_BYTE
+		mov	al,SY_WORDIMM
+		jnc	.AbsFormat
+		mov	al,SY_SIGNEDIMM
+		bt	word [edi + tOperand.Flags],SY_SIGNEDIMM
+		jc	.AbsFormat
+		mov	al,SY_SIGNEDIMM
+.AbsFormat:	jmp	FormatValue
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Reg
+		bt	word [edi + tOperand.Flags],OMF_FST
+		jnc	.FOreg
+		call	GetST
+		ret
+.FOreg:		mov	al,[edi + tOperand.TheReg]
+		call	GetReg
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Based
+		call	DoStrict
+		call	SegOverride
+		mov	byte [esi],'['
+		inc	esi
+		mov	byte [esi],0
+		bt	word [edi + tOperand.Flags],OMF_ADR32
+		jnc	.NotScaled
+		mov	al,1
+		call	Scaled
+		jmp	.1
+.NotScaled:
+		mpush	edi,esi
+		movzx	eax,byte [edi + tOperand.TheReg]
+		xchg	esi,edi
+		mov	esi,based
+		mov	esi,[esi + eax * 4]
+		call	strcpy
+		mpop	esi,edi
+		call	strlen
+		add	esi,eax
+.1:
+		test	word [edi + tOperand.Flags],OMF_OFFSET
+		jz	.NoOfs
+		bt	word [edi + tOperand.Flags],OMF_SIGNED_OFFSET
+		mov	al,SY_SIGNEDOFS
+		jc	.Format
+		mov	al,SY_WORDOFS
+		bt	word [edi + tOperand.Flags],OMF_WORD_OFFSET
+		jc	.Format
+		mov	al,SY_BYTEOFS
+.Format:	call	FormatValue
+.NoOfs:		mov	byte [esi],']'
+		inc	esi
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FOM_Segment
+		movzx	ecx,byte [edi + tOperand.TheReg]
+		sub	eax,eax
+		call	GetSeg
+		ret
+endp		;---------------------------------------------------------------
+
+
+;--- FSY routines --------------------------------------------------------------
+
+
+proc FSY_SignedOfs
+		bt	dword [edi + tOperand.Address],31
+		mov	eax,"+os_"
+		jnc	.Pos
+		mov	eax,"-os_"
+.Pos:		mov	[esi],eax
+		add	esi,byte 4
+		mov	eax,[edi + tOperand.Address]
+		call	ABSX
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_WordOfs
+		mov	eax,"+ow_"
+		mov	[esi],eax
+		add	esi,byte 4
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_ByteOfs
+		mov	eax,"+ob_"
+		mov	[esi],eax
+		add	esi,byte 4
+		mov	eax,[edi + tOperand.Address]
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Absolute
+		mov	eax,"ab_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_SignedImm
+		bt	dword [edi + tOperand.Address],31
+		mov	eax,"+is_"
+		jnc	.Pos
+		mov	eax,"-is_"
+.Pos:		mov	[esi],eax
+		add	esi,byte 4
+		mov	eax,[edi + tOperand.Address]
+		call	ABSX
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+proc FSY_WordImm
+		mov	eax,"iw_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_ByteImm
+		mov	eax,"ib_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Port
+		mov	eax,"p_"
+		mov	[esi],eax
+		add	esi,byte 2
+		mov	eax,[edi + tOperand.Address]
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Intr
+		mov	eax,"it_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Return
+		mov	eax,"rt_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexW2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_AbsBranch
+		mov	eax,"ba_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_LongBranch
+		mov	eax,"bl_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_ShortBranch
+		mov	eax,"bs_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexD2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Shift
+		mov	eax,"ib_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	eax,[edi + tOperand.Address]
+		call	HexB2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc FSY_Segment
+		mov	eax,"sg_"
+		mov	[esi],eax
+		add	esi,byte 3
+		mov	ax,[edi + tOperand.Seg]
+		call	HexW2Str
+		mov	byte [esi],0
+		ret
+endp		;---------------------------------------------------------------
+
+
+;--- Interface routines --------------------------------------------------------
+
+proc ReadOverrides
+.Loop:		sub	eax,eax
 	gs	lodsb
 		cmp	al,64h
 		jc	.TestSeg
@@ -1116,19 +1564,19 @@ proc DispatchOperands
 		push	ebx
 		mov	edi,?Mnemonic
 		push	esi
-		mov	esi,[ebx + tOpCode.MNEMONIC]
+		mov	esi,[ebx + tOpCode.Mnemonic]
 		call	strcpy
 		pop	esi
 		mov	byte [?StrictOp],TRUE
-		movzx	eax,byte [ebx + tOpCode.OPERANDS]
+		movzx	eax,byte [ebx + tOpCode.Operands]
 		push	eax
 		mov	edi,?Dest
 		mov	ebx,?Source
 		cmp	byte [gs:esi],0fh
-		jnz	notwobyte
+		jnz	.NoTwoByte
 		or	dword [?Segs],SG_TWOBYTEOP
 		inc	esi
-notwobyte:
+.NoTwoByte:
 		mov	eax,?ExtraOperand
 		mov	byte [eax + tOperand.Code],0
 		mov	byte [edi + tOperand.Code],0
@@ -1137,34 +1585,119 @@ notwobyte:
 		mov	word [ebx + tOperand.Flags],0
 
 		bt	dword [gs:esi],0
-		jc	notbyte
+		jc	.NotByte
 		bts	word [edi + tOperand.Flags],OMF_BYTE
 		bts	word [ebx + tOperand.Flags],OMF_BYTE
-notbyte:
+.NotByte:
 		test	dword [?Segs],SG_ADRSIZ
-		jnz	do_word1
+		jnz	.Word1
 		bts	word [edi + tOperand.Flags],OMF_ADR32
 		bts	word [ebx + tOperand.Flags],OMF_ADR32
-do_word1:
+.Word1:
 		test	dword [?Segs],SG_OPSIZ
-		jnz	do_word2
+		jnz	.Word2
 		bts	word [edi + tOperand.Flags],OMF_OP32
 		bts	word [ebx + tOperand.Flags],OMF_OP32
-do_word2:
+.Word2:
 		pop	eax
 		or	eax,eax
-		jz	nodispatch
+		jz	.NoDispatch
 		dec	al
 		push	dword OPprocedures
 		push	dword 0
 		call	CallTableProc
 		add	esi,eax
 
-nodispatch:	pop	ebx
-		movzx	eax,byte [ebx + tOpCode.LENGTH]
+.NoDispatch:	pop	ebx
+		movzx	eax,byte [ebx + tOpCode.Length]
 		add	esi,eax
 		ret
 endp		;---------------------------------------------------------------
+
+
+proc FormatDisassembly
+		locauto	buf, DISFMTBUFSIZE
+		prologue
+
+		push	esi
+		lea	edi,[%$buf]
+		mov	byte [edi],0
+		test	dword [?Segs],SG_REPZ
+		push	edi
+		jz	.NotRepZ
+		mov	esi,st_repz
+		call	strcpy
+.NotRepZ:
+		test	dword [?Segs],SG_REPNZ
+		jz	.NotRepNZ
+		mov	esi,st_repnz
+		call	strcpy
+.NotRepNZ:
+		pop	edi
+		xchg	esi,edi
+		call	strlen
+		add	esi,eax
+		xchg	esi,edi
+		mov	esi,?Mnemonic
+		call	strcat
+		lea	esi,[%$buf]
+		sub	eax,eax
+		mov	al,TAB_ARGPOS
+		call	TabTo
+		mov	edi,?Dest
+		call	PutOperand
+		mov	edi,?Source
+		test	byte [edi + tOperand.Code],-1
+		jz	.NoSource
+		mov	byte [esi],','
+		inc	esi
+		mov	byte [esi],0
+		call	PutOperand
+.NoSource:
+		mov	edi,?ExtraOperand
+		test	byte [edi + tOperand.Code],-1
+		jz	.NoExtra
+		mov	byte [esi],','
+		inc	esi
+		mov	byte [esi],0
+		call	PutOperand
+.NoExtra:
+		pop	esi
+		mov	byte [esi],0
+		call	SegOverride
+		mov	edi,esi
+		lea	esi,[%$buf]
+		call	strcat
+
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+;--- Other utility routines ----------------------------------------------------
+
+proc PutOperand
+		call	strlen
+		add	esi,eax
+		mov	al,[edi + tOperand.Code]
+		dec	al
+		js	.Done
+		push	dword FOMprocedures
+		push	dword 0
+		call	CallTableProc
+
+.Done:		ret
+endp		;---------------------------------------------------------------
+
+
+proc FormatValue
+		dec	al
+		push	dword FSYprocedures
+		push	dword 0
+		call	CallTableProc
+		ret
+endp		;---------------------------------------------------------------
+
 
 proc DoStrict
 		mpush	edi,esi
@@ -1204,30 +1737,8 @@ proc DoStrict
 		add	esi,eax
 		pop	edi
 		ret
-endp
+endp		;---------------------------------------------------------------
 
-proc TabTo
-	cbw
-	cwde
-	mov	ecx,eax
-	call	strlen
-	xchg	eax,ecx
-	sub	eax,ecx
-	jnc	tt_noover
-	add	eax,ecx
-	add	esi,eax
-	jmp	short tt_done
-tt_noover:
-	add	esi,ecx
-	mov	ecx,eax
-tabtlp:
-	mov	byte [esi],' '
-	inc	esi
-	loop	tabtlp
-tt_done:
-	mov	byte [esi],0
-	ret
-endp
 
 proc GetST
 		mov	al,[edi + tOperand.TheReg]
@@ -1246,41 +1757,43 @@ proc GetST
 		ret
 endp 		;---------------------------------------------------------------
 
+
 proc GetStdReg
-	push	edi
-	or	al,al
-	jnz	short gsrnoe
-	mov	byte [esi],'e'
-	inc	esi
-gsrnoe:
-	mov	edi,regs
-	mov	ax,[edi + ecx *2]
-	mov	[esi],al
-	inc	esi
-	mov	[esi],ah
-	inc	esi
-	mov	byte [esi],0
-	pop	edi
-	ret
-endp
+		push	edi
+		or	al,al
+		jnz	.1
+		mov	byte [esi],'e'
+		inc	esi
+.1:		mov	edi,regs
+		mov	ax,[edi + ecx*2]
+		mov	[esi],al
+		inc	esi
+		mov	[esi],ah
+		inc	esi
+		mov	byte [esi],0
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
 
 proc GetReg
 		movzx	ecx,al
 		sub	al,al
 		inc	al
 		bt	word [edi + tOperand.Flags],OMF_BYTE
-		jc	short grno32
+		jc	.No32
 		bt	word [edi + tOperand.Flags],OMF_OP32
-		jnc	short grno32
+		jnc	.No32
 		dec	al
-grno32:
+.No32:
 		bt	word [edi + tOperand.Flags],OMF_BYTE
-		jc	short isbyte
+		jc	.IsByte
 		or	cl,8
-isbyte:
+.IsByte:
 		call	GetStdReg
 		ret
 endp 		;---------------------------------------------------------------
+
 
 proc GetSpecial
 		mov	al,[ebx]
@@ -1299,6 +1812,7 @@ proc GetSpecial
 		ret
 endp 		;---------------------------------------------------------------
 
+
 proc GetSeg
 		push	edi
 		push	eax
@@ -1311,311 +1825,77 @@ proc GetSeg
 		pop	eax
 		or	al,al
 		mov	al,':'
-		jz	short nocolon
+		jz	.NoColon
 		mov	[esi],al
 		inc	esi
-nocolon:
+.NoColon:
 		mov	byte [esi],0
 		pop	edi
 		ret
-endp
+endp		;---------------------------------------------------------------
+
+
 proc SegOverride
-	mov	al,1
-	sub	ecx,ecx
-	test	dword [?Segs],SG_ES
-	jz	short so_testcs
-	call	GetSeg
-so_testcs:
-	inc	ecx
-	test	dword [?Segs],SG_CS
-	jz	short so_testss
-	call	GetSeg
-so_testss:
-	inc	ecx
-	test	dword [?Segs],SG_SS
-	jz	short so_testds
-	call	GetSeg
-so_testds:
-	inc	ecx
-	test	dword [?Segs],SG_DS
-	jz	short so_testfs
-	call	GetSeg
-so_testfs:
-	inc	ecx
-	test	dword [?Segs],SG_FS
-	jz	short so_testgs
-	call	GetSeg
-so_testgs:
-	inc	ecx
-	test	dword [?Segs],SG_GS
-	jz	short so_done
-	call	GetSeg
-so_done:
-	mov	dword [?Segs],0
-	ret
-endp
+		mov	al,1
+		sub	ecx,ecx
+		test	dword [?Segs],SG_ES
+		jz	.TestCS
+		call	GetSeg
+.TestCS:
+		inc	ecx
+		test	dword [?Segs],SG_CS
+		jz	.TestSS
+		call	GetSeg
+.TestSS:
+		inc	ecx
+		test	dword [?Segs],SG_SS
+		jz	.TestDS
+		call	GetSeg
+.TestDS:
+		inc	ecx
+		test	dword [?Segs],SG_DS
+		jz	.TestFS
+		call	GetSeg
+.TestFS:
+		inc	ecx
+		test	dword [?Segs],SG_FS
+		jz	.TestGS
+		call	GetSeg
+.TestGS:
+		inc	ecx
+		test	dword [?Segs],SG_GS
+		jz	.Done
+		call	GetSeg
+.Done:
+		mov	dword [?Segs],0
+		ret
+endp		;---------------------------------------------------------------
+
 
 proc Scaled
-	push	dword [edi + tOperand.Flags]
-	btr	word [edi + tOperand.Flags],OMF_BYTE
-	bts	word [edi + tOperand.Flags],OMF_OP32
-	or	al,al
-	jz	short notbased
-	sub	al,al
-	mov	al,[edi + tOperand.TheReg]
-	call	GetReg
-notbased:
-	bt	word [edi + tOperand.Flags],OMF_SCALED
-	jnc	short notscaled2
-	movzx	ecx,byte [edi + tOperand.Scale]
-	mov	eax,ecx
-	add	ecx,ecx
-	add	ecx,eax
-	add	ecx,scales
-	mov	eax,[ecx]
-	call	put3
-	or	al,1
-	mov	al,[edi + tOperand.ScaleReg]
-	call	GetReg
-notscaled2:
-	pop	dword [edi + tOperand.Flags]
-	ret
-endp
-
-proc FOM_FSTREG
-		mov	edi,esi
-		mov	esi,stalone
-		call	strcat
-		ret
-endp 		;---------------------------------------------------------------
-
-proc FOM_CRX
-	mov	ebx,crreg
-	call	GetSpecial
-	ret
-endp
-proc FOM_DRX
-	mov	ebx,drreg
-	call	GetSpecial
-	ret
-endp
-proc FOM_TRX
-	mov	ebx,trreg
-	call	GetSpecial
-	ret
-endp
-proc FOM_SUD
-	mov	ebx,sudreg
-	call	GetSpecial
-	ret
-endp
-proc FOM_PORT
-	mov	al,SY_PORT
-format:
-	call	FormatValue
-	ret
-endp
-
-proc FOM_INT
-	mov	al,SY_INTR
-	jmp	short format
-endp
-
-proc FOM_SHIFT
-		bt	word [edi + tOperand.Flags],OMF_CL
-		jnc	.NotCL
-		mov	eax,"cl"
-		mov	[esi],eax
-		add	esi,byte 2
-		ret
-.NotCL:
-		cmp	dword [edi + tOperand.Address],1
-		mov	al,SY_SHIFT
-		jnz	format
-		mov	byte [esi],'1'
-		inc	esi
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FOM_RETURN
-	mov	al,SY_RETURN
-	jmp	format
-endp
-proc FOM_SHORTBRANCH
-	mov	al,SY_SHORTBRANCH
-	jmp	format
-endp
-proc FOM_LONGBRANCH
-	mov	al,SY_LONGBRANCH
-	jmp	format
-endp
-proc FOM_FARBRANCH
-	mov	al,SY_SEGMENT
-	call	format
-	mov	byte [esi],':'
-	inc	esi
-	mov	al,SY_ABSBRANCH
-	call	format
-	ret
-endp
-proc FOM_ABSOLUTE
-	call	DoStrict
-	call	SegOverride
-	mov	byte [esi],'['
-	inc	esi
-	mov	byte [esi],0
-	bt	word [edi + tOperand.Flags],OMF_SCALED
-	jnc	foa_notscaled
-	mov	al,SY_WORDOFS
-	call	FormatValue
-	sub	eax,eax
-	call	Scaled
-	jmp	short foa_finish
-foa_notscaled:
-	mov	al,SY_ABSOLUTE
-	call	FormatValue
-foa_finish:
-	mov	byte [esi],']'
-	inc	esi
-	mov	byte [esi],0
-	ret
-endp
-proc FOM_IMMEDIATE
-	bt	word [edi + tOperand.Flags],OMF_BYTE
-	mov	al,SY_WORDIMM
-	jnc	short absformat
-	mov	al,SY_SIGNEDIMM
-	bt	word [edi + tOperand.Flags],SY_SIGNEDIMM
-	jc	short absformat
-	mov	al,SY_SIGNEDIMM
-absformat:
-	jmp	format
-endp
-
-proc FOM_REG
-		bt	word [edi + tOperand.Flags],OMF_FST
-		jnc	.FOreg
-		call	GetST
-		ret
-.FOreg:		mov	al,[edi + tOperand.TheReg]
+		push	dword [edi + tOperand.Flags]
+		btr	word [edi + tOperand.Flags],OMF_BYTE
+		bts	word [edi + tOperand.Flags],OMF_OP32
+		or	al,al
+		jz	.NotBased
+		sub	al,al
+		mov	al,[edi + tOperand.TheReg]
 		call	GetReg
-		ret
-endp		;---------------------------------------------------------------
-
-proc FOM_BASED
-	call	DoStrict
-	call	SegOverride
-	mov	byte [esi],'['
-	inc	esi
-	mov	byte [esi],0
-	bt	word [edi + tOperand.Flags],OMF_ADR32
-	jnc	fob_notscaled
-	mov	al,1
-	call	Scaled
-	jmp	short fob2
-fob_notscaled:
-	push	edi
-	push	esi
-	movzx	eax,byte [edi + tOperand.TheReg]
-	xchg	esi,edi
-	mov	esi,based
-	mov	esi,[esi + eax * 4]
-	call	strcpy
-	pop	esi
-	pop	edi
-	call	strlen
-	add	esi,eax
-fob2:
-	test	word [edi + tOperand.Flags],OMF_OFFSET
-	jz	short fob_noofs
-	bt	word [edi + tOperand.Flags],OMF_SIGNED_OFFSET
-	mov	al,SY_SIGNEDOFS
-	jc	fob_format
-	mov	al,SY_WORDOFS
-	bt	word [edi + tOperand.Flags],OMF_WORD_OFFSET
-	jc	fob_format
-	mov	al,SY_BYTEOFS
-fob_format:
-	call	FormatValue
-fob_noofs:
-	mov	byte [esi],']'
-	inc	esi
-	mov	byte [esi],0
-	ret
-endp
-proc FOM_SEGMENT
-	movzx	ecx,byte [edi + tOperand.TheReg]
-	sub	eax,eax
-	call	GetSeg
-	ret
-endp
-
-proc PutOperand
-	call	strlen
-	add	esi,eax
-	mov	al,[edi + tOperand.Code]
-	dec	al
-	js	short po_none
-		push	dword FOMprocedures
-		push	dword 0
-		call	CallTableProc
-
-po_none:	ret
-endp		;---------------------------------------------------------------
-
-proc FormatDisassembly
-		prologue 256
-		push	esi
-		lea	edi,[ebp-256]
-		mov	byte [edi],0
-		test	dword [?Segs],SG_REPZ
-		push	edi
-		jz	fd_notrepz
-		mov	esi,st_repz
-		call	strcpy
-fd_notrepz:
-		test	dword [?Segs],SG_REPNZ
-		jz	fd_notrepnz
-		mov	esi,st_repnz
-		call	strcpy
-fd_notrepnz:
-		pop	edi
-		xchg	esi,edi
-		call	strlen
-		add	esi,eax
-		xchg	esi,edi
-		mov	esi,?Mnemonic
-		call	strcat
-		lea	esi,[ebp-256]
-		sub	eax,eax
-		mov	al,TAB_ARGPOS
-		call	TabTo
-		mov	edi,?Dest
-		call	PutOperand
-		mov	edi,?Source
-		test	byte [edi + tOperand.Code],-1
-		jz	nosource
-		mov	byte [esi],','
-		inc	esi
-		mov	byte [esi],0
-		call	PutOperand
-nosource:
-		mov	edi,?ExtraOperand
-		test	byte [edi + tOperand.Code],-1
-		jz	noextra
-		mov	byte [esi],','
-		inc	esi
-		mov	byte [esi],0
-		call	PutOperand
-noextra:
-		pop	esi
-		mov	byte [esi],0
-		call	SegOverride
-		mov	edi,esi
-		lea	esi,[ebp-256]
-		call	strcat
-		epilogue
+.NotBased:
+		bt	word [edi + tOperand.Flags],OMF_SCALED
+		jnc	.NotScaled
+		movzx	ecx,byte [edi + tOperand.Scale]
+		mov	eax,ecx
+		add	ecx,ecx
+		add	ecx,eax
+		add	ecx,scales
+		mov	eax,[ecx]
+		call	put3
+		or	al,1
+		mov	al,[edi + tOperand.ScaleReg]
+		call	GetReg
+.NotScaled:
+		pop	dword [edi + tOperand.Flags]
 		ret
 endp		;---------------------------------------------------------------
 
@@ -1625,174 +1905,4 @@ proc ABSX
 		jnc	.NoAbs
 		neg	eax
 .NoAbs:		ret
-endp		;---------------------------------------------------------------
-
-
-;--- FSY routines --------------------------------------------------------------
-
-proc FSY_SIGNEDOFS
-		bt	dword [edi + tOperand.Address],31
-		mov	eax,"+os_"
-		jnc	.Pos
-		mov	eax,"-os_"
-.Pos:		mov	[esi],eax
-		add	esi,byte 4
-		mov	eax,[edi + tOperand.Address]
-		call	ABSX
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_WORDOFS
-		mov	eax,"+ow_"
-		mov	[esi],eax
-		add	esi,byte 4
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_BYTEOFS
-		mov	eax,"+ob_"
-		mov	[esi],eax
-		add	esi,byte 4
-		mov	eax,[edi + tOperand.Address]
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_ABSOLUTE
-		mov	eax,"ab_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_SIGNEDIMM
-		bt	dword [edi + tOperand.Address],31
-		mov	eax,"+is_"
-		jnc	.Pos
-		mov	eax,"-is_"
-.Pos:		mov	[esi],eax
-		add	esi,byte 4
-		mov	eax,[edi + tOperand.Address]
-		call	ABSX
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_WORDIMM
-		mov	eax,"iw_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_BYTEIMM
-		mov	eax,"ib_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_PORT
-		mov	eax,"p_"
-		mov	[esi],eax
-		add	esi,byte 2
-		mov	eax,[edi + tOperand.Address]
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_INTR
-		mov	eax,"it_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_RETURN
-		mov	eax,"rt_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexW2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_ABSBRANCH
-		mov	eax,"ba_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_LONGBRANCH
-		mov	eax,"bl_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_SHORTBRANCH
-		mov	eax,"bs_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexD2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_SHIFT
-		mov	eax,"ib_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	eax,[edi + tOperand.Address]
-		call	HexB2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-proc FSY_SEGMENT
-		mov	eax,"sg_"
-		mov	[esi],eax
-		add	esi,byte 3
-		mov	ax,[edi + tOperand.Seg]
-		call	HexW2Str
-		mov	byte [esi],0
-		ret
-endp		;---------------------------------------------------------------
-
-
-proc FormatValue
-		dec	al
-		push	dword FSYprocedures
-		push	dword 0
-		call	CallTableProc
-		ret
 endp		;---------------------------------------------------------------

@@ -45,7 +45,8 @@ module libc.kernsyscall
 	jns	%%ret
 	neg	eax
 	push	eax
-	mov	eax,[fs:4+tTLS.ErrPtr]
+	tlsptr(eax)
+	mov	eax,[eax+tTLS.ErrPtr]
 	pop	dword [eax]
 	xor	eax,eax
 	not	eax

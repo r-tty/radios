@@ -110,14 +110,15 @@
 ; Task management errors
 %define	ERR_MT_NoPIDs			0360h
 %define	ERR_MT_BadPID			0361h
-%define	ERR_MT_NoFreeTCB		0362h
-%define	ERR_MT_NoFreeTID		0363h
-%define ERR_MT_CantAllocStack		0364h
-%define ERR_MT_BadUserStack		0365h
-%define ERR_MT_CantAllocKernStk		0366h
-%define	ERR_MT_SwitchToCurrThr		0367h
-%define	ERR_MT_UnableAttachThread	0368h
-%define	ERR_MT_UnableDetachThread	0369h
+%define	ERR_MT_BadAttr			0362h
+%define	ERR_MT_NoFreeTCB		0363h
+%define	ERR_MT_NoFreeTID		0364h
+%define ERR_MT_CantAllocStack		0365h
+%define ERR_MT_BadUserStack		0366h
+%define ERR_MT_CantAllocKernStk		0367h
+%define	ERR_MT_SwitchToCurrThr		0368h
+%define	ERR_MT_UnableAttachThread	0369h
+%define	ERR_MT_UnableDetachThread	036Ah
 
 ; Module management errors
 %define	ERR_MOD_TooManyBinFmts		0370h

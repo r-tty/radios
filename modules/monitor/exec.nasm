@@ -67,7 +67,7 @@ proc MON_Proceed
 		mov	ah,[gs:ebx]		; Load the first byte
 		pop	gs			; of the instruction
 		popfd
-		cmp	ah,0E8h			;  Call?
+		cmp	ah,0E8h			; Call?
 		mov	al,5			; Yes, this is five bytes
 		jz	.Go			; And execute it
 		cmp	ah,09Ah			; Far call

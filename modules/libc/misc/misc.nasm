@@ -97,8 +97,8 @@ proc _FreePages
 endp		;---------------------------------------------------------------
 
 
-		; Get a pointer to Thread Local Storage
+		; Get a pointer to Thread Local Storage in EAX
 proc _tlsptr
-		mov	eax,[fs:0]
+		tlsptr(eax)
 		ret
 endp		;---------------------------------------------------------------

@@ -25,15 +25,12 @@ section .text
 		; Input:
 		; Output:
 proc GetCodeLine
-%define	.IsNewLine	ebp-4				; Local variables
-%define	.OldPosition	ebp-8
-%define	.Put		ebp-12
-%define	.BytesToMove	ebp-16
+		locals	isnl, oldpos, put, bytestomove
+		prologue
 
-		prologue 16
-		mov	dword [.IsNewLine],TRUE	; Assume it has an opcode
+		mov	dword [%$isnl],TRUE	; Assume it has an opcode
 		mov	byte [edi],0		; Clear output buffer
-		mov	[.OldPosition],esi	; Current position
+		mov	[%$oldpos],esi		; Current position
 		test	dword [ExtraBytes],-1	; See if still printing bytes
 		jz	.NotExtra		; from last instruction
 		add	esi,[ExtraBytes]	; New position to EDI
@@ -52,7 +49,7 @@ proc GetCodeLine
 		rep	stosd			; Store the words
 		pop	es			; Restore ES and EDI
 		pop	edi
-		mov	dword [.IsNewLine],FALSE ; Doesn't have an opcode
+		mov	dword [%$isnl],FALSE	; Doesn't have an opcode
 		jmp	.BTM
 
 .NotExtra:	mov	eax,[?CodeAddress]	; Get code address
@@ -91,7 +88,7 @@ proc GetCodeLine
 		mov	byte [esi],0		; End the buffer
 		xchg	esi,edi
 		pop	edi
-		jmp	short .BTM		; Go do the byte dump
+		jmp	.BTM			; Go do the byte dump
 
 .GotOpcode:	push	esi			; Got opcode, parse operands
 		mov	esi,edi
@@ -106,20 +103,20 @@ proc GetCodeLine
 
 .BTM:		mov	byte [edi],0		; End the buffer
 		mov	eax,esi			; Calculate number of bytes to dump
-		sub	eax,[.OldPosition]
-		mov	[.BytesToMove],eax
+		sub	eax,[%$oldpos]
+		mov	[%$bytestomove],eax
 		mov	dword [ExtraBytes],0	; Bytes for next round = 0
-		cmp	dword [.BytesToMove],5	; See if > 5
+		cmp	dword [%$bytestomove],5	; See if > 5
 		jbe	.NotMultiline		; No, not multiline
-		mov	eax,[.BytesToMove]	; Else calculate bytes left
+		mov	eax,[%$bytestomove]	; Else calculate bytes left
 		sub	al,5
 		mov	[ExtraBytes],eax
-		mov	dword [.BytesToMove],5	; Dumping 5 bytes
+		mov	dword [%$bytestomove],5	; Dumping 5 bytes
 
 .NotMultiline:	xchg	esi,edi			; esi = buffer
 		push	edi			; Save code pointer
- 		mov	edi,[.OldPosition]	; Get original code position
-		mov	ecx,[.BytesToMove]	; Get bytes to move
+ 		mov	edi,[%$oldpos]		; Get original code position
+		mov	ecx,[%$bytestomove]	; Get bytes to move
 
 .PutLoop:	mov	al,[gs:edi]		; Get a byte
 		call	HexB2Str		; Expand to ASCII
@@ -128,10 +125,10 @@ proc GetCodeLine
 		inc	edi			; Next code pos
 		loop	.PutLoop		; Loop till done
 		xchg	esi,edi			; Restore regs
-		mov	eax,[.BytesToMove]	; Codeaddress+=bytes dumped
+		mov	eax,[%$bytestomove]	; Codeaddress+=bytes dumped
 		add	[?CodeAddress],eax
 
-.EndCodeLine:	mov	eax,[.IsNewLine]	; Return new line flag
+.EndCodeLine:	mov	eax,[%$isnl]		; Return new line flag
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -139,8 +136,9 @@ endp		;---------------------------------------------------------------
 
 		; MON_Disassembly - main disassembler.
 proc MON_Disassembly
-		locauto	buf, 256
-		prologue			; Buffer = 256 bytes long
+		locauto	buf, DISFMTBUFSIZE
+		prologue
+
 		call	PageTrapErr		; Turn on page trapping
 		call	WadeSpace		; See if any parms
 		cmp	al,13
@@ -156,7 +154,7 @@ proc MON_Disassembly
 		call	ReadNumber		; Read the end address
 		jc	near .Err		; Out if bad args
 		mov	[dEnd],eax		; Save end
-		jmp	short .GotArgs		; We have args
+		jmp	.GotArgs		; We have args
 
 .AtIndex:	mov	ebx,[DisStart]		; Get the next address to disassemble
 		mov	dx,[TheSeg]
@@ -202,7 +200,7 @@ proc MON_Disassembly
 		mov	esi,[?CodeAddress]
 		mov	[DisStart],esi
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 
 .Err:		stc				; Error
 .Exit:		pushfd
@@ -215,8 +213,8 @@ endp		;---------------------------------------------------------------
 
 		; DisOneLine - disassemble one line.  Used by the Reg display command
 proc DisOneLine
-		locauto	buf, 256
-		prologue				; Space for buffer
+		locauto	buf, DISFMTBUFSIZE
+		prologue
 		call	PageTrapErr			; Enable page traps
 		mPrintChar NL
 		mov	eax,1

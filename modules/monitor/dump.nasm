@@ -38,13 +38,13 @@ proc MON_Dump
 		sub	eax,ebx			; Calculate length of dump
 		jc	.DoDump			; If <0 - use default length
 		mov	ecx,eax
-		jmp	short .DoDump
+		jmp	.DoDump
 
 .AtIndex:	mov	ebx,[DumpIndex]
 		mov	dx,[DumpIndexSeg]
 
 .DoDump:	or	dx,dx			; If DX = null selector -
-		jnz	short .GotSel		; assume DS
+		jnz	.GotSel			; assume DS
 		mov	dx,[rDS]
 
 .GotSel:	pushfd
@@ -91,7 +91,7 @@ proc DumpLine
 		mov	ecx,16		; Total bytes to dump
 		mov	al,bl  		; AL = lower byte of address
 		and	al,15		; AL = lower nibble
-		jz	short .DoLine	; Go do hexdump if start of line = 0
+		jz	.DoLine		; Go do hexdump if start of line = 0
 		neg	al		; Else calculate number of bytes in line
 		add	al,16
 		mov	ecx,eax		; To ECX
@@ -100,7 +100,7 @@ proc DumpLine
 		add	[esp+4],ecx	; Increment address which is on stack
 		mov	al,16		; Get count of amount to space over
 		sub	al,cl		;
-		jz	short .PutHex	; Don't space over any, just put out hex
+		jz	.PutHex		; Don't space over any, just put out hex
 
 		push	ecx		; Else ecx = spacecount * 3
 		mov	ecx,eax
@@ -116,7 +116,7 @@ proc DumpLine
 .HexLoop:	cmp	cl,8
 		je	.PrintMinus
 		mPrintChar ' '
-		jmp	short .GetByte
+		jmp	.GetByte
 .PrintMinus:	mPrintChar '-'			; Print a space
 .GetByte:	mov	al,[gs:esi]		; Get the byte
 		inc	esi			; Increment address pointer

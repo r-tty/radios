@@ -143,10 +143,11 @@ proc SaveRegisters
 endp		;---------------------------------------------------------------
 
 
-		; AdjustEIP - adjust EIP to trap if it's not int 3.
+		; AdjustEIP - adjust EIP to trap if it's not int3 or int 3.
+		;	      Also takes care of two-byte int 3.
 proc AdjustEIP
-		cmp	byte [ExcNum],3		; See if int 3
-		jne	short .Exit		; No, exit
+		cmp	byte [ExcNum],3		; See if int3
+		jne	.Exit			; No, exit
 		push	gs			; Else get CS:EIP
 		push	byte KERNELDATA
 		pop	gs
@@ -154,8 +155,11 @@ proc AdjustEIP
 		movzx	edx,word [rCS]
 		call	BaseAndLimit		; Refer to it in abs. segment
 		dec	esi
-		cmp	byte [gs:esi],0CCh 	; See if is an INT 3
-		je	short .NoDecr		; Get out if so
+		cmp	byte [gs:esi],0CCh 	; See if is an INT3 or INT 3
+		je	.NoDecr
+		dec	esi
+		cmp	word [gs:esi],3CDh
+		je	.NoDecr
 		dec	dword [rEIP]		; Else point at trap
 .NoDecr:	pop	gs
 .Exit:		ret
@@ -193,7 +197,7 @@ proc ExceptionHandler
 		mPrintString
 		mPrintChar ')'
 		btr	dword [HasErr],0	; If has error
-		jnc	short .DispRegs
+		jnc	.DispRegs
 		mPrintString MsgErrorCode	; Say there's an error
 		mov	ax,[ErrNum]		; Say which one
 		call	PrintDwordHex

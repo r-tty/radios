@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  breaks.nasm - handle breakpoint setting, resetting, enabling commands.
+; breaks.nasm - handle breakpoint setting, resetting, enabling commands.
 ;-------------------------------------------------------------------------------
 
 
@@ -97,7 +97,7 @@ proc EnableBreaks
 		pop	gs
 		mov	ecx,15			; For each breakpoint
 .Loop:		bt	[BreakEnum],cx		; If not set
-		jnc	short .NN		; Don't do anything
+		jnc	.NN			; Don't do anything
 		mov	eax,ecx			; Else get breakpoint address
 		add	eax,eax
 		add	eax,ecx
@@ -160,10 +160,10 @@ proc MON_Breaks
 		je	.ShowAll		; Show all breakpoints
 		cmp	al,'-'			; Else check for '-'
 		pushfd
-		jne	short .NoInc
+		jne	.NoInc
 		inc	esi			; Skip to next arg
 		call	WadeSpace
-.NoInc:	call    ReadNumber		; Read break number
+.NoInc:		call    ReadNumber		; Read break number
 		jb	.BadBreak2		; Exit if error
 		cmp	eax,16			; Make sure in range
 		jae	.BadBreak2		; Exit if error
@@ -171,22 +171,22 @@ proc MON_Breaks
 		jz	.BadBreak2		; break #0, it's automatic
 		popfd
 		push	eax
-		jz	short .UnMake		; If was '-', clear break
+		jz	.UnMake			; If was '-', clear break
 		call	WadeSpace		; Else wade to next arg
 		call	ReadAddress		; Read the bp address
 		pop	eax			
-		jc	short .BadBreak	; Quit if error
+		jc	.BadBreak		; Quit if error
 		call	SetBreak		; Set breakpoint at this address
-		jmp	short .Done		; Get out
+		jmp	.Done			; Get out
 
 .UnMake:	call	WadeSpace		; Wade to end
 		cmp	al,13
 		pop	eax
-		jne	short .BadBreak	; If there is more we have an error
+		jne	.BadBreak		; If there is more we have an error
 		call	ClearBreak		; Clear breakpoint
-		jmp	short .Done		; Get out
+		jmp	.Done			; Get out
 
-.ShowAll:      mov	ecx,15			; For each breakpoint
+.ShowAll:	mov	ecx,15			; For each breakpoint
 .Loop:		mov	eax,ecx			; Display it if set
 		call	DisplayBreak
 		loop	.Loop
@@ -197,5 +197,3 @@ proc MON_Breaks
 .BadBreak:	stc				; Exit, errors
 		ret
 endp		;---------------------------------------------------------------
-
-

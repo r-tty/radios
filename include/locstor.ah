@@ -21,6 +21,8 @@ struc tTLS
 .KeyData	RESP	1		; Indexed by pthread_key_t
 .Cleanup	RESP	1
 .Spare		RESD	3
+.Self		RESD	1		; TLS address
+.Trampoline	RESD	1
 .HheadPtr	RESD	1		; Pointer to first allocated block
 .HheadSize	RESD	1		; Size of first allocated block
 .HlastPtr	RESD	1		; Pointer to last allocated block
@@ -33,13 +35,15 @@ endstruc
 ; Parameters:	%1 - new errno value
 ;		%2 - scratch register
 %macro mSetErrno 2
-	mov	%2,[fs:4+tTLS.ErrPtr]
+	tlsptr(%2)
+	mov	%2,[%2+tTLS.ErrPtr]
 	mov	dword [%2],%1
 %endmacro
 
 ; Macro to get errno value in %1
 %macro mGetErrno 1
-	mov	%1,[fs:4+tTLS.ErrPtr]
+	tlsptr(%1)
+	mov	%1,[%1+tTLS.ErrPtr]
 	mov	%1,[%1]
 %endmacro
 

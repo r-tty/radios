@@ -126,15 +126,15 @@ proc ValByteDec
 .Loop:		dec	edi
 		mov	al,[edi]
 		cmp	al,'0'
-		jc	short .Exit
+		jc	.Exit
 		cmp	al,'9'+1
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		sub	al,'0'
 		mul	dl
 		cmp	ax,100h				; Overflow?
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		add	ch,al
 		lea	edx,[edx*4+edx]			; EDX*=10
 		shl	edx,1
@@ -167,10 +167,10 @@ proc ValDwordDec
 .Loop:		dec	esi
 		mov	al,[esi]
 		cmp	al,'0'
-		jc	short .Exit
+		jc	.Exit
 		cmp	al,'9'+1
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		sub	al,'0'
 		and	eax,15
 		mul	edi
@@ -205,18 +205,18 @@ proc ValDwordHex
 .Loop:		dec	edi
 		mov	al,[edi]
 		cmp	al,'0'
-		jc	short .Exit
+		jc	.Exit
 		cmp	al,'9'+1
-		jae	short .ChkLetter
+		jae	.ChkLetter
 		sub	al,'0'
-		jmp	short .1
+		jmp	.1
 
 .ChkLetter:	or	al,20h				; Make lowercase
 		cmp	al,'a'
-		jc	short .Exit
+		jc	.Exit
 		cmp	al,'g'
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		sub	al,'a'-10
 
 .1:		and	eax,15

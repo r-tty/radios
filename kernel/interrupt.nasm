@@ -276,9 +276,8 @@ endp		;---------------------------------------------------------------
 
 
 		; Install a new software interrupt handler.
-		; Input: AX=syscall number,
-		;	 EBX=function address,
-		;	 CL=number of parameters.
+		; Input: AL=interrupt number,
+		;	 EBX=handler address.
 		; Output: CF=0 - OK;
 		;	  CF-1 - error.
 proc K_InstallSoftIntHandler

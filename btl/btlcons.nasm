@@ -13,15 +13,13 @@ publicproc ConsInit, ServiceEntry
 publicproc _putchar, _puts, _getc
 publicproc _printlong, _panic
 
-extern _printf
+externproc _printf, Reboot
 
-; --- Error codes ---
-%define	ERR_VTX_DetFail		1
-%define	ERR_VTX_BadVPage	2
-%define	ERR_VTX_BadCurPos	3
+; Some error codes
+ERR_VTX_DetFail		EQU	1
+ERR_VTX_BadVPage	EQU	2
+ERR_VTX_BadCurPos	EQU	3
 
-
-; --- Data ---
 
 section .data
 
@@ -45,7 +43,7 @@ KBlayoutShift	DB	0,27,"!@#$%^&*()_+",8,9			; 00h - 0Fh
 
 ; Service entries
 
-%define	NUMSERVENTRIES	10
+NUMSERVENTRIES	EQU	10
 
 FunctionTable	DD	PrintCharRawTTY		; 0
 		DD	PrintChar		; 1
@@ -527,7 +525,7 @@ endp		;---------------------------------------------------------------
 proc PrintNumDec
 %define	.numbuf	ebp-20
 		prologue 20
-		mpush	ebx,ecx,edx,esi
+		mpush	ebx,ecx,edx,esi
 		lea	esi,[.numbuf]
 		mov	ebx,10
 		xor	ecx,ecx
@@ -540,7 +538,7 @@ proc PrintNumDec
 		or	eax,eax
 		jnz	.DivLoop
 		
-.PrintLoop:	dec	esi
+.PrintLoop:	dec	esi
 		mov	al,[esi]
 		call	PrintChar
 		loop	.PrintLoop
@@ -745,8 +743,6 @@ endp		;---------------------------------------------------------------
 proc _panic
 		mov	esi,TxtPanic
 		call	PrintStr
-		mov	[esp],dword .Forever
+		mov	[esp],dword Reboot
 		jmp	_printf
-.Forever:	hlt
-		jmp	.Forever
 endp		;---------------------------------------------------------------

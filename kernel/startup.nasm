@@ -25,7 +25,8 @@ externproc K_BuildGDT, K_InitInterrupts, CPU_Init, FPU_Init, K_InitMem
 externproc PIC_Init, PIC_SetIRQmask, PIC_EnableIRQ
 externproc TMR_InitCounter, TMR_CountCPUspeed
 externproc PG_Init, PG_StartPaging
-externproc MT_Init, MT_GetNumThreads, MT_CreateThread, MT_ThreadExec
+externproc MT_Init, MT_GetNumThreads, MT_CreateThread
+externproc MT_ThrEnqueue, MT_ThreadExec
 externproc K_InitTime, K_SyncInit
 externproc IPC_ChanInit, IPC_PulseInit
 externdata GDTlimAddr
@@ -37,7 +38,7 @@ externproc PrintChar, PrintString, PrintDwordDec, ReadChar
 
 %ifdef LINKMONITOR
 library monitor
-extern MonitorInit
+externproc MonitorInit
 %endif
 
 
@@ -210,11 +211,11 @@ proc Start
 
 		; Create idle thread
 		mov	ebx,IdleThread
-		xor	ecx,ecx
 		xor	esi,esi
 		call	MT_CreateThread
 		jc	ExitKernel
 		mov	[?IdleTCB],ebx
+		call	MT_ThrEnqueue
 		
 		; Initialize kernel extension modules
 		call	InitKernExtModules

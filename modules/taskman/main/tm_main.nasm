@@ -9,6 +9,7 @@ module tm.main
 %include "errors.ah"
 %include "parameters.ah"
 %include "thread.ah"
+%include "locstor.ah"
 %include "module.ah"
 %include "serventry.ah"
 %include "tm/process.ah"
@@ -25,9 +26,10 @@ externdata ?BootModsArr, ?ProcListPtr, ?ConnPool
 externdata BinFmtRDOFF
 
 library $libc
-importproc _ChannelCreate, _ConnectAttach
-importproc _MsgReceive, _MsgReply, _MsgError, _MsgRead
-importproc _ThreadCreate
+importproc _ChannelCreate_r, _ConnectAttach_r
+importproc _MsgReceive_r, _MsgReply_r, _MsgError, _MsgRead_r
+importproc _ThreadCreate_r, _ThreadDetach
+
 
 section .data
 
@@ -72,28 +74,28 @@ proc TM_Main
 		; Initialize memory management
 		mov	eax,MAXMCBS
 		call	TM_InitMemman
-		jc	near .Fatal
+		jc	near HaltFatal
 
 		; Initialize modules
 		mov	eax,MAXMODULES
 		mov	esi,[?BootModsArr]
 		call	TM_InitModules
-		jc	near .Fatal
+		jc	near HaltFatal
 
 		; Map shared libraries for ourselves, we'll need them
 		mov	esi,[?ProcListPtr]
 		mov	edx,MapShLib
 		call	TM_IterateModList
-		jc	near .Fatal
+		jc	near HaltFatal
 
 		; Register RDOFF binary format driver
 		mov	edx,BinFmtRDOFF
 		call	TM_RegisterBinFmt
-		jc	near .Fatal
+		jc	near HaltFatal
 
 		; Initialize path management
 		call	TM_InitPathman
-		jc	near .Fatal
+		jc	near HaltFatal
 
 		; Install our message handlers
 		mov	esi,SysMsgHandlers
@@ -104,15 +106,15 @@ proc TM_Main
 		call	TM_SetMHfromTable
 
 		; Our channel must have chid==1, so create a spare one
-		Ccall	_ChannelCreate, 0
+		Ccall	_ChannelCreate_r, 0
 		test	eax,eax
-		js	near .Fatal
+		js	near HaltFatal
 		mov	[?SpareChannel],eax		; just in case
 
 		; Create the IPC channel that we will use for communications
-		Ccall	_ChannelCreate, 0
+		Ccall	_ChannelCreate_r, 0
 		test	eax,eax
-		js	near .Fatal
+		js	near HaltFatal
 		
 		; Initialize connection pool
 		mov	ebx,?ConnPool
@@ -123,30 +125,25 @@ proc TM_Main
 
 		; Create a connection to our channel. It will be inherited
 		; by all child processes.
-		Ccall	_ConnectAttach, 0, SYSMGR_PID, SYSMGR_CHID, SYSMGR_COID, 0
+		Ccall	_ConnectAttach_r, 0, SYSMGR_PID, SYSMGR_CHID, SYSMGR_COID, 0
 		test	eax,eax
-		js	near .Fatal
+		js	near HaltFatal
 
-		; Start a console server
-		call	TM_StartConsole
-		jc	near .Fatal
-
-		; Start other resource manager sequentially
-		mov	edx,RunResmgr
-		call	TM_IterateModList
-		jc	near .Fatal
-
-		; Start spin-off process
-		call	TM_RunSpinoff
-		jc	near .Fatal
+		; Create startup thread and pass the address of our current
+		; TCB to it as an argument
+		mov	esi,[?ProcListPtr]
+		Ccall	_ThreadCreate_r, byte 0, TM_Starter, \
+			dword [esi+tProcDesc.ThreadList], byte 0
+		test	eax,eax
+		js	near HaltFatal
 
 		; Main loop: wait for a message and process it.
 .MsgLoop:	lea	edi,[%$msgbuf]
 		lea	esi,[%$minfo]
-		Ccall	_MsgReceive, SYSMGR_CHID, edi, tPulse_size, esi
+		Ccall	_MsgReceive_r, SYSMGR_CHID, edi, byte tPulse_size, esi
 		mov	ebx,eax
 		test	eax,eax
-		js	near .Fatal
+		js	near HaltFatal
 		jnz	.GotMsg
 		call	TM_PulseHandler
 		jmp	.MsgLoop
@@ -186,11 +183,6 @@ proc TM_Main
 .ReplyErr:	Ccall	_MsgError, ebx, -ENOMSG
 		jmp	.MsgLoop
 
-.Fatal:		mServPrintStr TxtFatalErr
-		mServPrint16h
-		mServPrintChar ')'
-		mServPrintStr TxtHalt
-		jmp	$
 		epilogue
 endp		;---------------------------------------------------------------
 
@@ -244,7 +236,7 @@ proc CreateBootProc
 		call	TM_IterateModList
 
 		; Create first thread
-		Ccall	_ThreadCreate, dword [esi+tProcDesc.PID], \
+		Ccall	_ThreadCreate_r, dword [esi+tProcDesc.PID], \
 			dword [ebx+tModule.Entry], 0, 0
 		test	eax,eax
 		jns	.Exit
@@ -369,6 +361,55 @@ proc TM_RunSpinoff
 .Exit		ret
 endp		;---------------------------------------------------------------
 
+
+		; This thread starts the console manager, other resource
+		; managers and spin-off process, and then terminates itself.
+		; Its argument is the address of the main taskman thread.
+proc TM_Starter
+		; Wait until the main thread will enter RECEIVE-state
+		mov	ebx,[esp+4]
+.Wait:		cmp	byte [ebx+tTCB.State],THRSTATE_RECEIVE
+		jne	.Wait
+
+		; Start a console server
+		call	TM_StartConsole
+		jc	near HaltFatal
+
+		; Start other resource manager sequentially
+		mov	edx,RunResmgr
+		call	TM_IterateModList
+		jc	near HaltFatal
+
+		; Start spin-off process
+		call	TM_RunSpinoff
+		jc	near HaltFatal
+
+		; Detach ourselves and terminate
+		Ccall	_ThreadDetach, byte 0
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; In case of fatal error we can only report it and halt.
+proc HaltFatal
+		mServPrintStr TxtFatalErr
+		mServPrint16h
+		mServPrintChar ')'
+		mServPrintStr TxtHalt
+		jmp	$
+endp		;---------------------------------------------------------------
+
+		; Same than previous, but error value is obtained from errno.
+proc EHaltFatal
+		mServPrintStr TxtFatalErr
+		mGetErrno eax
+		mServPrint16h
+		mServPrintChar ')'
+		mServPrintStr TxtHalt
+		jmp	$
+endp		;---------------------------------------------------------------
+
+
 		; Install a system message handler.
 		; Input: AX=message type,
 		;	 EBX=handler address.
@@ -439,14 +480,14 @@ proc MH_SysConf
 		prologue
 
 		lea	edi,[%$msgbuf]
-		Ccall	_MsgRead, ebx, edi, tSysConfRequest_size, 0
+		Ccall	_MsgRead_r, ebx, edi, tSysConfRequest_size, 0
 		test	eax,eax
 		clc
 		js	.Exit
 		cmp	eax,tSysConfRequest_size
 		jb	.Exit
 
-		Ccall	_MsgReply, ebx, 0, edi, tSysConfReply_size
+		Ccall	_MsgReply_r, ebx, 0, edi, tSysConfReply_size
 
 .Exit:		epilogue
 		ret
@@ -460,7 +501,7 @@ proc MH_SysCmd
 		prologue
 
 		lea	edi,[%$msgbuf]
-		Ccall	_MsgRead, ebx, edi, tMsg_SysCmd_size, 0
+		Ccall	_MsgRead_r, ebx, edi, tMsg_SysCmd_size, 0
 		test	eax,eax
 		clc
 		js	.Exit

@@ -131,7 +131,7 @@ proc MON_Enter
 .OK:		pop	gs
 		popfd
 		clc				; No errors
-		jmp	short .Done
+		jmp	.Done
 
 .Err2:		pop	gs
 		popfd

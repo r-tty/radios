@@ -2,6 +2,9 @@
 ; monitor.ah - some definitions and macros used by the monitor.
 ;-------------------------------------------------------------------------------
 
+; Size of buffer for disassembler
+DISFMTBUFSIZE	EQU	256
+
 %define FALSE 0
 %define TRUE 1
 

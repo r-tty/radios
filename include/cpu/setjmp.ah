@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  setjmp.ah - definitions for setjmp/longjmp
+; setjmp.ah - definitions for setjmp/longjmp
 ;-------------------------------------------------------------------------------
 
 %ifndef _setjmp_ah

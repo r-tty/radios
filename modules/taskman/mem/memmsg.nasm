@@ -18,7 +18,7 @@ externproc MM_FindRegion, MM_AllocBlock, MM_FreeBlock
 externdata ?ConnPool, ?ProcessPool
 
 library $libc
-externproc _MsgRead, _MsgReply, _MsgError
+importproc _MsgRead, _MsgReply, _MsgError
 
 section .data
 

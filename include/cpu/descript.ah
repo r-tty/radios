@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; descript.ah - definitions of CPU descriptor.
+; descript.ah - definitions of descriptors.
 ;-------------------------------------------------------------------------------
 
 %ifndef _descript_ah
@@ -30,53 +30,53 @@ endstruc
 ; --- Access rights ---
 
 ; Single-bit ARs
-%define	ARaccessed	1
-%define	ARsegment	10h
-%define	ARpresent	80h
+ARaccessed	EQU	1
+ARsegment	EQU	10h
+ARpresent	EQU	80h
 
 ; DPLs
-%define	AR_DPL0		0
-%define	AR_DPL1		20h
-%define	AR_DPL2		40h
-%define	AR_DPL3		60h
+AR_DPL0		EQU	0
+AR_DPL1		EQU	20h
+AR_DPL2		EQU	40h
+AR_DPL3		EQU	60h
 
 ; Segment types
-%define	AR_DS_R		0
-%define	AR_DS_RW	2
-%define	AR_SS_R		4
-%define	AR_SS_RW	6
-%define	AR_CS_X		8
-%define	AR_CS_XR	0Ah
-%define	AR_CCS_X	0Ch
-%define	AR_CCS_XR	0Eh
+AR_DS_R		EQU	0
+AR_DS_RW	EQU	2
+AR_SS_R		EQU	4
+AR_SS_RW	EQU	6
+AR_CS_X		EQU	8
+AR_CS_XR	EQU	0Ah
+AR_CCS_X	EQU	0Ch
+AR_CCS_XR	EQU	0Eh
 
 ; Special system objects
-%define	AR_AvlTSS16	1
-%define	AR_LDTdesc	2
-%define	AR_BusyTSS16	3
-%define	AR_CallGate16	4
-%define	AR_TaskGate	5
-%define	AR_IntGate16	6
-%define	AR_TrapGate16	7
-%define	AR_AvlTSS	9
-%define	AR_BusyTSS	0Bh
-%define	AR_CallGate	0Ch
-%define	AR_IntGate	0Eh
-%define	AR_TrapGate	0Fh
+AR_AvlTSS16	EQU	1
+AR_LDTdesc	EQU	2
+AR_BusyTSS16	EQU	3
+AR_CallGate16	EQU	4
+AR_TaskGate	EQU	5
+AR_IntGate16	EQU	6
+AR_TrapGate16	EQU	7
+AR_AvlTSS	EQU	9
+AR_BusyTSS	EQU	0Bh
+AR_CallGate	EQU	0Ch
+AR_IntGate	EQU	0Eh
+AR_TrapGate	EQU	0Fh
 
 ; Mode nibble
-%define	AR_User		10h
-%define	AR_Reserved	20h
-%define	AR_DfltSz	40h
-%define	AR_Granlr	80h
+AR_User		EQU	10h
+AR_Reserved	EQU	20h
+AR_DfltSz	EQU	40h
+AR_Granlr	EQU	80h
 
 ; Selector field masks
-%define	SELECTOR_RPL0	0
-%define	SELECTOR_RPL1	1
-%define	SELECTOR_RPL2	2
-%define	SELECTOR_RPL3	3
-%define	SELECTOR_LDT	4
-%define	SELECTOR_STATUS	7				; All status fields
-%define	SELECTOR_RPL	3				; RPL fields mask
+SELECTOR_RPL0	EQU	0
+SELECTOR_RPL1	EQU	1
+SELECTOR_RPL2	EQU	2
+SELECTOR_RPL3	EQU	3
+SELECTOR_LDT	EQU	4
+SELECTOR_STATUS	EQU	7				; All status fields
+SELECTOR_RPL	EQU	3				; RPL fields mask
 
 %endif

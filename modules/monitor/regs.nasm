@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; regs.nasm - display/modify registers routines
+; regs.nasm - display/modify registers routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Data ---
@@ -66,7 +66,7 @@ rESI		RESD	1
 rEDI		RESD	1
 rEBP		RESD	1
 rESP		RESD	1
-rEIP            RESD	1
+rEIP		RESD	1
 rCS		RESW	1
 rDS		RESW	1
 rES		RESW	1
@@ -108,12 +108,12 @@ proc MON_Registers
 		jne	.Check3
 		mov	ebx,pDS			; Read in a segment reg
 		call	ReadReg
-		jmp	short .Exit		; End
+		jmp	.Exit			; End
 .Check3:	cmp	cl,3			; If not 3
 		jne	.Err			; Bad reg name
 		mov	ebx,pEAX		; Read in a general purpose reg
 		call	ReadReg
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		stc				; Error
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -132,9 +132,9 @@ proc DisplayRegisters
 		mov	esi,FlagChars
 		mov	cl,12
 .Loop:		shl	bx,1
-		jnc	short .Space
+		jnc	.Space
 		mov	al,[esi]
-		jmp	short .Print
+		jmp	.Print
 .Space:		mov	al,'-'
 .Print:		call	PrintChar
 		inc	esi
@@ -170,7 +170,7 @@ proc ReadReg
 		repe	cmpsb
 		pop	esi
 		pop	ecx
-		jz	short .Got		; Got it
+		jz	.Got			; Got it
 		add	ebx,4			; Else skip past value
 .Wade:		inc	ebx			; Skip past name
 		test	byte [ebx-1],-1
@@ -193,13 +193,13 @@ proc ReadReg
 		je	.Exit			; Quit if so
 .GotInput:	mov	ebx,[ebx]		; Get pointer to addres
 		call	ReadNumber		; Read number
-		jc	short .NotFound		; Error if bad number
+		jc	.NotFound		; Error if bad number
 		cmp	cl,2			; Check if is segment reg
-		je	short .Word		; Yes, go verify it
+		je	.Word			; Yes, go verify it
 		mov	[ebx],eax		; Else just save offset
-		jmp	short .Exit
+		jmp	.Exit
 .Word:		call	VerifySelector		; Verify selector
-		jc	short .NotFound	; Quit if error
+		jc	.NotFound		; Quit if error
 		mov	[ebx],ax		; Save segment
 .Exit:		clc				; Get out no errors
 		pop	es

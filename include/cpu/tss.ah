@@ -1,6 +1,9 @@
 ;-------------------------------------------------------------------------------
-;  tss.ah - TSS structure.
+; tss.ah - TSS structure.
 ;-------------------------------------------------------------------------------
+
+%ifndef _tss_ah
+%define _tss_ah
 
 struc tTSS
 .Link		RESW	1
@@ -43,3 +46,4 @@ struc tTSS
 .IOBM		RESW	1
 endstruc
 
+%endif

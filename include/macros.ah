@@ -12,8 +12,7 @@ endm
 ; Call driver control function
 macro mCallDriverCtrl DRVid,CtrlFun		; Call driver control function
 	push	DRVid
-	push	DRVF_Control
-	mov	[word esp+2],CtrlFun
+	push	DRVF_Control+10000h*CtrlFun
 	call	DRV_CallDriver
 endm
 
@@ -28,4 +27,9 @@ endm
 macro mWrString StrOffset
 	mov	esi,offset StrOffset
 	mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
+endm
+
+; Wait a key
+macro mWaitKey
+	mCallDriver [DrvId_Con],DRVF_Read
 endm

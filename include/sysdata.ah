@@ -3,11 +3,24 @@
 ;-------------------------------------------------------------------------------
 
 ; --- Common system definitions ---
+NULL		EQU	0
+FALSE		EQU	0
+TRUE		EQU	1
 KrnlMemSz	EQU	100000h			; Size of kernel segment
-P32MemSz	EQU	4096*100000h		; Size of all linear memory
 PageSize	EQU	1000h
+PAGESHIFT	EQU	12
+P32MemSz	EQU	PageSize*100000h	; Size of all linear memory
 
-; --- Flags masks ---
+StartOfExtMem	EQU	100000h			; Start address of ext. mem.
+
+MaxNumSessions	EQU	8			; Max. number of sessions
+MaxNumProcesses	EQU	16			; Max. number of processes
+MaxNumThreads	EQU	64			; Max. number of threads
+MaxLocalDescr	EQU	32			; Max. num. of local descriptors
+
+HZ		EQU	100
+
+; --- Flag register masks ---
 FLAG_CF		EQU	1
 FLAG_PF		EQU	4
 FLAG_AF		EQU	10h
@@ -24,166 +37,60 @@ FLAG_VM		EQU	20000h
 FLAG_AC		EQU	40000h
 
 
-
-; --- Drivers definitions ---
-
-MAXNUMDRIVERS		EQU	256		; Maximum number of drivers
-DRVNAMELEN		EQU	16		; Length of driver name
-
-; Driver main structure
-struc tDriver
- DrvName	DB DRVNAMELEN dup (0)		; Driver name
- Entries	DD	?			; Entry points table address
- Flags		DW	?			; Flags
-ends
-
-; Driver flags
-DRVFL_Extern	EQU	1			; External
-DRVFL_Kernel	EQU	2			; Kernel (can't be hooked)
-DRVFL_InitOK	EQU	4			; Initialized OK
-DRVFL_Locked	EQU	8			; Locked
-
-; Default internal drivers IDs
-DRVID_Null	EQU	0
-DRVID_CPU	EQU	1
-DRVID_FPU	EQU	2
-DRVID_Memory	EQU	3
-DRVID_Keyboard	EQU	4
-DRVID_VideoTx	EQU	5
-DRVID_VideoGr	EQU	6
-DRVID_Audio	EQU	7
-DRVID_Ethernet	EQU	8
-DRVID_Serial	EQU	9
-DRVID_Parallel	EQU	10
-DRVID_FDD	EQU	11
-DRVID_HDD	EQU	12
-
-; Standard driver functions
-
-; Function numbers
-DRVF_Init		EQU	0	; Initialize
-DRVF_HandleEv		EQU	1	; Handle event
-DRVF_Open		EQU	2	; Open
-DRVF_Close		EQU	3	; Close
-DRVF_Read		EQU	4	; Read
-DRVF_Write		EQU	5	; Write
-DRVF_Reserved		EQU	6	; Reserved
-DRVF_Control		EQU	7	; Control (various functions)
-
-; Structure of driver entry points table
-struc tDrvEntries
- Init		DD	?
- HandleEv	DD	?
- Open		DD	?
- Close		DD	?
- Read		DD	?
- Write		DD	?
- RESERVED	DD	?
- Control	DD	?
-ends
+; --- CR0 register masks ---
+CR0_PE		EQU	1
+CR0_MP		EQU	2
+CR0_EM		EQU	4
+CR0_TS		EQU	8
+CR0_ET		EQU	10h
+CR0_NE		EQU	20h
+CR0_WP		EQU	10000h
+CR0_AM		EQU	40000h
+CR0_NW		EQU	20000000h
+CR0_CD		EQU	40000000h
+CR0_PG		EQU	80000000h
 
 
-; --- Predefined events ---
-
+; --- Predefined event codes (high word of EAX)---
 EV_NULL		EQU	0			; Empty event
-
-; Hardware events
-EV_IRQ1		EQU	10000h
-EV_IRQ2		EQU	20000h
-EV_IRQ3		EQU	30000h
-EV_IRQ4		EQU	40000h
-EV_IRQ5		EQU	50000h
-EV_IRQ6		EQU	60000h
-EV_IRQ7		EQU	70000h
-EV_IRQ8		EQU	80000h
-EV_IRQ9		EQU	90000h
-EV_IRQ10	EQU	0A0000h
-EV_IRQ11	EQU	0B0000h
-EV_IRQ12	EQU	0C0000h
-EV_IRQ13	EQU	0D0000h
-EV_IRQ14	EQU	0E0000h
-EV_IRQ15	EQU	0F0000h
+EV_IRQ		EQU	10000h			; Hardware interrupt
+EV_SIGNAL	EQU	20000h			; Signal
 
 
 ; --- Hardware interrupts vectors ---
 IRQ0int			EQU	70h
 IRQ2int			EQU	72h
 IRQ8int			EQU	78h
+IRQ13int		EQU	7Ch
 
 
-; --- Hard disk parameters ---
-struc	tHDparms
- Cyl		DW	?
- Head		DB	?
- Sec		DB	?
-ends
+; --- System timer definitions ---
+TIMER_InpFreq		EQU	1193180		; Timer input frequency (Hz)
+TIMER_OutFreq		EQU	60		; Channel 0 output freq (Hz)
 
 
-; --- Hardware analysis data structure ---
-struc	tBIOSANLS
- BaseMem	DW	?
- ExtMem		DW	?
- CPUtype	DB	?
- NPUtype	DB	?
- FDDparms	DB 4 dup (?)
- NumHDD		DB	?
- HDDparms	tHDparms 8 dup (<0,0,0>)
- NumSerial	DB	?
- NumParallel	DB	?
- NetDev		DW	?
- AudioDev	DW	?
-ends
+; --- Disk sector size ---
+SECTORSIZE		EQU	512
+SECTORSHIFT		EQU	9
 
 
 ; --- Global kernel data ---
 		global DrvId_Con:	dword
+		global DrvId_BIOS32:	dword
+		global DrvId_RD:	dword
+		global DrvId_RFS:	dword
+		global TimerTicksLo:	dword
+		global TimerTicksHi:	dword
 
+		global K_CurrPID:	dword
+		global K_CurrThread:	dword
 
-; --- Global kernel procedures ---
-		global DrvNULL:		near
+		global BaseMemSz:	dword
+		global ExtMemSz:	dword
 
-		global DRV_InstallNew:	near
-		global DRV_GetInfoAddr:	near
-		global DRV_CallDriver:	near
+		global VirtMemPages:	dword
+		global TotalMemPages:	dword
 
-		global K_DescriptorAddress:	near
-		global K_GetDescriptorBase:	near
-		global K_SetDescriptorBase:	near
-		global K_GetDescriptorLimit:	near
-		global K_SetDescriptorLimit:	near
-		global K_GetDescriptorAR:	near
-		global K_SetDescriptorAR:	near
-		global K_GetGateSelector:	near
-		global K_SetGateSelector:	near
-		global K_GetGateOffset:		near
-		global K_SetGateOffset:		near
-		global K_SetGateCount:		near
+		global HeapBegin:	dword
+		global HeapEnd:		dword
 
-		global K_TTDelay:	near
-		global K_LDelay:	near
-		global K_WrDecD:	near
-		global K_WrHexB:	near
-		global K_WrHexW:	near
-		global K_WrHexD:	near
-		global K_HexW2Str:	near
-		global K_DecD2Str:	near
-
-		global StrLen:		near
-		global StrEnd:		near
-		global StrMove:		near
-		global StrCopy:		near
-		global StrAppend:	near
-		global StrComp:		near
-		global StrLComp:	near
-		global StrLIComp:	near
-		global StrScan:		near
-		global StrRScan:	near
-		global StrPos:		near
-		global StrLower:	near
-		global StrUpper:	near
-		global CharToUpper:	near
-		global CharToLower:	near
-
-		global K_ReadString:	near
-
-		global WriteChar:	near

@@ -1,0 +1,107 @@
+
+; --- Common definitions ---
+
+BLOCKSIZE		EQU	1024
+BLOCKSHIFT		EQU	10
+
+BITSPERBAM		EQU	2000h		; Blocks per BAM
+BAMOFS			EQU	1		; Offset to firts BAM (in blocks)
+
+FILENAMELEN		EQU	20
+
+
+; --- B-Tree working definitions ---
+
+DFL_LEAF		EQU	7
+
+MAXDIRITEMS		EQU	30		; 14 for 512 bytes block
+DIRORDER		EQU	15		; 7 for 512 bytes block
+
+
+; --- Master disk block definitions ---
+
+JMPinst			EQU	0EBh
+BootJMP			EQU	56
+
+struc tMasterBlock
+ JmpAround	DW	?
+ ID		DB	10 dup (?)
+ BootProg	DB	FILENAMELEN dup (?)
+ Ver		DW	?,?
+ NumBAMs	DD	?
+ KBperBAM	DD	?
+ RootDir	DD	?
+ LoaderOfs	DD	?		; Offset from begin of partition to
+					; system loader (in sectors)
+ LoaderSize	DD	?		; Size of system loader (in sectors)
+ends
+
+
+; --- Directory page and entry definitions ---
+
+DISKINDEX_TYPE		EQU	2
+
+struc tDirPage
+ Flags		DB	?
+ Items		DB	?
+ Type		DW	?		; Must be here (offset 2)
+ NM		DB FILENAMELEN dup (?)
+ IAttr		tCFS_IndexAttrs <>
+ AR		DW	?
+ Reserved	DW	?
+ Owner		DD	?
+ UU		DD	?		; Structure size must be 64 bytes
+ PageLess	DD	?
+ends
+
+FIRSTDIRENTRY		EQU	64
+DIRENTRYSIZE		EQU	32
+DIRENTRYSHIFT		EQU	5
+LESS			EQU	-4
+
+struc tDirEntry
+ NM		DB	FILENAMELEN dup (?)
+ UU		DB	3 dup (?)
+ Flags		DB	?
+ Entry		DD	?
+ More		DD	?		; Depends on this being LAST and DWORD
+ends
+
+
+; --- File page definitions ---
+
+FPSignature		EQU	05046h
+FPDirectEntries		EQU	175		; Depends on size of tFilePage
+FPInDirEntries		EQU	64
+
+struc tFilePage
+ Sig		DW	?
+ Type		DW	?			; Must be here (offset 2)
+ NM		DB FILENAMELEN dup (?)
+ Len		DD	?
+ IAttr		tCFS_IndexAttrs <>
+ AR		DW	?
+ Owner		DD	?
+ Singles	DD	FPDirectEntries dup (?)
+ Doubles	DD	FPInDirEntries dup (?)
+ends
+
+
+; --- File control block definitions ---
+
+struc tFCB
+ Page		DD	?
+ CurrPage	DD	?
+ Device		DD	?
+ Bytes		DD	?
+ Pages		DD	?
+ PosBytes	DD	?
+ PosPages	DD	?
+ Reserved	DD	?
+ends
+
+FILE_Begin		EQU	0
+FILE_Current		EQU	1
+FILE_End		EQU	2
+
+BaseFCBs		EQU	3

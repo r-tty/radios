@@ -1,0 +1,31 @@
+;-------------------------------------------------------------------------------
+;  cfs_func.ah - file system interface routines.
+;-------------------------------------------------------------------------------
+
+		global CFS_Init:		near
+		global CFS_Done:		near
+
+		global CFS_LinkFS:		near
+		global CFS_UnlinkFS:		near
+		global CFS_MakeFS:		near
+
+		global CFS_CreateFile:		near
+		global CFS_Open:		near
+		global CFS_Close:		near
+		global CFS_Read:		near
+		global CFS_Write:		near
+		global CFS_RemoveFile:		near
+		global CFS_MoveFile:		near
+		global CFS_Truncate:		near
+		global CFS_SetPos:		near
+		global CFS_GetPos:		near
+
+		global CFS_CreateDir:		near
+		global CFS_ChangeDir:		near
+		global CFS_RemoveDir:		near
+
+		global CFS_SetCurrentLP:	near
+		global CFS_LPtoDevID:		near
+
+		global CFS_GetLPfromName:	near
+		global CFS_MoveNameToStack:	near

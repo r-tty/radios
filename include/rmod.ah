@@ -1,0 +1,72 @@
+;-------------------------------------------------------------------------------
+;  rmodule.ah - RadiOS module format definitions.
+;-------------------------------------------------------------------------------
+
+; --- Misc. definitions ---
+MaxModNameLen		EQU		15	; Max. module name length
+MaxSymNameLen		EQU		255	; Max. symbolic name length
+
+; --- Module header structure ---
+struc tModuleHdr
+ Signature	DD	?		; Signature
+ MiscFlags	DB	?		; Miscellaneous flags
+ TargetOS	DB	?		; Target OS type
+ OS_Version	DW	?		; Target OS version
+ ImportTblOfs	DD	?		; Import table offset
+ ExportTblOfs	DD	?		; Export table offset
+ ResourceTblOfs	DD	?		; Resource table offset
+ RelocTblOfs	DD	?		; Relocation table offset
+ ConfigTblOfs	DD	?		; Configuration table offset
+ SectionsOfs	DD	?		; Offset to sections begin
+ CodeSectSize	DD	?		; Code section size
+ DataSectSize	DD	?		; Data section size
+ VarSectSize	DD	?		; Variables section size
+ StackSize	DD	?		; Stack size
+ EntryPoint	DD	?		; Startup entry point
+ ModName	DB	MaxModNameLen dup (?)
+ Reserved	DD	?,?
+ends
+
+; --- Structure of names table element ---
+struc tNamesTblElem
+ Ofs		DD	?				; Offset to object
+ Section	DB	?				; Section of object
+ TypeTag	DB	?				; Type of object
+ Len		DB	?				; Name length
+ SymName	DB	MaxSymNameLen dup (?)		; Pascal-type string
+ends
+
+ ; --- Sections ---
+SECT_NONE		EQU	0
+SECT_CODE		EQU	1
+SECT_DATA		EQU	2
+SECT_VARS		EQU	3
+
+; --- Object type tags ---
+OBJTYPE_NONE		EQU	0
+OBJTYPE_BYTE		EQU	1
+OBJTYPE_WORD		EQU	2
+OBJTYPE_DWORD		EQU	4
+OBJTYPE_FARPTR		EQU	6
+OBJTYPE_QWORD		EQU	8
+OBJTYPE_TWORD		EQU	10
+OBJTYPE_PASCALSTRING	EQU	16
+OBJTYPE_ASCCIZSTRING	EQU	17
+OBJTYPE_NEARPROC	EQU	24
+OBJTYPE_FARPROC		EQU	25
+OBJTYPE_SUBMODULE	EQU	255
+
+
+; --- Structure of relocation table element ---
+struc tRelTblElem
+ Ofs		DD	?				; Offset to target
+ Section	DB	?				; Section of target
+ TargSize	DB	?				; Size of target
+ Reserved	DW	?				; Reserved
+ends
+
+
+; --- Structure of configuration table ---
+struc tModConfTable
+
+ends

@@ -1,0 +1,35 @@
+
+; Initialization command words for PIC #1
+PIC1_ICW1		EQU	11h
+PIC1_ICW3		EQU	4
+PIC1_ICW4		EQU	5
+
+; Initialization command words for PIC #2
+PIC2_ICW1		EQU	11h
+PIC2_ICW3		EQU	2
+PIC2_ICW4		EQU	1
+
+; Operation command words
+PIC_OCW2_EOI		EQU	20h
+PIC_OCW3		EQU	0Ah
+
+; IRQ masks for PIC
+PIC_IRQ0		EQU	1
+PIC_IRQ1		EQU	2
+PIC_IRQ2		EQU	4
+PIC_IRQ3		EQU	8
+PIC_IRQ4		EQU	16
+PIC_IRQ5		EQU	32
+PIC_IRQ6		EQU	64
+PIC_IRQ7		EQU	128
+
+; EOI macro
+macro mPICACK Chip
+		mov	al,PIC_OCW2_EOI
+	IF Chip EQ 0
+		out	PORT_PIC1_0,al
+	ELSE
+		out	PORT_PIC2_0,al
+		out	PORT_PIC1_0,al
+	ENDIF
+endm

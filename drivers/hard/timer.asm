@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  timer.asm - Programmable interval timer control module.
+;  timer.asm - Programmable interval timer control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
@@ -24,11 +24,6 @@ TMRCW_CT1		EQU     40h
 TMRCW_CT2		EQU	80h
 
 
-; --- Publics ---
-		public TMR_InitCounter
-		public TMR_CountCPUspeed
-
-
 ; --- Procedures ---
 
 		; TMR_InitCounter - initialize counter.
@@ -39,9 +34,8 @@ TMRCW_CT2		EQU	80h
 		; (Date: 22.11.98)
 proc TMR_InitCounter near
 		cmp	al,0C0h			; Counter number is right?
-		jae	@@Err
-		push	eax
-		push	edx
+		jae	short @@Err
+		push	eax edx
 		out	PORT_TIMER_CTL,al
 		mov	ah,al
 		shr	al,6			; AL=counter number
@@ -49,20 +43,19 @@ proc TMR_InitCounter near
 		add	dl,al
 		xor	dh,dh			; DX=counter port
 		test	ah,TMRCW_LB		; Write low byte?
-		jz	@@WrHiByte
+		jz	short @@WrHiByte
 		mov	al,cl
 		out	dx,al
 		test	ah,TMRCW_HB		; Write high byte?
-		jz	@@OK
+		jz	short @@OK
 @@WrHiByte:	mov	al,ch
 		out	dx,al
-@@OK:		pop	edx
-		pop	eax
+@@OK:		pop	edx eax
 		clc
-		jmp	short @@Exit
+		ret
 @@Err:		mov	ax,ERR_TMR_BadCNBR	; Error: bad counter number
 		stc
-@@Exit:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -76,7 +69,7 @@ endp		;---------------------------------------------------------------
 proc TMR_ReadOnFly near
 		pushfd
 		cmp	al,3
-		jae	@@Error
+		jae	short @@Error
 		push	edx
 		mov	dx,PORT_TIMER_C0
 		add	dl,al
@@ -85,7 +78,7 @@ proc TMR_ReadOnFly near
 		PORTDELAY
 		in	al,dx
 		test	[byte esp+4],1		; Read one byte?
-		jz	@@OK
+		jz	short @@OK
 		xchg	al,ah
                 in	al,dx
 		xchg	al,ah
@@ -93,7 +86,7 @@ proc TMR_ReadOnFly near
 @@OK:		pop	edx
 		popfd
 		clc
-		jmp	@@Exit
+		ret
 
 @@Error:	popfd
 		mov	ax,ERR_TMR_BadCNBR	; Error: bad counter number
@@ -118,8 +111,8 @@ proc TMR_Delay near
 		stc
 		call	TMR_ReadOnFly
 		cmp	ax,cx
-		jbe	@@Exit
-		jmp	short @@Loop
+		jbe	short @@Exit
+		jmp	@@Loop
 
 @@Exit:		pop	ecx
 		pop	eax
@@ -142,45 +135,104 @@ proc TMR_DelayLong near
 endp		;---------------------------------------------------------------
 
 
-		; TMR_CountCPUspeed - count CPU speed rate (using counter 0)
-		; Input: CX=counter 0 ticks per loop.
+		; TMR_CountCPUspeed - count CPU speed rate.
+		; Input: none.
 		; Output: ECX=CPU speed rate.
-		; (Date: 23.11.98)
 proc TMR_CountCPUspeed near
-		push	eax
-		push	ebx
-		push	edx
-		push	esi
-		pushfd
+		push	eax ebx edx esi edi
 		cli
-		mov	si,cx
-		xor	ebx,ebx			; EBX - previous value
-		xor	eax,eax
-		stc
-		call	TMR_ReadOnFly
-@@Begin:	mov	cx,ax
-		sub	cx,si
-		xor	edx,edx			; Counter
-@@Loop:		xor	al,al
-		stc
-		call	TMR_ReadOnFly
-		cmp	ax,cx
-		jbe	@@Check
-		inc	edx
-		jmp	@@Loop
+		call	KBC_SpeakerOFF			; Turn off speaker
+		call	KBC_DisableGate2
+		mov	al,0B4h
+		xor	ecx,ecx
+		call	TMR_InitCounter
+		mov	di,7AAAh
+		mov	bx,5555h
+		mov	cl,3Eh
+		xor	edx,edx
+		call	KBC_EnableGate2
+		jmp	short $+2			; Clear pipeline
 
-@@Check:	or	edx,edx
-		jz	@@Begin
-		cmp	edx,ebx
-		je	@@Exit
-		mov	ebx,edx
-		jmp	@@Begin
-		
-@@Exit:		mov	ecx,edx
-		popfd
-		pop	esi
-		pop	edx
-		pop	ebx
-		pop	eax
+@@Loop1:	rept	33
+		mov	ax,di
+		div	bx
+		endm
+		dec	cl
+		jz	short @@NextTest
+		jmp	@@Loop1
+
+@@NextTest:	call	KBC_DisableGate2
+		xor	eax,eax
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		mov	ah,al
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		xchg	al,ah
+		mov	esi,eax
+
+		xor	ecx,ecx
+		mov	cl,3Eh
+		xor	edx,edx
+		call	KBC_EnableGate2
+		jmp	short $+2
+
+@@Loop2:	mov	ax,di
+		div	bx
+		loop	@@Loop2
+
+		call	KBC_DisableGate2
+		xor	eax,eax
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		mov	ah,al
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		xchg	al,ah
+		mov	ecx,eax
+		sub	ecx,esi
+
+		mov	eax,5A26F5h
+		xor	edx,edx
+		div	ecx
+		xor	ecx,ecx
+
+@@Loop3:	inc	ecx
+		sub	eax,64h
+		jbe	short @@Exit
+		jmp	@@Loop3
+
+@@Exit:		sti
+		pop	edi esi edx ebx eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; TMR_GetLoopsPerSecond - get number of loops per second.
+		; Input: none.
+		; Output: ECX=loops per second.
+proc TMR_GetLoopsPerSecond near
+		cli
+		call	KBC_SpeakerOFF			; Turn off speaker
+		call	KBC_DisableGate2
+		mov	al,0B4h
+		xor	ecx,ecx
+		call	TMR_InitCounter
+		mov	ecx,32000
+		call	KBC_EnableGate2
+		jmp	short @@Loop
+@@Loop:		nop
+		dec	ecx
+		jnz	@@Loop
+		call	KBC_DisableGate2
+		xor	eax,eax
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		mov	ah,al
+		in	al,PORT_TIMER_C2
+		PORTDELAY
+		xchg	al,ah
+
+		sti
 		ret
 endp		;---------------------------------------------------------------

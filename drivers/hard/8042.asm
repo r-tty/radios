@@ -16,8 +16,8 @@ KBC_P1_T2G		EQU     1		; Counter GATE2 input
 
 ; Port 64h status bits (R)
 KBC_P4S_PTYERR		EQU	80h		; Parity error
-KBC_P4S_RCTO		EQU	40h		; KB receiver timeout
-KBC_P4S_TRTO		EQU	20h		; KB transmitter timeout
+KBC_P4S_RXTO		EQU	40h		; KB receiver timeout
+KBC_P4S_TXTO		EQU	20h		; KB transmitter timeout
 KBC_P4S_KBLock		EQU	10h		; Keyboard locked
 KBC_P4S_Command		EQU	8		; Command/data
 KBC_P4S_ResetOK		EQU	4		; Reset OK/Power ON
@@ -25,6 +25,8 @@ KBC_P4S_KBNRDY		EQU	2		; Keyboard not ready
 KBC_P4S_OutBFull	EQU	1		; Output buffer full
 
 ; Port 64h commands (W)
+KBC_P4W_Pulse		EQU	0FFh		; Pulse output line
+KBC_P4W_HardReset	EQU	0FEh		; Hardware reset
 KBC_P4W_EnA20		EQU	0DFh		; Enable A20
 KBC_P4W_DisA20		EQU	0DDh		; Disable A20
 KBC_P4W_Wr8042out	EQU	0D1h		; Write to 8042 output port
@@ -37,14 +39,6 @@ KBC_P4W_TestSD		EQU	0ABh		; Synchronizing and data test
 KBC_P4W_Test8042	EQU	0AAh		; Internal test of KBC
 KBC_P4W_WriteKBC	EQU	60h		; Write to KBC
 KBC_P4W_ReadKBC		EQU	20h		; Read from KBC
-
-
-; --- Publics ---
-		public KBC_DisableKB
-		public KBC_EnableKB
-		public KBC_SendKBCmd
-		public KBC_ReadKBPort
-		public KBC_ClrOutBuf
 
 
 ; --- Procedures ---
@@ -64,13 +58,13 @@ proc KBC_WaitReady near
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_KBNRDY
 		loopnz	@@Loop1
-		jz	@@OK
+		jz	short @@OK
 		mov	ecx,10000h
 @@Loop2:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_KBNRDY
 		loopnz	@@Loop2
-		jz	@@OK
+		jz	short @@OK
 		popfd
 		stc
 		jmp	short @@Exit
@@ -94,15 +88,15 @@ proc KBC_WaitKBcode near
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
 		loopz	@@Loop1
-		jnz	@@OK
+		jnz	short @@OK
 		mov	ecx,1000000h
 @@Loop2:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
 		loopz	@@Loop2
-		jnz	@@OK
+		jnz	short @@OK
 		stc
-		jmp	@@Exit
+		jmp	short @@Exit
 @@OK:		clc
 @@Exit:		pop	ecx
 		pop	eax
@@ -116,7 +110,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_DisableKB near
 		call	KBC_WaitReady
-		jc	@@Exit
+		jc	short @@Exit
 		push	eax
 		mov	al,KBC_P4W_KBDisable
 		out	PORT_KBC_4,al
@@ -132,7 +126,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_EnableKB near
 		call	KBC_WaitReady
-		jc	@@Exit
+		jc	short @@Exit
 		push	eax
 		mov	al,KBC_P4W_KBEnable
 		out	PORT_KBC_4,al
@@ -153,10 +147,10 @@ proc KBC_SendKBCmd near
 		push	eax
 		lahf					; Keep flags
 		call	KBC_WaitReady
-		jc	@@Error
+		jc	short @@Error
 		out	PORT_KBC_0,al
 		test	ah,1				; Send data byte?
-		jz	@@OK
+		jz	short @@OK
 		call	KBC_WaitReady
 		jc	@@Error
 		mov	al,[esp+1]			; Data byte
@@ -187,7 +181,7 @@ proc KBC_ClrOutBuf near
 		push	eax
 @@Loop:		in	al,PORT_KBC_4
 		test	al,1
-		jz	@@Exit
+		jz	short @@Exit
 		in	al,PORT_KBC_0
 		PORTDELAY
 		PORTDELAY
@@ -200,7 +194,7 @@ endp		;---------------------------------------------------------------
 		; KBC_SpeakerON - turn on PC speaker.
 		; Input: none.
 		; Output: none.
-		; Note: simply enables timer GATE2 and opens speaker gate.
+		; Note: simply enables timer GATE2 and opens speaker gate;
 		;	doesn't change counter 2 divisor rate.
 proc KBC_SpeakerON near
 		push	eax
@@ -228,3 +222,79 @@ proc KBC_SpeakerOFF near
 		ret
 endp		;---------------------------------------------------------------
 
+
+		; KBC_EnableGate2 - enable timer GATE2 line.
+		; Input: none.
+		; Output: none.
+proc KBC_EnableGate2 near
+		push	eax
+		in	al,PORT_KBC_1
+		PORTDELAY
+		or	al,KBC_P1_T2G
+		out	PORT_KBC_1,al
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_DisableGate2 - enable timer GATE2 line.
+		; Input: none.
+		; Output: none.
+proc KBC_DisableGate2 near
+		push	eax
+		in	al,PORT_KBC_1
+		PORTDELAY
+		and	al,not KBC_P1_T2G
+		out	PORT_KBC_1,al
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_A20Control - A20 line control.
+		; Input: AL=0 - disable A20;
+		;	 AL=1 - enable A20.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+proc KBC_A20Control near
+		push	eax ecx
+		mov	ah,KBC_P4W_EnA20
+		or	al,al
+		jnz	short @@Enable
+		mov	ah,KBC_P4W_DisA20
+
+@@Enable:	call	KBC_WaitReady
+		jc	short @@Error
+
+		mov	al,KBC_P4W_Wr8042out
+		out	PORT_KBC_4,al
+		call	KBC_WaitReady
+		jc	short @@Error
+
+		mov	al,ah
+		out	PORT_KBC_0,al
+		call	KBC_WaitReady
+		jc	short @@Error
+
+		mov	al,KBC_P4W_Pulse
+		out	PORT_KBC_4,al
+		call	KBC_WaitReady
+
+@@OK:		clc
+		jmp	short @@Exit
+@@Error:	stc
+@@Exit:		pop	ecx eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_HardReset - hardware reset.
+		; Input: none.
+		; Output: none.
+proc KBC_HardReset
+		cli
+		call	KBC_WaitReady
+		mov	al,KBC_P4W_HardReset
+		out	PORT_KBC_4,al
+		hlt
+endp		;---------------------------------------------------------------

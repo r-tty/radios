@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  dma.asm - Direct memory access controllers control module.
+;  dma.asm - Direct memory access control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
@@ -40,20 +40,21 @@ DMAMASK_CH3		EQU	8
 
 
 ; --- Data ---
+segment KDATA
 DMA1_PageRegs		DB PORT_DMA1_P0,PORT_DMA1_P1,PORT_DMA1_P2,PORT_DMA1_P3
 DMA2_PageRegs		DB PORT_DMA2_P4,PORT_DMA2_P5,PORT_DMA2_P6,PORT_DMA2_P7
-			DB 253 dup (?)
+ends
 
 ; --- Procedures ---
 
-		; DMA_Reset - reset of DMA controller.
+		; DMA_Reset - reset DMA controller.
 		; Input: AL=controller number (1,2).
 		; Output: none.
 proc DMA_Reset near
 		cmp	al,1
-		jne	@@DMA2
+		jne	short @@DMA2
 		out	PORT_DMA1_MastClr,al
-		jmp	@@Exit
+		jmp	short @@Exit
 @@DMA2:		out	PORT_DMA2_MastClr,al
 @@Exit:		ret
 endp		;---------------------------------------------------------------
@@ -68,15 +69,15 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc DMA_InitChannel near
 		cmp	al,8				; Check channel number
-		jae	@@Err1
+		jae	short @@Err1
 		cmp	ebx,1000000h			; Check address
-		jae	@@Err2
+		jae	short @@Err2
 		cmp	al,4				; Slave controller?
-		jae	@@Slave
+		jae	short @@Slave
 		push	ebx
 		add	bx,cx
 		pop	ebx
-		jc	@@Err3
+		jc	short @@Err3
 
 		push	eax
 		push	ebx
@@ -119,7 +120,7 @@ proc DMA_InitChannel near
 		jmp	short @@OK
 
 @@Slave:	test	bl,1				; Even address?
-		jnz	@@Err4
+		jnz	short @@Err4
 		push	ebx				; Test page overflow
 		push	ecx
 		and	ebx,1FFFFh			; Mask page
@@ -129,12 +130,12 @@ proc DMA_InitChannel near
 		test	ebx,20000h			; Overflow?
 		pop	ecx
 		pop	ebx
-		jnz	@@Err3
+		jnz	short @@Err3
 
 
 
 @@OK:		clc
-		jmp	short @@Exit
+		ret
 
 @@Err1:		mov	ax,ERR_DMA_BadChNum
 		jmp	short @@Err
@@ -143,7 +144,6 @@ proc DMA_InitChannel near
 @@Err3:		mov	ax,ERR_DMA_PageOut
 		jmp	short @@Err
 @@Err4:		mov	ax,ERR_DMA_AddrOdd
-		jmp	short @@Err
 @@Err:		stc
-@@Exit:		ret
+		ret
 endp		;---------------------------------------------------------------

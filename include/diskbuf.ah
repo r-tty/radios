@@ -1,0 +1,9 @@
+
+		global BUF_InitMem:		near
+		global BUF_Release:		near
+		global BUF_ReadBlock:		near
+		global BUF_Write:		near
+		global BUF_MarkDirty:		near
+		global BUF_FlushAll:		near
+		global BUF_StampAsLatest:	near
+		global GetNumBlocks:		near

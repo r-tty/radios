@@ -7,14 +7,43 @@
 BIOSDAsize		EQU	1000h		; Size of BIOS data area
 InitESP			EQU	80000h		; Initial stack pointer value
 StartCfgTblAddr		EQU	500h		; Startup config table address
+BaseMemReservedSz	EQU	10000h		; Reserved block of base mem. sz
 
+Init_MaxNumDrivers	EQU	64
+Init_NumFSlinkPoints	EQU	26
 
-; --- Startup configuration table structure ---
+Init_MaxNumOfProcesses	EQU	24		; Maximum number of processes
+Init_MaxVirtMem		EQU	0		; Virtual memory size in KB
+Init_NumIndexes		EQU	100		; Number of indexes
+Init_MaxNumLoadedMods	EQU	10		; Maximum number of loaded mods
+Init_BinFormats		EQU	1		; Number of binary format drivers
+
+Init_NumKernFHandles	EQU	10		; Number of kernel file handles
+Init_KernEnvSize	EQU	512		; Kernel environment size
+
+Init_SerInpBufSize	EQU	2048		; Serial input buffer size
+Init_SerOutBufSize	EQU	2048		; Serial output buffer size
+
+; --- Startup configuration table definitions ---
+
+; Table signature
+SCFG_Signature	EQU	00435352h
+
+; Table structure
 struc	tStartConfig
+ Signature	DD	?
+ NumOfItems	DW	?
+ ItemOffsets	DW	?
 ends
 
+; Item numbers
+SCFG_BootDev	EQU	0
+SCFG_PrimFS_LP	EQU	1
+SCFG_RAMdiskSz	EQU	2
+SCFG_BuffersMem	EQU	3
+SCFG_SwapDev	EQU	4
 
-; --- Macro definitions ---
+; --- Macros ---
 
 	; Far jump from 32-bit segment
 macro	PMJF32	SegDescName,FarAddr32
@@ -30,3 +59,7 @@ macro	PMJF16	SegDescName,FarAddr16
 	DW	(tRGDT).SegDescName
 endm
 
+
+; --- Externals ---
+
+		extrn MonitorInit:	near

@@ -1,9 +1,7 @@
 ;*******************************************************************************
-;  pnp.asm - Plug and Play devices control module.
-;  Copyrigh (c) 1999 Sergey V. Daniloff.
+;  pnp.asm - ISA Plug and Play devices control routines.
+;  Copyright (c) 1999 SD Software and RET & COM Research.
 ;*******************************************************************************
-
-; --- Publics ---
 
 
 ; --- Definitions ---

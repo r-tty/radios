@@ -4,17 +4,28 @@
 ;*******************************************************************************
 
 .386p
-ideal
+Ideal
 
-segment RADIOSKRNLSEG public 'code' use32
-assume CS:RADIOSKRNLSEG, DS:RADIOSKRNLSEG
+;DEBUG=1
 
+include "segments.ah"
 include "errdefs.ah"
 include "sysdata.ah"
+include "biosdata.ah"
 include "drvctrl.ah"
-
+include "drivers.ah"
+include "hardware.ah"
+include "kernel.ah"
+include "strings.ah"
 include "portsdef.ah"
 
+IFDEF DEBUG
+include "macros.ah"
+include "misc.ah"
+ENDIF
+
+
+segment KCODE
 include "misc.asm"
 include "timer.asm"
 include "cmosrtc.asm"
@@ -27,10 +38,9 @@ include "keyboard.asm"
 include "video.asm"
 include "audio.asm"
 include "ethernet.asm"
-include "fd.asm"
 include "hd.asm"
 include "parport.asm"
 include "serport.asm"
-
 ends
+
 end

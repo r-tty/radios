@@ -1,15 +1,17 @@
 ;-------------------------------------------------------------------------------
-;  drvctrl.ah - Definitions for "control" driver function.
+;  drvctrl.ah - Definitions for "control" driver functions.
 ;-------------------------------------------------------------------------------
-
 
 ; --- Control function numbers for internal drivers ---
 
 ; Common functions
 DRVCTL_GetInitStatStr		EQU	0
-DRVCTL_DirectRead		EQU	4
-DRVCTL_DirectWrite		EQU	5
-DRVCTL_ExtControl		EQU	7
+DRVCTL_GetParams		EQU	1
+DRVCTL_SetParams		EQU	2
+DRVCTL_DirectRead		EQU	3
+DRVCTL_DirectWrite		EQU	4
+DRVCTL_Cleanup			EQU	5
+DRVCTL_PowerControl		EQU	7
 
 
 ; CPU
@@ -19,20 +21,22 @@ DRVCTL_ExtControl		EQU	7
 ; Memory
 
 ; Keyboard
+DRVCTL_KB_CheckKeyPress		EQU	8
 
 ; Video text device
-DRVCTL_VGATX_MoveCursor		EQU     8
-DRVCTL_VGATX_GetCurPos		EQU     9
-DRVCTL_VGATX_HideCursor		EQU	10
-DRVCTL_VGATX_ShowCursor		EQU	11
-DRVCTL_VGATX_SetActPage		EQU	12
-DRVCTL_VGATX_Scroll		EQU	13
-DRVCTL_VGATX_WrCharXY		EQU	14
-DRVCTL_VGATX_WrChar		EQU	15
-DRVCTL_VGATX_WrCharA		EQU	16
-DRVCTL_VGATX_MoveCurNext	EQU	17
-DRVCTL_VGATX_ClrLine		EQU	18
-DRVCTL_VGATX_ClrVidPage		EQU	19
+DRVCTL_VTX_ClrVidPage		EQU	5
+DRVCTL_VTX_ClrLine		EQU	6
+DRVCTL_VTX_MoveCursor		EQU     8
+DRVCTL_VTX_GetCurPos		EQU     9
+DRVCTL_VTX_HideCursor		EQU	10
+DRVCTL_VTX_ShowCursor		EQU	11
+DRVCTL_VTX_SetActPage		EQU	12
+DRVCTL_VTX_Scroll		EQU	13
+DRVCTL_VTX_WrCharXY		EQU	14
+DRVCTL_VTX_WrChar		EQU	15
+DRVCTL_VTX_WrCharA		EQU	16
+DRVCTL_VTX_MoveCurNext		EQU	17
+DRVCTL_VTX_WrCharTTY		EQU	18
 
 ; Video graphics device
 
@@ -41,6 +45,12 @@ DRVCTL_VGATX_ClrVidPage		EQU	19
 ; Ethernet
 
 ; Serial
+DRVCTL_SER_ClrRXbuf		EQU	5
+DRVCTL_SER_ClrTXbuf		EQU	6
+DRVCTL_SER_GetUARTmode		EQU	8
+DRVCTL_SER_SetUARTmode		EQU	9
+DRVCTL_SER_GetRXbufStat		EQU	10
+DRVCTL_SER_GetTXbufStat		EQU	11
 
 ; Parallel
 
@@ -52,3 +62,8 @@ DRVCTL_VGATX_ClrVidPage		EQU	19
 
 ; Console
 DRVCTL_CON_WrString		EQU	8
+
+; Binary formats
+DRVCTL_BINFMT_CheckSignature	EQU	8
+DRVCTL_BINFMT_ResolveLinks	EQU	9
+DRVCTL_BINFMT_ResolveULinks	EQU	10

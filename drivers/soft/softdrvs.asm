@@ -5,18 +5,24 @@
 .386
 ideal
 
-DEBUG=1
-
+include "macros.ah"
 include "sysdata.ah"
 include "errdefs.ah"
+include "segments.ah"
 include "drvctrl.ah"
-include "macros.ah"
+include "kernel.ah"
+include "strings.ah"
+include "drivers.ah"
 
-segment RADIOSKRNLSEG public 'code' use32
-assume CS:RADIOSKRNLSEG, DS:RADIOSKRNLSEG
+IFDEF DEBUG
+include "misc.ah"
+ENDIF
 
 include "consoles.asm"
-include "dskcache.asm"
+include "ramdisk.asm"
 
-ends
+include "BINFMT\rmod.asm"
+include "BINFMT\coff.asm"
+include "BINFMT\rdf.asm"
+
 end

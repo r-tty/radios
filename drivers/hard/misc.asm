@@ -11,12 +11,6 @@ CPU_586			EQU	5
 ; --- Miscellaneous defines ---
 SpeakerBeepTone		EQU	1200
 
-; --- External procedures ---
-		extrn K_TTDelay: near			; Kernel delay
-
-; --- Publics ---
-		public CPU_GetType
-		public SPK_Beep
 
 ; --- Routines ---	
 
@@ -29,41 +23,41 @@ SpeakerBeepTone		EQU	1200
 		;		  5 - Pentium compatible.
 proc CPU_GetType near
 		push	ebx
-                mov	eax,cr0
-                mov	ebx,eax			;Original CR0 into EBX
-                or	al,10h			;Set bit
-                mov	cr0,eax			;Store it
-                mov	eax,cr0			;Read it back
-                mov	cr0,ebx			;Restore CR0
-                test	al,10h			;Did it set?
-                jnz	Test386DX		;Go if not 386SX
+		mov	eax,cr0
+		mov	ebx,eax			; Original CR0 into EBX
+		or	al,10h			; Set bit
+		mov	cr0,eax			; Store it
+		mov	eax,cr0			; Read it back
+		mov	cr0,ebx			; Restore CR0
+		test	al,10h			; Did it set?
+		jnz	@@Test386DX		; Go if not 386SX
 
                 mov	al,CPU_386SX
-                jmp	GetCPU_OK
+                jmp	@@OK
 
-Test386DX:	mov	ecx,esp			;Original ESP in ECX
-		pushfd				;Original EFLAGS in EBX
+@@Test386DX:	mov	ecx,esp			; Original ESP in ECX
+		pushfd				; Original EFLAGS in EBX
 		pop	ebx
-		and	esp,not 3		;Align stack to prevent 486
+		and	esp,not 3		; Align stack to prevent 486
 						;  fault when AC is flipped
-		mov	eax,ebx			;EFLAGS => EAX
-		xor	eax,40000h		;Flip AC flag
-		push	eax			;Store it
+		mov	eax,ebx			; EFLAGS => EAX
+		xor	eax,40000h		; Flip AC flag
+		push	eax			; Store it
 		popfd
-		pushfd				;Read it back
+		pushfd				; Read it back
 		pop	eax
-		push	ebx			;Restore EFLAGS
+		push	ebx			; Restore EFLAGS
 		popfd
-		mov	esp,ecx			;Restore ESP
-		cmp	eax,ebx			;Compare old/new AC bits
-		jne	Test486			;If AC changes, not 386
+		mov	esp,ecx			; Restore ESP
+		cmp	eax,ebx			; Compare old/new AC bits
+		jne	@@Test486		; If AC changes, not 386
 
 		mov	al,CPU_386DX
-		jmp	short GetCPU_OK
+		jmp	short @@OK
 
-Test486:	mov	al,CPU_486		;Until the Pentium appears...
+@@Test486:	mov	al,CPU_486		;Until the Pentium appears...
 
-GetCPU_OK:	clc
+@@OK:		clc
 		pop	ebx
 		ret
 endp		;---------------------------------------------------------------
@@ -90,7 +84,7 @@ proc SPK_Beep near
 		push	ecx
 		mov	ecx,SpeakerBeepTone
 		shl	ecx,16
-		mov	cl,3
+		mov	cl,5
 		call	SPK_Sound
 		pop	ecx
 		ret
@@ -99,8 +93,7 @@ endp		;---------------------------------------------------------------
 
 		; SPK_Tick - play short sound tick.
 proc SPK_Tick near
-		push	eax
-		push	ecx
+		push	eax ecx
 		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
 		mov	cx,SpeakerBeepTone/4
 		call	TMR_InitCounter
@@ -108,7 +101,6 @@ proc SPK_Tick near
 		mov	cx,5000
 		call	TMR_Delay
 		call	KBC_SpeakerOFF
-		pop	ecx
-		pop	eax
+		pop	ecx eax
 		ret
 endp		;---------------------------------------------------------------

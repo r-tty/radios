@@ -1,0 +1,15 @@
+
+		global ReadString:	near
+
+		global WriteChar:	near
+		global PrintByteDec:	near
+		global PrintByteHex:	near
+		global PrintWordDec:	near
+		global PrintWordHex:	near
+		global PrintDwordDec:	near
+		global PrintDwordHex:	near
+
+		global BCDB2Dec:	near
+		global BCDW2Dec:	near
+
+		global ValByteDec:	near

@@ -1,0 +1,18 @@
+;-------------------------------------------------------------------------------
+;  segments.ah - segments definitions.
+;-------------------------------------------------------------------------------
+
+segment ABSOLUTE at 0
+ends
+
+segment KCODE public use32 'code'
+ends
+
+segment KDATA public use32 'data'
+ends
+
+segment KVARS public use32 'vars'
+ends
+
+group KMEM KCODE,KDATA,KVARS
+assume CS:KCODE, DS:KMEM, ES:KMEM, FS:ABSOLUTE, SS:KMEM

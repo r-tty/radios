@@ -2,6 +2,6 @@
 ;  video.asm - video devices drivers.
 ;-------------------------------------------------------------------------------
 
-include "vgatx.asm"
+include "vtx.asm"
 include "vgagr.asm"
-include "svgavbe2.asm"
+include "svgalfb.asm"

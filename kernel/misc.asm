@@ -12,9 +12,9 @@ proc K_TTDelay near
 		push	ecx
 		mov	eax,[TimerTicksLo]
 		lea	ecx,[eax+ecx]
-TDel_Loop:	mov	eax,[TimerTicksLo]
+@@Loop:		mov	eax,[TimerTicksLo]
 		cmp	eax,ecx
-		jb	TDel_Loop
+		jb	@@Loop
 		pop	ecx
 		pop	eax
 		ret
@@ -26,17 +26,54 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 		; Note: uses CPUspeed variable.
 proc K_LDelay near
-		push	eax
-		push	ecx
-		push	edx
+		push	eax ecx edx
 		xor	edx,edx
 		mov	eax,[CPUspeed]
 		mul	ecx
 		mov	ecx,eax
-LDel:		loop	LDel
-		pop	edx
-		pop	ecx
-		pop	eax
+		align 4
+@@LDel:		nop
+		dec	ecx
+		js	short @@Exit
+		jmp	@@LDel
+@@Exit:		pop	edx ecx eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_LDelayMs - loop delay (in milliseconds)
+		; Input: ECX=time of delay (ms).
+		; Output: none.
+proc K_LDelayMs near
+		push	eax ecx edx
+		mov	eax,159
+		xor	edx,edx
+		mul	ecx
+		mov	ecx,eax
+		call	K_LDelay
+		pop	edx ecx eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+; ========================== Time/date procedures ==============================
+
+		; K_GetDate - get current date.
+		; Input: none.
+		; Output: BL=day,
+		;	  BH=month,
+		;	  CX=year.
+proc K_GetDate near
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_GetTime - get current time.
+		; Input: none.
+		; Output: BH=hour,
+		;	  BL=minute,
+		;	  CL=second.
+proc K_GetTime near
 		ret
 endp		;---------------------------------------------------------------
 
@@ -45,7 +82,7 @@ endp		;---------------------------------------------------------------
 
 		; K_WrDecD - write decimal dword.
 		; Input: EAX=dword,
-		;	 EDI=address of "Write char" procedure
+		;	 EDI=address of "Write char" procedure.
 		; Output: none.
 proc K_WrDecD near
 		push	eax
@@ -55,17 +92,17 @@ proc K_WrDecD near
 		mov	ebx,1000000000
 		xor	cl,cl
 		or	eax,eax
-		jnz	@@Loop
+		jnz	short @@Loop
 		mov	al,'0'
                 call	edi
-                jmp	@@Exit
+                jmp	short @@Exit
 
 @@Loop:		xor	edx,edx
 		div	ebx
 		or	al,al
-		jnz	@@NZ
+		jnz	short @@NZ
 		or	cl,cl
-		jz	@@Z
+		jz	short @@Z
 
 @@NZ:		mov	cl,1
 		add	al,48
@@ -89,6 +126,19 @@ proc K_WrDecD near
 endp		;---------------------------------------------------------------
 
 
+		; K_WrDecW - write decimal word.
+		; Input: AX=word,
+		;	 EDI=address of "Write char" procedure
+		; Output: none.
+proc K_WrDecW near
+		push	eax
+		movzx	eax,ax
+		call	K_WrDecD
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; K_WrHexB - write byte in hex.
 		; Input: AL=byte,
 		;	 EDI=address of "Write char" procedure.
@@ -105,11 +155,11 @@ proc K_WrHexB near
 
 @@1:		and	al,0Fh
 		cmp	al,0Ah
-		jb	@@2
+		jb	short @@2
 		add	al,7
 @@2:		add	al,30h
 		call	edi
-		retn
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -139,41 +189,195 @@ proc K_WrHexD near
 endp		;---------------------------------------------------------------
 
 
-		; K_HexW2Str - convert word to string in hex.
-		; Input: AX=word,
-		;	 EDI=buffer address.
-		; Output: none.
-proc K_HexW2Str near
-                push	esi
-		push	edi
-		mov	esi,edi
-		mov	edi,offset Dig2StrProc
-		call	K_WrHexW
-		mov	[byte esi],0
-		pop	edi
-		pop	esi
-		ret
-Dig2StrProc:	mov	[byte esi],al
+		; K_HexD2Str - convert dword (EAX) to string in hex;
+		; K_HexW2Str - convert word (AX) to string in hex;
+		; K_HexB2Str - convert byte (AL) to string in hex.
+		; K_HexN2Str - convert nibble (AL) to string in hex.
+		; Note: string address in ESI;
+		;	returns pointer to last character+1 (ESI).
+proc K_HexD2Str near
+		push	eax		; To print a dword
+		shr	eax,16		; Print the high 16 bits
+		call	K_HexW2Str
+		pop	eax		; And the low 16 bits
+K_HexW2Str:	push	eax		; To print a word
+		mov	al,ah		; Print the high byte
+		call	K_HexB2Str
+		pop	eax		; And the low byte
+K_HexB2Str:	push	eax		; To print a byte
+		shr	eax,4		; Print the high nibble
+		call	K_HexN2Str
+		pop	eax		; And the low nibble
+K_HexN2Str:	and	al,0Fh		; Get a nibble
+		add	al,'0'		; Make it numeric
+		cmp	al,'9'		; If supposed to be alphabetic
+		jle	@@Numeric
+		add	al,7		; Add 7
+@@Numeric:	mov	[esi],al
 		inc	esi
-		retn
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; K_DecD2Str - convert dword to string in decimal.
 		; Input: EAX=dword,
-		;	 EDI=buffer address.
+		;	 ESI=buffer address.
 		; Output: none.
 proc K_DecD2Str near
                 push	esi
 		push	edi
-		mov	esi,edi
 		mov	edi,offset Dig2StrProc
 		call	K_WrDecD
 		mov	[byte esi],0
 		pop	edi
 		pop	esi
 		ret
+Dig2StrProc:	mov	[byte esi],al
+		inc	esi
+		ret
 endp		;---------------------------------------------------------------
+
+
+; ========================== Print/write procedures ============================
+
+		; WriteChar - write character to active console.
+		; Input: AL=character code.
+proc WriteChar near
+		push	edx
+		mCallDriver [DrvId_Con],DRVF_Write
+		pop	edx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; WrStrToDev - write string to character device.
+		; Input: EDX=full device ID,
+		;	 ESI=pointer to string.
+		; Output: CF=0 - OK, EAX=0;
+		;	  CF=1 - error, AX=error code.
+proc WrStrToDev near
+		push	esi edi
+		mov	edi,edx
+		mov	eax,edx
+		call	DRV_GetFlags
+		jc	short @@Exit
+		test	ax,DRVFL_Char
+		jz	short @@Err
+
+@@Loop:		lodsb
+		or	al,al
+		jz	short @@OK
+		mCallDriver edi,DRVF_Write
+		jc	short @@Exit
+		jmp	@@Loop
+@@OK:		xor	ax,ax
+
+@@Exit:		pop	edi esi
+		ret
+
+@@Err:		mov	ax,ERR_DRV_NotCharDev
+		stc
+		jmp	short @@Exit
+endp		;---------------------------------------------------------------
+
+
+		; PrintByteDec - print byte in decimal form.
+		; Input: AL=byte.
+		; Output: none.
+proc PrintByteDec near
+		push	eax
+		push	edi
+		mov	edi,offset WriteChar
+		movzx	eax,al
+		call	K_WrDecD
+		pop	edi
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+		; PrintByteHex - print byte in hexadecimal form.
+		; Input: AL=byte.
+		; Output: none.
+proc PrintByteHex near
+		push	edi
+		mov	edi,offset WriteChar
+		call	K_WrHexB
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+		; PrintWordDec - print word in decimal form.
+		; Input: AX=word.
+		; Output: none.
+proc PrintWordDec near
+		push	edi
+		mov	edi,offset WriteChar
+		call	K_WrDecW
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+		; PrintWordHex - print word in hexadecimal form.
+		; Input: AX=word.
+		; Output: none.
+proc PrintWordHex near
+		push	edi
+		mov	edi,offset WriteChar
+		call	K_WrHexW
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+		; PrintDwordDec - print dword in decimal.
+		; Input: EAX=dword.
+		; Output: none.
+proc PrintDwordDec near
+		push	edi
+		mov	edi,offset WriteChar
+		call	K_WrDecD
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+		; PrintDwordHex - print double word in hexadecimal form.
+		; Input: EAX=dword.
+		; Output: none.
+proc PrintDwordHex near
+		push	edi
+		mov	edi,offset WriteChar
+		call	K_WrHexD
+		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; BCDW2Dec - convert BCD word to decimal.
+		; Input: AX=BCD word.
+		; Output: AX=converted word.
+proc BCDW2Dec near
+		call	BCDB2Dec
+		xchg	al,ah
+		call	BCDB2Dec
+		xchg	al,ah
+		ret
+
+BCDB2Dec:	push	ecx
+		movzx	ecx,ah
+		shl	ecx,16
+		mov	cl,al
+		mov	ch,10
+		and	al,0F0h
+		shr	al,4
+		xor	ah,ah
+		mul	ch
+		and	cl,0Fh
+		add	al,cl
+		shr	ecx,16
+		mov	ah,cl
+		pop	ecx
+		ret
+endp		;---------------------------------------------------------------
+
 
 
 ; ========================= ASCIIZ strings procedures ==========================
@@ -405,8 +609,10 @@ proc StrScan near
 		mov	edi,esi
 		pop	eax
 		repne	scas [byte edi]
-		je	@@OK
-		xor	edi,edi
+		jne	@@NotFound
+		dec	edi
+		jmp	short @@OK
+@@NotFound:	xor	edi,edi
 @@OK:		pop	esi
 		pop	ecx
 		ret
@@ -480,7 +686,7 @@ proc StrPos near
 		dec	edi
 		jmp	short @@OK
 @@NotOccur:	xor	edi,edi
-@@OK:           pop	esi
+@@OK:		pop	esi
 		pop	edx
 		pop	ecx
 		pop	ebx
@@ -562,33 +768,162 @@ proc CharToLower near
 endp		;---------------------------------------------------------------
 
 
+; ============================== VAL procedures ================================
+
+		; ValByteDec - convert string to byte (decimal).
+		; Input: ESI=pointer to string.
+		; Output: CF=0 - OK, AL=byte.
+		;	  CF=1 - error.
+proc ValByteDec near
+		push	ecx edx edi
+		mov	edi,esi
+		call	StrLen
+		cmp	ecx,4
+		cmc
+		jc	short @@Exit
+		add	edi,ecx
+		xor	eax,eax
+		xor	edx,edx
+		inc	dl
+
+@@Loop:		dec	edi
+		mov	al,[edi]
+		cmp	al,'0'
+		jc	short @@Exit
+		cmp	al,'9'+1
+		cmc
+		jc	short @@Exit
+		sub	al,'0'
+		mul	dl
+		cmp	ax,100h				; Overflow?
+		cmc
+		jc	short @@Exit
+		add	ch,al
+		lea	edx,[edx*4+edx]			; EDX*=10
+		shl	edx,1
+		dec	cl
+		jnz	@@Loop
+
+@@OK:		mov	al,ch
+		clc
+@@Exit:		pop	edi edx ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; ValDwordDec - convert string to dword (decimal).
+		; Input: ESI=pointer to string.
+		; Output: CF=0 - OK, EAX=result;
+		;	  CF=1 - error, AX=error code.
+proc ValDwordDec near
+		push	ebx ecx edx esi edi
+		mov	edi,esi
+		call	StrLen
+		cmp	ecx,11
+		cmc
+		jc	short @@Exit
+		add	esi,ecx
+		xor	eax,eax
+		xor	ebx,ebx
+		xor	edi,edi
+		inc	edi
+
+@@Loop:		dec	esi
+		mov	al,[esi]
+		cmp	al,'0'
+		jc	short @@Exit
+		cmp	al,'9'+1
+		cmc
+		jc	short @@Exit
+		sub	al,'0'
+		and	eax,15
+		mul	edi
+		add	ebx,eax
+		lea	edi,[edi*4+edi]			; EDX*=10
+		shl	edi,1
+		dec	cl
+		jnz	@@Loop
+
+@@OK:		mov	eax,ebx
+		clc
+@@Exit:		pop	edi esi edx ecx ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; ValDwordHex - convert string to dword (hex).
+		; Input: ESI=pointer to string.
+		; Output: CF=0 - OK, EAX=result;
+		;	  CF=1 - error, AX=error code.
+proc ValDwordHex near
+		push	ecx edx edi
+		mov	edi,esi
+		call	StrLen
+		cmp	ecx,9
+		cmc
+		jc	short @@Exit
+		add	edi,ecx
+		xor	eax,eax
+		xor	edx,edx
+		xchg	ch,cl
+
+@@Loop:		dec	edi
+		mov	al,[edi]
+		cmp	al,'0'
+		jc	short @@Exit
+		cmp	al,'9'+1
+		jae	short @@ChkLetter
+		sub	al,'0'
+		jmp	short @@1
+
+@@ChkLetter:	or	al,20h				; Make lowercase
+		cmp	al,'a'
+		jc	short @@Exit
+		cmp	al,'g'
+		cmc
+		jc	short @@Exit
+		sub	al,'a'-10
+
+@@1:		and	eax,15
+		shl	eax,cl
+		add	edx,eax
+		add	cl,4
+		dec	ch
+		jnz	@@Loop
+
+@@OK:		mov	eax,edx
+		clc
+@@Exit:		pop	edi edx ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
 ; ========================== Read string procedrure ============================
 
-		; K_ReadString - read string from current console in buffer.
+		; ReadString - read string from current console in buffer.
 		; Input: ESI=buffer address,
 		;	 CL=maximum string length.
 		; Output: CL=number of read characters.
 		; Note: destroys CH and high word of ECX.
-proc K_ReadString near
+proc ReadString near
 		push	ebp
 		mov	ebp,esp
 		movzx	ecx,cl			; Allocate memory
 		sub	esp,ecx			; for local buffer
 
+		push	eax
 		push	esi
 		push	edi
-		push	edx
 
 		mov	edi,ebp
 		sub	edi,ecx
-		mov	edx,edi			; EDX=EDI=local buffer address
+		push	edi			; EDI=local buffer address
 		push	ecx
 		cld
 		rep	movs [byte edi],[byte esi]
 		pop	ecx
-		mov	edi,edx
-		mov	esi,edx			; ESI=EDI=local buffer address
-		mov	edx,ecx
+		pop	edi
+		mov	esi,edi			; ESI=EDI=local buffer address
 
 @@ReadKey:	mCallDriver [DrvId_Con],DRVF_Read
 		or	al,al
@@ -616,15 +951,15 @@ proc K_ReadString near
 
 @@Done:		mov	ecx,edi
 		sub	ecx,esi
-		mov	dl,cl			; DL=number of read characters
-		mov	edi,[esp+8]		; EDI=target buffer address
+		mov	edi,[esp+4]		; EDI=target buffer address
+		push	ecx			; ECX=number of read characters
 		cld
 		rep	movs [byte edi],[byte esi]
-		mov	cl,dl
+		pop	ecx
 
-		pop	edx
 		pop	edi
 		pop	esi
+		pop	eax
 		leave
 		ret
 endp		;---------------------------------------------------------------

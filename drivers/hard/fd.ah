@@ -1,0 +1,123 @@
+;-------------------------------------------------------------------------------
+;  fd.ah - definitions for FDD driver.
+;-------------------------------------------------------------------------------
+
+; Floppy drive physical parameters structure
+struc tFDphysParm
+ Max_DTR	DD	?			; Step rate, usec
+ HLST		DD	?			; Head load/settle time, msec
+ HUT		DD	?			; Head unload time
+ SRT		DD	?			; Step rate, usec
+
+ Spinup		DD	?			; Time needed for spinup (in jiffies)
+ Spindown	DD	?			; Timeout needed for spindown
+ SpindownOfs	DB	?			; Decides in which position the disk will stop
+
+ SelectDelay	DB	?			; Delay to wait after select
+ RPS		DB	?			; Rotations per second
+ Tracks		DB	?			; Maximum number of tracks
+ Timeout	DD	?			; Timeout for interrupt requests
+
+ InterleaveSect	DB	?			; If there are more sectors, use interleave
+ Flags		DB	?			; Various flags
+ CheckFreq	DW	?			; How often should the drive be checked for disk changes
+ NativeFormat	DW	?			; Native format of this drive
+ends
+
+; Structure described different floppy media formats
+struc tMediaFmt
+ Sz		DW	?			; Size in KB
+ SPT		DW	?			; Sectors per track
+ Heads		DW	?			; Number of heads
+ Tracks		DW	?			; Number of tracks
+ Strecth	DW	?			; !=0 means double track steps
+ GAP		DB	?			; GAP1 size
+ Rate		DB	?			; Data rate. |= 0x40 for perpendicular
+ Spec1		DB	?			; Stepping rate, head unload time
+ GAP2		DB	?			; GAP1 size
+ends
+
+; FD control register bits
+FD_Drive0		EQU	0
+FD_Drive1		EQU	1
+FD_EnbCTL		EQU	4
+FD_EnbDMAIRQ		EQU	8
+FD_Motor0ON		EQU	16
+FD_Motor1ON		EQU	32
+
+; FD status register bits
+FDst_Busy0		EQU	1
+FDst_Busy1		EQU	2
+FDst_CTLBusy		EQU	16
+FDst_NoDMA		EQU	32
+FDst_Direct2CPU		EQU	64
+FDst_Ready		EQU	128
+
+; FDC (chip) commands
+FDCcmd_Specify		EQU	3			; Specify
+FDCcmd_GetST3		EQU	4			; Get ST3
+FDCcmd_Recalibrate	EQU	7			; Recalibrate drive
+FDCcmd_Sense		EQU	8			; Get status after int
+FDCcmd_DumpRegs		EQU	0Eh			; Dump registers
+FDCcmd_Seek		EQU	0Fh			; Seek track
+FDCcmd_Version		EQU	10h			; Get version code
+FDCcmd_Perpendicular	EQU	12h			; Perpendicular r/w mode
+FDCcmd_Configure	EQU	13h			; Configure FIFO operation
+FDCcmd_Unlock		EQU	14h			; FIFO config unlock
+FDCcmd_ReadSecId	EQU	4Ah			; Read sector identity
+FDCcmd_Format		EQU	4Dh			; Format one track
+FDCcmd_RSeekOut		EQU	8Fh			; Seek out
+FDCcmd_Lock		EQU	94h			; FIFO config lock
+FDCcmd_Write		EQU	0C5h			; Write with MT, MFM
+FDCcmd_RSeekOut		EQU	0CFh			; Seek in
+FDCcmd_Read		EQU	0E6h			; Read with MT, MFM, SKip deleted
+
+; AT FD parameters register bits
+FDATpar_Speed500	EQU	0
+FDATpar_Speed300	EQU	1
+FDATpar_Speed250	EQU	2
+FDATpar_Speed1000	EQU	3
+FDATpar_WrPrecomp1	EQU	4
+FDATpar_WrPrecomp2	EQU	8
+FDATpar_WrPrecomp3	EQU	16
+FDATpar_ExtFilter	EQU	32
+FDATpar_PowerOFF	EQU	64
+FDATpar_Reset		EQU	128
+
+; AT diagnostic register bits
+FDATst_PosCodeDrv0	EQU	1
+FDATst_PosCodeDrv0	EQU	2
+FDATst_PosCodeHead0	EQU	4
+FDATst_PosCodeHead1	EQU	8
+FDATst_PosCodeHead2	EQU	16
+FDATst_PosCodeHead3	EQU	32
+FDATst_Write		EQU	64
+FDATst_DiskChanged	EQU	128
+
+
+; Status registers (returned as result of operation)
+ST0			EQU	0
+ST1			EQU	1
+ST2			EQU	3
+ST3			EQU	0			; Return by GetStatus
+ST_Cyl			EQU	3
+ST_Head			EQU	4
+ST_Sec			EQU	5
+ST_PCN			EQU	1
+
+; ST0 bits
+ST0_Bits		EQU	0F8h
+ST0_Trans		EQU	0
+ST0_Seek		EQU	20h
+
+; ST1 bits
+ST1_BadSector		EQU	5
+ST1_WriteProtect	EQU	2
+
+; ST2 bits
+ST2_BadCyl		EQU	1Fh
+
+; ST3 bits
+ST3_Fault		EQU	80h
+ST3_WrProtect		EQU	40h
+ST3_Ready		EQU	20h

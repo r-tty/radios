@@ -1,0 +1,23 @@
+
+struc tPartitionEntry
+ BootFlag	DB	?
+ BeginHead	DB	?
+ BeginSecCyl	DW	?
+ SystemCode	DB	?
+ EndHead	DB	?
+ EndSecCyl	DW	?
+ RelStartSecNum	DD	?
+ NumSectors	DD	?
+ends
+
+struc tMBRdata
+ PartEntries	tPartitionEntry 4 dup (<>)
+ Signature	DW	?
+ends
+
+struc tMBR
+ LoadingCode	DB 446 dup (?)
+ MBRdata	tMBRdata <>
+ends
+
+MBR_SIGNATURE	EQU	0AA55h

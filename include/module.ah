@@ -1,0 +1,15 @@
+;-------------------------------------------------------------------------------
+;  module.ah - common module definitions.
+;-------------------------------------------------------------------------------
+
+; Kernel module information structure
+struc tKModInfo
+ Driver		DD	?				; Module driver ID
+ PID		DD	?				; PID
+ CodeSect	DD	?				; Code section address
+ DataSect	DD	?				; Data section address
+ VarsSect	DD	?				; Vars section address
+ Flags		DD	?				; Misc flags
+ RModTables	DD	?				; !=0 only for kernel
+ ModName	DB	16 dup (?)			; Module name
+ends

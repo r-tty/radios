@@ -1,32 +1,8 @@
 ;-------------------------------------------------------------------------------
-;  pic.asm - Programmable interrupt controller control module.
+;  pic.asm - Programmable interrupt controller routines.
 ;-------------------------------------------------------------------------------
 
-; --- Definitions ---
-
-; Initialization command words for PIC #1
-PIC1_ICW1		EQU	10h
-PIC1_ICW3		EQU	4
-PIC1_ICW4		EQU	1Fh
-
-; Initialization command words for PIC #2
-PIC2_ICW1		EQU	10h
-PIC2_ICW3		EQU	2
-PIC2_ICW4		EQU	1Bh
-
-; Operation command words
-PIC_OCW2_EOI		EQU	20h
-PIC_OCW3		EQU	0Ah
-
-
-; --- Publics ---
-		public PIC_Init
-		public PIC_SetIRQmask
-		public PIC_DisIRQ
-		public PIC_EnbIRQ
-		public PIC_EOI1
-		public PIC_EOI2
-
+include "pic.ah"
 
 ; --- Procedures ---
 
@@ -41,10 +17,10 @@ proc PIC_Init near
 		cli
 		or	ah,ah			; PIC #1?
 		mov	ah,al
-		jz	@@PIC1
+		jz	short @@PIC1
 		mov	al,PIC2_ICW1		; Begin initialize PIC #2
 		out	PORT_PIC2_0,al
-		PORTDELAY			; Macro (delay by jmp)
+		PORTDELAY
 		mov	al,ah
 		out	PORT_PIC2_1,al
 		PORTDELAY
@@ -91,7 +67,7 @@ proc PIC_SetIRQmask near
 		pushfd
 		cli
 		or	ah,ah
-		jz	@@PIC1
+		jz	short @@PIC1
 		out	PORT_PIC2_1,al
 		jmp	short @@Exit
 @@PIC1:		out	PORT_PIC1_1,al
@@ -106,7 +82,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc PIC_DisIRQ near
 		cmp	al,10h
-		jae	@@Exit
+		jae	short @@Exit
 		push	eax
 		push	ecx
 		pushfd
@@ -114,7 +90,7 @@ proc PIC_DisIRQ near
 		mov	cl,al
 		mov	ah,1
 		cmp	al,8
-		jae	@@PIC2
+		jae	short @@PIC2
 		shl	ah,cl
 		in	al,PORT_PIC1_1
 		PORTDELAY
@@ -134,21 +110,19 @@ proc PIC_DisIRQ near
 endp		;---------------------------------------------------------------
 
 
-
 		; PIC_EnbIRQ - enable IRQ.
 		; Input: AL=IRQ number
 		; Output: none.
 proc PIC_EnbIRQ near
 		cmp	al,10h
-		jae	@@Exit
-		push	eax
-		push	ecx
+		jae	short @@Exit
+		push	eax ecx
 		pushfd
 		cli
 		mov	cl,al
 		mov	ah,1
 		cmp	al,8
-		jae	@@PIC2
+		jae	short @@PIC2
 		shl	ah,cl
 		not	ah
 		in	al,PORT_PIC1_1
@@ -164,8 +138,7 @@ proc PIC_EnbIRQ near
 		and	al,ah
 		out	PORT_PIC2_1,al
 @@OK:		popfd
-		pop	ecx
-		pop	eax
+		pop	ecx eax
 @@Exit:		ret
 endp		;---------------------------------------------------------------
 

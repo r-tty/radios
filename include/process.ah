@@ -1,0 +1,31 @@
+;-------------------------------------------------------------------------------
+;  process.ah - process definitions.
+;-------------------------------------------------------------------------------
+
+; Process descriptor structure
+struc tProcDesc
+ FHandlesAddr	DD	?			; Address of file handles table
+ NumFHandles	DB	?			; Max. number of file handles
+ Flags		DB	?
+ EnvSize	DW	?			; Address and size of
+ EnvAddr	DD	?			; environment
+ PageDir	DD	?			; Page directory address
+ FirstMCB	DD	?			; First MCB address
+ LastMCB	DD	?			; Last MCB address
+ Next		DD	?			; NextProcessPID
+ CurrDirIndex	DD	?			; Current directory index
+ EventHandler	DD	?			; Event handler address
+ Seg		DW	?			; Segment (0=kernel)
+ Module		DW	?			; Module number
+ends
+
+PROCDESCSHIFT	EQU	6
+
+
+; Process initialization structure
+struc tProcInit
+ EnvSize	DW	?			; Environment size
+ MaxFHandles	DB	?			; Maximum file handles
+ Reserved	DB	?
+ EventHandler	DD	?			; Event handler address
+ends

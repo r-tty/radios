@@ -1,0 +1,14 @@
+;-------------------------------------------------------------------------------
+;  memman.ah - memory management definitions.
+;-------------------------------------------------------------------------------
+
+; Memory control block structure
+struc tMCB
+ Addr		DD	?				; Linear address
+ Len		DD	?				; Block length
+ Next		DD	?				; Next MCB
+ Prev		DD	?				; Previous MCB
+ends
+
+MCBSIZE		EQU	16
+MCBSHIFT	EQU	4

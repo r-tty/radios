@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  cmosrtc.asm - CMOS memory and real-time clock control module.
+;  cmosrtc.asm - CMOS memory and real-time clock control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
@@ -15,10 +15,11 @@ RTCREG_Month		EQU	8
 RTCREG_YearLo		EQU	9
 RTCREG_YearHi		EQU	32h
 
-CMOSREG_StatusA		EQU	0Ah
-CMOSREG_StatusB		EQU	0Bh
-CMOSREG_StatusC		EQU	0Ch
-CMOSREG_StatusD		EQU	0Dh
+RTCREG_StatusA		EQU	0Ah
+RTCREG_StatusB		EQU	0Bh
+RTCREG_StatusC		EQU	0Ch
+RTCREG_StatusD		EQU	0Dh
+
 CMOSREG_POSTbyte	EQU	0Eh
 CMOSREG_ShtDwn		EQU	0Fh
 CMOSREG_FDDtype		EQU	10h
@@ -33,10 +34,15 @@ CMOSREG_ExtDrDtype	EQU	20h
 CMOSREG_RExtMemLo	EQU	30h
 CMOSREG_RRExtMemHi	EQU	31h
 
-
-; --- Publics ---
-		public CMOS_ReadBaseMemSz
-		public CMOS_ReadExtMemSz
+; Bits of RTC status register B
+RTC_STB_StopTmr		EQU	128
+RTC_STB_TicksIntEnb	EQU	64
+RTC_STB_AlarmIntEnb	EQU	32
+RTC_STB_UpdEndedInt	EQU	16
+RTC_STB_SquareWave	EQU	8
+RTC_STB_BINmode		EQU	4
+RTC_STB_24hour		EQU	2
+RTC_STB_SummerTime	EQU	1
 
 
 ; --- Procedures ---
@@ -95,15 +101,47 @@ endp		;---------------------------------------------------------------
 
 		; CMOS_ReadFDDTypes - read FDD types.
 		; Input: none.
-		; Output: AL=FDD0 type,
-		;	  AH=FDD1 type.
+		; Output: AL=FDD types byte.
 proc CMOS_ReadFDDTypes near
 		mov	al,CMOSREG_FDDtype
 		call	CMOS_Read
-		mov	ah,al
-		shr	al,4
-		and	ah,15
 		ret
 endp		;---------------------------------------------------------------
 
 		
+		; CMOS_EnableInt - enable CMOS interrupt (IRQ8)
+proc CMOS_EnableInt near
+		push	eax
+		mov	al,RTCREG_StatusA
+		mov	ah,al
+		call	CMOS_Read
+		or	al,15
+		xchg	ah,al
+		call	CMOS_Write
+		mov	al,RTCREG_StatusB
+		mov	ah,al
+		call	CMOS_Read
+		or	al,RTC_STB_TicksIntEnb
+		xchg	al,ah
+		call	CMOS_Write
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; CMOS_DisableInt - disable CMOS interrupt
+proc CMOS_DisableInt near
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; CMOS_HandleInt - handle RTC interrupt.
+		; Input: none.
+		; Output: none.
+proc CMOS_HandleInt near
+		push	eax
+		mov	al,RTCREG_StatusC
+		call	CMOS_Read
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------

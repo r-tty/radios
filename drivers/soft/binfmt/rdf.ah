@@ -1,0 +1,119 @@
+;-------------------------------------------------------------------------------
+;  rdf.ah - Relocatable Dynamic Format (RDF) definitions.
+;-------------------------------------------------------------------------------
+
+; --- Common definitions ---
+RDF_MAXSEGS		EQU	64		; Max. number of segments
+
+
+; --- "Master" header ---
+struc tRDFmaster
+ Signature	DB	5 dup (?)
+ AVersion	DB	?
+ ModLen		DD	?
+ HdrLen		DD	?
+ends
+
+RDF_MASTERHDRSIZE	EQU	16
+
+; --- Record types ---
+RDFREC_Reloc		EQU	1
+RDFREC_Import		EQU	2
+RDFREC_Export		EQU	3
+RDFREC_DLL		EQU	4
+RDFREC_BSS		EQU	5
+RDFREC_SegReloc		EQU	6
+RDFREC_FarImport	EQU	7
+RDFREC_Generic		EQU	0
+
+
+; --- Relocation record ---
+struc tRDFreloc
+ Type		DB	?			; ==1
+ RecLen		DB	?			; Content length
+ Seg		DB	?			; Only 0 for code, or 1 for
+						; data supported, but add 64
+						; for relative refs (i.e. do not
+						; require reloc @ loadtime,
+						; only linkage)
+ Ofs		DD	?			; From start of segment in which
+						; reference is located
+ Length		DB	?			; 1, 2 or 4 bytes
+ RefSeg		DW	?			; Segment to which reference refers to
+ends
+
+
+; --- Import record ---
+struc tRDFimport
+ Type		DB	?			; ==2
+ RecLen		DB	?			; content length
+ Seg		DW	?			; Segment number allocated to
+						; the label for reloc records -
+						; label is assumed to be at
+						; offset zero in this segment,
+						; so linker must fix up with
+						; offset of segment and of
+						; offset within segment
+ Lbl		DB 33 dup (?)			; Zero terminated... should be
+						; written to file until the zero,
+						; but not after it - max len = 32 chars
+ends
+
+
+; --- Export record ---
+struc tRDFexport
+ Type		DB	?			; ==3
+ RecLen		DB	?			; Content length
+ Seg		DB	?			; Segment referred to (0/1)
+ Ofs		DD	?			; Offset within segment
+ Lbl		DB	33 dup (?)		; Zero terminated as above.
+ends						; (max len = 32 chars)
+
+
+; --- DLL record ---
+struc tRDF_DLL
+ Type		DB	?			; ==4
+ RecLen		DB	?			; Content length
+ LibName	DB 128 dup (?)			; Name of library to link
+ends						; with at load time
+
+
+; --- BSS record ---
+struc tRDF_BSS
+ Type		DB	?			; ==5
+ RecLen		DB	?			; Content length
+ Amount		DD	?			; Number of bytes BSS to reserve
+ends
+
+
+; --- Generic record ---
+; It contains the type and length field, plus a 128 byte char array 'data',
+; which will probably never be used!
+struc tRDFgeneric
+ Type		DB	?
+ RecLen		DB	?
+ Data		DB 128 dup (?)
+ends
+
+
+; --- Segment types ---
+RDFSEG_NULL		EQU	0
+RDFSEG_Text		EQU	1
+RDFSEG_Data		EQU	2
+RDFSEG_ObjComment	EQU	3
+RDFSEG_LinkedComment	EQU	4
+RDFSEG_LoaderComment	EQU	5
+RDFSEG_SymDebug		EQU	6
+RDFSEG_LineNumDebug	EQU	7
+RDFSEG_Bad		EQU	0FFFFh
+
+
+; --- Segment header ---
+struc tRDFsegHeader
+ Type		DW	?
+ Number		DW	?
+ Reserved	DW	?
+ Length		DD	?
+ends
+
+RDF_SEGHDRSIZE		EQU	12

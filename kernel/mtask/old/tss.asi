@@ -1,0 +1,89 @@
+;
+; TSS
+;
+;
+LDT_CODE = 07h
+LDT_DATA = 0fh
+LDT_USERSTACK = 17h
+LDT_SYSTACK = 1ch
+;
+
+USER_PROGRAM_OFFSET = 1		; Number of page s to offset the user program
+				; from relative address 0
+USERDATABASE = 400000h
+USERDATALIM  = 7fffffh
+USERSTACK = 400000h
+USERSTACKLIM = USERSTACK - PG_SIZE-1
+USERSTACKPAGEOFS =1023
+USERSTACKPAGES = 64
+SYSTACKPAGEOFS = (USERSTACKPAGEOFS - USERSTACKPAGES)
+SYSTEMSTACK = USERSTACK - USERSTACKPAGES * PG_SIZE
+SYSTEMSTACKLIM = SYSTEMSTACK - PG_SIZE-1
+
+FILENAMELIM = 80;
+COMMANDLINELIM = 700h ; Must be less than PROTSTACKSIZE + FILENAMELIM
+
+LOCALLDTSIZE = 4
+TSS_DEBUG = 1
+TSS_IO = -1
+
+IntEnable = 200h
+IPL3 = 3000h
+STRUC TSS
+LINK	dw	?
+	dw	?
+ESP0	dd	?
+SS0	dw	?
+	dw	?
+ESP1	dd	?
+SS1 	dw	?
+	dw	?
+ESP2	dd	?
+SS2	dw	?
+	dw	?
+CR3	dd	?
+EIP	dd	?
+EFLAGS	dd	?
+EAX	dd	?
+ECX	dd	?
+EDX	dd	?
+EBX	dd	?
+ESP	dd	?
+EBP	dd	?
+ESI	dd	?
+EDI	dd	?
+ES	dw	?
+	dw	?
+CS	dw	?
+	dw	?
+SS	dw	?
+	dw	?
+DS	dw	?
+	dw	?
+FS	dw	?
+	dw	?
+GS	dw	?
+	dw	?
+LDT	dw	?
+	dw	?
+flags	dw	?
+bmo	dw	?
+;
+; Additional fields not defined by the 386 mechanism
+;
+state	dw	?
+heapcount dw	?
+resource dd	?
+selector dw	?
+robin	dw	?
+lastrobin dw	?
+children dw	?
+siblings dw	?
+parent	dw	?
+LOCALLDT dq	LOCALLDTSIZE DUP (?)
+LDTSEL	dw	?
+TSSSEL	dw	?
+stackbase dd	?
+waiting dd	?
+notify	dw	?
+ENDS

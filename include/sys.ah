@@ -2,7 +2,7 @@
 ;  sys.ah - various kernel definitions.
 ;-------------------------------------------------------------------------------
 
-%include "i386/cpu.ah"
+%include "x86/cpu.ah"
 %include "macros/drvcall.ah"
 
 ; --- Global descriptors ---

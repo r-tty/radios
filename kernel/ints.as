@@ -2,7 +2,9 @@
 ;  ints.as - interrupt handlers.
 ;-------------------------------------------------------------------------------
 
-%include "i386/stkframe.ah"
+%include "x86/stkframe.ah"
+
+extern PG_FaultHandler:near
 
 ; Macros for generating entry points for CPU traps and interrupts.
 ; We push supplied code value for ones without it.
@@ -111,6 +113,14 @@ proc K_TmpExcHandler
 endp		;---------------------------------------------------------------
 
 
+		; Page fault entry
+proc K_PageFaultEntry
+		mTrapEntryWithErr
+		call	PG_FaultHandler
+		mTrapLeave
+endp		;---------------------------------------------------------------
+
+
 ; Exception handler stubs
 mIntHandler Reserved,0
 mIntHandler 0,K_TmpExcHandler
@@ -127,7 +137,7 @@ mIntHandler 10,K_TmpExcHandler
 mIntHandler 11,K_TmpExcHandler
 mIntHandler 12,K_TmpExcHandler
 mIntHandler 13,K_TmpExcHandler
-mIntHandler 14,K_TmpExcHandler
+mIntHandler 14,K_PageFaultEntry
 mIntHandler 15,K_TmpExcHandler
 mIntHandler 16,K_TmpExcHandler
 mIntHandler 17,K_TmpExcHandler

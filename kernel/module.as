@@ -53,6 +53,7 @@ section .bss
 ?NumLoadedMods	RESD	1			; Number of loaded modules
 ?MaxModules	RESD	1			; Maximum number of loaded mods
 ?ModulePool	RESB	tMasterPool_size	; Modules master pool
+?ModListHead	RESD	1			; Head of module list
 
 ?BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
 
@@ -197,13 +198,11 @@ endp		;---------------------------------------------------------------
 
 
 		; MOD_Unload - unload module from memory.
-		; Input: EAX=module ID.
+		; Input: EDI=module information structure address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_Unload
 		push	edx
-		call	MOD_GetStrucAddr
-		jc	short .Exit
                 mov	edx,[edi+tKModInfo.Driver]
 		mCallDriver edx, byte DRVF_Close		; Unload module
 		jc	short .Exit				; and free its
@@ -263,28 +262,6 @@ proc MOD_FreeStruc
 endp		;---------------------------------------------------------------
 
 
-		; MOD_GetStrucAddr - get module information structure by
-		;		     module ID.
-		; Input: EAX=module ID.
-		; Output: CF=0 - OK, EDI=address;
-		;	  CF=1 - error, AX=error code.
-proc MOD_GetStrucAddr
-		cmp	eax,[MaxNumMods]
-		jae	short .Err
-		push	edx
-		mov	edi,tKModInfo_size
-		mul	edi
-		pop	edx
-		add	eax,[ModTableAddr]
-		mov	edi,eax
-		ret
-
-.Err:		mov	ax,ERR_MOD_BadID
-		stc
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; MOD_CheckSignature - determine module format by its signature.
 		; Input: EAX=PID,
 		;	 ESI=pointer to file name.
@@ -327,16 +304,12 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc MOD_ResolveForEach
-		mov	edi,[ModTableAddr]
-		xor	eax,eax
-.Loop:		cmp	dword [edi],0
-		je	short .Next
-		mCallDriverCtrl dword [edi+tKModInfo.Driver],DRVCTL_BINFMT_ResolveULinks
-.Next:		inc	eax
-		cmp	eax,[MaxNumMods]
-		je	short .Exit
-		add	edi,tKModInfo_size
-		jmp	.Loop
+		push	edi
+		mov	edi,[?ModListHead]
+.Loop:		mCallDriverCtrl dword [edi+tKModInfo.Driver],DRVCTL_BINFMT_ResolveULinks
+		mov	edi,[edi+tKModInfo.Next]
+		cmp	edi,[?ModListHead]
+		jne	short .Loop
 .Exit:		pop	edi
 		ret
 endp		;---------------------------------------------------------------

@@ -6,7 +6,7 @@
 
 module kernel.setjmp
 
-%include "i386/setjmp.ah"
+%include "x86/setjmp.ah"
 
 ; --- Exports ---
 

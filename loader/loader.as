@@ -294,8 +294,15 @@ proc Start
 		mov	[MBinfoAddr],ebx		; Store address of MB info
 		
 		test	dword [ebx+tMBinfo.Flags],MB_INFO_MEMORY
-		jz	short .PrepMods
+		jz	short .NoMemInfo
+		mov	eax,[ebx+tMBinfo.MemLower]
+		mov	[LowerMemSizeKB],eax
 		mov	eax,[ebx+tMBinfo.MemUpper]
+		mov	[UpperMemSizeKB],eax
+		jmp	short .PrepMods
+		
+.NoMemInfo:	xor	eax,eax
+		mov	[LowerMemSizeKB],eax
 		mov	[UpperMemSizeKB],eax
 		
 .PrepMods:	call	ModPrepare			; Prepare modules

@@ -18,7 +18,7 @@ extern ?CurrThread
 extern MT_ThreadSleep:near, MT_ThreadWakeup:near
 extern MT_Schedule:near
 
-%include "i386/setjmp.ah"
+%include "x86/setjmp.ah"
 %include "thread.ah"
 %include "sema.ah"
 

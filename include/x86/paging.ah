@@ -2,10 +2,9 @@
 ; paging.ah - definitions for memory paging.
 ;-------------------------------------------------------------------------------
 
-%define PG_BMAPSPARE		128			; Spare megabytes for
-							; page bitmap
 %define PAGESIZE		4096
 %define	PAGESHIFT		12
+%define PAGEDIRSHIFT		22
 
 %define	PG_ITEMSPERTABLE	1024
 %define	PG_ITEMSPERTBLSHIFT	10

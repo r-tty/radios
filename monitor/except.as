@@ -2,7 +2,7 @@
 ;  except.asm - exceptions handling.
 ;-------------------------------------------------------------------------------
 
-%include "i386/descript.ah"
+%include "x86/descript.ah"
 
 ; --- Definitions ---
 

@@ -14,9 +14,9 @@ module kernel
 %include "sema.ah"
 %include "pool.ah"
 %include "process.ah"
-%include "i386/descript.ah"
-%include "i386/tss.ah"
-%include "i386/paging.ah"
+%include "x86/descript.ah"
+%include "x86/tss.ah"
+%include "x86/paging.ah"
 %include "hw/ports.ah"
 %include "hw/pic.ah"
 %include "asciictl.ah"
@@ -61,7 +61,7 @@ library kernel.mt
 extern K_SwitchTask:near
 
 library kernel.onboard
-extern CMOS_HandleInt:near, CMOS_ReadBaseMemSz:near, CMOS_ReadExtMemSz:near
+extern CMOS_HandleInt:near
 extern CPU_GetType:near
 extern TMR_CountCPUspeed:near
 extern PIC_EnbIRQ:near
@@ -89,10 +89,6 @@ FPUstr_none	DB	"not present or buggy",0
 
 FPUtypeStrs	DD	FPUstr_none,FPUstr_Emul,FPUstr_Emul
 		DD	FPUstr_387,FPUstr_486
-
-MemInitMsg	DB	"Memory init: ",0
-MemDISSbase	DB	" KB base, ",0
-MemDISSext	DB	" KB extended",0
 
 CPUinitMsg	DB	"CPU init: ",0
 
@@ -166,7 +162,6 @@ DrvId_RFS	RESD	1
 section .text
 
 %include "ints.as"
-%include "memdet.as"
 
 		; K_DescriptorAddress - get address of descriptor.
 		; Input: DX=descriptor.

@@ -10,12 +10,13 @@
 %define	UserAPIsTableAddr	70Ch		; User APIs table
 %define	KernelFreeMemStart	710h		; Begin of free kernel memory
 %define	KernelFreeMemEnd	714h		; End of free kernel memory
-%define	UpperMemSizeKB		718h		; Size of upper memory in KB
-%define BootModulesCount	71Ch		; Number of loaded boot modules
-%define BootModulesListAddr	720h		; Address of boot modules list
-%define BootModulesCmdLines	724h		; Boot modules commandline buf.
-%define	BIOSMemMapAddr		728h		; BIOS memory map address
-%define	BIOSMemMapSize		72Ch		; BIOS memory map size
+%define	LowerMemSizeKB		718h		; Size of lower memory in KB
+%define	UpperMemSizeKB		71Ch		; Size of upper memory in KB
+%define BootModulesCount	720h		; Number of loaded boot modules
+%define BootModulesListAddr	724h		; Address of boot modules list
+%define BootModulesCmdLines	728h		; Boot modules commandline buf.
+%define	BIOSMemMapAddr		72Ch		; BIOS memory map address
+%define	BIOSMemMapSize		730h		; BIOS memory map size
 
 
 ; --- Startup configuration table definitions ---

@@ -8,7 +8,7 @@ module kernel.mm
 %include "sys.ah"
 %include "errors.ah"
 %include "memman.ah"
-%include "i386/paging.ah"
+%include "x86/paging.ah"
 %include "sema.ah"
 %include "pool.ah"
 %include "process.ah"

@@ -5,23 +5,11 @@
 ; --- General definitions ---
 
 %define	BIOSDAsize		1000h		; Size of BIOS data area
-%define	StartCfgTblAddr		500h		; Startup config table address
 %define	BootModulesList		1000h		; Boot modules list
 %define	BootModCmdLines		1200h		; Boot modules command lines
 
 %define	Init_StackSize		32768		; Size of initial kernel stack
 
-%define	Init_MaxNumDrivers	64
-%define	Init_NumFSlinkPoints	26
-
 %define	Init_MaxNumOfProcesses	4096		; Maximum number of processes
 %define Init_MaxNumOfThreads	32		; Maximum number of threads
-%define	Init_MaxVirtMem		0		; Virtual memory size in KB
-%define	Init_NumIndexes		100		; Number of indexes
 %define	Init_MaxNumLoadedMods	10		; Maximum number of loaded mods
-
-%define	Init_NumKernFHandles	10		; Number of kernel file handles
-%define	Init_KernEnvSize	512		; Kernel environment size
-
-%define	Init_SerInpBufSize	2048		; Serial input buffer size
-%define	Init_SerOutBufSize	2048		; Serial output buffer size

@@ -262,8 +262,8 @@ struc tRMIntsTbl
 .IntFF		RESD	1
 endstruc
 
-; Begin address of BIOS data area
-%define	BIOSDA_Begin	400h
+; Start address of BIOS data area
+%define	BDASTART	400h
 
 ; --- Structure of BIOS data area ---
 struc tBIOSDA
@@ -369,3 +369,5 @@ struc tBIOSDA
 
 .PIA		RESD	4
 endstruc
+
+%define BDA(x) BDASTART+tBIOSDA. %+ x

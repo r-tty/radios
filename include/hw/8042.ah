@@ -1,0 +1,39 @@
+;
+; 8042.ah - definitions for PS/2 keyboard and mouse controller.
+;
+
+; Port 61h bits (R/W)
+%define	KBC_P1_PTYCHK		80h		; Parity check
+%define	KBC_P1_IOCHK		40h		; I/O check
+%define	KBC_P1_T20		20h		; Counter 2 output
+%define	KBC_P1_RFD		10h		; Regeneration of RAM
+%define	KBC_P1_EIC		8		; Enable I/O checking
+%define	KBC_P1_ERP		4		; Enable RAM parity checking
+%define	KBC_P1_SPK		2		; Speaker gate
+%define	KBC_P1_T2G		1		; Counter GATE2 input
+
+; Port 64h status bits (R)
+%define	KBC_P4S_PTYERR		80h		; Parity error
+%define	KBC_P4S_RXTO		40h		; KB receiver timeout
+%define	KBC_P4S_TXTO		20h		; KB transmitter timeout
+%define	KBC_P4S_KBLock		10h		; Keyboard locked
+%define	KBC_P4S_Command		8		; Command/data
+%define	KBC_P4S_ResetOK		4		; Reset OK/Power ON
+%define	KBC_P4S_KBNRDY		2		; Keyboard not ready
+%define	KBC_P4S_OutBFull	1		; Output buffer full
+
+; Port 64h commands (W)
+%define	KBC_P4W_Pulse		0FFh		; Pulse output line
+%define	KBC_P4W_HardReset	0FEh		; Hardware reset
+%define	KBC_P4W_EnA20		0DFh		; Enable A20
+%define	KBC_P4W_DisA20		0DDh		; Disable A20
+%define	KBC_P4W_Wr8042out	0D1h		; Write to 8042 output port
+%define	KBC_P4W_Rd8042out	0D0h		; Read from 8042 output port
+%define	KBC_P4W_Rd8042in	0C0h		; Read from 8042 input port
+%define	KBC_P4W_KBEnable	0AEh		; Keyboard enable
+%define	KBC_P4W_KBDisable	0ADh		; Keyboard disable
+%define	KBC_P4W_Rd8042RAM	0ACh		; Read KBC RAM
+%define	KBC_P4W_TestSD		0ABh		; Synchronizing and data test
+%define	KBC_P4W_Test8042	0AAh		; Internal test of KBC
+%define	KBC_P4W_WriteKBC	60h		; Write to KBC
+%define	KBC_P4W_ReadKBC		20h		; Read from KBC

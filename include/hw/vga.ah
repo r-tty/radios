@@ -1,0 +1,26 @@
+;--------------------------------------------------------------------------------
+; screen.ah - definitions and macros for VGA text mode output.
+;--------------------------------------------------------------------------------
+
+; Video memory base address
+VIDMEMCGA	EQU	0B8000h
+VIDMEMMDA	EQU	0B0000h
+VIDMEMVGA	EQU	0A0000h
+
+; CRT controller registers
+%define CRTC(REG) REG
+
+; Sequencer registers
+%define	SQREG_MapMask	2
+%define	SQREG_Memory	4
+
+; Graphics registers
+%define	GRREG_WrMode	5
+%define	GRREG_Misc	6
+
+; For modes 3 and 7
+%define	MODE3TXTCOLS	80		; Number of columns
+%define	MODE3TXTROWS	25              ; Number of rows
+
+; Other
+%define	VGATXTPAGES	8		; Number of video pages

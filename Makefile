@@ -6,20 +6,21 @@ include etc/header.mk
 
 # Some boolean definitions
 export DEBUG = 1
-MULTIBOOT = 1
 
 # Subdirs
-SUBDIRS = kernel drivers/hard drivers/soft fs monitor init loader
+SUBDIRS = kernel init loader
+ifdef DEBUG
+    SUBDIRS += monitor
+endif
 
 # Kernel objects and libraries
-TARGET_DEP = version.rdm syscall.rdm kernel.rdl hardware.rdl softdrivers.rdl \
-             fs.rdl monitor.rdl init.rdm
+TARGET_DEP = syscall.rdm version.rdm init.rdm kernel.rdl
 ifdef DEBUG
-TARGET_DEP += rkdt.rdm
+    TARGET_DEP += monitor.rdl
 endif
 
 # Boot-time modules
-BOOTMODULES = mouse.rdm
+BOOTMODULES = devices.rdl syslibs.rdl
 
 # Kernel file name
 KERNEL_RDX = main.rdx
@@ -32,26 +33,30 @@ response_file = .link
 
 #--- Target kernel module ------------------------------------------------------
 
-all: .depend $(KERNEL_RDX)
+all: $(depfile) $(KERNEL_RDX)
 
 -include $(depfile)
 
 ifdef deps_generated
 
-$(KERNEL_RDX): $(response_file) version.rdm rkdt.rdm dummy
-	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) || break) ; done
+$(KERNEL_RDX): subdirs $(response_file) version.rdm
 	@echo "Linking kernel..."
 	@$(LD) $(LDFLAGS) -@ $(response_file)
-ifdef MULTIBOOT
 	@echo -n "Building multiboot kernel..."
 	@cat $(OUTPATH)/loader.bin >>$(KERNEL_RDX)
 	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/radios.rdz
 	@echo "done."
-endif
+
+.PHONY: subdirs $(SUBDIRS)
+
+subdirs: $(SUBDIRS) 
+
+$(SUBDIRS):
+	@$(MAKE) -C $@
 
 endif
 
-dummy:
+
 
 #--- Boot-time modules ---------------------------------------------------------
 
@@ -64,43 +69,42 @@ modules-install: $(BOOTMODULES)
 
 #--- Individual dependencies ---------------------------------------------------
 
-version.rdm: etc/version.as
-	$(AS) $(ASFLAGS) $(OUTPATH)/version.rdm etc/version.as
+version.rdm: kernel/version.nasm
+	@echo "Assembling $<"
+	@$(AS) $(ASFLAGS) $(OUTPATH)/version.rdm kernel/version.nasm
 	
-rkdt.rdm: etc/rkdt/rkdt.as
-	$(AS) $(ASFLAGS) $(OUTPATH)/rkdt.rdm etc/rkdt/rkdt.as
-
 
 #--- Recursive depends ---------------------------------------------------------
 
 dep:
 	@echo "deps_generated = TRUE" >$(depfile)
-	@$(GENDEPS) etc/version.as >>$(depfile)
-	@$(GENDEPS) etc/rkdt/rkdt.as >>$(depfile)
-	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) all-depends) ; done
+	@$(GENDEPS) kernel/version.nasm >>$(depfile)
+	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-dep ; done
 
 	
 #--- Response file -------------------------------------------------------------
-	
+
 $(response_file): Makefile
 	rm -f $(response_file)
 	@for m in $(TARGET_DEP) ; do echo $$m | sed 's/^.*\.rdl/-l&/' >>$(response_file) ; done
 
 
 #--- Clean ---------------------------------------------------------------------
-
+.PHONY: clean distclean release
 clean:
-	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) all-clean) ; done
-	@rm -f $(response_file) $(depfile) $(KERNEL_RDX)
-	@cd $(OUTPATH) && rm -f version.rdm rkdt.rdm
+	@rm -f $(KERNEL_RDX)
+	@cd $(OUTPATH) && rm -f *.rdm *.rdl *.rdz
 
-	
+distclean: clean
+	@rm -f $(response_file) $(depfile)
+	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-clean ; done
+
 #--- Release -------------------------------------------------------------------
 
 release:
 	@rm -f etc/header.mk
 	@echo -n "Making release file: "
-	@release_file=radios-`grep DB etc/version.as | awk '{ print $$3 }' | sed 's/\"//g'`.tar.gz ; \
+	@release_file=radios-`grep ^RadiOS_Version kernel/version.nasm | awk '{ print $$3 }' | sed 's/\"//g'`.tar.gz ; \
 	   echo $$release_file; tar -czf $$release_file *
 
 #-------------------------------------------------------------------------------

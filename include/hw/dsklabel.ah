@@ -7,8 +7,8 @@
 %define OPENBSD_MAXPARTITIONS	16
 %define BSD_FS_UNUSED		0	; disklabel unused partition entry ID 
 
-%assign	NDDATA	5
-%assign NSPARE	5
+%define	NDDATA	5
+%define	NSPARE	5
 
 struc tBSDpartition 
 .Size		RESD	1		; number of sectors in partition 

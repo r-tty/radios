@@ -1,0 +1,27 @@
+;-------------------------------------------------------------------------------
+; inlines.ah - some useful macros used as inline functions.
+;-------------------------------------------------------------------------------
+
+; Copy ASCIIZ-string. Direction flag must be set.
+; Optional parameters:
+;  %1 - source (otherwise ESI must be set),
+;  %2 - destination (otherwise EDI must be set),
+;  %3 - length delimiter (otherwise ECX must be set),
+%macro mStrcpy 0-3
+%ifid %1
+	mov	esi,%1
+%endif
+%ifid %2
+	mov	edi,%2
+%endif
+%ifnum %3
+	mov	ecx,%3
+%endif
+%%Loop:
+	lodsb
+	or	al,al
+	jz	%%Done
+	stosb
+	loop	%%Loop
+%%Done:
+%endmacro

@@ -1,18 +1,14 @@
 
 # Rules for subdirectories
-.PHONY : all-make all-depends all-clean
+.PHONY : all-make all-dep all-clean $(SUBDIRS)
 
-all-make: all
-	@for dir in $(SUBDIRS) ; do \
-	    (cd $$dir; $(MAKE) LIB_UPDATE=lib-update || break) ; \
-	done
+all-make: all $(SUBDIRS)
 
-all-depends: dep
-	@for dir in $(SUBDIRS) ; do \
-	    (cd $$dir; $(MAKE) dep) ; \
-	done
+$(SUBDIRS):
+	@$(MAKE) -C $@ LIB_UPDATE=lib-update
+
+all-dep: dep
+	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir dep ; done
 	
 all-clean: clean
-	@for dir in $(SUBDIRS) ; do \
-	    (cd $$dir; $(MAKE) clean) ; \
-	done
+	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir clean ; done

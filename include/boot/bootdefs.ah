@@ -19,33 +19,75 @@
 %define	BIOSMemMapSize		730h		; BIOS memory map size
 
 
-; --- Startup configuration table definitions ---
+; --- Routines accessible through loader service entry ---
 
-; Table signature
-%define	SCFG_Signature		00435352h
+; Function numbers
+%define	SERVPROC_PRINTCHARRAW	0
+%define	SERVPROC_PRINTCHAR	1
+%define	SERVPROC_PRINTSTR	2
+%define	SERVPROC_PRINT32H	3
+%define	SERVPROC_PRINT16H	4
+%define	SERVPROC_PRINT8H	5
+%define	SERVPROC_PRINTDEC	6
+%define	SERVPROC_READKEY	7
 
-; Table structure
-struc tStartConfig
-.Signature	RESD	1
-.NumOfItems	RESW	1
-.ItemOffsets	RESW	1
-endstruc
+%macro mServPrintCharRaw 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	push	byte SERVPROC_PRINTCHARRAW
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
 
-; Item numbers
-%define	SCFG_BootDev		0
-%define	SCFG_RAMdiskSz		1
-%define	SCFG_BuffersMem		2
-%define	SCFG_SwapDev		3
-%define	SCFG_SwapSize		4
+%macro mServPrintChar 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	push	byte SERVPROC_PRINTCHAR
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
 
+%macro mServPrintStr 0-1
+%if %0==1
+	mov	esi,%1
+%endif
+	push	byte SERVPROC_PRINTSTR
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
 
-; --- Debugging macros ---
+%macro mServPrint8h 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	push	byte SERVPROC_PRINT8H
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
 
-%macro mDebugPrintDword 0-1
+%macro mServPrint16h 0-1
+%if %0==1
+	mov	ax,%1
+%endif
+	push	byte SERVPROC_PRINT8H
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
+
+%macro mServPrint32h 0-1
 %if %0==1
 	mov	eax,%1
 %endif
-	push	byte 2
+	push	byte SERVPROC_PRINT32H
 	call	dword [LoaderServiceEntryPoint]
-	add	esp,byte 4
+%endmacro
+
+%macro mServPrintDec 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	push	byte SERVPROC_PRINTDEC
+	call	dword [LoaderServiceEntryPoint]
+%endmacro
+
+%macro mServReadKey 0
+	push	byte SERVPROC_READKEY
+	call	dword [LoaderServiceEntryPoint]
 %endmacro

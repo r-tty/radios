@@ -3,16 +3,20 @@
 % : %
 
 # Control variables
-SUFFIXES = .as .rdm .rdx
+SUFFIXES = .nasm .rdm .rdx
 
 # Rule to make RDM from NASM source
-%.rdm : %.as
+%.rdm : %.nasm
 	@echo Assembling $<
 	@$(AS) $(ASFLAGS) $(OUTPATH)/$@ $<
 	
+# Rule to compile C source
+%.rdm : %.c
+	@echo Compiling $<
+	@$(CC) -o $(OUPATH)/$@ $<
+	
 # Paths
 RADIOSPATH = @@RADIOSPATH@@
-STDINCLPATH = @@STDINCLPATH@@
 INCLPATH = @@INCLPATH@@
 OUTPATH = @@OBJPATH@@
 INSTALLPATH = @@INSTALLPATH@@
@@ -24,14 +28,17 @@ vpath %.bin $(OUTPATH)
 
 # Commands
 AS = nasm
+CC = rncc
 LD = ldrdf
 AR = rdflib
 
 # Command flags
 ifdef DEBUG
-ASFLAGS = -O1 -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
+ ASFLAGS = -DDEBUG -f rdf -I$(INCLPATH)/ -Pmacros/sugar.ah -s -o
+ CFLAGS = -N -I$(INCLPATH)/c -c -DDEBUG -g
 else
-ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
+ ASFLAGS = -f rdf -I$(INCLPATH)/ -Pmacros/sugar.ah -s -o
+ CFLAGS = -N -I$(INCLPATH)/c -c
 endif
 LDFLAGS = -2 -xe -s -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx
 

@@ -2,6 +2,8 @@
 ;  module.ah - common module definitions.
 ;-------------------------------------------------------------------------------
 
+%define MODNAMEMAXLEN 14
+
 ; Kernel module information structure
 struc tKModInfo
 .Driver		RESD	1				; Module driver ID
@@ -14,7 +16,7 @@ struc tKModInfo
 .Flags		RESB	1				; Misc flags
 .Next		RESD	1
 .Prev		RESD	1
-.ModName	RESB	14
+.ModName	RESB	MODNAMEMAXLEN
 endstruc
 
 %define	MODTYPE_EXECUTABLE	0

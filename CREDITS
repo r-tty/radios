@@ -1,12 +1,27 @@
-These people took a part (directly or indirectly) in the development
-of the Radiant Operating System (RadiOS):
+;*********
+; CREDITS
+;*********
 
-David Lindauer <camille@bluegrass.net>
-Bart Sekura <bsekura@impaq.com.pl>
-Kees J. Bot <kjb@cs.vu.nl>
-Yuri Zaporogets <yuriz@rcr.kr.ua>
+First, great thanks to original authors of the Netwide Assembler -
+Julian Hall <jules@dsf.org.uk> and Simon Tatham <anakin@pobox.com> .
+Without your excellent software RadiOS would never appear.
 
-Also great thanks to Julian Hall <jules@earthcomp.com> and
-Simon Tatham <anakin@pobox.com> for the Netwide Assembler project
-(NASM) and RDF tools.
+Of course, I didn't write everything from scratch, most of the stuff came
+from different OSes and kernels (in slightly modified form, though ;)
+Some of them are:
 
+LSD (OS-32),	David Lindauer <camille@bluegrass.net>
+TINOS,		Bart Sekura <bsekura@impaq.com.pl>
+Minix 2.0,	Kees J. Bot <kjb@cs.vu.nl>
+Linux 2.0.0	Linus Torvalds <torvalds@transmeta.com> and others
+L4-KA RC2	Uwe Dannowski <uwe.dannowski@ira.uka.de> and others
+
+C stuff are compiled with LCC 4.1, NASM module was provided by
+John Coffman <johninsd@san.rr.com>. Thanks John and all LCC authors.
+
+Finally, warm greetings to Jussi Callioniemi <jukal@cyberian.org>.
+Without his kind help I definitely wouldn't compose these bits in N years :)
+
+-- 
+Best regards,
+Yuri Zaporogets <yuriz@teraflops.com>

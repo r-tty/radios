@@ -8,10 +8,10 @@ include ../etc/header.mk
 
 # Change variables here
 export TARGET_LIB = kernel.rdl
-OBJS = kernel.rdm driver.rdm module.rdm initmem.rdm pages.rdm \
-       pool.rdm sema.rdm setjmp.rdm # misc.rdm kconio.rdm
+OBJS = kernel.rdm module.rdm rdoff.rdm initmem.rdm pages.rdm \
+       pool.rdm sema.rdm setjmp.rdm
 modnamesfile = $(OUTPATH)/.kernel-modules
-SUBDIRS = mm mt syscall ipc
+SUBDIRS = mm mt syscall ipc x86dev
 
 # Make in subdirs
 include ../etc/subdirs.mk

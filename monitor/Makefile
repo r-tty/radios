@@ -14,6 +14,6 @@ modnamesfile = $(OUTPATH)/.monitor-modules
 # This part shouldn't be changed
 include ../etc/common.mk
 
-# This is needed for master makefile
-all-depends: dep
+# Individual dependencies
+all-dep: dep
 all-clean: clean

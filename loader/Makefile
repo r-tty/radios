@@ -21,8 +21,8 @@ loader.bin: .depend $(OBJS)
 # This part shouldn't be changed
 include ../etc/common.mk
 
-# This is needed for master makefile
-all-depends: dep
+# Individual dependencies
+all-dep: dep
 
 all-clean: clean
 	@rm -f $(LOADER_BIN)

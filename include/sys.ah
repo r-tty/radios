@@ -6,30 +6,29 @@
 %define _sys_ah
 
 %include "x86/cpu.ah"
-%include "macros/drvcall.ah"
 
 ; --- Global descriptors ---
-%assign	KERNELCODE	8
-%assign	KERNELDATA	0x10
-%assign	ABSDS		0x18
-%assign	HMADATA		0x20
-%assign	DRVCODE		0x28
-%assign	DRVDATA		0x30
-%assign	USERCODE	0x38
-%assign	USERDATA	0x40
-%assign	KTSS		0x48
-%assign	DTSS		0x50
-%assign	KLDT		0x58
-%assign	DLDT		0x60
-%assign	ULDT		0x68
+%define	KERNELCODE	8
+%define	KERNELDATA	0x10
+%define	ABSDS		0x18
+%define	HMADATA		0x20
+%define	DRVCODE		0x28
+%define	DRVDATA		0x30
+%define	USERCODE	0x38
+%define	USERDATA	0x40
+%define	KTSS		0x48
+%define	DTSS		0x50
+%define	KLDT		0x58
+%define	DLDT		0x60
+%define	ULDT		0x68
 
-%assign	DRV_CSEG	DRVCODE | 1
-%assign	DRV_DSEG	DRVDATA | 1
-%assign	USER_CSEG	USERCODE | 3
-%assign	USER_DSEG	USERDATA | 3
+%define	DRV_CSEG	DRVCODE | 1
+%define	DRV_DSEG	DRVDATA | 1
+%define	USER_CSEG	USERCODE | 3
+%define	USER_DSEG	USERDATA | 3
 
-%assign GDT_size	0x70
-%assign	IDT_size	0x180
+%define GDT_size	0x70
+%define	IDT_size	0x180
 
 ; --- Common system definitions ---
 %define	NULL		0

@@ -1,0 +1,19 @@
+;-------------------------------------------------------------------------------
+; monitor.ah - some definitions and macros used by the monitor.
+;-------------------------------------------------------------------------------
+
+; Print character in AL
+%macro mPrintChar 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	call	PrintChar
+%endmacro
+
+; Print string (ESI=address)
+%macro mPrintString 0-1
+%if %0==1
+	mov	esi,%1
+%endif
+	call	PrintString
+%endmacro

@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ;  module.as - common modules support routines.
-;  Copyright (c) 1999 RET & COM Research.
+;  Copyright (c) 1999,2000 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.module
@@ -29,7 +29,6 @@ section .bss
 
 NumLoadedMods	RESD	1			; Number of loaded modules
 MaxNumMods	RESD	1			; Maximum number of loaded mods
-ModTableHnd	RESW	1			; Module table block handle
 ModTableAddr	RESD	1			; Module table address
 
 BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
@@ -74,7 +73,6 @@ proc MOD_InitMem
 		mov	ecx,eax
 		call	KH_Alloc
 		jc	short .Exit
-		mov	[ModTableHnd],ax
 		mov	[ModTableAddr],ebx
 		call	BZero
 		xor	eax,eax

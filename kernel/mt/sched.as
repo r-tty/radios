@@ -42,7 +42,7 @@ MsgNoMoreTmQ	DB	":SCHEDULER:MT_SetTimeout: no more space in the queue",0
 section .bss
 
 ?SchedInClock	RESD	1	; Effectively solve nested clock interrupts
-?SchedTicksCnt	RESD	1	; Ticks counter
+?TicksCounter	RESD	1	; Ticks counter
 
 ?CurrThread	RESD	1	; Pointer to the current running thread
 
@@ -85,7 +85,6 @@ section .text
 		; Input: EBX=address of new TCB.
 		; Output: none.
 proc MT_ContextSwitch
-inc byte [0xb8000+158]
 		cmp	ebx,[?CurrThread]
 		jne	short .Switch
 	%ifdef KPOPUPS
@@ -115,7 +114,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc MT_SchedAging
 		; Simple statistics
-		inc	dword [?SchedTicksCnt]
+		inc	dword [?SchedTick]
 		inc	dword [?SchedRecalcs]
 
 		; Go through the list of ready threads.
@@ -211,8 +210,7 @@ proc MT_Schedule
 		
 		; Save context of current thread
 		mov	ebx,[?CurrThread]
-		add	ebx,byte tTCB.Context
-		push	ebx
+		lea	edi,[ebx+tTCB.Context]
 		call	K_SetJmp
 		or	eax,eax
 		jnz	short .Done
@@ -276,7 +274,7 @@ proc K_SwitchTask
 		ret
 
 		; Count the ticks
-.CntTicks:	inc	dword [?SchedTicksCnt]
+.CntTicks:	inc	dword [?TicksCounter]
 		mov	dword [?SchedInClock],1
 		sti
 		lea	ebx,[.frame]			; EBX=address of frame
@@ -352,7 +350,7 @@ proc MT_SetTimeout
 		; the amount of ticks it wants to wait; makes searching
 		; the timeout queue easier.
 .Init:		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
-		add	eax,[?SchedTicksCnt]
+		add	eax,[?TicksCounter]
 		mov	[ebx+tTimeout.Ticks],eax
 		push	ebx
 		lea	ebx,[ebx+tTimeout.Sem]
@@ -409,7 +407,7 @@ proc MT_CheckTimeout
 		cli
 		
 		mov	edx,[?TimeoutQue]
-.ChkLoop:	mov	eax,[?SchedTicksCnt]
+.ChkLoop:	mov	eax,[?TicksCounter]
 		cmp	eax,[edx+tTimeout.Ticks]
 		jb	.Done
 		lea	ebx,[edx+tTimeout.Sem]
@@ -431,12 +429,16 @@ endp		;---------------------------------------------------------------
 global MT_PrintSchedStat
 
 section .data
-MsgNested	DB	10,"Nested clocks: ",0
-MsgAdjusts	DB	10,"Sched adjusts: ",0
-MsgRecalcs	DB	10,"Sched recalcs: ",0
-MsgCurrRets	DB	10,"Current returns: ",0
-MsgKernTicks	DB	10,"Kernel ticks: ",0
-MsgTicksCnt	DB	10,"Ticks counter: ",0
+MsgNested	DB	NL,"Nested clocks: ",0
+MsgAdjusts	DB	NL,"Sched adjusts: ",0
+MsgRecalcs	DB	NL,"Sched recalcs: ",0
+MsgCurrRets	DB	NL,"Current returns: ",0
+MsgKernTicks	DB	NL,"Kernel ticks: ",0
+MsgDrvTicks	DB	NL,"Driver ticks: ",0
+MsgUserTicks	DB	NL,"User ticks: ",0
+MsgTicksCnt	DB	NL,"Ticks counter: ",0
+MsgSysUptime	DB	NL,NL,"System uptime: ",0
+MsgSeconds	DB	" seconds",0
 
 section .text
 
@@ -459,9 +461,20 @@ proc MT_PrintSchedStat
 		mPrintString MsgKernTicks
 		mov	eax,[?KernTicks]
 		call	PrintDwordDec
-		mPrintString MsgTicksCnt
-		mov	eax,[?SchedTicksCnt]
+		mPrintString MsgDrvTicks
+		mov	eax,[?DrvTicks]
 		call	PrintDwordDec
+		mPrintString MsgUserTicks
+		mov	eax,[?UserTicks]
+		call	PrintDwordDec
+		mPrintString MsgTicksCnt
+		mov	eax,[?TicksCounter]
+		call	PrintDwordDec
+		
+		mPrintString MsgSysUptime
+		mov	eax,[?SchedSeconds]
+		call	PrintDwordDec
+		mPrintString MsgSeconds
 		ret
 endp		;---------------------------------------------------------------
 

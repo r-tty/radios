@@ -523,17 +523,17 @@ static byte Select(byte NumDevices)
  {
   const PChar ProgVer="       Radiant System Loader, version 1.0  (c) 1998 RET & COM Research";
   const PChar ColNames[]={"Device","Type","Subtype/parameters","Protocol(s)"};
-  const PChar Sym="Õƒ«∂∫≥";
+  const PChar Sym="†Ä∞¥°Å";
   byte ColWidth[4]={16,20,24,15};
   byte i,j,k,Sel=0,Time=TIME_INTERVAL;
   char ch;
   word BKey;
   bool CountDown=1;
 
-  WrChar('…');
+  WrChar('•');
   WrCharA(Sym[0],LIGHTGRAY,78);
   MoveCur(79,0);
-  WrChar('ª'); WrChar(Sym[4]);
+  WrChar('®'); WrChar(Sym[4]);
   WrString(ProgVer);
   MoveCur(79,1);
   WrChar(Sym[4]); WrChar(Sym[2]);
@@ -541,7 +541,7 @@ static byte Select(byte NumDevices)
    {
     WrCharA(Sym[1],LIGHTGRAY,ColWidth[i]);
     MoveCur(WhereX+ColWidth[i],WhereY);
-    if(i!=3) WrChar('¬');
+    if(i!=3) WrChar('à');
    }
   WrChar(Sym[3]); WrChar(Sym[4]);
   for(i=0;i<4;i++)
@@ -555,9 +555,9 @@ static byte Select(byte NumDevices)
   WrChar(Sym[4]); WrChar(Sym[2]);
   for(i=0;i<4;i++)
    {
-    WrCharA('ƒ',LIGHTGRAY,ColWidth[i]);
+    WrCharA('Ä',LIGHTGRAY,ColWidth[i]);
     MoveCur(WhereX+ColWidth[i],WhereY);
-    if(i!=3) WrChar('≈');
+    if(i!=3) WrChar('ä');
    }
   WrChar(Sym[3]);
   for(i=0;i<NumDevices;i++)
@@ -577,14 +577,14 @@ static byte Select(byte NumDevices)
    {
     WrCharA(Sym[1],LIGHTGRAY,ColWidth[k]);
     MoveCur(WhereX+ColWidth[k],WhereY);
-    if(k!=3) WrChar('¡');
+    if(k!=3) WrChar('â');
    }
   WrChar(Sym[3]);
 
   WrChar(Sym[4]);
   MoveCur(79,i+6); WrChar(Sym[4]);
-  WrChar('»'); WrCharA(Sym[0],LIGHTGRAY,78);
-  MoveCur(79,i+7); WrChar('º');
+  WrChar('´'); WrCharA(Sym[0],LIGHTGRAY,78);
+  MoveCur(79,i+7); WrChar('Æ');
 
   for(i=0;i<NumDevices;i++)
    if(DevInfo[i].DevID==ID_HARDDISK)

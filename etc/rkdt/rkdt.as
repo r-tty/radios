@@ -62,73 +62,85 @@ extern TMR_CountCPUspeed
 library hw.serport
 extern SER_DumbTTY
 
-section .data
 
-msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
-		DB "Copyright (c) 1999,2000 RET & COM Research.",NL,0
-msg_Help	DB NL,"Commands:",NL
-		DB "S    - call monitor (g to back)",NL
-		DB "stat - view scheduler statistics",NL
-		DB "ts   - view thread statistics",NL
-		DB "help - get this message",NL,0
-msg_Debugging	DB NL,"DEBUGGING: ",0
-msg_FScreated	DB "File system created on %ramdisk",NL,0
-msg_CfgCreated	DB "Config file created",NL,0
-msg_DbgPrompt	DB NL,"RKDT>",0
-msg_Err		DB NL,NL,7,"ERROR ",0
-
-cmdQuestion	DB "?"
-cmdMon		DB "S"
-cmdNewTxtFile	DB "cf"
-cmdRmFile	DB "rm"
-cmdLs		DB "ls"
-cmdView		DB "vw"
-cmdRm		DB "rm"
-cmdMv		DB "mv"
-cmdCM		DB "CM"
-cmdCL		DB "CL"
-cmdMd		DB "md"
-cmdCd		DB "cd"
-cmdRd		DB "rd"
-
-cmdFlushBuffers	DB "flush"
-cmdSerial	DB "testserial"
-cmdProbe	DB "probe"
-cmdExec		DB "exec"
-cmdAllocMem	DB "allocmem"
-cmdFreeMem	DB "freemem"
-cmdMemStat	DB "memstat"
-cmdFreeMCBs	DB "freemcbs"
-cmdGrabFile	DB "grabfile"
-cmdGetISS	DB "getiss"
-
-cmdSchedStat	DB "stat"
-cmdThreadStat	DB "ts"
-
-cmdHelp		DB "help"
-
-CfgName		DB "radios.config",0
-ConfigFile	DB ";-----------------------------------------------------",NL
-		DB "; radios.config - RadiOS configuration file",NL
-		DB ";-----------------------------------------------------",NL,NL
-		DB "Driver=cm6329.drv",NL
-		DB ";Driver=ess1868.drv",NL
-		DB NL
-		DB "MaxProcesses=8",NL
-		DB 0
-SizeOfCfgFile	EQU	$-ConfigFile
-ends
+; --- Macros ---
 
 %macro mPrintMsg 1
  mPrintString msg_Debugging
  mPrintString %1
 %endmacro
 
+
+; --- Data ---
+
+section .data
+
+msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
+		DB "Copyright (c) 1999,2000 RET & COM Research.",NL,0
+		
+msg_Help	DB NL,"Commands:",NL
+		DB "S      - call monitor (g to back)",NL
+		DB "stat   - view scheduler statistics",NL
+		DB "ts     - view thread statistics",NL
+		DB "reboot - reboot machine",NL
+		DB "help   - get this message",NL,0
+		
+msg_DbgPrompt	DB NL,"RKDT>",0
+msg_Err		DB NL,NL,7,"ERROR ",0
+msg_Debugging	DB NL,"DEBUGGING: ",0
+
+msg_FScreated	DB "File system created on %ramdisk",NL,0
+msg_CfgCreated	DB "Config file created",NL,0
+
+cmdQuestion	DB "?",0
+cmdHelp		DB "help",0
+cmdMon		DB "S",0
+cmdNewTxtFile	DB "cf",0
+cmdRmFile	DB "rm",0
+cmdLs		DB "ls",0
+cmdView		DB "vw",0
+cmdRm		DB "rm",0
+cmdMv		DB "mv",0
+cmdCM		DB "CM",0
+cmdCL		DB "CL",0
+cmdMd		DB "md",0
+cmdCd		DB "cd",0
+cmdRd		DB "rd",0
+
+cmdFlushBuffers	DB "flush",0
+cmdSerial	DB "testserial",0
+cmdProbe	DB "probe",0
+cmdExec		DB "exec",0
+cmdAllocMem	DB "allocmem",0
+cmdFreeMem	DB "freemem",0
+cmdMemStat	DB "memstat",0
+cmdFreeMCBs	DB "freemcbs",0
+cmdGrabFile	DB "grabfile",0
+cmdGetISS	DB "getiss",0
+
+cmdSchedStat	DB "stat",0
+cmdThreadStat	DB "ts",0
+cmdReboot	DB "reboot",0
+
+; Command procedures
+command_procs	DD	cmdQuestion,	RKDT_Help
+		DD	cmdHelp,	RKDT_Help
+		DD	cmdSchedStat,	MT_PrintSchedStat
+		DD	cmdThreadStat,	MT_DumpReadyThreads
+
+CfgName		DB "radios.config",0
+ConfigFile	DB "#-----------------------------------------------------",NL
+		DB "# radios.config - RadiOS configuration file",NL
+		DB "#-----------------------------------------------------",NL,NL
+		DB 0
+SizeOfCfgFile	EQU	$-ConfigFile
+
 section .bss
 
 SBuffer		RESB	80
 
 
+; --- Code ---
 
 section .text
 
@@ -371,6 +383,13 @@ proc RKDT_Main
 
 .Help:		mPrintString msg_Help
 		jmp	.Loop
+endp		;---------------------------------------------------------------
+
+
+		; RKDT_Help - print a short help message.
+proc RKDT_Help
+		mPrintString msg_Help
+		ret
 endp		;---------------------------------------------------------------
 
 

@@ -36,6 +36,28 @@ Int%1Handler:
 %endif
 %endmacro
 
+; Macros for interrupt service routines (ISRs).
+; Parameters: %1=procedure name, %2=IRQ number.
+
+; For first interrupt controller
+%macro mISR 2
+K_ISR%2:
+	mTrapEntry %2
+	mPICACK 0
+	call	%1
+	mTrapLeave
+%endmacro
+
+; For second interrupt controller
+%macro mISR2 2
+K_ISR%2:
+	mTrapEntry %2
+	mPICACK 1
+	call	%1
+	mTrapLeave
+%endmacro
+
+; --- Data ---
 
 section .data
 
@@ -61,7 +83,23 @@ IRQdrivers	DD	0			; 0: timer (handled by kernel)
 
 section .text
 
-; Temporary exception handler
+		; K_Interrupt - routine to serve all hardware interrupts.
+		; Note: stack frame (with interrupt number as the error code)
+		;	must be on the stack.
+proc K_Interrupt
+		mov	eax,[esp+tStackFrame.Err]	; EAX=IRQ number
+		mov	ebx,[IRQdrivers+eax*4]		; EAX=driver ID
+		or	ebx,ebx
+		jz	short .Done
+		add	eax,(EV_IRQ << 16)		; Event code (IRQ)
+		push	ebx
+		push	byte DRVF_HandleEv
+		call	DRV_CallDriver
+.Done:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Temporary exception handler
 proc K_TmpExcHandler
 		mov	ebx,0B8000h
 		add	bl,[ExcPrintPos]
@@ -94,8 +132,25 @@ mIntHandler 15,K_TmpExcHandler
 mIntHandler 16,K_TmpExcHandler
 mIntHandler 17,K_TmpExcHandler
 
+; Interrupt service routines (ISRs)
 
-; IRQ handlers
+mISR K_SwitchTask, 0
+mISR K_Interrupt, 1
+mISR K_Interrupt, 2
+mISR K_Interrupt, 3
+mISR K_Interrupt, 4
+mISR K_Interrupt, 5
+mISR K_Interrupt, 6
+mISR K_Interrupt, 7
+mISR2 K_Interrupt, 8
+mISR2 K_Interrupt, 9
+mISR2 K_Interrupt, 10
+mISR2 K_Interrupt, 11
+mISR2 K_Interrupt, 12
+mISR2 K_Interrupt, 13
+mISR2 K_Interrupt, 14
+mISR2 K_Interrupt, 15
+
 		; IRQ0: system timer.
 proc IRQ0Handler
 		mTrapEntry 0
@@ -115,16 +170,13 @@ endp		;---------------------------------------------------------------
 
 		; IRQ1: keyboard.
 proc IRQ1Handler
-		sti
-		mpush	eax,edx
+		mTrapEntry 1
+		mPICACK 0
 		mov	eax,(EV_IRQ << 16)+1
 		push	dword [IRQdrivers+4]
 		push	byte DRVF_HandleEv
 		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
+		mTrapLeave
 endp		;---------------------------------------------------------------
 
 

@@ -63,7 +63,7 @@
 
 ; --- System timer definitions ---
 %define	TIMER_InpFreq	1193180		; Timer input frequency (Hz)
-%define	TIMER_OutFreq	60		; Channel 0 output freq (Hz)
+%define	TIMER_OutFreq	100		; Channel 0 output freq (Hz)
 
 
 ; --- Disk sector size ---

@@ -1,0 +1,65 @@
+; This file defines various TASM-like macros
+
+%define offset
+
+; proc/endproc pair
+%macro proc 1
+%push proc
+%1:
+%endmacro
+
+%macro endp 0
+%ifnctx proc
+%error Mismatched ENDP
+%else
+%pop
+%endif
+%endmacro
+
+; mpush/mpop pair
+%macro mpush 1-*
+%rep %0
+		push	%1
+%rotate 1
+%endrep
+%endmacro
+
+%macro mpop 1-*
+%rep %0
+		pop	%1
+%rotate 1
+%endrep
+%endmacro
+
+; push immediate
+%macro pushimm 1
+%if %1<128
+		push	byte %1
+%else
+		push	dword %1
+%endif
+%endmacro
+
+; C-like prologue and epilogue
+%macro prologue 1
+%push enter
+		push	ebp
+		mov	ebp,esp
+%if %1 > 0
+%if %1 < 128
+		sub	esp, byte %1
+%else
+		sub	esp,%1
+%endif
+%endif
+%endmacro
+
+%macro epilogue 0
+%ifnctx enter
+%error Mismatched EPILOGUE
+%else
+%pop
+%endif
+		mov	esp,ebp
+		pop	ebp
+%endmacro

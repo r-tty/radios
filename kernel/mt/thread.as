@@ -26,7 +26,7 @@ extern MM_AllocBlock:near
 section .data
 
 MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread is already sleeps",0
-MsgThrRunning	DB	":THREAD:MT_ThreadSleep: warning: this thread is already running",0
+MsgThrRunning	DB	":THREAD:MT_ThreadWakeup: warning: this thread is already running",0
 
 ; --- Variables ---
 
@@ -163,7 +163,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc MT_ThreadSleep
 		cmp	byte [ebx+tTCB.State],THRST_WAITING
-		jne	.1
+		jne	short .1
 	%ifdef KPOPUPS
 		push	esi
 		mov	esi,MsgThrSleep
@@ -189,7 +189,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc MT_ThreadWakeup
 		cmp	byte [ebx+tTCB.State],THRST_READY
-		jne	.1
+		jne	short .1
 	%ifdef KPOPUPS
 		push	esi
 		mov	esi,MsgThrRunning
@@ -237,12 +237,12 @@ proc MT_CreateThread
 		mov	[edi+tTCB.Entry],edx
 
 		; Initial values for typical scheduler fields.
-		mov	byte [edi+tTCB.State],THRST_READY
-		mov	byte [edi+tTCB.PrioClass],THRPRCL_NORMAL
-		mov	byte [edi+tTCB.Priority],THRPRVAL_DEFAULT
-		mov	byte [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
-		mov	byte [edi+tTCB.Count],0
-		mov	eax,[?SchedTicksCnt]
+		mov	dword [edi+tTCB.State],THRST_READY
+		mov	dword [edi+tTCB.PrioClass],THRPRCL_NORMAL
+		mov	dword [edi+tTCB.Priority],THRPRVAL_DEFAULT
+		mov	dword [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
+		mov	dword [edi+tTCB.Count],0
+		mov	eax,[?SchedTick]
 		mov	dword [edi+tTCB.Stamp],eax
 
 		; Initialize 'PCB' field and check stack size
@@ -416,7 +416,7 @@ global MT_DumpReadyThreads
 section .data
 
 MsgNoReady	DB	10,"no ready threads.",10,0
-MsgDumpHdr	DB	10,"TCB       S  Ticks     Cnt       Prio      BPrio     Preempt   Sem       Stamp",10,0
+MsgDumpHdr	DB	10,"TCB       S    Ticks   Cnt     Prio    BPrio  Preempt  Sem     Stamp",10,0
   
 section .text
 
@@ -446,8 +446,7 @@ proc MT_DumpReadyThreads
 		mPrintChar ' '
 		call	PrintChar
 		mPrintChar dh				; State
-		mPrintChar ' '
-		call	PrintChar
+		mPrintChar HTAB
 		mov	eax,[ebx+tTCB.Ticks]
 		call	PrintDwordDec			; Ticks
 		mPrintChar HTAB

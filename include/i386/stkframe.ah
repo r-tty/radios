@@ -35,16 +35,16 @@ endstruc
 	push	ebp
 	push	esi
 	push	edi
-	push	ds
-	push	es
+o16	push	ds
+o16	push	es
 	mov	ax,ss
 	mov	ds,ax
 	mov	es,ax
 %endmacro
 
 %macro mRestoreRegs 0
-	pop	es
-	pop	ds
+o16	pop	es
+o16	pop	ds
 	pop	edi
 	pop	esi
 	pop	ebp

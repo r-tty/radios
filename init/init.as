@@ -827,7 +827,7 @@ proc Start
 
 		; Show CPU & FPU type
 		call	INIT_ShowCPUFPU
-call ReadChar
+
 		; Enable A20
 		mov	al,1
 		call	KBC_A20Control

@@ -4,7 +4,7 @@
 
 # Default paths
 RADIOSPATH=$HOME/radios
-STDINCLPATH=/usr/local/include/nasm
+STDINCLPATH=$RADIOSPATH/include/macros
 INCLPATH=$RADIOSPATH/include
 OBJPATH=/usr/obj/radios
 INSTALLPATH=/RadiOS

@@ -3,12 +3,10 @@
 ;-------------------------------------------------------------------------------
 
 		; INIT_Launcher - continue booting after enable multitasking.
-		; Input:
-		; Output:
+		; Input: none.
+		; Output: none.
 proc INIT_Launcher
-;extern MT_Schedule:near
-;call MT_Schedule
-.IDLE:	inc byte [0B8000h]
+.IDLE: inc byte [0xB8000+158]
 		jmp	.IDLE
 endp		;---------------------------------------------------------------
 

@@ -29,9 +29,9 @@ AR = rdflib
 
 # Command flags
 ifdef DEBUG
-ASFLAGS = -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.mac -i$(INCLPATH)/ -s -o
+ASFLAGS = -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 else
-ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.mac -i$(INCLPATH)/ -s -o
+ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 endif
 LDFLAGS = -2 -xe -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx
 

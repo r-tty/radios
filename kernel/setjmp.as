@@ -14,30 +14,25 @@ global K_SetJmp, K_LongJmp
 
 ; --- Code ---
 
-		; K_SetJmp - save context, returning 0 (C-style).
-		; Input: address of tJmpBuf structure must be in a stack.
+		; K_SetJmp - save context, returning 0.
+		; Input: EDI=address of tJmpBuf structure.
 		; Output: EAX=0.
 proc K_SetJmp
-		push	edi
-		mov	edi,[esp+8]			; JmpBuf pointer
-		mov	eax,[esp+4]			; Return address
+		mov	eax,[esp]			; Return address
 		mov	[edi+tJmpBuf.R_EIP],eax
-		pop	eax				; EAX=original EDI value
-		mov	[edi+tJmpBuf.R_EDI],eax
+		mov	[edi+tJmpBuf.R_EDI],edi
 		mov	[edi+tJmpBuf.R_ESI],esi
 		mov	[edi+tJmpBuf.R_EBP],ebp
 		mov	[edi+tJmpBuf.R_ESP],esp
 		mov	[edi+tJmpBuf.R_EBX],ebx
 		mov	[edi+tJmpBuf.R_EDX],edx
 		mov	[edi+tJmpBuf.R_ECX],ecx
-		mov	edi,[edi+tJmpBuf.R_EDI]		; Restore EDI value
 		xor	eax,eax
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; K_LongJmp - restore context, returning a specified result
-		;	      (C-style).
+		; K_LongJmp - restore context, returning a specified result.
 		; Input: EDI=address of tJmpBuf structure,
 		;	 EAX=value (0 or 1).
 		; Output: none.

@@ -28,6 +28,11 @@ extern K_LDelay:extcall
 extern StrCopy:extcall, StrAppend:extcall
 extern K_HexW2Str:extcall
 
+library kernel.mt
+extern MT_Schedule:extcall
+extern MT_ThreadSleep:extcall, MT_ThreadWakeup:extcall
+extern ?CurrThread
+
 library kernel.ipc
 extern K_HandleEvent:extcall
 
@@ -154,19 +159,21 @@ KBLayoutCtrl	DB ASC_NUL,ASC_ESC,0,0,0,0,0,1Eh,0,0,0,0
 
 section .bss
 
-KB_LastKCode	RESB	1			; Last keyboard code
-KB_AnswFlags	RESB	1			; Keyboard answers flags
-KB_PrsFlags	RESW	1			; Keypressing flags
-KB_SwStatus	RESB	1			; Switches status
-KB_MiscFlags	RESB	1			; Miscellaneous flags
+?LastKCode	RESB	1			; Last keyboard code
+?AnswFlags	RESB	1			; Keyboard answers flags
+?PrsFlags	RESW	1			; Keypressing flags
+?SwStatus	RESB	1			; Switches status
+?MiscFlags	RESB	1			; Miscellaneous flags
 
-KB_InternalID	RESW	1			; Keyboard ID
+?InternalID	RESW	1			; Keyboard ID
 
-KB_Buffer	RESW	KB_BufSize		; Keyboard FIFO buffer
-KB_BufHead	RESB	1			; Buffer head pointer
-KB_BufTail	RESB	1			; Buffer tail pointer
+?Buffer		RESW	KB_BufSize		; Keyboard FIFO buffer
+?BufHead	RESB	1			; Buffer head pointer
+?BufTail	RESB	1			; Buffer tail pointer
 
-KB_CurrVirtCon	RESB	1			; Current virtual console
+?CurrVirtCon	RESB	1			; Current virtual console
+
+?KBwaiter	RESD	1			; For scheduling
 
 ; --- Procedures ---
 
@@ -182,7 +189,7 @@ proc KB_Init
 
 		cli
 		call	KBC_ClrOutBuf
-		and	byte [KB_AnswFlags],~KB_FlagEcho
+		and	byte [?AnswFlags],~KB_FlagEcho
 		mov	al,KB_CmdEcho
 		clc
 		call	KBC_SendKBCmd			; Send "Echo" command
@@ -194,7 +201,7 @@ proc KB_Init
 		mov	edx,20
 .Ping:		mov	ecx,1000h			; Wait for echo ping
 		call	K_LDelay
-		test	byte [KB_AnswFlags],KB_FlagEcho
+		test	byte [?AnswFlags],KB_FlagEcho
 		jnz	short .EchoOK
 		dec	edx
 		jnz	.Ping
@@ -202,17 +209,17 @@ proc KB_Init
 
 .EchoOK: 	cli
 		call	KBC_ClrOutBuf
-		mov	word [KB_InternalID],0
-		or	byte [KB_MiscFlags],KB_flNoAnalyse
+		mov	word [?InternalID],0
+		or	byte [?MiscFlags],KB_flNoAnalyse
 		mov	al,KB_CmdReadID			; Get KB ID
 		clc
 		call	KBC_SendKBCmd
 		jc	short .Exit
-		and	byte [KB_AnswFlags],~KB_FlagACK
+		and	byte [?AnswFlags],~KB_FlagACK
 		sti
 
 		mov	edx,100				; Wait for ID
-.WaitID:	test	byte [KB_AnswFlags],KB_FlagACK
+.WaitID:	test	byte [?AnswFlags],KB_FlagACK
 		jnz	short .ReadID
 		mov	ecx,100
 		call	K_LDelay
@@ -220,16 +227,16 @@ proc KB_Init
 		jnz	.WaitID
 		jmp	short .Err
 
-.ReadID:	call	KB_ReadKey
-		mov	byte [KB_InternalID],al
-		call	KB_ReadKey
-		mov	byte [KB_InternalID+1],al
+.ReadID:	call	KB_ReadKeyNoSched
+		mov	byte [?InternalID],al
+		call	KB_ReadKeyNoSched
+		mov	byte [?InternalID+1],al
 
 .IDOK:		clc
 
 .Exit:		sti
 		pushfd
-		and	byte [KB_MiscFlags],~KB_flNoAnalyse
+		and	byte [?MiscFlags],~KB_flNoAnalyse
 		call	KBC_ClrOutBuf
 		popfd
 		mpop	edx,ecx
@@ -250,7 +257,7 @@ proc KB_HandleEv
 		jne	.Err
 		push	eax
 		call	KBC_ReadKBPort
-		mov	byte [KB_LastKCode],al
+		mov	byte [?LastKCode],al
 
 		cmp	al,KB_AnsBufErr
 		je	short .BErr
@@ -264,22 +271,32 @@ proc KB_HandleEv
 		je	short .ACK
 
 		call	KB_AnalyseKCode
-		test	byte [KB_MiscFlags],KB_flNoAnalyse
+		test	byte [?MiscFlags],KB_flNoAnalyse
 		jnz	short .InBuf
 		or	ax,ax
 		jz	short .Done
+		
+		; Put key in buffer and check for threads waiting for key
 .InBuf:		call	KB_PutInBuf
+		cmp	dword [?KBwaiter],0
+		je	short .Done
+		push	ebx
+		mov	ebx,[?KBwaiter]
+		call	MT_ThreadWakeup
+		pop	ebx
+		mov	dword [?KBwaiter],0
 		jmp	short .Done
 
-.BErr:		or	byte [KB_AnswFlags],KB_FlagBufErr
+.BErr:		or	byte [?AnswFlags],KB_FlagBufErr
 		jmp	short .Done
-.DFail:		or	byte [KB_AnswFlags],KB_FlagDiagFail
+.DFail:		or	byte [?AnswFlags],KB_FlagDiagFail
 		jmp	short .Done
-.Rsnd:		or	byte [KB_AnswFlags],KB_FlagResend
+.Rsnd:		or	byte [?AnswFlags],KB_FlagResend
 		jmp	short .Done
-.Echo:		or	byte [KB_AnswFlags],KB_FlagEcho
+.Echo:		or	byte [?AnswFlags],KB_FlagEcho
 		jmp	short .Done
-.ACK:		or	byte [KB_AnswFlags],KB_FlagACK
+.ACK:		or	byte [?AnswFlags],KB_FlagACK
+
 .Done:		pop	eax
 		clc
 		ret
@@ -315,9 +332,20 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: AX=pressed key code.
 proc KB_ReadKey
-.Loop:		call	KB_GetKeyNoWait
-		jz	.Loop
-		ret
+		call	KB_GetKeyNoWait
+		jnz	short .Done
+.Loop:		push	ebx
+		pushfd
+		cli
+		mov	ebx,[?CurrThread]
+		mov	[?KBwaiter],ebx
+		call	MT_ThreadSleep
+		popfd
+		call	MT_Schedule
+		pop	ebx
+		call	KB_GetKeyNoWait
+	;	jz	.Loop
+.Done:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -327,7 +355,7 @@ endp		;---------------------------------------------------------------
 proc KB_GetInitStatStr
 		mpush	esi,edi
 		push	esi
-		mov	ax,[KB_InternalID]
+		mov	ax,[?InternalID]
 		mov	edi,KBInfoStr
 		lea	esi,[edi+35]			; Convert ID
 		call	K_HexW2Str			; into string
@@ -360,21 +388,21 @@ endp		;---------------------------------------------------------------
 
 		; KB_GetKeyNoWait - read key without waiting.
 		; Input: none.
-		; Output: ZF=0 - key not pressed,
-		;	  ZF=1 - key pressed, AX=key code.
+		; Output: ZF=1 - key not pressed,
+		;	  ZF=0 - key pressed, AX=key code.
 proc KB_GetKeyNoWait
 		call	KB_KeyPressed
 		jz	short .Exit
 		mpush	ebx,edx
 		xor	ebx,ebx
-		mov	bl,[KB_BufHead]
-		mov	edx,offset KB_Buffer
+		mov	bl,[?BufHead]
+		mov	edx,?Buffer
 		mov	ax,[edx+ebx*2]
 		inc	bl
 		cmp	bl,KB_BufSize
 		jb	.Store
 		xor	bl,bl
-.Store:		mov	[KB_BufHead],bl
+.Store:		mov	[?BufHead],bl
 		inc	bl					; Set ZF=0
 		mpop	edx,ebx
 .Exit:		ret
@@ -385,8 +413,8 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc KB_ClearBuf
-		mov	byte [KB_BufHead],0
-		mov	byte [KB_BufTail],0
+		mov	byte [?BufHead],0
+		mov	byte [?BufTail],0
 		ret
 endp		;---------------------------------------------------------------
 
@@ -397,14 +425,24 @@ endp		;---------------------------------------------------------------
 		;	  ZF=1 - key not pressed.
 proc KB_KeyPressed
 		push	eax
-		mov	al,[KB_BufHead]
-		cmp	al,[KB_BufTail]
+		mov	al,[?BufHead]
+		cmp	al,[?BufTail]
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
 
 
 ; --- Implementation routines ---
+
+		; KB_ReadKeyNoSched - loop until key be pressed.
+		; Input: none.
+		; Output: AX=keycode.
+proc KB_ReadKeyNoSched
+.Loop:		call	KB_GetKeyNoWait
+		jz	.Loop
+		ret
+endp		;---------------------------------------------------------------
+
 
 		; KB_AnalyseKCode - convert keyboard codes into ASCII and
 		;		    BIOS-compatible scan-codes.
@@ -416,11 +454,11 @@ proc KB_AnalyseKCode
 		mpush	ebx,edx
 
 		xor	ah,ah
-		test	byte [KB_MiscFlags],KB_flNoAnalyse
+		test	byte [?MiscFlags],KB_flNoAnalyse
 		jnz	near .Valid
-		test	byte [KB_MiscFlags],KB_flPrefE0
+		test	byte [?MiscFlags],KB_flPrefE0
 		jnz	near .LastE0
-		test	byte [KB_MiscFlags],KB_flPrefE1
+		test	byte [?MiscFlags],KB_flPrefE1
 		jnz	near .LastE1
 
 		cmp	al,0E0h
@@ -445,24 +483,24 @@ proc KB_AnalyseKCode
 		test	al,80h
 		jnz	near .Release
 
-.Common:	test	word [KB_PrsFlags],KB_Prs_Shift
+.Common:	test	word [?PrsFlags],KB_Prs_Shift
 		jnz	short .xLatShift
-		test	word [KB_PrsFlags],KB_Prs_Ctrl
+		test	word [?PrsFlags],KB_Prs_Ctrl
 		jnz	short .xLatCtrl
 
-		mov	ebx,offset KBLayoutNorm
+		mov	ebx,KBLayoutNorm
 		xlatb
 		or	al,al
 		jz	near .Exit
 		jmp	.Valid
 
-.xLatShift:	mov	ebx,offset KBLayoutShift
+.xLatShift:	mov	ebx,KBLayoutShift
 		xlatb
 		or	al,al
 		jz	near .Exit
 		jmp	.Valid
 
-.xLatCtrl:	test	word [KB_PrsFlags],KB_Prs_Alt
+.xLatCtrl:	test	word [?PrsFlags],KB_Prs_Alt
 		jnz	short .QCtrlAltDel
 		mov	ebx,KBLayoutCtrl
 		xlatb
@@ -495,7 +533,7 @@ proc KB_AnalyseKCode
 		jmp	.Exit
 
 
-.LastE0:	and	byte [KB_MiscFlags],~KB_flPrefE0
+.LastE0:	and	byte [?MiscFlags],~KB_flPrefE0
 		cmp	al,KB_Ctrl
 		je	near .NowRCtrl
 		cmp	al,KB_Alt
@@ -514,7 +552,7 @@ proc KB_AnalyseKCode
 		je	short .QChVirtCon
 		cmp	al,KB_KeypadDel
 		jne	short .NoDel
-		test	word [KB_PrsFlags],KB_Prs_Ctrl+KB_Prs_Alt
+		test	word [?PrsFlags],KB_Prs_Ctrl+KB_Prs_Alt
 		jnz	near .QCtrlAltDel
 .ExtASCII:	mov	ah,al
 		xor	al,al
@@ -523,16 +561,17 @@ proc KB_AnalyseKCode
 .NoDel:
 		jmp	.Exit
 		
-.QChVirtCon:	test	word [KB_PrsFlags],KB_Prs_LAlt
+.QChVirtCon:	test	word [?PrsFlags],KB_Prs_LAlt
 		jz	.Exit
-		mov	ah,[KB_CurrVirtCon]
+		mov	ah,[?CurrVirtCon]
 		cmp	al,KB_EA_Left
 		je	short .DecVirtCon
 		inc	ah
 		cmp	ah,8
 		jb	.SetVirtCon
 		xor	ah,ah
-.SetVirtCon: mov [0xb8000+100],ah
+.SetVirtCon:	mov	[?CurrVirtCon],ah
+	mov [0xb8000+100],ah
 		jmp	.Exit
 		
 .DecVirtCon:	dec	ah
@@ -540,92 +579,92 @@ proc KB_AnalyseKCode
 		mov	ah,7
 		jmp	.SetVirtCon
 
-.LastE1:	and	byte [KB_MiscFlags],~KB_flPrefE1
+.LastE1:	and	byte [?MiscFlags],~KB_flPrefE1
 		jmp	.Exit
 
-.NowE0:		or	byte [KB_MiscFlags],KB_flPrefE0
+.NowE0:		or	byte [?MiscFlags],KB_flPrefE0
 		jmp	.Exit
-.NowE1:		or	byte [KB_MiscFlags],KB_flPrefE1
-		jmp	.Exit
-
-
-.NowLShift:	or	word [KB_PrsFlags],KB_Prs_LShift+KB_Prs_Shift
-		jmp	.Exit
-.NowLCtrl:	or	word [KB_PrsFlags],KB_Prs_LCtrl+KB_Prs_Ctrl
-		jmp	.Exit
-.NowLAlt:	or	word [KB_PrsFlags],KB_Prs_LAlt+KB_Prs_Alt
-		jmp	.Exit
-.NowRShift:	or	word [KB_PrsFlags],KB_Prs_RShift+KB_Prs_Shift
-		jmp	.Exit
-.NowRCtrl:	or	word [KB_PrsFlags],KB_Prs_RCtrl+KB_Prs_Ctrl
-		jmp	.Exit
-.NowRAlt:	or	word [KB_PrsFlags],KB_Prs_RAlt+KB_Prs_Alt
+.NowE1:		or	byte [?MiscFlags],KB_flPrefE1
 		jmp	.Exit
 
-.RelLShift:	and	word[KB_PrsFlags],~KB_Prs_LShift
+
+.NowLShift:	or	word [?PrsFlags],KB_Prs_LShift+KB_Prs_Shift
+		jmp	.Exit
+.NowLCtrl:	or	word [?PrsFlags],KB_Prs_LCtrl+KB_Prs_Ctrl
+		jmp	.Exit
+.NowLAlt:	or	word [?PrsFlags],KB_Prs_LAlt+KB_Prs_Alt
+		jmp	.Exit
+.NowRShift:	or	word [?PrsFlags],KB_Prs_RShift+KB_Prs_Shift
+		jmp	.Exit
+.NowRCtrl:	or	word [?PrsFlags],KB_Prs_RCtrl+KB_Prs_Ctrl
+		jmp	.Exit
+.NowRAlt:	or	word [?PrsFlags],KB_Prs_RAlt+KB_Prs_Alt
+		jmp	.Exit
+
+.RelLShift:	and	word[?PrsFlags],~KB_Prs_LShift
 		jmp	short .RelShift
-.RelLCtrl:	and	word [KB_PrsFlags],~KB_Prs_LCtrl
+.RelLCtrl:	and	word [?PrsFlags],~KB_Prs_LCtrl
 		jmp	short .RelCtrl
-.RelLAlt:	and	word [KB_PrsFlags],~KB_Prs_LAlt
+.RelLAlt:	and	word [?PrsFlags],~KB_Prs_LAlt
 		jmp	short .RelAlt
-.RelRShift:	and	word [KB_PrsFlags],~KB_Prs_RShift
+.RelRShift:	and	word [?PrsFlags],~KB_Prs_RShift
 		jmp	short .RelShift
-.RelRCtrl:	and	word [KB_PrsFlags],~KB_Prs_RCtrl
+.RelRCtrl:	and	word [?PrsFlags],~KB_Prs_RCtrl
 		jmp	short .RelCtrl
-.RelRAlt:	and	word [KB_PrsFlags],~KB_Prs_RAlt
+.RelRAlt:	and	word [?PrsFlags],~KB_Prs_RAlt
 		jmp	short .RelAlt
 
-.RelShift:	test	word [KB_PrsFlags],KB_Prs_LShift+KB_Prs_RShift
+.RelShift:	test	word [?PrsFlags],KB_Prs_LShift+KB_Prs_RShift
 		jnz	near .Exit
-		and	word [KB_PrsFlags],~KB_Prs_Shift
+		and	word [?PrsFlags],~KB_Prs_Shift
 		jmp	.Exit
-.RelCtrl:	test	word [KB_PrsFlags],KB_Prs_LCtrl+KB_Prs_RCtrl
+.RelCtrl:	test	word [?PrsFlags],KB_Prs_LCtrl+KB_Prs_RCtrl
 		jnz	near .Exit
-		and	word [KB_PrsFlags],~KB_Prs_Ctrl
+		and	word [?PrsFlags],~KB_Prs_Ctrl
 		jmp	.Exit
-.RelAlt:	test	word [KB_PrsFlags],KB_Prs_LAlt+KB_Prs_RAlt
+.RelAlt:	test	word [?PrsFlags],KB_Prs_LAlt+KB_Prs_RAlt
 		jnz	near .Exit
-		and	word [KB_PrsFlags],~KB_Prs_Alt
+		and	word [?PrsFlags],~KB_Prs_Alt
 		jmp	.Exit
 
-.NowCapsLock:	test	word [KB_PrsFlags],KB_Prs_CapsLock
+.NowCapsLock:	test	word [?PrsFlags],KB_Prs_CapsLock
 		jnz	near .Exit
-		or	word [KB_PrsFlags],KB_Prs_CapsLock
-		test	byte [KB_SwStatus],KB_swCapsLock
+		or	word [?PrsFlags],KB_Prs_CapsLock
+		test	byte [?SwStatus],KB_swCapsLock
 		jz	.CapsON
-		and	byte [KB_SwStatus],~KB_swCapsLock
+		and	byte [?SwStatus],~KB_swCapsLock
 		jmp	.SetInd
-.CapsON:	or	byte [KB_SwStatus],KB_swCapsLock
+.CapsON:	or	byte [?SwStatus],KB_swCapsLock
 		jmp	.SetInd
 
-.NowNumLock:	test	word [KB_PrsFlags],KB_Prs_NumLock
+.NowNumLock:	test	word [?PrsFlags],KB_Prs_NumLock
 		jnz	near .Exit
-		or	word [KB_PrsFlags],KB_Prs_NumLock
-		test	byte [KB_SwStatus],KB_swNumLock
+		or	word [?PrsFlags],KB_Prs_NumLock
+		test	byte [?SwStatus],KB_swNumLock
 		jz	.NumON
-		and	byte [KB_SwStatus],~KB_swNumLock
+		and	byte [?SwStatus],~KB_swNumLock
 		jmp	short .SetInd
-.NumON:		or	byte [KB_SwStatus],KB_swNumLock
+.NumON:		or	byte [?SwStatus],KB_swNumLock
 		jmp	short .SetInd
 
-.NowScrLock:	test	word [KB_PrsFlags],KB_Prs_ScrollLock
+.NowScrLock:	test	word [?PrsFlags],KB_Prs_ScrollLock
 		jnz	near .Exit
-		or	word [KB_PrsFlags],KB_Prs_ScrollLock
-		test	byte [KB_SwStatus],KB_swScrollLock
+		or	word [?PrsFlags],KB_Prs_ScrollLock
+		test	byte [?SwStatus],KB_swScrollLock
 		jz	.ScrollON
-		and	byte [KB_SwStatus],~KB_swScrollLock
+		and	byte [?SwStatus],~KB_swScrollLock
 		jmp	short .SetInd
-.ScrollON:	or	byte [KB_SwStatus],KB_swScrollLock
+.ScrollON:	or	byte [?SwStatus],KB_swScrollLock
 		jmp	short .SetInd
 
 .SetInd:	call	KB_SetIndicators
 		jmp	short .Exit
 
-.RelCapsLock:	and	word [KB_PrsFlags],~KB_Prs_CapsLock
+.RelCapsLock:	and	word [?PrsFlags],~KB_Prs_CapsLock
 		jmp	short .Exit
-.RelNumLock:	and	word [KB_PrsFlags],~KB_Prs_NumLock
+.RelNumLock:	and	word [?PrsFlags],~KB_Prs_NumLock
 		jmp	short .Exit
-.RelScrLock:	and	word [KB_PrsFlags],~KB_Prs_ScrollLock
+.RelScrLock:	and	word [?PrsFlags],~KB_Prs_ScrollLock
 		jmp	short .Exit
 
 .Exit:		xor	ax,ax
@@ -642,19 +681,19 @@ endp		;---------------------------------------------------------------
 proc KB_PutInBuf
 		mpush	ebx,edx
 		xor	ebx,ebx
-		mov	bl,[KB_BufTail]
+		mov	bl,[?BufTail]
 		inc	bl
 		cmp	bl,KB_BufSize
 		jb	short .Check
 		xor	bl,bl
-.Check:		cmp	bl,[KB_BufHead]
+.Check:		cmp	bl,[?BufHead]
 		je	.Overflow
 		push	ebx
-		mov	edx,KB_Buffer
-		mov	bl,[KB_BufTail]
+		mov	edx,?Buffer
+		mov	bl,[?BufTail]
 		mov	[edx+ebx*2],ax
 		pop	ebx
-		mov	[KB_BufTail],bl
+		mov	[?BufTail],bl
 		clc
 		jmp	short .Exit
 
@@ -670,11 +709,11 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 		; Note: sets keyboard indicators status appropriate to
-		;	KB_SwStatus variable.
+		;	?SwStatus variable.
 proc KB_SetIndicators
 		push	eax
 		mov	al,KB_CmdIndCtrl
-		mov	ah,[KB_SwStatus]
+		mov	ah,[?SwStatus]
 		and	ah,7
 		stc
 		call	KBC_SendKBCmd

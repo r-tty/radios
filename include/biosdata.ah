@@ -4,11 +4,368 @@
 
 ; --- Real mode interrupt table ---
 struc	tRMIntsTbl
- INTSTBL	DD	256 dup (?)
+ Int00		DD	?
+ Int01		DD	?
+ Int02		DD	?
+ Int03		DD	?
+ Int04		DD	?
+ Int05		DD	?
+ Int06		DD	?
+ Int07		DD	?
+ Int08		DD	?
+ Int09		DD	?
+ Int0A		DD	?
+ Int0B		DD	?
+ Int0C		DD	?
+ Int0D		DD	?
+ Int0E		DD	?
+ Int0F		DD	?
+ Int10		DD	?
+ Int11		DD	?
+ Int12		DD	?
+ Int13		DD	?
+ Int14		DD	?
+ Int15		DD	?
+ Int16		DD	?
+ Int17		DD	?
+ Int18		DD	?
+ Int19		DD	?
+ Int1A		DD	?
+ Int1B		DD	?
+ Int1C		DD	?
+ Int1D		DD	?
+ Int1E		DD	?
+ Int1F		DD	?
+ Int20		DD	?
+ Int21		DD	?
+ Int22		DD	?
+ Int23		DD	?
+ Int24		DD	?
+ Int25		DD	?
+ Int26		DD	?
+ Int27		DD	?
+ Int28		DD	?
+ Int29		DD	?
+ Int2A		DD	?
+ Int2B		DD	?
+ Int2C		DD	?
+ Int2D		DD	?
+ Int2E		DD	?
+ Int2F		DD	?
+ Int30		DD	?
+ Int31		DD	?
+ Int32		DD	?
+ Int33		DD	?
+ Int34		DD	?
+ Int35		DD	?
+ Int36		DD	?
+ Int37		DD	?
+ Int38		DD	?
+ Int39		DD	?
+ Int3A		DD	?
+ Int3B		DD	?
+ Int3C		DD	?
+ Int3D		DD	?
+ Int3E		DD	?
+ Int3F		DD	?
+ Int40		DD	?
+ Int41		DD	?
+ Int42		DD	?
+ Int43		DD	?
+ Int44		DD	?
+ Int45		DD	?
+ Int46		DD	?
+ Int47		DD	?
+ Int48		DD	?
+ Int49		DD	?
+ Int4A		DD	?
+ Int4B		DD	?
+ Int4C		DD	?
+ Int4D		DD	?
+ Int4E		DD	?
+ Int4F		DD	?
+ Int50		DD	?
+ Int51		DD	?
+ Int52		DD	?
+ Int53		DD	?
+ Int54		DD	?
+ Int55		DD	?
+ Int56		DD	?
+ Int57		DD	?
+ Int58		DD	?
+ Int59		DD	?
+ Int5A		DD	?
+ Int5B		DD	?
+ Int5C		DD	?
+ Int5D		DD	?
+ Int5E		DD	?
+ Int5F		DD	?
+ Int60		DD	?
+ Int61		DD	?
+ Int62		DD	?
+ Int63		DD	?
+ Int64		DD	?
+ Int65		DD	?
+ Int66		DD	?
+ Int67		DD	?
+ Int68		DD	?
+ Int69		DD	?
+ Int6A		DD	?
+ Int6B		DD	?
+ Int6C		DD	?
+ Int6D		DD	?
+ Int6E		DD	?
+ Int6F		DD	?
+ Int70		DD	?
+ Int71		DD	?
+ Int72		DD	?
+ Int73		DD	?
+ Int74		DD	?
+ Int75		DD	?
+ Int76		DD	?
+ Int77		DD	?
+ Int78		DD	?
+ Int79		DD	?
+ Int7A		DD	?
+ Int7B		DD	?
+ Int7C		DD	?
+ Int7D		DD	?
+ Int7E		DD	?
+ Int7F		DD	?
+ Int80		DD	?
+ Int81		DD	?
+ Int82		DD	?
+ Int83		DD	?
+ Int84		DD	?
+ Int85		DD	?
+ Int86		DD	?
+ Int87		DD	?
+ Int88		DD	?
+ Int89		DD	?
+ Int8A		DD	?
+ Int8B		DD	?
+ Int8C		DD	?
+ Int8D		DD	?
+ Int8E		DD	?
+ Int8F		DD	?
+ Int90		DD	?
+ Int91		DD	?
+ Int92		DD	?
+ Int93		DD	?
+ Int94		DD	?
+ Int95		DD	?
+ Int96		DD	?
+ Int97		DD	?
+ Int98		DD	?
+ Int99		DD	?
+ Int9A		DD	?
+ Int9B		DD	?
+ Int9C		DD	?
+ Int9D		DD	?
+ Int9E		DD	?
+ Int9F		DD	?
+ IntA0		DD	?
+ IntA1		DD	?
+ IntA2		DD	?
+ IntA3		DD	?
+ IntA4		DD	?
+ IntA5		DD	?
+ IntA6		DD	?
+ IntA7		DD	?
+ IntA8		DD	?
+ IntA9		DD	?
+ IntAA		DD	?
+ IntAB		DD	?
+ IntAC		DD	?
+ IntAD		DD	?
+ IntAE		DD	?
+ IntAF		DD	?
+ IntB0		DD	?
+ IntB1		DD	?
+ IntB2		DD	?
+ IntB3		DD	?
+ IntB4		DD	?
+ IntB5		DD	?
+ IntB6		DD	?
+ IntB7		DD	?
+ IntB8		DD	?
+ IntB9		DD	?
+ IntBA		DD	?
+ IntBB		DD	?
+ IntBC		DD	?
+ IntBD		DD	?
+ IntBE		DD	?
+ IntBF		DD	?
+ IntC0		DD	?
+ IntC1		DD	?
+ IntC2		DD	?
+ IntC3		DD	?
+ IntC4		DD	?
+ IntC5		DD	?
+ IntC6		DD	?
+ IntC7		DD	?
+ IntC8		DD	?
+ IntC9		DD	?
+ IntCA		DD	?
+ IntCB		DD	?
+ IntCC		DD	?
+ IntCD		DD	?
+ IntCE		DD	?
+ IntCF		DD	?
+ IntD0		DD	?
+ IntD1		DD	?
+ IntD2		DD	?
+ IntD3		DD	?
+ IntD4		DD	?
+ IntD5		DD	?
+ IntD6		DD	?
+ IntD7		DD	?
+ IntD8		DD	?
+ IntD9		DD	?
+ IntDA		DD	?
+ IntDB		DD	?
+ IntDC		DD	?
+ IntDD		DD	?
+ IntDE		DD	?
+ IntDF		DD	?
+ IntE0		DD	?
+ IntE1		DD	?
+ IntE2		DD	?
+ IntE3		DD	?
+ IntE4		DD	?
+ IntE5		DD	?
+ IntE6		DD	?
+ IntE7		DD	?
+ IntE8		DD	?
+ IntE9		DD	?
+ IntEA		DD	?
+ IntEB		DD	?
+ IntEC		DD	?
+ IntED		DD	?
+ IntEE		DD	?
+ IntEF		DD	?
+ IntF0		DD	?
+ IntF1		DD	?
+ IntF2		DD	?
+ IntF3		DD	?
+ IntF4		DD	?
+ IntF5		DD	?
+ IntF6		DD	?
+ IntF7		DD	?
+ IntF8		DD	?
+ IntF9		DD	?
+ IntFA		DD	?
+ IntFB		DD	?
+ IntFC		DD	?
+ IntFD		DD	?
+ IntFE		DD	?
+ IntFF		DD	?
 ends
 
+; Begin address of BIOS data area
+BIOSDA_Begin	EQU	400h
 
 ; --- Structure of BIOS data area ---
 struc	tBIOSDA
- BIOSDA		DB	256 dup (?)
+ COM1addr	DW	?
+ COM2addr	DW	?
+ COM3addr	DW	?
+ COM4addr	DW	?
+
+ LPT1addr	DW	?
+ LPT2addr	DW	?
+ LPT3addr	DW	?
+ LPT4addr	DW	?
+
+ Hardware	DW	?
+ POSTstatus1	DB	?
+ BaseMemSize	DW	?
+ TestWorkArea	DW	?
+ KBarea		DB	39 dup (?)
+
+ FDrecalibrate	DB	?
+ FDmotors	DB	?
+ FDmotorTime	DB	?
+ FDerrCode	DB	?
+ FDCstate	DB	7 dup (?)
+
+ VideoMode	DB	?
+ ScrWidth	DW	?
+ VidMemUsedSz	DW	?
+ VidPageOffset	DW	?
+
+ CursorPos0	DW	?
+ CursorPos1	DW	?
+ CursorPos2	DW	?
+ CursorPos3	DW	?
+ CursorPos4	DW	?
+ CursorPos5	DW	?
+ CursorPos6	DW	?
+ CursorPos7	DW	?
+
+ CursorSize	DW	?
+ VidPageActive	DB	?
+
+ CRTCportAddr	DW	?
+ CRT_Mode	DB	?
+ CRT_Palette	DB	?
+
+ RMentry	DD	?
+ LastUnexpInt	DB	?
+
+ TimerCounter	DD	?
+ TimerOverflow	DB	?
+
+ CtrlBreakFlag	DB	?
+ RebootFlag	DW	?
+
+ HDlastOpStat	DB	?
+ HDamount	DB	?
+ HDcontrol	DB	?
+ HDportXT	DB	?
+
+ LPT1timeout	DB	?
+ LPT2timeout	DB	?
+ LPT3timeout	DB	?
+ LPT4timeout	DB	?
+
+ COM1timeout	DB	?
+ COM2timeout	DB	?
+ COM3timeout	DB	?
+ COM4timeout	DB	?
+
+ KBbufStart	DW	?
+ KBbufEnd	DW	?
+
+ EGAmaxRowNum	DB	?
+ EGAlinesChar	DW	?
+ EGAmisc	DW	?
+ VGAmisc	DW	?
+
+ FDparam	DB	?
+ HDCstate	DB	?
+ HDCerror	DB	?
+ HDintrCtrl	DB	?
+ FDCinfo	DB	?
+ Drv0Stat	DB	?
+ Drv1Stat	DB	?
+ Drv0Flag	DB	?
+ Drv1Flag	DB	?
+ Drv0CurrCyl	DB	?
+ Drv1CurrCyl	DB	?
+
+ ATkeybFlag	DB	?
+ ATkeybIndStat	DB	?
+
+ UserWaitPtr	DD	?
+ UserWaitTime	DD	?
+ UserWaitAct	DB	?
+
+ NetCardData	DB      7 dup (?)
+
+ EGA_SAVEPTR	DD	?
+
+ Reserved	DB	44h dup (?)
+
+ PIA		DD	?,?,?,?
 ends

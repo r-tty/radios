@@ -2,4 +2,4 @@
 ;  audio.asm - audio devices module.
 ;-------------------------------------------------------------------------------
 
-include "sbpro.asm"
+include "sb.asm"

@@ -2,11 +2,16 @@
 ;  initdefs.ah - RadiOS initializer definitions and macros.
 ;-------------------------------------------------------------------------------
 
-; --- General equates ---
+; --- General definitions ---
 
 BIOSDAsize		EQU	1000h		; Size of BIOS data area
 InitESP			EQU	80000h		; Initial stack pointer value
+StartCfgTblAddr		EQU	500h		; Startup config table address
 
+
+; --- Startup configuration table structure ---
+struc	tStartConfig
+ends
 
 
 ; --- Macro definitions ---

@@ -1,0 +1,54 @@
+;-------------------------------------------------------------------------------
+;  drvctrl.ah - Definitions for "control" driver function.
+;-------------------------------------------------------------------------------
+
+
+; --- Control function numbers for internal drivers ---
+
+; Common functions
+DRVCTL_GetInitStatStr		EQU	0
+DRVCTL_DirectRead		EQU	4
+DRVCTL_DirectWrite		EQU	5
+DRVCTL_ExtControl		EQU	7
+
+
+; CPU
+
+; FPU
+
+; Memory
+
+; Keyboard
+
+; Video text device
+DRVCTL_VGATX_MoveCursor		EQU     8
+DRVCTL_VGATX_GetCurPos		EQU     9
+DRVCTL_VGATX_HideCursor		EQU	10
+DRVCTL_VGATX_ShowCursor		EQU	11
+DRVCTL_VGATX_SetActPage		EQU	12
+DRVCTL_VGATX_Scroll		EQU	13
+DRVCTL_VGATX_WrCharXY		EQU	14
+DRVCTL_VGATX_WrChar		EQU	15
+DRVCTL_VGATX_WrCharA		EQU	16
+DRVCTL_VGATX_MoveCurNext	EQU	17
+DRVCTL_VGATX_ClrLine		EQU	18
+DRVCTL_VGATX_ClrVidPage		EQU	19
+
+; Video graphics device
+
+; Audio
+
+; Ethernet
+
+; Serial
+
+; Parallel
+
+; FDD
+
+; IDE HDD
+
+; SCSI HDD
+
+; Console
+DRVCTL_CON_WrString		EQU	8

@@ -1,0 +1,17 @@
+;-------------------------------------------------------------------------------
+;  keydefs.ah - keyboard generated and BIOS-compatible scan codes definitions.
+;-------------------------------------------------------------------------------
+
+; Functional keys definitions
+
+; Shift, Ctrl & Alt keys
+KB_LShift		EQU	2Ah
+KB_RShift		EQU	36h
+KB_Ctrl			EQU	1Dh
+KB_Alt			EQU	38h
+
+; Caps lock, Num lock, Scroll lock & Insert keys
+KB_CapsLock		EQU	3Ah
+KB_NumLock		EQU	45h
+KB_ScrollLock		EQU	46h
+KB_Insert		EQU	52h

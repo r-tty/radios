@@ -1,79 +1,79 @@
-proc		Int50handler	far
+proc Int50handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int51handler	far
+proc Int51handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int52handler	far
+proc Int52handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int53handler	far
+proc Int53handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int54handler	far
+proc Int54handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int55handler	far
+proc Int55handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int56handler	far
+proc Int56handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int57handler	far
+proc Int57handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int58handler	far
+proc Int58handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int59handler	far
+proc Int59handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Ahandler	far
+proc Int5Ahandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Bhandler	far
+proc Int5Bhandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Chandler	far
+proc Int5Chandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Dhandler	far
+proc Int5Dhandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Ehandler	far
+proc Int5Ehandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int5Fhandler	far
+proc Int5Fhandler
 		iret
 endp		;---------------------------------------------------------------
 

@@ -2,29 +2,85 @@
 ;  sysdata.ah - various kernel definitions.
 ;-------------------------------------------------------------------------------
 
-; --- Publics ---
-		public	tEvent
-		public	tEvHandler
+; --- Common system definitions ---
+KrnlMemSz	EQU	100000h			; Size of kernel segment
+P32MemSz	EQU	4096*100000h		; Size of all linear memory
+PageSize	EQU	1000h
+
+; --- Flags masks ---
+FLAG_CF		EQU	1
+FLAG_PF		EQU	4
+FLAG_AF		EQU	10h
+FLAG_ZF		EQU	40h
+FLAG_SF		EQU	80h
+FLAG_TF		EQU	100h
+FLAG_IF		EQU	200h
+FLAG_DF		EQU	400h
+FLAG_OF		EQU	800h
+FLAG_IOPL	EQU	3000h
+FLAG_NT		EQU	4000h
+FLAG_RF		EQU	10000h
+FLAG_VM		EQU	20000h
+FLAG_AC		EQU	40000h
 
 
-; --- Event structure ---
-struc	tEvent
- Hard		DB	?			; hard (1)/soft (0)
- From		DD	?			; Source ID
- Code		DD	?			; Event code
+
+; --- Drivers definitions ---
+
+MAXNUMDRIVERS		EQU	256		; Maximum number of drivers
+DRVNAMELEN		EQU	16		; Length of driver name
+
+; Driver main structure
+struc tDriver
+ DrvName	DB DRVNAMELEN dup (0)		; Driver name
+ Entries	DD	?			; Entry points table address
+ Flags		DW	?			; Flags
 ends
 
+; Driver flags
+DRVFL_Extern	EQU	1			; External
+DRVFL_Kernel	EQU	2			; Kernel (can't be hooked)
+DRVFL_InitOK	EQU	4			; Initialized OK
+DRVFL_Locked	EQU	8			; Locked
 
-; --- Strucutre and flags of event handler entry ---
+; Default internal drivers IDs
+DRVID_Null	EQU	0
+DRVID_CPU	EQU	1
+DRVID_FPU	EQU	2
+DRVID_Memory	EQU	3
+DRVID_Keyboard	EQU	4
+DRVID_VideoTx	EQU	5
+DRVID_VideoGr	EQU	6
+DRVID_Audio	EQU	7
+DRVID_Ethernet	EQU	8
+DRVID_Serial	EQU	9
+DRVID_Parallel	EQU	10
+DRVID_FDD	EQU	11
+DRVID_HDD	EQU	12
 
-struc	tEvHandler
- Addr		DD	?			; Handler address
- Flags		DW	?
+; Standard driver functions
+
+; Function numbers
+DRVF_Init		EQU	0	; Initialize
+DRVF_HandleEv		EQU	1	; Handle event
+DRVF_Open		EQU	2	; Open
+DRVF_Close		EQU	3	; Close
+DRVF_Read		EQU	4	; Read
+DRVF_Write		EQU	5	; Write
+DRVF_Reserved		EQU	6	; Reserved
+DRVF_Control		EQU	7	; Control (various functions)
+
+; Structure of driver entry points table
+struc tDrvEntries
+ Init		DD	?
+ HandleEv	DD	?
+ Open		DD	?
+ Close		DD	?
+ Read		DD	?
+ Write		DD	?
+ RESERVED	DD	?
+ Control	DD	?
 ends
-
-; Child event handler flags
-EVHN_Replace	EQU	1			; Replace parent handler
-EVHN_PostCall	EQU	2			; Call child after parent
 
 
 ; --- Predefined events ---
@@ -47,18 +103,6 @@ EV_IRQ12	EQU	0C0000h
 EV_IRQ13	EQU	0D0000h
 EV_IRQ14	EQU	0E0000h
 EV_IRQ15	EQU	0F0000h
-
-
-
-
-; --- Standard driver functions ---
-DRVF_Init		EQU	0
-DRVF_HandleEv		EQU	1
-DRVF_Open		EQU	2
-DRVF_Close		EQU	3
-DRVF_Read		EQU	4
-DRVF_Write		EQU	5
-DRVF_InstNextHn		EQU	6
 
 
 ; --- Hardware interrupts vectors ---
@@ -90,3 +134,56 @@ struc	tBIOSANLS
  AudioDev	DW	?
 ends
 
+
+; --- Global kernel data ---
+		global DrvId_Con:	dword
+
+
+; --- Global kernel procedures ---
+		global DrvNULL:		near
+
+		global DRV_InstallNew:	near
+		global DRV_GetInfoAddr:	near
+		global DRV_CallDriver:	near
+
+		global K_DescriptorAddress:	near
+		global K_GetDescriptorBase:	near
+		global K_SetDescriptorBase:	near
+		global K_GetDescriptorLimit:	near
+		global K_SetDescriptorLimit:	near
+		global K_GetDescriptorAR:	near
+		global K_SetDescriptorAR:	near
+		global K_GetGateSelector:	near
+		global K_SetGateSelector:	near
+		global K_GetGateOffset:		near
+		global K_SetGateOffset:		near
+		global K_SetGateCount:		near
+
+		global K_TTDelay:	near
+		global K_LDelay:	near
+		global K_WrDecD:	near
+		global K_WrHexB:	near
+		global K_WrHexW:	near
+		global K_WrHexD:	near
+		global K_HexW2Str:	near
+		global K_DecD2Str:	near
+
+		global StrLen:		near
+		global StrEnd:		near
+		global StrMove:		near
+		global StrCopy:		near
+		global StrAppend:	near
+		global StrComp:		near
+		global StrLComp:	near
+		global StrLIComp:	near
+		global StrScan:		near
+		global StrRScan:	near
+		global StrPos:		near
+		global StrLower:	near
+		global StrUpper:	near
+		global CharToUpper:	near
+		global CharToLower:	near
+
+		global K_ReadString:	near
+
+		global WriteChar:	near

@@ -1,6 +1,7 @@
 ;-------------------------------------------------------------------------------
-;  video.asm - video devices module.
+;  video.asm - video devices drivers.
 ;-------------------------------------------------------------------------------
 
 include "vgatx.asm"
+include "vgagr.asm"
 include "svgavbe2.asm"

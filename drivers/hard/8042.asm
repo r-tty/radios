@@ -44,6 +44,7 @@ KBC_P4W_ReadKBC		EQU	20h		; Read from KBC
 		public KBC_EnableKB
 		public KBC_SendKBCmd
 		public KBC_ReadKBPort
+		public KBC_ClrOutBuf
 
 
 ; --- Procedures ---
@@ -59,23 +60,23 @@ proc KBC_WaitReady near
 		pushfd
 		cli
 		mov	ecx,10000h
-WRDY_Loop1:	PORTDELAY
+@@Loop1:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_KBNRDY
-		loopnz	WRDY_Loop1
-		jz	WRDY_OK
+		loopnz	@@Loop1
+		jz	@@OK
 		mov	ecx,10000h
-WRDY_Loop2:	PORTDELAY
+@@Loop2:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_KBNRDY
-		loopnz	WRDY_Loop2
-		jz	WRDY_OK
+		loopnz	@@Loop2
+		jz	@@OK
 		popfd
 		stc
-		jmp	WRDY_Exit
-WRDY_OK:	popfd
+		jmp	short @@Exit
+@@OK:		popfd
 		clc
-WRDY_Exit:	pop	ecx
+@@Exit:		pop	ecx
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
@@ -89,21 +90,21 @@ proc KBC_WaitKBcode near
 		push	eax
 		push	ecx
 		mov	ecx,1000000h
-WKBB_Loop1:	PORTDELAY
+@@Loop1:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
-		loopz	WKBB_Loop1
-		jnz	WKBB_OK
+		loopz	@@Loop1
+		jnz	@@OK
 		mov	ecx,1000000h
-WKBB_Loop2:	PORTDELAY
+@@Loop2:	PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
-		loopz	WKBB_Loop2
-		jnz	WKBB_OK
+		loopz	@@Loop2
+		jnz	@@OK
 		stc
-		jmp	WKBB_Exit
-WKBB_OK:	clc
-WKBB_Exit:	pop	ecx
+		jmp	@@Exit
+@@OK:		clc
+@@Exit:		pop	ecx
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
@@ -115,13 +116,13 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_DisableKB near
 		call	KBC_WaitReady
-		jc	DisKB_Exit
+		jc	@@Exit
 		push	eax
 		mov	al,KBC_P4W_KBDisable
 		out	PORT_KBC_4,al
 		pop	eax
 		clc
-DisKB_Exit:	ret
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -131,13 +132,13 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_EnableKB near
 		call	KBC_WaitReady
-		jc	EnbKB_Exit
+		jc	@@Exit
 		push	eax
 		mov	al,KBC_P4W_KBEnable
 		out	PORT_KBC_4,al
 		pop	eax
 		clc
-EnbKB_Exit:	ret
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -149,24 +150,24 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
 proc KBC_SendKBCmd near
-		pushfd
-		cli
+		push	eax
+		lahf					; Keep flags
 		call	KBC_WaitReady
-		jc	SndKBcmd_Err
+		jc	@@Error
 		out	PORT_KBC_0,al
-		test	[byte esp],1
-		jz	SndKBcmd_OK
+		test	ah,1				; Send data byte?
+		jz	@@OK
 		call	KBC_WaitReady
-		jc	SndKBcmd_Err
-		mov	al,ah
+		jc	@@Error
+		mov	al,[esp+1]			; Data byte
 		out	PORT_KBC_0,al
-SndKBcmd_OK:	popfd
+@@OK:		pop	eax
 		clc
-		jmp	short SndKBcmd_Exit
-SndKBcmd_Err:   mov	ax,ERR_KBC_NotRDY
-		popfd
+		jmp	short @@Exit
+@@Error:	pop	eax
+		mov	ax,ERR_KBC_NotRDY
 		stc
-SndKBcmd_Exit:	ret
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -179,6 +180,23 @@ proc KBC_ReadKBPort near
 endp		;---------------------------------------------------------------
 
 
+		; KBC_ClrOutBuf - clear KBC output buffer.
+		; Input: none.
+		; Output: none.
+proc KBC_ClrOutBuf near
+		push	eax
+@@Loop:		in	al,PORT_KBC_4
+		test	al,1
+		jz	@@Exit
+		in	al,PORT_KBC_0
+		PORTDELAY
+		PORTDELAY
+		jmp	@@Loop
+@@Exit:		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; KBC_SpeakerON - turn on PC speaker.
 		; Input: none.
 		; Output: none.
@@ -186,7 +204,7 @@ endp		;---------------------------------------------------------------
 		;	doesn't change counter 2 divisor rate.
 proc KBC_SpeakerON near
 		push	eax
-		in      al,PORT_KBC_1
+		in	al,PORT_KBC_1
 		PORTDELAY
 		or	al,KBC_P1_SPK+KBC_P1_T2G
 		out	PORT_KBC_1,al
@@ -202,7 +220,7 @@ endp		;---------------------------------------------------------------
 		;	doesn't change timer GATE2 status.
 proc KBC_SpeakerOFF near
 		push	eax
-		in      al,PORT_KBC_1
+		in	al,PORT_KBC_1
 		PORTDELAY
 		and	al,not KBC_P1_SPK
 		out	PORT_KBC_1,al

@@ -1,3 +1,0 @@
-
- 26.11.1998	New project name: RadiOS.
-		Rebuild program structure and write makefile.

@@ -41,7 +41,7 @@ proc PIC_Init near
 		cli
 		or	ah,ah			; PIC #1?
 		mov	ah,al
-		jz	InitPIC1
+		jz	@@PIC1
 		mov	al,PIC2_ICW1		; Begin initialize PIC #2
 		out	PORT_PIC2_0,al
 		PORTDELAY			; Macro (delay by jmp)
@@ -57,9 +57,9 @@ proc PIC_Init near
 		mov	al,PIC_OCW3
 		out	PORT_PIC2_0,al
 		PORTDELAY
-		jmp	short InitPIC_End
+		jmp	short @@Exit
 
-InitPIC1:	mov	al,PIC1_ICW1		; Begin initialize PIC #1
+@@PIC1:		mov	al,PIC1_ICW1		; Begin initialize PIC #1
 		out	PORT_PIC1_0,al
 		PORTDELAY
 		mov	al,ah
@@ -75,7 +75,7 @@ InitPIC1:	mov	al,PIC1_ICW1		; Begin initialize PIC #1
 		out	PORT_PIC1_0,al
 		PORTDELAY
 
-InitPIC_End:	popfd
+@@Exit:		popfd
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
@@ -91,11 +91,11 @@ proc PIC_SetIRQmask near
 		pushfd
 		cli
 		or	ah,ah
-		jz	SIM1
+		jz	@@PIC1
 		out	PORT_PIC2_1,al
-		jmp	short SIM_Exit
-SIM1:		out	PORT_PIC1_1,al
-SIM_Exit:	popfd
+		jmp	short @@Exit
+@@PIC1:		out	PORT_PIC1_1,al
+@@Exit:		popfd
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
@@ -106,7 +106,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc PIC_DisIRQ near
 		cmp	al,10h
-		jbe	DisIRQ_Exit
+		jae	@@Exit
 		push	eax
 		push	ecx
 		pushfd
@@ -114,25 +114,23 @@ proc PIC_DisIRQ near
 		mov	cl,al
 		mov	ah,1
 		cmp	al,8
-		jbe	DisIRQ_C2
+		jae	@@PIC2
 		shl	ah,cl
-		not	ah
 		in	al,PORT_PIC1_1
 		PORTDELAY
-		and	al,ah
+		or	al,ah
 		out	PORT_PIC1_1,al
-		jmp	short DisIRQ_OK
-DisIRQ_C2:	sub	cl,8
+		jmp	short @@OK
+@@PIC2:		sub	cl,8
 		shl	ah,cl
-		not	ah
 		in	al,PORT_PIC2_1
 		PORTDELAY
-		and	al,ah
+		or	al,ah
 		out	PORT_PIC2_1,al
-DisIRQ_OK:	popfd
+@@OK:		popfd
 		pop	ecx
 		pop	eax
-DisIRQ_Exit:	ret
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -141,7 +139,34 @@ endp		;---------------------------------------------------------------
 		; Input: AL=IRQ number
 		; Output: none.
 proc PIC_EnbIRQ near
-		ret
+		cmp	al,10h
+		jae	@@Exit
+		push	eax
+		push	ecx
+		pushfd
+		cli
+		mov	cl,al
+		mov	ah,1
+		cmp	al,8
+		jae	@@PIC2
+		shl	ah,cl
+		not	ah
+		in	al,PORT_PIC1_1
+		PORTDELAY
+		and	al,ah
+		out	PORT_PIC1_1,al
+		jmp	short @@OK
+@@PIC2:		sub	cl,8
+		shl	ah,cl
+		not	ah
+		in	al,PORT_PIC2_1
+		PORTDELAY
+		and	al,ah
+		out	PORT_PIC2_1,al
+@@OK:		popfd
+		pop	ecx
+		pop	eax
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 

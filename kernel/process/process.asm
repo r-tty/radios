@@ -8,11 +8,11 @@
 
 ; --- Procedures ---
 
-		; KSwitchTask - switch to next thread.
+		; K_SwitchTask - switch to next thread.
 		; Input: none.
 		; Output: none.
 		; Note: called by timer interrupt handler.
-proc KSwitchTask near
+proc K_SwitchTask near
 		ret
 endp		;---------------------------------------------------------------
 

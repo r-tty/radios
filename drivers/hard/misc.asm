@@ -15,19 +15,19 @@ SpeakerBeepTone		EQU	1200
 		extrn K_TTDelay: near			; Kernel delay
 
 ; --- Publics ---
-		public GetCPUtype
+		public CPU_GetType
 		public SPK_Beep
 
 ; --- Routines ---	
 
-		; GetCPUtype - determine type of CPU
-		; Input: none
-		; Output: FC=1 - can't determine CPU type
-		;	  FC=0 - All OK, CPU type in AL:
+		; CPU_GetType - determine type of CPU.
+		; Input: none.
+		; Output: CF=1 - can't determine CPU type;
+		;	  CF=0 - All OK, CPU type in AL:
 		;		  3 - i386 compatible,
 		;		  4 - i486 compatible,
 		;		  5 - Pentium compatible.
-proc GetCPUtype	near
+proc CPU_GetType near
 		push	ebx
                 mov	eax,cr0
                 mov	ebx,eax			;Original CR0 into EBX
@@ -69,17 +69,46 @@ GetCPU_OK:	clc
 endp		;---------------------------------------------------------------
 
 
-		; SPK_Beep - "beep" sound signal on PC-speaker
-proc SPK_Beep near
+		; SPK_Sound - play sound signal on PC-speaker.
+		; Input: ECX - sound tone (high word) and length (low word).
+proc SPK_Sound near
 		push	eax
 		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
-		mov	cx,SpeakerBeepTone
+		ror	ecx,16
 		call	TMR_InitCounter
 		call	KBC_SpeakerON
-		xor	ecx,ecx
-		mov	cl,3
+		shr	ecx,16
 		call	K_TTDelay
 		call	KBC_SpeakerOFF
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; SPK_Beep - play ASC_BEL.
+proc SPK_Beep near
+		push	ecx
+		mov	ecx,SpeakerBeepTone
+		shl	ecx,16
+		mov	cl,3
+		call	SPK_Sound
+		pop	ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; SPK_Tick - play short sound tick.
+proc SPK_Tick near
+		push	eax
+		push	ecx
+		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
+		mov	cx,SpeakerBeepTone/4
+		call	TMR_InitCounter
+		call	KBC_SpeakerON
+		mov	cx,5000
+		call	TMR_Delay
+		call	KBC_SpeakerOFF
+		pop	ecx
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------

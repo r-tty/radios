@@ -8,7 +8,7 @@ ideal
 
 include "initdefs.ah"
 include "biosdata.ah"
-include "DRIVERS\SOFT\consoles.ah"
+include "macros.ah"
 
 DEBUGUNDERDOS=1
 DEBUG=1
@@ -53,14 +53,31 @@ segment		RADIOSKRNLSEG public 'code' use32
 
 ;-------------------- External and global procedures and data-------------------
 
-		extrn GetCPUtype:	near
+		extrn CPU_GetType:	near
 
 		extrn PIC_Init:		near
 		extrn PIC_SetIRQmask:	near
 
-		extrn TMR_CountCPUspeed: near
+		extrn TMR_InitCounter:	near
+		extrn TMR_CountCPUspeed:near
 
 		extrn SPK_Beep:		near
+
+		extrn DrvKeyboard:	tDriver		; Hardware drivers
+		extrn DrvVGATX:		tDriver
+		extrn DrvVGAGR:		tDriver
+		extrn DrvAudio:		tDriver
+		extrn DrvEthernet:	tDriver
+		extrn DrvSerial:	tDriver
+		extrn DrvParallel:	tDriver
+		extrn DrvFDD:		tDriver
+		extrn DrvHDIDE:		tDriver
+		extrn DrvHDSCSI:	tDriver
+
+		extrn DrvConsole:	tDriver		; Software drivers
+;		extrn DrvCache:		tDriver
+
+		extrn MonitorEntry:	near		; Monitor
 
 ;------------------------------ BIOS data area ---------------------------------
 
@@ -74,74 +91,49 @@ BIOSData	tBIOSDA		<>
 
 include "KERNEL\kernel.asm"
 
+
+;-------------------------- Internal drivers table -----------------------------
+
+InternalDriversTable	DD	DrvCPU
+			DD	DrvFPU
+			DD	DrvMemory
+			DD	DrvKeyboard
+			DD	DrvVGATX
+			DD	DrvVGAGR
+			DD	DrvAudio
+			DD	DrvEthernet
+			DD	DrvSerial
+			DD	DrvParallel
+			DD	DrvFDD
+			DD	DrvHDIDE
+
+
 ;------------------------- Initialization procedures ---------------------------
 
-		; INIT_WrChar - write character (used before setting up
-		;		video driver).
-		; Input: AL=character code.
-		; Output: none.
-		; Note: handles ASCII BEL,BS,HT codes;
-		;	use LF as CRLF (UNIX-style).
-proc INIT_WrChar near
-		call	CON_WrCharTTY
-		cmp	al,ASC_LF
-		jne	INITWC_Exit
-		push	eax
-		mov	al,ASC_CR
-		call	CON_HandleCTRL
-		pop	eax
-INITWC_Exit:	ret
-endp		;---------------------------------------------------------------
+		; INIT_ShowCPUFPU - show CPU & FPU type
+proc INIT_ShowCPUFPU near
+		mWrChar ' '
+		mCallDriverCtrl DRVID_CPU,DRVCTL_GetInitStatStr
+		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
 
-
-		; INIT_WrString - write string (used before setting up
-		;		  video driver).
-		; Input: ESI=pointer to ASCIIZ-string.
-		; Output: none.
-		; Note: use only ASC_LF (0Ah) instead CRLF.
-proc INIT_WrString near
-		push	esi
-		push	eax
-INITWS_Loop:	mov	al,[byte esi]
-		or	al,al
-		jz	INITWS_Exit
-		call	INIT_WrChar
-                inc	esi
-		jmp	short INITWS_Loop
-INITWS_Exit:	pop	eax
-		pop	esi
+		mWrChar' '
+		mCallDriverCtrl DRVID_FPU,DRVCTL_GetInitStatStr
+		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; INIT_ShowCPUNPU - show CPU & NPU type
-proc INIT_ShowCPUNPU near
-		mov	esi,offset INFO_MainCPU
-		call	INIT_WrString
-		mov	al,[CPUtype]
-		cmp	al,3
-		je	DetCPU_386
-		cmp	al,4
-		je	DetCPU_486
-		cmp	al,5
-		je	DetCPU_586
-		mov	esi,offset INFO_Unknown
-                jmp	DetCPU_WrS
-DetCPU_386:	mov	esi,offset INFO_CPU386
-                jmp	DetCPU_WrS
-DetCPU_486:     mov	esi,offset INFO_CPU486
-                jmp	DetCPU_WrS
-DetCPU_586:     mov	esi,offset INFO_CPUPENT
-                jmp	DetCPU_WrS
+		; INIT_InitDiskDrvs - initialize disk drivers.
+proc INIT_InitDiskDrvs near
+		mWrString INFO_InitDskDr
 
+		mWrChar ' '
+		mCallDriver DRVID_FDD,DRVF_Init
+		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
 
-DetCPU_WrS:	call	INIT_WrString
-		mov	esi,offset INFO_SpdInd
-		call	INIT_WrString
-		mov	eax,[CPUspeed]
-		call	ddecout
-		mov	al,NL
-		call	INIT_WrChar
+;		mWrChar ' '
+;		mCallDriver DRVID_HDD,DRVF_Init
+;		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
 		ret
 endp		;---------------------------------------------------------------
 
@@ -161,12 +153,18 @@ label PMinit far
 		mov	ss,ax
 		mov	esp,InitESP
 
-		; Detect CPU & NPU type, count CPU speed index
-		call	GetCPUtype
-		mov	[CPUtype],al
-		mov	cx,1024
-		call	TMR_CountCPUspeed
-		mov	[CPUspeed],ecx
+		; Install internal device drivers
+		mov	esi,offset InternalDriversTable
+DrvInstLoop:	mov	ebx,[esi]
+		xor	edx,edx
+		call	DRV_InstallNew
+		add	esi,4
+		cmp	eax,DRVID_HDD
+		jne	DrvInstLoop
+
+		; Initialize CPU and FPU drivers.
+		mCallDriver DRVID_CPU,DRVF_Init
+		mCallDriver DRVID_FPU,DRVF_Init
 
 		; Initialize interrupt controller (PIC)
 		xor	ah,ah
@@ -179,33 +177,50 @@ label PMinit far
 		call	PIC_SetIRQmask
 		not	eax
 		call	PIC_SetIRQmask
+
+		; Initialize timer (counter 0)
+		mov	al,36h				; Counter 0, mode 3
+		mov	cx,59659			; 1/20 second
+		call	TMR_InitCounter
 		sti
 
-		; Detect hardware devices using by consoles
-		call	CON_DetectDevs
-		jc	Init_SysHalt
-
-		; Prepare console 0 for output
-		xor	bh,bh
-		call	CON_SetActive
-		mov	ah,7
-		stc
-		call	CON_ClrScr
+		; Install and initialize console driver
+		mov	ebx,offset DrvConsole
 		xor	edx,edx
-		call	CON_MoveCursor
-
-		; Show CPU & NPU type
-		call	INIT_ShowCPUNPU
+		call	DRV_InstallNew
+		mov	[DrvId_Con],eax
+		mCallDriver eax,DRVF_Init
+;		jc	Init_Halt
+		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
 
 		; Show kernel version message
-		mov	esi,offset INFO_RadiOS
-		call	INIT_WrString
+		mWrString INFO_RadiOS
+
+		; Show CPU & FPU type
+		call	INIT_ShowCPUFPU
+
+		; Initialize memory driver
+		mCallDriver DRVID_Memory,DRVF_Init
+		mCallDriverCtrl [DrvId_Con],DRVCTL_CON_WrString
+
+		; Initialize disk drivers
+		call	INIT_InitDiskDrvs
+
+		; Initialize file systems
+mov edi,offset WriteChar
+		; Mount root
 
 		; Call debugger
-		call	DebugEntry
+		call	MonitorEntry
 
-		; Halt system
-Init_SysHalt:	call	SPK_Beep
+		; Reset system
+		mWrString INFO_Shutdown
+		mCallDriver [DrvId_Con],DRVF_Read
+		cli
+		mov	[word BIOSDA_Begin+(tBIOSDA).RebootFlag],1234h
+		mov	esi,[0FFFF0h]
+		jmp	[dword esi]
+
 Init_Halt:	jmp	Init_Halt
 
 ends

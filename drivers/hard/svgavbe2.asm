@@ -4,12 +4,6 @@
 ;*******************************************************************************
 
 ; --- Publics ---
-		public DrvVideoGr
+;		public DrvSVGAVBE2
 		
-
-; --- Procedures ---
-
-		; DrvVideoGr - video graphics device driver entry.
-proc DrvVideoGr near
-		ret
-endp		;---------------------------------------------------------------
+; --- Data ---

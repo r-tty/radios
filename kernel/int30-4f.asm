@@ -1,85 +1,85 @@
 
-proc		Int30handler	far
+proc Int30handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int31handler	far
+proc Int31handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int32handler	far
+proc Int32handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int33handler	far
+proc Int33handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int34handler	far
+proc Int34handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int35handler	far
+proc Int35handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int36handler	far
+proc Int36handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int37handler	far
+proc Int37handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int38handler	far
+proc Int38handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int39handler	far
+proc Int39handler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Ahandler	far
+proc Int3Ahandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Bhandler	far
+proc Int3Bhandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Chandler	far
+proc Int3Chandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Dhandler	far
+proc Int3Dhandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Ehandler	far
+proc Int3Ehandler
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int3Fhandler	far
+proc Int3Fhandler
 		iret
 endp		;---------------------------------------------------------------
 
 
 
-proc		IntReservedHandler	far
+proc IntReservedHandler
 		iret
 endp		;---------------------------------------------------------------

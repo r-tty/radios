@@ -1,0 +1,11 @@
+
+include "sysdata.ah"
+include "descript.ah"
+include "gdt.ah"
+include "errdefs.ah"
+include "drvctrl.ah"
+include "asciictl.ah"
+include "macros.ah"
+
+; --- Definitions ---
+MonStrBufSize		EQU	72		; Input string max. size

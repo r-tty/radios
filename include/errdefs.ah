@@ -6,31 +6,50 @@
 
 ; Common errors
 ERR_BadFunNum			EQU	0100h
+ERR_UnknEv			EQU	0101h
 
 ; Drivers control error
 ERR_DRV_NoIDs			EQU	0320h
 ERR_DRV_BadID			EQU	0321h
+ERR_DRV_NotInitialized		EQU	0322h
+
+; Memory errors
+ERR_MEM_InvBaseSz		EQU	0340h
+ERR_MEM_ExtTestErr		EQU	0341h
 
 
+; === Internal hardware drivers errors ===
 
-; --- Internal hardware drivers errors ---
+; --- On-board controllers ---
 
 ; KBC errors
-ERR_KBC_NotRDY			EQU	0801h
+ERR_KBC_NotRDY			EQU	0800h
 
 ; Counter/timer and RTC errors
-ERR_TMR_BadCNBR			EQU	0A05h
+ERR_TMR_BadCNBR			EQU	0A00h
 
+; DMA controllers errors
+ERR_DMA_BadChNum		EQU	0B00h
+ERR_DMA_BadAddr			EQU     0B01h
+ERR_DMA_PageOut			EQU	0B02h
+ERR_DMA_AddrOdd			EQU	0B03h
+
+
+; --- External devices ---
 
 ; Keyboard errors
-ERR_KB_DetFail			EQU	0B00h
+ERR_KB_DetFail			EQU	1100h
 
-; VGA errors
+; VGA (text mode) errors
 ERR_VID_BadVPage		EQU	1205h
 ERR_VID_BadCurPos		EQU	1206h
 
+; FDC errors
+ERR_FDC_BadDrNum		EQU	1600h
 
-; --- Internal software drivers errors ---
+
+
+; === Internal software drivers errors ===
 
 ; --- Consoles driver error ---
 ERR_CON_VidDetFail		EQU	2020h

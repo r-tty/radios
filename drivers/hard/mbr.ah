@@ -1,23 +1,23 @@
 
 struc tPartitionEntry
- BootFlag	DB	?
- BeginHead	DB	?
- BeginSecCyl	DW	?
- SystemCode	DB	?
- EndHead	DB	?
- EndSecCyl	DW	?
- RelStartSecNum	DD	?
- NumSectors	DD	?
-ends
+.BootFlag	RESB	1
+.BeginHead	RESB	1
+.BeginSecCyl	RESW	1
+.SystemCode	RESB	1
+.EndHead	RESB	1
+.EndSecCyl	RESW	1
+.RelStartSecNum	RESD	1
+.NumSectors	RESD	1
+endstruc
 
 struc tMBRdata
- PartEntries	tPartitionEntry 4 dup (<>)
- Signature	DW	?
-ends
+.PartEntries	RESB	4*tPartitionEntry_size
+.Signature	RESW	1
+endstruc
 
 struc tMBR
- LoadingCode	DB 446 dup (?)
- MBRdata	tMBRdata <>
-ends
+.LoadingCode	RESB	446
+.MBRdata	RESB	tMBRdata_size
+endstruc
 
-MBR_SIGNATURE	EQU	0AA55h
+%define	MBR_SIGNATURE	0xAA55

@@ -1,0 +1,33 @@
+;-------------------------------------------------------------------------------
+;  cpu.ah - some 386+ processor definitions (flags, registers, etc.)
+;-------------------------------------------------------------------------------
+
+; --- Flag register masks ---
+%define	FLAG_CF		1
+%define	FLAG_PF		4
+%define	FLAG_AF		10h
+%define	FLAG_ZF		40h
+%define	FLAG_SF		80h
+%define	FLAG_TF		100h
+%define	FLAG_IF		200h
+%define	FLAG_DF		400h
+%define	FLAG_OF		800h
+%define	FLAG_IOPL	3000h
+%define	FLAG_NT		4000h
+%define	FLAG_RF		10000h
+%define	FLAG_VM		20000h
+%define	FLAG_AC		40000h
+
+
+; --- CR0 register masks ---
+%define	CR0_PE		1
+%define	CR0_MP		2
+%define	CR0_EM		4
+%define	CR0_TS		8
+%define	CR0_ET		10h
+%define	CR0_NE		20h
+%define	CR0_WP		10000h
+%define	CR0_AM		40000h
+%define	CR0_NW		20000000h
+%define	CR0_CD		40000000h
+%define	CR0_PG		80000000h

@@ -4,62 +4,50 @@
 
 ; --- General definitions ---
 
-BIOSDAsize		EQU	1000h		; Size of BIOS data area
-InitESP			EQU	80000h		; Initial stack pointer value
-StartCfgTblAddr		EQU	500h		; Startup config table address
-BaseMemReservedSz	EQU	10000h		; Reserved block of base mem. sz
+%define	BIOSDAsize		1000h		; Size of BIOS data area
+%define	InitESP			80000h		; Initial stack pointer value
+%define	StartCfgTblAddr		500h		; Startup config table address
+%define	BaseMemReservedSz	10000h		; Reserved block of base mem. sz
 
-Init_MaxNumDrivers	EQU	64
-Init_NumFSlinkPoints	EQU	26
+%define	Init_MaxNumDrivers	64
+%define	Init_NumFSlinkPoints	26
 
-Init_MaxNumOfProcesses	EQU	24		; Maximum number of processes
-Init_MaxVirtMem		EQU	0		; Virtual memory size in KB
-Init_NumIndexes		EQU	100		; Number of indexes
-Init_MaxNumLoadedMods	EQU	10		; Maximum number of loaded mods
-Init_BinFormats		EQU	2		; Number of binary format drivers
+%define	Init_MaxNumOfProcesses	24		; Maximum number of processes
+%define Init_MaxNumOfThreads	32		; Maximum number of threads
+%define	Init_MaxVirtMem		0		; Virtual memory size in KB
+%define	Init_NumIndexes		100		; Number of indexes
+%define	Init_MaxNumLoadedMods	10		; Maximum number of loaded mods
+%define	Init_BinFormats		2		; Number of binary format drivers
 
-Init_NumKernFHandles	EQU	10		; Number of kernel file handles
-Init_KernEnvSize	EQU	512		; Kernel environment size
+%define	Init_NumKernFHandles	10		; Number of kernel file handles
+%define	Init_KernEnvSize	512		; Kernel environment size
 
-Init_SerInpBufSize	EQU	2048		; Serial input buffer size
-Init_SerOutBufSize	EQU	2048		; Serial output buffer size
+%define	Init_SerInpBufSize	2048		; Serial input buffer size
+%define	Init_SerOutBufSize	2048		; Serial output buffer size
 
 ; --- Startup configuration table definitions ---
 
 ; Table signature
-SCFG_Signature	EQU	00435352h
+%define	SCFG_Signature		00435352h
 
 ; Table structure
-struc	tStartConfig
- Signature	DD	?
- NumOfItems	DW	?
- ItemOffsets	DW	?
-ends
+struc tStartConfig
+.Signature	RESD	1
+.NumOfItems	RESW	1
+.ItemOffsets	RESW	1
+endstruc
 
 ; Item numbers
-SCFG_BootDev	EQU	0
-SCFG_PrimFS_LP	EQU	1
-SCFG_RAMdiskSz	EQU	2
-SCFG_BuffersMem	EQU	3
-SCFG_SwapDev	EQU	4
-
-; --- Macros ---
-
-	; Far jump from 32-bit segment
-macro	PMJF32	SegDescName,FarAddr32
-	DB	0EAh
-	DD	offset large FarAddr32
-	DW	(tRGDT).SegDescName
-endm
-
-	; Far jump from 16-bit segment
-macro	PMJF16	SegDescName,FarAddr16
-	DB	0EAh
-	DW	offset small FarAddr16
-	DW	(tRGDT).SegDescName
-endm
+%define	SCFG_BootDev		0
+%define	SCFG_PrimFS_LP		1
+%define	SCFG_RAMdiskSz		2
+%define	SCFG_BuffersMem		3
+%define	SCFG_SwapDev		4
 
 
-; --- Externals ---
+; --- External variables (initialized by system loader)
 
-		extrn MonitorInit:	near
+%define DrvAPIsTableAddr	700h
+%define UserAPIsTableAddr	704h
+%define	KHeapBeginAddr		708h
+%define KHeapTopAddr		70Ch

@@ -1,0 +1,32 @@
+;-------------------------------------------------------------------------------
+;  hd.ah - device independend part of hard disk driver definitions.
+;-------------------------------------------------------------------------------
+
+; Miscellaneous
+%define	HD_MaxDrives		16		; Maximum number of HD drives
+%define	HD_MaxExtMBRs		16		; Maximum number of ext. MBRs
+%define	HD_MaxSecPerOp		16		; Maximum sectors per disk op.
+
+; Structure of partition descriptor
+struc tPartDesc
+.BegSec		RESD	1			; Begin sector
+.NumSectors	RESD	1			; Number of sectors
+.RelSec		RESD	1			; Relative sector number
+.SysCode	RESB	1			; System code
+.Reserved	RESB	3			; Pad to 16 bytes
+endstruc
+
+; Device independend hard disk structure
+struc tDIHD
+.DevID		RESD	1
+.PartDesc	RESB	(4+HD_MaxExtMBRs)*tPartDesc_size
+endstruc
+
+; Device independend hard disk operations
+%define	HD_MAXDISKOPS	6
+%define	HD_opNULL	0
+%define	HD_opREADSEC	2
+%define	HD_opWRITESEC	3
+%define	HD_opVERIFYTRK	4
+%define	HD_opFORMATTRK	5
+

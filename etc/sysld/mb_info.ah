@@ -1,0 +1,71 @@
+;-------------------------------------------------------------------------------
+;  mb_info.ah - multiboot information format structures.
+;-------------------------------------------------------------------------------
+
+; The structure type "tModList" is used by the "tMultibootInfo" structure.
+struc tModList
+.Start		RESD	1		; The memory used goes from bytes 
+.End		RESD	1		;  '.Start' to '.End-1' inclusive
+.CmdLine	RESD	1		; Module command line
+.Pad		RESD	1		; Padding to take it to 16 bytes
+endstruc				;  (must be zero)
+
+
+; INT-15, AX=E820 style "AddressRangeDescriptor"
+; ...with a "size" parameter on the front which is the structure size - 4,
+; pointing to the next one, up until the full buffer length of the memory
+; map has been reached.
+struc tAddrRangeDesc
+.Size		RESD	1
+.BaseAddrLow	RESD	1
+.BaseAddrHigh	RESD	1
+.LengthLow	RESD	1
+.LengthHigh	RESD	1
+.Type		RESD	1
+endstruc
+
+/* usable memory "Type", all others are reserved.  */
+%define MB_ARD_MEMORY       1
+
+
+;  MultiBoot Info description.
+;  This is the struct passed to the boot image.  This is done by placing
+;  its address in the EAX register.
+struc tMultibootInfo
+.Flags		RESD	1			; MultiBoot info version number
+
+.MemLower	RESD	1			; Available memory from BIOS
+.MemUpper	RESD	1
+
+.BootDevice	RESD	1			; "root" partition
+.CmdLine	RESD	1			; Kernel command line
+
+.ModsCount	RESD	1			; Boot-Module list
+.ModsAddr	RESD	1
+
+.Reserved	RESD	4			; a.out and/or ELF specific
+
+.MMapLength	RESD	1			; Memory Mapping buffer
+.MMapAddr	RESD	1
+endstruc
+
+
+; Flags to be set in the 'flags' parameter above
+
+; is there basic lower/upper memory information?
+%define MB_INFO_MEMORY          1
+
+; is there a boot device set?
+%define MB_INFO_BOOTDEV         2
+
+; is the command-line defined?
+%define MB_INFO_CMDLINE         4
+
+; are there modules to do something with?
+%define MB_INFO_MODS            8
+
+; is there a full memory map?
+%define MB_INFO_MEM_MAP         0x40
+
+; The following value must be present in the EAX register.
+%define MULTIBOOT_VALID         0x2BADB002

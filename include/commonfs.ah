@@ -4,184 +4,149 @@
 
 ;---------------------- File system linking definitions ------------------------
 
-CFS_MaxLinkPoints	EQU	26		; Maximum number of link points
+%define	CFS_MaxLinkPoints	26		; Maximum number of link points
 
 ; Link point structure
 struc tCFSLinkPoint
- FSdrvID	DD	?
- DevID		DD	?
- Mode		DB	?
- Reserved	DB	?,?,?
- RootIndex	DD	?
-ends
+.FSdrvID	RESD	1
+.DevID		RESD	1
+.Mode		RESB	1
+.Reserved	RESB	3
+.RootIndex	RESD	1
+endstruc
+
+%define	tCFSLP_shift	4			; log2(tCFSLinkPoint_size)
 
 ; File system linking flags
-flFSL_RdOnly		EQU	1
-flFSL_NoInitFS		EQU	128
+%define	flFSL_RdOnly		1
+%define	flFSL_NoInitFS		128
 
 
 ;--------------------------- File handle definitions ---------------------------
 
 ; Structure of file handles table element
 struc tCFS_FHandle
- FSLP		DB	?			; FSLP
- Reserved	DB	3 dup (?)
- Handle		DD	?			; Private handle
-ends
+.FSLP		RESB	1			; FSLP
+.Reserved	RESB	3
+.Handle		RESD	1			; Private handle
+endstruc
 
-FHANDLESHIFT	EQU	3
+%define	FHANDLESHIFT	3
 
 ; Standard handles
-CFS_STDIN		EQU	0
-CFS_STDOUT		EQU	1
-CFS_STDERR		EQU	2
+%define	STDIN		0
+%define	STDOUT		1
+%define	STDERR		2
 
 
 ;---------------------------- Index definitions --------------------------------
 
-INDEXATTRSIZE		EQU	24
+%define	INDEXATTRSIZE	24
 
 ; File type flags
-FT_DIR			EQU	128
-FT_BLOCK		EQU	64
-FT_CHAR			EQU	32
-FT_FIFO			EQU	16
+%define	FT_DIR		128
+%define	FT_BLOCK	64
+%define	FT_CHAR		32
+%define	FT_FIFO		16
 
 ; Device file mask
-FT_DEV			EQU	60h
+%define	FT_DEV		60h
 
 ; Structure of index attribs
 struc tCFS_IndexAttrs
- UserID		DD	?				; User ID
- GroupID	DD	?				; Group ID
- Links		DW	?				; Number of links
- Type		DW	?				; File type
- LRtime		DD	?				; Time of last read
- LWtime		DD	?				; Time of last change
- ICtime		DD	?				; Index correction time
-ends
+.UserID		RESD	1				; User ID
+.GroupID	RESD	1				; Group ID
+.Links		RESW	1				; Number of links
+.Type		RESW	1				; File type
+.LRtime		RESD	1				; Time of last read
+.LWtime		RESD	1				; Time of last change
+.ICtime		RESD	1				; Index correction time
+endstruc
 
 
-INDEXSIZE		EQU	64
-INDEXSHIFT		EQU	5
+%define	INDEXSIZE	64
+%define	INDEXSHIFT	5
 
-IFL_DIRTY		EQU	128
-IFL_FREE		EQU	64
-IFL_LOCKED		EQU	32
+%define	IFL_DIRTY	128
+%define	IFL_FREE	64
+%define	IFL_LOCKED	32
 
 struc tCFS_Index
- FSLP		DB	?
- Flags		DB	?
- Stamp		DW	?
- Block		DD	?
- Attr		tCFS_IndexAttrs <>
- AR             DW	?
- RefNum		DW	?
+.FSLP		RESB	1
+.Flags		RESB	1
+.Stamp		RESW	1
+.Block		RESD	1
+.Attr		RESB	tCFS_IndexAttrs_size
+.AR             RESW	1
+.RefNum		RESW	1
 
- Next		DD	?
- Prev		DD	?
- HashNext	DD	?
- HashPrev	DD	?
+.Next		RESD	1
+.Prev		RESD	1
+.HashNext	RESD	1
+.HashPrev	RESD	1
 
- Reserved	DD	3 dup (?)		; Complement to INDEXSIZE bytes
-ends
+.Reserved	RESD	3			; Complement to INDEXSIZE bytes
+endstuc
 
-;---------------------------- HD partition IDs ---------------------------------
-
-CFS_NumKnownFS		EQU	31
-
-CFS_ID_EMPTY		EQU	0
-CFS_ID_DOSFAT12		EQU	1
-CFS_ID_XENIXROOT	EQU	2
-CFS_ID_XENIXUSR		EQU	3
-CFS_ID_DOSFAT16SMALL	EQU	4
-CFS_ID_DOSEXTENDED	EQU	5
-CFS_ID_DOSFAT16LARGE	EQU	6
-CFS_ID_OS2HPFS		EQU	7
-CFS_ID_AIX		EQU	8
-CFS_ID_AIXBOOT		EQU	9
-CFS_ID_OS2BM		EQU	0Ah
-CFS_ID_VENIX286		EQU	040h
-CFS_ID_MICROPORT	EQU	052h
-CFS_ID_NOVELL		EQU	064h
-CFS_ID_PCIX		EQU	075h
-CFS_ID_OLDMINIX		EQU	080h
-CFS_ID_MINIX		EQU	081h
-CFS_ID_LINUXSWAP	EQU	082h
-CFS_ID_LINUXNATIVE	EQU	083h
-CFS_ID_BSD386		EQU	0A5h
-CFS_ID_BSDIFS		EQU	0B7h
-CFS_ID_BSDISWAP		EQU	0B8h
-CFS_ID_CPM		EQU	0DBh
-CFS_ID_DOSACCES		EQU	0E1h
-CFS_ID_DOSRDONLY	EQU	0E3h
-CFS_ID_DOSSECONDARY	EQU	0F2h
-CFS_ID_BBT		EQU	0FFh
-
-CFS_ID_RFSNATIVE	EQU	032h
-CFS_ID_RFSSWAP		EQU	033h
-
-
-; ------------------ Common file system function definitions -------------------
-
-; Generic functions
-FSF_MakeFS		EQU	0
-FSF_LookFSysOnDev	EQU	1
-
+;------------------ Common file system function definitions --------------------
 
 ; File operations
 struc tFileOperations
- Create		DD	?
- Open		DD	?
- Close		DD	?
- RemoveFile	DD	?
- TruncateFile	DD	?
- MoveFile	DD	?
- Read		DD	?
- Write		DD	?
- SetPos		DD	?
- GetPos		DD	?
- GoEOF		DD	?
- SetAttr	DD	?
- GetAttr	DD	?
-ends
+.Create		RESD	1
+.Open		RESD	1
+.Close		RESD	1
+.RemoveFile	RESD	1
+.TruncateFile	RESD	1
+.MoveFile	RESD	1
+.Read		RESD	1
+.Write		RESD	1
+.SetPos		RESD	1
+.GetPos		RESD	1
+.GoEOF		RESD	1
+.SetAttr	RESD	1
+.GetAttr	RESD	1
+endstruc
 
-FOP_Create		EQU	8
-FOP_Open		EQU	9
-FOP_Close		EQU	10
-FOP_RemoveFile		EQU	11
-FOP_TruncateFile	EQU	12
-FOP_MoveFile		EQU	13
-FOP_Read		EQU	14
-FOP_Write		EQU	15
-FOP_SetPos		EQU	16
-FOP_GetPos		EQU	17
-FOP_GoEOF		EQU	18
-FOP_SetAttr		EQU	19
-FOP_GetAttr		EQU	20
+%define	FOP_Create		8
+%define	FOP_Open		9
+%define	FOP_Close		10
+%define	FOP_RemoveFile		11
+%define	FOP_TruncateFile	12
+%define	FOP_MoveFile		13
+%define	FOP_Read		14
+%define	FOP_Write		15
+%define	FOP_SetPos		16
+%define	FOP_GetPos		17
+%define	FOP_GoEOF		18
+%define	FOP_SetAttr		19
+%define	FOP_GetAttr		20
 
 
 ; Directory operations
 struc tDirectoryOperations
- ChangeDir		DD	?
- CreateDir		DD	?
- RemoveDir		DD	?
-ends
+.ChangeDir	RESD	1
+.CreateDir	RESD	1
+.RemoveDir	RESD	1
+endstruc
 
-DOP_ChDir		EQU	21
-DOP_MkDir		EQU	22
-DOP_RmDir		EQU	23
+%define	DOP_ChDir		21
+%define	DOP_MkDir		22
+%define	DOP_RmDir		23
 
 
 ; Master operations
 struc tMasterOperations
- ReadIndex		DD	?
- WriteIndex		DD	?
- AllocIndex		DD	?
- ReleaseIndex		DD	?
-ends
+.ReadIndex	RESD	1
+.WriteIndex	RESD	1
+.AllocIndex	RESD	1
+.ReleaseIndex	RESD	1
+endstruc
 
-MOP_ReadIndex		EQU	24
-MOP_WriteIndex		EQU	25
-MOP_AllocIndex		EQU	26
-MOP_ReleaseIndex	EQU	27
+%define	MOP_ReadIndex		24
+%define	MOP_WriteIndex		25
+%define	MOP_AllocIndex		26
+%define	MOP_ReleaseIndex	27
+
+; Generic functions
+%define	FSF_MakeFS		28
+%define	FSF_LookFSysOnDev	29

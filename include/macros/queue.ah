@@ -1,0 +1,71 @@
+;-------------------------------------------------------------------------------
+;  queue.ah - macros for manipulating queues.
+;-------------------------------------------------------------------------------
+
+%ifndef _queue_ah_
+%define _queue_ah_
+
+; Enqueue
+; Parameters: head, next, prev, what, type
+%macro mEnqueue 5
+%if %0=5
+%define	@head %1
+%define	@next %5.%2
+%define	@prev %5.%3
+%define	@what %4
+	cmp	@head,0
+	jne	%%HeadNZ
+	mov	@head,@what
+	mov	[@what+@next],@what
+	mov	[@what+@prev],@what
+	jmp	short %%Done
+%%HeadNZ:
+	mpush	eax,esi
+	mov	esi,@what
+	mov	eax,@head
+	push	eax
+	mov	eax,[eax+@prev]
+	mov	[esi+@prev],eax
+	mov	eax,[esi+@prev]
+	mov	[eax+@next],esi
+	pop	eax
+	mov	[eax+@prev],esi
+	mpop	esi,eax
+%%Done:
+%else
+%error mEnqueue: invalid number of arguments
+%endif
+%endmacro
+
+
+; Dequeue
+; Parameters: head, next, prev, what, type
+%macro mDequeue 5
+%if %0=5
+%define	@head %1
+%define	@next %5.%2
+%define	@prev %5.%3
+%define	@what %4
+	cmp	[@what+@next],@what
+	jne	%%NotFirst
+	mov	@head,0
+	ret
+%%NotFirst:
+	mpush	esi,edi
+	mov	esi,[@what+@next]
+	mov	edi,[@what+@prev]
+	mov	[esi+@prev],edi
+	mov	[edi+@next],esi
+	cmp	@head,@what
+	jne	%%Done
+	mov	@head,esi
+%%Done:
+	mpop	edi,esi
+	ret
+%else
+%error mDequeue: invalid number of arguments
+%endif
+%endmacro
+
+%endif
+

@@ -4,106 +4,106 @@
 
 
 ; UART registers
-UART_RX			EQU	0		; Receive buffer (DLAB=0) (in)
-UART_TX			EQU	0		; Transmit buffer (DLAB=0) (out)
-UART_DLL		EQU	0		; Divisor Latch Low (DLAB=1) (out)
-UART_DLM		EQU	1		; Divisor Latch High (DLAB=1) (out)
-UART_IER		EQU	1		; Interrupt Enable Register (out)
-UART_IIR		EQU	2		; Interrupt ID Register (in)
-UART_FCR		EQU	2		; FIFO Control Register
-UART_LCR		EQU	3		; Line Control Register (out)
-UART_MCR		EQU	4		; Modem Control Register (out)
-UART_LSR		EQU	5		; Line Status Register (in)
-UART_MSR		EQU	6		; Modem Status Register (in)
-UART_SCR		EQU	7		; Scratch Register (I/O)
+%define	UART_RX			0		; Receive buffer (DLAB=0) (in)
+%define	UART_TX			0		; Transmit buffer (DLAB=0) (out)
+%define	UART_DLL		0		; Divisor Latch Low (DLAB=1) (out)
+%define	UART_DLM		1		; Divisor Latch High (DLAB=1) (out)
+%define	UART_IER		1		; Interrupt Enable Register (out)
+%define	UART_IIR		2		; Interrupt ID Register (in)
+%define	UART_FCR		2		; FIFO Control Register
+%define	UART_LCR		3		; Line Control Register (out)
+%define	UART_MCR		4		; Modem Control Register (out)
+%define	UART_LSR		5		; Line Status Register (in)
+%define	UART_MSR		6		; Modem Status Register (in)
+%define	UART_SCR		7		; Scratch Register (I/O)
 
 
 ; FIFO Control Register definitions (16650 only)
-UART_FCR_ENABLE_FIFO	EQU	1		; Enable the FIFO
-UART_FCR_CLEAR_RCVR	EQU	2		; Clear the RCVR FIFO
-UART_FCR_CLEAR_XMIT	EQU	4		; Clear the XMIT FIFO
-UART_FCR_DMA_SELECT	EQU	8		; For DMA applications
-UART_FCR_TRIGGER_MASK	EQU	0C0h		; Mask for the FIFO trigger range
-UART_FCR_TRIGGER_1	EQU	0		; Mask for trigger set at 1
-UART_FCR_TRIGGER_4	EQU	40h		; Mask for trigger set at 4
-UART_FCR_TRIGGER_8	EQU	80h		; Mask for trigger set at 8
-UART_FCR_TRIGGER_14	EQU	0C0h		; Mask for trigger set at 14
+%define	UART_FCR_ENABLE_FIFO	1		; Enable the FIFO
+%define	UART_FCR_CLEAR_RCVR	2		; Clear the RCVR FIFO
+%define	UART_FCR_CLEAR_XMIT	4		; Clear the XMIT FIFO
+%define	UART_FCR_DMA_SELECT	8		; For DMA applications
+%define	UART_FCR_TRIGGER_MASK	0C0h		; Mask for the FIFO trigger range
+%define	UART_FCR_TRIGGER_1	0		; Mask for trigger set at 1
+%define	UART_FCR_TRIGGER_4	40h		; Mask for trigger set at 4
+%define	UART_FCR_TRIGGER_8	80h		; Mask for trigger set at 8
+%define	UART_FCR_TRIGGER_14	0C0h		; Mask for trigger set at 14
 
 
 ; Interrupt Enable Register definitions
-UART_IER_MSI		EQU	8		; Enable modem status interrupt
-UART_IER_RLSI		EQU	4		; Enable receiver line status interrupt
-UART_IER_THRI		EQU	2		; Enable transmitter holding register int.
-UART_IER_RDI		EQU	1		; Enable receiver data interrupt
+%define	UART_IER_MSI		8		; Enable modem status interrupt
+%define	UART_IER_RLSI		4		; Enable receiver line status interrupt
+%define	UART_IER_THRI		2		; Enable transmitter holding register int.
+%define	UART_IER_RDI		1		; Enable receiver data interrupt
 
 
 ; Interrupt Identification Register definitions
-UART_IIR_NONE		EQU	1		; No interrupts pending
-UART_IIR_ID		EQU	6		; Mask for the interrupt ID
+%define	UART_IIR_NONE		1		; No interrupts pending
+%define	UART_IIR_ID		6		; Mask for the interrupt ID
 
-UART_IIR_MSI		EQU	0		; Modem status interrupt
-UART_IIR_THRI		EQU	2		; Transmitter holding register empty
-UART_IIR_RDI		EQU	4               ; Receiver data interrupt
-UART_IIR_RLSI		EQU	6               ; Receiver line status interrupt
+%define	UART_IIR_MSI		0		; Modem status interrupt
+%define	UART_IIR_THRI		2		; Transmitter holding register empty
+%define	UART_IIR_RDI		4               ; Receiver data interrupt
+%define	UART_IIR_RLSI		6               ; Receiver line status interrupt
 
 
 ; Line Control Register definitions
-UART_LCR_DLAB		EQU	80h		; Divisor latch access bit
-UART_LCR_SBC		EQU	40h		; Set break control
-UART_LCR_SPAR		EQU	20h		; Stick parity
-UART_LCR_EPAR		EQU	10h		; Even parity select
-UART_LCR_PARITY		EQU	8		; Parity Enable
-UART_LCR_STOP		EQU	4		; Stop bits: 0=1 stop bit, 1= 2 stop bits
-UART_LCR_WLEN5		EQU	0		; Wordlength: 5 bits
-UART_LCR_WLEN6		EQU	1		; Wordlength: 6 bits
-UART_LCR_WLEN7		EQU	2		; Wordlength: 7 bits
-UART_LCR_WLEN8		EQU	3		; Wordlength: 8 bits
+%define	UART_LCR_DLAB		80h		; Divisor latch access bit
+%define	UART_LCR_SBC		40h		; Set break control
+%define	UART_LCR_SPAR		20h		; Stick parity
+%define	UART_LCR_EPAR		10h		; Even parity select
+%define	UART_LCR_PARITY		8		; Parity Enable
+%define	UART_LCR_STOP		4		; Stop bits: 0=1 stop bit, 1= 2 stop bits
+%define	UART_LCR_WLEN5		0		; Wordlength: 5 bits
+%define	UART_LCR_WLEN6		1		; Wordlength: 6 bits
+%define	UART_LCR_WLEN7		2		; Wordlength: 7 bits
+%define	UART_LCR_WLEN8		3		; Wordlength: 8 bits
 ; Parity masks
-UART_LCR_PARITYODD	EQU	8h
-UART_LCR_PARITYEVEN	EQU	18h
-UART_LCR_PARITYZERO	EQU	28h
-UART_LCR_PARITYONE	EQU	38h
-UART_LCR_PARITYNONE	EQU	0
-UART_LCR_PARITYMASK	EQU	38h
+%define	UART_LCR_PARITYODD	8h
+%define	UART_LCR_PARITYEVEN	18h
+%define	UART_LCR_PARITYZERO	28h
+%define	UART_LCR_PARITYONE	38h
+%define	UART_LCR_PARITYNONE	0
+%define	UART_LCR_PARITYMASK	38h
 
 
 ; Modem Control Register definitions
-UART_MCR_LOOP		EQU	10h		; Enable loopback test mode
-UART_MCR_MEI		EQU	8		; Master Enable Interrupts
-UART_MCR_OUT1		EQU	4		; Out1 complement
-UART_MCR_RTS		EQU	2		; RTS complement
-UART_MCR_DTR		EQU	1		; DTR complement
+%define	UART_MCR_LOOP		10h		; Enable loopback test mode
+%define	UART_MCR_MEI		8		; Master Enable Interrupts
+%define	UART_MCR_OUT1		4		; Out1 complement
+%define	UART_MCR_RTS		2		; RTS complement
+%define	UART_MCR_DTR		1		; DTR complement
 
 
 ; Line Status Register definitions
-UART_LSR_TEMT		EQU	40h		; Transmitter empty
-UART_LSR_THRE		EQU	20h		; Transmit-hold-register empty
-UART_LSR_BI		EQU	10h		; Break interrupt indicator
-UART_LSR_FE		EQU	8		; Frame error indicator
-UART_LSR_PE		EQU	4		; Parity error indicator
-UART_LSR_OE		EQU	2		; Overrun error indicator
-UART_LSR_DR		EQU	1		; Receiver data ready
+%define	UART_LSR_TEMT		40h		; Transmitter empty
+%define	UART_LSR_THRE		20h		; Transmit-hold-register empty
+%define	UART_LSR_BI		10h		; Break interrupt indicator
+%define	UART_LSR_FE		8		; Frame error indicator
+%define	UART_LSR_PE		4		; Parity error indicator
+%define	UART_LSR_OE		2		; Overrun error indicator
+%define	UART_LSR_DR		1		; Receiver data ready
 
 
 ; Modem Status Register definitions
-UART_MSR_DCD		EQU	80h		; Data Carrier Detect
-UART_MSR_RI		EQU	40h		; Ring Indicator
-UART_MSR_DSR		EQU	20h		; Data Set Ready
-UART_MSR_CTS		EQU	10h		; Clear to Send
-UART_MSR_DDCD		EQU	8		; Delta DCD
-UART_MSR_TERI		EQU	4		; Trailing edge ring indicator
-UART_MSR_DDSR		EQU	2		; Delta DSR
-UART_MSR_DCTS		EQU	1		; Delta CTS
+%define	UART_MSR_DCD		80h		; Data Carrier Detect
+%define	UART_MSR_RI		40h		; Ring Indicator
+%define	UART_MSR_DSR		20h		; Data Set Ready
+%define	UART_MSR_CTS		10h		; Clear to Send
+%define	UART_MSR_DDCD		8		; Delta DCD
+%define	UART_MSR_TERI		4		; Trailing edge ring indicator
+%define	UART_MSR_DDSR		2		; Delta DSR
+%define	UART_MSR_DCTS		1		; Delta CTS
 
 
 ; UART types
-UART_Unknown		EQU	0
-UART_8250		EQU	1
-UART_16450		EQU	2
-UART_16550		EQU	3
-UART_16550A		EQU	4
-UART_16650		EQU	6		; Not supported yet
+%define	UART_Unknown		0
+%define	UART_8250		1
+%define	UART_16450		2
+%define	UART_16550		3
+%define	UART_16550A		4
+%define	UART_16650		6		; Not supported yet
 
 
 ; Misc
-UART_MAXBAUD		EQU	115200		; Maximal UART baud rate
+%define	UART_MAXBAUD		115200		; Maximal UART baud rate

@@ -3,369 +3,369 @@
 ;-------------------------------------------------------------------------------
 
 ; --- Real mode interrupt table ---
-struc	tRMIntsTbl
- Int00		DD	?
- Int01		DD	?
- Int02		DD	?
- Int03		DD	?
- Int04		DD	?
- Int05		DD	?
- Int06		DD	?
- Int07		DD	?
- Int08		DD	?
- Int09		DD	?
- Int0A		DD	?
- Int0B		DD	?
- Int0C		DD	?
- Int0D		DD	?
- Int0E		DD	?
- Int0F		DD	?
- Int10		DD	?
- Int11		DD	?
- Int12		DD	?
- Int13		DD	?
- Int14		DD	?
- Int15		DD	?
- Int16		DD	?
- Int17		DD	?
- Int18		DD	?
- Int19		DD	?
- Int1A		DD	?
- Int1B		DD	?
- Int1C		DD	?
- Int1D		DD	?
- Int1E		DD	?
- Int1F		DD	?
- Int20		DD	?
- Int21		DD	?
- Int22		DD	?
- Int23		DD	?
- Int24		DD	?
- Int25		DD	?
- Int26		DD	?
- Int27		DD	?
- Int28		DD	?
- Int29		DD	?
- Int2A		DD	?
- Int2B		DD	?
- Int2C		DD	?
- Int2D		DD	?
- Int2E		DD	?
- Int2F		DD	?
- Int30		DD	?
- Int31		DD	?
- Int32		DD	?
- Int33		DD	?
- Int34		DD	?
- Int35		DD	?
- Int36		DD	?
- Int37		DD	?
- Int38		DD	?
- Int39		DD	?
- Int3A		DD	?
- Int3B		DD	?
- Int3C		DD	?
- Int3D		DD	?
- Int3E		DD	?
- Int3F		DD	?
- Int40		DD	?
- Int41		DD	?
- Int42		DD	?
- Int43		DD	?
- Int44		DD	?
- Int45		DD	?
- Int46		DD	?
- Int47		DD	?
- Int48		DD	?
- Int49		DD	?
- Int4A		DD	?
- Int4B		DD	?
- Int4C		DD	?
- Int4D		DD	?
- Int4E		DD	?
- Int4F		DD	?
- Int50		DD	?
- Int51		DD	?
- Int52		DD	?
- Int53		DD	?
- Int54		DD	?
- Int55		DD	?
- Int56		DD	?
- Int57		DD	?
- Int58		DD	?
- Int59		DD	?
- Int5A		DD	?
- Int5B		DD	?
- Int5C		DD	?
- Int5D		DD	?
- Int5E		DD	?
- Int5F		DD	?
- Int60		DD	?
- Int61		DD	?
- Int62		DD	?
- Int63		DD	?
- Int64		DD	?
- Int65		DD	?
- Int66		DD	?
- Int67		DD	?
- Int68		DD	?
- Int69		DD	?
- Int6A		DD	?
- Int6B		DD	?
- Int6C		DD	?
- Int6D		DD	?
- Int6E		DD	?
- Int6F		DD	?
- Int70		DD	?
- Int71		DD	?
- Int72		DD	?
- Int73		DD	?
- Int74		DD	?
- Int75		DD	?
- Int76		DD	?
- Int77		DD	?
- Int78		DD	?
- Int79		DD	?
- Int7A		DD	?
- Int7B		DD	?
- Int7C		DD	?
- Int7D		DD	?
- Int7E		DD	?
- Int7F		DD	?
- Int80		DD	?
- Int81		DD	?
- Int82		DD	?
- Int83		DD	?
- Int84		DD	?
- Int85		DD	?
- Int86		DD	?
- Int87		DD	?
- Int88		DD	?
- Int89		DD	?
- Int8A		DD	?
- Int8B		DD	?
- Int8C		DD	?
- Int8D		DD	?
- Int8E		DD	?
- Int8F		DD	?
- Int90		DD	?
- Int91		DD	?
- Int92		DD	?
- Int93		DD	?
- Int94		DD	?
- Int95		DD	?
- Int96		DD	?
- Int97		DD	?
- Int98		DD	?
- Int99		DD	?
- Int9A		DD	?
- Int9B		DD	?
- Int9C		DD	?
- Int9D		DD	?
- Int9E		DD	?
- Int9F		DD	?
- IntA0		DD	?
- IntA1		DD	?
- IntA2		DD	?
- IntA3		DD	?
- IntA4		DD	?
- IntA5		DD	?
- IntA6		DD	?
- IntA7		DD	?
- IntA8		DD	?
- IntA9		DD	?
- IntAA		DD	?
- IntAB		DD	?
- IntAC		DD	?
- IntAD		DD	?
- IntAE		DD	?
- IntAF		DD	?
- IntB0		DD	?
- IntB1		DD	?
- IntB2		DD	?
- IntB3		DD	?
- IntB4		DD	?
- IntB5		DD	?
- IntB6		DD	?
- IntB7		DD	?
- IntB8		DD	?
- IntB9		DD	?
- IntBA		DD	?
- IntBB		DD	?
- IntBC		DD	?
- IntBD		DD	?
- IntBE		DD	?
- IntBF		DD	?
- IntC0		DD	?
- IntC1		DD	?
- IntC2		DD	?
- IntC3		DD	?
- IntC4		DD	?
- IntC5		DD	?
- IntC6		DD	?
- IntC7		DD	?
- IntC8		DD	?
- IntC9		DD	?
- IntCA		DD	?
- IntCB		DD	?
- IntCC		DD	?
- IntCD		DD	?
- IntCE		DD	?
- IntCF		DD	?
- IntD0		DD	?
- IntD1		DD	?
- IntD2		DD	?
- IntD3		DD	?
- IntD4		DD	?
- IntD5		DD	?
- IntD6		DD	?
- IntD7		DD	?
- IntD8		DD	?
- IntD9		DD	?
- IntDA		DD	?
- IntDB		DD	?
- IntDC		DD	?
- IntDD		DD	?
- IntDE		DD	?
- IntDF		DD	?
- IntE0		DD	?
- IntE1		DD	?
- IntE2		DD	?
- IntE3		DD	?
- IntE4		DD	?
- IntE5		DD	?
- IntE6		DD	?
- IntE7		DD	?
- IntE8		DD	?
- IntE9		DD	?
- IntEA		DD	?
- IntEB		DD	?
- IntEC		DD	?
- IntED		DD	?
- IntEE		DD	?
- IntEF		DD	?
- IntF0		DD	?
- IntF1		DD	?
- IntF2		DD	?
- IntF3		DD	?
- IntF4		DD	?
- IntF5		DD	?
- IntF6		DD	?
- IntF7		DD	?
- IntF8		DD	?
- IntF9		DD	?
- IntFA		DD	?
- IntFB		DD	?
- IntFC		DD	?
- IntFD		DD	?
- IntFE		DD	?
- IntFF		DD	?
-ends
+struc tRMIntsTbl
+.Int00		RESD	1
+.Int01		RESD	1
+.Int02		RESD	1
+.Int03		RESD	1
+.Int04		RESD	1
+.Int05		RESD	1
+.Int06		RESD	1
+.Int07		RESD	1
+.Int08		RESD	1
+.Int09		RESD	1
+.Int0A		RESD	1
+.Int0B		RESD	1
+.Int0C		RESD	1
+.Int0D		RESD	1
+.Int0E		RESD	1
+.Int0F		RESD	1
+.Int10		RESD	1
+.Int11		RESD	1
+.Int12		RESD	1
+.Int13		RESD	1
+.Int14		RESD	1
+.Int15		RESD	1
+.Int16		RESD	1
+.Int17		RESD	1
+.Int18		RESD	1
+.Int19		RESD	1
+.Int1A		RESD	1
+.Int1B		RESD	1
+.Int1C		RESD	1
+.Int1D		RESD	1
+.Int1E		RESD	1
+.Int1F		RESD	1
+.Int20		RESD	1
+.Int21		RESD	1
+.Int22		RESD	1
+.Int23		RESD	1
+.Int24		RESD	1
+.Int25		RESD	1
+.Int26		RESD	1
+.Int27		RESD	1
+.Int28		RESD	1
+.Int29		RESD	1
+.Int2A		RESD	1
+.Int2B		RESD	1
+.Int2C		RESD	1
+.Int2D		RESD	1
+.Int2E		RESD	1
+.Int2F		RESD	1
+.Int30		RESD	1
+.Int31		RESD	1
+.Int32		RESD	1
+.Int33		RESD	1
+.Int34		RESD	1
+.Int35		RESD	1
+.Int36		RESD	1
+.Int37		RESD	1
+.Int38		RESD	1
+.Int39		RESD	1
+.Int3A		RESD	1
+.Int3B		RESD	1
+.Int3C		RESD	1
+.Int3D		RESD	1
+.Int3E		RESD	1
+.Int3F		RESD	1
+.Int40		RESD	1
+.Int41		RESD	1
+.Int42		RESD	1
+.Int43		RESD	1
+.Int44		RESD	1
+.Int45		RESD	1
+.Int46		RESD	1
+.Int47		RESD	1
+.Int48		RESD	1
+.Int49		RESD	1
+.Int4A		RESD	1
+.Int4B		RESD	1
+.Int4C		RESD	1
+.Int4D		RESD	1
+.Int4E		RESD	1
+.Int4F		RESD	1
+.Int50		RESD	1
+.Int51		RESD	1
+.Int52		RESD	1
+.Int53		RESD	1
+.Int54		RESD	1
+.Int55		RESD	1
+.Int56		RESD	1
+.Int57		RESD	1
+.Int58		RESD	1
+.Int59		RESD	1
+.Int5A		RESD	1
+.Int5B		RESD	1
+.Int5C		RESD	1
+.Int5D		RESD	1
+.Int5E		RESD	1
+.Int5F		RESD	1
+.Int60		RESD	1
+.Int61		RESD	1
+.Int62		RESD	1
+.Int63		RESD	1
+.Int64		RESD	1
+.Int65		RESD	1
+.Int66		RESD	1
+.Int67		RESD	1
+.Int68		RESD	1
+.Int69		RESD	1
+.Int6A		RESD	1
+.Int6B		RESD	1
+.Int6C		RESD	1
+.Int6D		RESD	1
+.Int6E		RESD	1
+.Int6F		RESD	1
+.Int70		RESD	1
+.Int71		RESD	1
+.Int72		RESD	1
+.Int73		RESD	1
+.Int74		RESD	1
+.Int75		RESD	1
+.Int76		RESD	1
+.Int77		RESD	1
+.Int78		RESD	1
+.Int79		RESD	1
+.Int7A		RESD	1
+.Int7B		RESD	1
+.Int7C		RESD	1
+.Int7D		RESD	1
+.Int7E		RESD	1
+.Int7F		RESD	1
+.Int80		RESD	1
+.Int81		RESD	1
+.Int82		RESD	1
+.Int83		RESD	1
+.Int84		RESD	1
+.Int85		RESD	1
+.Int86		RESD	1
+.Int87		RESD	1
+.Int88		RESD	1
+.Int89		RESD	1
+.Int8A		RESD	1
+.Int8B		RESD	1
+.Int8C		RESD	1
+.Int8D		RESD	1
+.Int8E		RESD	1
+.Int8F		RESD	1
+.Int90		RESD	1
+.Int91		RESD	1
+.Int92		RESD	1
+.Int93		RESD	1
+.Int94		RESD	1
+.Int95		RESD	1
+.Int96		RESD	1
+.Int97		RESD	1
+.Int98		RESD	1
+.Int99		RESD	1
+.Int9A		RESD	1
+.Int9B		RESD	1
+.Int9C		RESD	1
+.Int9D		RESD	1
+.Int9E		RESD	1
+.Int9F		RESD	1
+.IntA0		RESD	1
+.IntA1		RESD	1
+.IntA2		RESD	1
+.IntA3		RESD	1
+.IntA4		RESD	1
+.IntA5		RESD	1
+.IntA6		RESD	1
+.IntA7		RESD	1
+.IntA8		RESD	1
+.IntA9		RESD	1
+.IntAA		RESD	1
+.IntAB		RESD	1
+.IntAC		RESD	1
+.IntAD		RESD	1
+.IntAE		RESD	1
+.IntAF		RESD	1
+.IntB0		RESD	1
+.IntB1		RESD	1
+.IntB2		RESD	1
+.IntB3		RESD	1
+.IntB4		RESD	1
+.IntB5		RESD	1
+.IntB6		RESD	1
+.IntB7		RESD	1
+.IntB8		RESD	1
+.IntB9		RESD	1
+.IntBA		RESD	1
+.IntBB		RESD	1
+.IntBC		RESD	1
+.IntBD		RESD	1
+.IntBE		RESD	1
+.IntBF		RESD	1
+.IntC0		RESD	1
+.IntC1		RESD	1
+.IntC2		RESD	1
+.IntC3		RESD	1
+.IntC4		RESD	1
+.IntC5		RESD	1
+.IntC6		RESD	1
+.IntC7		RESD	1
+.IntC8		RESD	1
+.IntC9		RESD	1
+.IntCA		RESD	1
+.IntCB		RESD	1
+.IntCC		RESD	1
+.IntCD		RESD	1
+.IntCE		RESD	1
+.IntCF		RESD	1
+.IntD0		RESD	1
+.IntD1		RESD	1
+.IntD2		RESD	1
+.IntD3		RESD	1
+.IntD4		RESD	1
+.IntD5		RESD	1
+.IntD6		RESD	1
+.IntD7		RESD	1
+.IntD8		RESD	1
+.IntD9		RESD	1
+.IntDA		RESD	1
+.IntDB		RESD	1
+.IntDC		RESD	1
+.IntDD		RESD	1
+.IntDE		RESD	1
+.IntDF		RESD	1
+.IntE0		RESD	1
+.IntE1		RESD	1
+.IntE2		RESD	1
+.IntE3		RESD	1
+.IntE4		RESD	1
+.IntE5		RESD	1
+.IntE6		RESD	1
+.IntE7		RESD	1
+.IntE8		RESD	1
+.IntE9		RESD	1
+.IntEA		RESD	1
+.IntEB		RESD	1
+.IntEC		RESD	1
+.IntED		RESD	1
+.IntEE		RESD	1
+.IntEF		RESD	1
+.IntF0		RESD	1
+.IntF1		RESD	1
+.IntF2		RESD	1
+.IntF3		RESD	1
+.IntF4		RESD	1
+.IntF5		RESD	1
+.IntF6		RESD	1
+.IntF7		RESD	1
+.IntF8		RESD	1
+.IntF9		RESD	1
+.IntFA		RESD	1
+.IntFB		RESD	1
+.IntFC		RESD	1
+.IntFD		RESD	1
+.IntFE		RESD	1
+.IntFF		RESD	1
+endstruc
 
 ; Begin address of BIOS data area
-BIOSDA_Begin	EQU	400h
+%define	BIOSDA_Begin	400h
 
 ; --- Structure of BIOS data area ---
-struc	tBIOSDA
- COM1addr	DW	?
- COM2addr	DW	?
- COM3addr	DW	?
- COM4addr	DW	?
+struc tBIOSDA
+.COM1addr	RESW	1
+.COM2addr	RESW	1
+.COM3addr	RESW	1
+.COM4addr	RESW	1
 
- LPT1addr	DW	?
- LPT2addr	DW	?
- LPT3addr	DW	?
- LPT4addr	DW	?
+.LPT1addr	RESW	1
+.LPT2addr	RESW	1
+.LPT3addr	RESW	1
+.LPT4addr	RESW	1
 
- Hardware	DW	?
- POSTstatus1	DB	?
- BaseMemSize	DW	?
- TestWorkArea	DW	?
- KBarea		DB	39 dup (?)
+.Hardware	RESW	1
+.POSTstatus1	RESB	1
+.BaseMemSize	RESW	1
+.TestWorkArea	RESW	1
+.KBarea		RESB	39
 
- FDrecalibrate	DB	?
- FDmotors	DB	?
- FDmotorTime	DB	?
- FDerrCode	DB	?
- FDCstate	DB	7 dup (?)
+.FDrecalibrate	RESB	1
+.FDmotors	RESB	1
+.FDmotorTime	RESB	1
+.FDerrCode	RESB	1
+.FDCstate	RESB	7
 
- VideoMode	DB	?
- ScrWidth	DW	?
- VidMemUsedSz	DW	?
- VidPageOffset	DW	?
+.VideoMode	RESB	1
+.ScrWidth	RESW	1
+.VidMemUsedSz	RESW	1
+.VidPageOffset	RESW	1
 
- CursorPos0	DW	?
- CursorPos1	DW	?
- CursorPos2	DW	?
- CursorPos3	DW	?
- CursorPos4	DW	?
- CursorPos5	DW	?
- CursorPos6	DW	?
- CursorPos7	DW	?
+.CursorPos0	RESW	1
+.CursorPos1	RESW	1
+.CursorPos2	RESW	1
+.CursorPos3	RESW	1
+.CursorPos4	RESW	1
+.CursorPos5	RESW	1
+.CursorPos6	RESW	1
+.CursorPos7	RESW	1
 
- CursorSize	DW	?
- VidPageActive	DB	?
+.CursorSize	RESW	1
+.VidPageActive	RESB	1
 
- CRTCportAddr	DW	?
- CRT_Mode	DB	?
- CRT_Palette	DB	?
+.CRTCportAddr	RESW	1
+.CRT_Mode	RESB	1
+.CRT_Palette	RESB	1
 
- RMentry	DD	?
- LastUnexpInt	DB	?
+.RMentry	RESD	1
+.LastUnexpInt	RESB	1
 
- TimerCounter	DD	?
- TimerOverflow	DB	?
+.TimerCounter	RESD	1
+.TimerOverflow	RESB	1
 
- CtrlBreakFlag	DB	?
- RebootFlag	DW	?
+.CtrlBreakFlag	RESB	1
+.RebootFlag	RESW	1
 
- HDlastOpStat	DB	?
- HDamount	DB	?
- HDcontrol	DB	?
- HDportXT	DB	?
+.HDlastOpStat	RESB	1
+.HDamount	RESB	1
+.HDcontrol	RESB	1
+.HDportXT	RESB	1
 
- LPT1timeout	DB	?
- LPT2timeout	DB	?
- LPT3timeout	DB	?
- LPT4timeout	DB	?
+.LPT1timeout	RESB	1
+.LPT2timeout	RESB	1
+.LPT3timeout	RESB	1
+.LPT4timeout	RESB	1
 
- COM1timeout	DB	?
- COM2timeout	DB	?
- COM3timeout	DB	?
- COM4timeout	DB	?
+.COM1timeout	RESB	1
+.COM2timeout	RESB	1
+.COM3timeout	RESB	1
+.COM4timeout	RESB	1
 
- KBbufStart	DW	?
- KBbufEnd	DW	?
+.KBbufStart	RESW	1
+.KBbufEnd	RESW	1
 
- EGAmaxRowNum	DB	?
- EGAlinesChar	DW	?
- EGAmisc	DW	?
- VGAmisc	DW	?
+.EGAmaxRowNum	RESB	1
+.EGAlinesChar	RESW	1
+.EGAmisc	RESW	1
+.VGAmisc	RESW	1
 
- FDparam	DB	?
- HDCstate	DB	?
- HDCerror	DB	?
- HDintrCtrl	DB	?
- FDCinfo	DB	?
- Drv0Stat	DB	?
- Drv1Stat	DB	?
- Drv0Flag	DB	?
- Drv1Flag	DB	?
- Drv0CurrCyl	DB	?
- Drv1CurrCyl	DB	?
+.FDparam	RESB	1
+.HDCstate	RESB	1
+.HDCerror	RESB	1
+.DintrCtrl	RESB	1
+.FDCinfo	RESB	1
+.Drv0Stat	RESB	1
+.Drv1Stat	RESB	1
+.Drv0Flag	RESB	1
+.Drv1Flag	RESB	1
+.Drv0CurrCyl	RESB	1
+.Drv1CurrCyl	RESB	1
 
- ATkeybFlag	DB	?
- ATkeybIndStat	DB	?
+.ATkeybFlag	RESB	1
+.ATkeybIndStat	RESB	1
 
- UserWaitPtr	DD	?
- UserWaitTime	DD	?
- UserWaitAct	DB	?
+.UserWaitPtr	RESD	1
+.UserWaitTime	RESD	1
+.UserWaitAct	RESB	1
 
- NetCardData	DB      7 dup (?)
+.NetCardData	RESB	7
 
- EGA_SAVEPTR	DD	?
+.EGA_SAVEPTR	RESD	1
 
- Reserved	DB	44h dup (?)
+.Reserved	RESB	44h
 
- PIA		DD	?,?,?,?
-ends
+.PIA		RESD	4
+endstruc

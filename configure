@@ -1,0 +1,38 @@
+#! /bin/sh
+
+# [ -f etc/header.mk ] && exit 0
+
+# Default paths
+RADIOSPATH=$HOME/radios
+STDINCLPATH=/usr/local/include/nasm
+INCLPATH=$RADIOSPATH/include
+OBJPATH=/usr/obj/radios
+INSTALLPATH=/RadiOS
+
+ReadData() {
+    echo -n $3 "[$2]: "
+    read p
+    [ $p ] && eval $1=$p
+}
+
+ReadData RADIOSPATH $RADIOSPATH "Source root directory"
+ReadData STDINCLPATH $STDINCLPATH '"Standard" include files for NASM'
+ReadData INCLPATH $INCLPATH "RadiOS headers directory"
+ReadData OBJPATH $OBJPATH "Object directory"
+ReadData INSTALLPATH $INSTALLPATH "Install directory"
+
+awk -v RADIOSPATH=$RADIOSPATH \
+    -v STDINCLPATH=$STDINCLPATH \
+    -v INCLPATH=$INCLPATH \
+    -v OBJPATH=$OBJPATH \
+    -v INSTALLPATH=$INSTALLPATH '
+/@@RADIOSPATH@@/	{ print $1,$2,RADIOSPATH; next }
+/@@STDINCLPATH@@/	{ print $1,$2,STDINCLPATH; next }
+/@@INCLPATH@@/		{ print $1,$2,INCLPATH; next }
+/@@OBJPATH@@/		{ print $1,$2,OBJPATH; next }
+/@@INSTALLPATH@@/	{ print $1,$2,INSTALLPATH; next }
+			{ print $0 }
+' etc/header.mk.in > etc/header.mk
+
+echo
+echo "Configuration file has been generated. Now run 'gmake dep', then 'gmake'."

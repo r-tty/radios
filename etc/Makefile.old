@@ -1,0 +1,303 @@
+#*******************************************************************************
+#  Makefile - RadiOS makefile (GNU make, Unix)
+#*******************************************************************************
+
+include etc/header.mk
+
+# Some boolean definitions
+DEBUG = 1
+MULTIBOOT = 1
+
+# Dependencies
+
+KERNEL_DEP = kernel.rdm kheap.rdm driver.rdm module.rdm \
+	     paging.rdm sema.rdm pool.rdm \
+	     memman.rdm mt.rdm syscall.rdm misc.rdm setjmp.rdm
+DRVHARD_DEP = onboard.rdm vtx.rdm keyboard.rdm \
+	      hd.rdm ide.rdm fd.rdm \
+	      serport.rdm parport.rdm bios32.rdm vgagr.rdm sb.rdm
+DRVSOFT_DEP = console.rdm ramdisk.rdm rdm.rdm coff.rdm
+FS_DEP = commonfs.rdm rfs.rdm
+MONITOR_DEP = monitor.rdm opcodes.rdm operands.rdm
+DEBUG_DEP = rkdt.rdm
+TARGET_DEP = $(KERNEL_DEP) $(DRVHARD_DEP) $(DRVSOFT_DEP) \
+	     $(FS_DEP) $(MONITOR_DEP) init.rdm
+ifdef DEBUG
+TARGET_DEP += $(DEBUG_DEP)
+endif
+
+#--- Individual dependencies ---------------------------------------------------
+
+-include radios.dep
+
+
+#--- Target kernel module ------------------------------------------------------
+
+ifdef kernel_dep
+
+main.rdx: $(TARGET_DEP) loader.bin radios.rsp
+	$(LD) $(LDFLAGS) -@ radios.rsp
+ifdef MULTIBOOT
+	cat $(OUTPATH)/loader.bin >>main.rdx
+	gzip -c main.rdx >$(INSTALLPATH)/sys/radios.rdz
+endif	
+
+
+#--- Kernel modules ------------------------------------------------------------
+
+kernel.rdm: $(kernel_dep)
+	@echo "kernel (main)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/kernel.rdm kernel.as
+
+driver.rdm: $(driver_dep)
+	@echo "kernel (driver)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/driver.rdm driver.as
+
+kheap.rdm: $(kheap_dep)
+	@echo "kernel (kheap)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/kheap.rdm kheap.as
+
+module.rdm: $(module_dep)
+	@echo "kernel (module)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/module.rdm module.as
+	cd ..
+
+paging.rdm: $(paging_dep)
+	@echo "kernel (paging)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/paging.rdm paging.as
+	
+sema.rdm: $(sema_dep)
+	@echo "kernel (semaphore)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/sema.rdm sema.as
+	
+pool.rdm: $(pool_dep)
+	@echo "kernel (pool)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/pool.rdm pool.as
+
+memman.rdm: $(memman_dep)
+	@echo "kernel (memman)"
+	cd kernel/mm ; $(AS) $(ASFLAGS) $(OUTPATH)/memman.rdm memman.as
+
+mt.rdm: $(mt_dep)
+	@echo "kernel (mt)"
+	cd kernel/mt ; $(AS) $(ASFLAGS) $(OUTPATH)/mt.rdm mt.as
+
+syscall.rdm: $(syscall_dep)
+	@echo "kernel (syscall)"
+	cd kernel/syscall ; $(AS) $(ASFLAGS) $(OUTPATH)/syscall.rdm syscall.as
+
+misc.rdm: $(misc_dep)
+	@echo "kernel (misc)"
+	cd kernel ; $(AS) $(ASFLAGS) $(OUTPATH)/misc.rdm misc.as
+
+
+#--- Hardware drivers ----------------------------------------------------------
+
+onboard.rdm: $(onboard_dep)
+	@echo "onboard"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/onboard.rdm onboard.as
+
+vtx.rdm: $(vtx_dep)
+	@echo "vtx"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/vtx.rdm vtx.as
+
+keyboard.rdm: $(keyboard_dep)
+	@echo "keyboard"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/keyboard.rdm keyboard.as
+
+
+hd.rdm: $(hd_dep)
+	@echo "hardware (hd)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/hd.rdm hd.as
+
+fd.rdm: $(fd_dep)
+	@echo "hardware (fd)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/fd.rdm fd.as
+
+ide.rdm: $(ide_dep)
+	@echo "hardware (ide)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/ide.rdm ide.as
+
+serport.rdm: $(serport_dep)
+	@echo "hardware (serial)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/serport.rdm serport.as
+
+parport.rdm: $(parport_dep)
+	@echo "hardware (parallel)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/parport.rdm parport.as
+
+bios32.rdm: $(bios32_dep)
+	@echo "hardware (bios32)"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/bios32.rdm bios32.as
+
+vgagr.rdm: $(vgagr_dep)
+	@echo "vgagr"
+	cd drivers/hard ; $(AS) $(ASFLAGS) $(OUTPATH)/vgagr.rdm vgagr.as
+
+sb.rdm: $(sb_dep)
+	@echo "sb"
+	cd drivers/hard/audio ; $(AS) $(ASFLAGS) $(OUTPATH)/sb.rdm sb.as
+
+
+
+#--- Software drivers ----------------------------------------------------------
+
+console.rdm: $(console_dep)
+	@echo "console"
+	cd drivers/soft ; $(AS) $(ASFLAGS) $(OUTPATH)/console.rdm console.as
+
+ramdisk.rdm: $(ramdisk_dep)
+	@echo "ramdisk"
+	cd drivers/soft ; $(AS) $(ASFLAGS) $(OUTPATH)/ramdisk.rdm ramdisk.as
+
+rdm.rdm: $(rdm_dep)
+	@echo "rdm"
+	cd drivers/soft/binfmt ; $(AS) $(ASFLAGS) $(OUTPATH)/rdm.rdm rdm.as
+
+coff.rdm: $(coff_dep)
+	@echo "coff"
+	cd drivers/soft/binfmt ; $(AS) $(ASFLAGS) $(OUTPATH)/coff.rdm coff.as
+
+
+#--- Common file system --------------------------------------------------------
+
+commonfs.rdm: $(commonfs_dep)
+	@echo "commonfs"
+	cd fs ; $(AS) $(ASFLAGS) $(OUTPATH)/commonfs.rdm commonfs.as
+
+
+#--- File system drivers -------------------------------------------------------
+
+rfs.rdm: $(rfs_dep)
+	@echo "rfs"
+	cd fs/rfs ; $(AS) $(ASFLAGS) $(OUTPATH)/rfs.rdm rfs.as
+
+
+#--- Monitor -------------------------------------------------------------------
+
+monitor.rdm: $(monitor_dep)
+	@echo "monitor"
+	cd monitor ; $(AS) $(ASFLAGS) $(OUTPATH)/monitor.rdm monitor.as
+
+opcodes.rdm: $(opcodes_dep)
+	@echo "monitor (opcodes)"
+	cd monitor ; $(AS) $(ASFLAGS) $(OUTPATH)/opcodes.rdm opcodes.as
+
+operands.rdm: $(operands_dep)
+	@echo "monitor (operands)"
+	cd monitor ; $(AS) $(ASFLAGS) $(OUTPATH)/operands.rdm operands.as
+
+
+#--- Init ----------------------------------------------------------------------
+
+init.rdm: $(init_dep)
+	@echo "init"
+	cd init ; $(AS) $(ASFLAGS) $(OUTPATH)/init.rdm init.as
+
+
+#--- RKDT ----------------------------------------------------------------------
+
+rkdt.rdm: $(rkdt_dep)
+	@echo "RKDT"
+	cd etc/rkdt ; $(AS) $(ASFLAGS) $(OUTPATH)/rkdt.rdm rkdt.as
+
+#=== END OF EXPLICIT RULES =====================================================
+
+else
+dummy:
+	@echo No dependencies. Please run '"gmake dep"'.
+endif
+
+
+#--- Loader --------------------------------------------------------------------
+
+loader.bin: dummy
+	cd loader; gmake
+
+dummy:
+
+#--- Etc -----------------------------------------------------------------------
+
+install:
+	gzip -c main.rdx >$(INSTALLPATH)/sys/kernel.rdz
+	
+dist:
+	cd $(OUTPATH); rm -f *.rdm
+	tar --gzip -cvf radios-0.01.tar.gz *	
+
+
+#--- Generate dependencies file ------------------------------------------------
+
+dep:
+	rm -f radios.dep
+	for file in kernel/*.as	      ; do ndepgen $$file >>radios.dep ; done
+	for file in kernel/mm/*.as    ; do ndepgen $$file >>radios.dep ; done
+	for file in kernel/mt/*.as    ; do ndepgen $$file >>radios.dep ; done
+	for file in kernel/syscall/*.as ; do ndepgen $$file >>radios.dep ; done
+	for file in drivers/hard/*.as ; do ndepgen $$file >>radios.dep ; done
+	for file in drivers/soft/*.as ; do ndepgen $$file >>radios.dep ; done
+	for file in drivers/soft/binfmt/*.as ; do ndepgen $$file >>radios.dep ; done
+	for file in fs/*.as           ; do ndepgen $$file >>radios.dep ; done
+	for file in fs/rfs/*.as       ; do ndepgen $$file >>radios.dep ; done
+	for file in init/*.as         ; do ndepgen $$file >>radios.dep ; done
+	for file in monitor/*.as      ; do ndepgen $$file >>radios.dep ; done
+ifdef DEBUG
+	for file in etc/rkdt/*.as     ; do ndepgen $$file >>radios.dep ; done
+endif
+
+
+#--- Response file -------------------------------------------------------------
+
+radios.rsp: Makefile
+	rm -f radios.rsp
+	@for m in $(TARGET_DEP) ; do echo $$m >>radios.rsp ; done
+
+#--- RadiOS kernel library -----------------------------------------------------
+
+radios.rdl: $(TARGET_DEP)
+	cd $(OUTPATH)
+	$(AR) c radios.rdl
+	$(AR) a radios.rdl kernel.rdm	kernel
+	$(AR) a radios.rdl driver.rdm	kernel.driver
+	$(AR) a radios.rdl kheap.rdm	kernel.kheap
+	$(AR) a radios.rdl module.rdm	kernel.module
+	$(AR) a radios.rdl paging.rdm	kernel.paging
+	$(AR) a radios.rdl memman.rdm	kernel.memman
+	$(AR) a radios.rdl mt.rdm	kernel.mt
+	$(AR) a radios.rdl syscall.rdm	kernel.syscall
+	$(AR) a radios.rdl misc.rdm     kernel.misc
+
+	$(AR) a radios.rdl onboard.rdm	onboard
+	$(AR) a radios.rdl vtx.rdm	vtx
+	$(AR) a radios.rdl keyboard.rdm	keyboard
+	$(AR) a radios.rdl ide.rdm	ide
+	$(AR) a radios.rdl fd.rdm	fd
+	$(AR) a radios.rdl hd.rdm	hd
+	$(AR) a radios.rdl bios32.rdm	bios32
+	$(AR) a radios.rdl vgagr.rdm	vgr
+	$(AR) a radios.rdl sb.rdm	sb
+	$(AR) a radios.rdl ne2k-pci.rdm	ne2k-pci
+
+	$(AR) a radios.rdl console.rdm  console
+	$(AR) a radios.rdl ramdisk.rdm  ramdisk
+	$(AR) a radios.rdl rdm.rdm      rdm
+	$(AR) a radios.rdl coff.rdm     coff
+
+	$(AR) a radios.rdl commonfs.rdm fs
+	$(AR) a radios.rdl rfs.rdm      rfs
+
+	$(AR) a radios.rdl init.rdm     init
+	
+#--- Clean ---------------------------------------------------------------------
+
+clean:
+	cd $(OUTPATH) && rm -f *
+	rm -f radios.dep radios.rsp main.rdx
+	
+#--- Release -------------------------------------------------------------------
+
+release:
+	rm -f etc/header.mk
+	tar --gzip -cf radios-`cat etc/version`.tar.gz * 
+
+#-------------------------------------------------------------------------------

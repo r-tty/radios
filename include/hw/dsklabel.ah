@@ -1,0 +1,55 @@
+;-------------------------------------------------------------------------------
+;  dsklabel.ah - BSD disklabel definitions.
+;-------------------------------------------------------------------------------
+
+%define BSD_DISKMAGIC		82564557h	; The disk magic number 
+%define BSD_MAXPARTITIONS	8
+%define OPENBSD_MAXPARTITIONS	16
+%define BSD_FS_UNUSED		0	; disklabel unused partition entry ID 
+
+%assign	NDDATA	5
+%assign NSPARE	5
+
+struc tBSDpartition 
+.Size		RESD	1		; number of sectors in partition 
+.Ofs		RESD	1		; starting sector 
+.Fsize		RESD	1		; filesystem basic fragment size 
+.FStype		RESB	1		; filesystem type, see below 
+.Frag		RESB	1		; filesystem fragments per block 
+.CPG		RESB	1		; filesystem cylinders per group 
+endstruc 
+
+struc tBSDdisklabel
+.Magic		RESD	1		; the magic number 
+.Type		RESW	1		; drive type 
+.Subtype	RESW	1		; controller/Type specific 
+.TypeName	RESB	16		; type name, e.g. "eagle" 
+.PackName	RESB	16		; pack identifier  
+.SecSize	RESD	1		; # of bytes per sector 
+.Nsectors	RESD	1		; # of data sectors per track 
+.Ntracks	RESD	1		; # of tracks per cylinder 
+.Ncylinders	RESD	1		; # of data cylinders per unit 
+.SecPerCyl	RESD	1		; # of data sectors per cylinder 
+.SecPerUnit	RESD	1		; # of data sectors per unit 
+.SparesPerTrack	RESW	1		; # of spare sectors per track 
+.SparesPerCyl	RESW	1		; # of spare sectors per cylinder 
+.Acylinders	RESD	1		; # of alt. cylinders per unit 
+.RPM		RESW	1		; rotational speed 
+.Interleave	RESW	1		; hardware sector interleave 
+.TrackSkew	RESW	1		; sector 0 skew, per track 
+.CylSkew	RESW	1		; sector 0 skew, per cylinder 
+	
+.HeadSwitch	RESD	1		; head switch time, usec 
+.TrkSeek	RESD	1		; track-to-track seek, usec 
+.Flags		RESD	1		; generic flags 
+.DriveData[]	RESD	NDDATA		; drive-type specific information 
+.Spare[]	RESD	NSPARE		; reserved for future use 
+.Magic2		RESD	1		; the magic number (again) 
+.Checksum	RESW	1		; xor of data incl. partitions 
+
+		; Filesystem and partition information
+.Npartitions	RESW	1		; number of partitions in following 
+.BBsize;	RESD	1		; size of boot area at sn0, bytes 
+.SBsize;	RESD	1		; max size of fs superblock, bytes 
+.Partitions	RESB	BSD_MAXPARTITIONS*tBSDpartition_size	
+endstruc

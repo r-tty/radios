@@ -1,0 +1,20 @@
+;-------------------------------------------------------------------------------
+;  multboot.ah - MultiBoot header definitions.
+;-------------------------------------------------------------------------------
+
+%define	MB_MAGIC	1BADB002h
+
+%define	MB_FL_PGALIGN	1			; Align boot modules on page
+%define	MB_FL_MEMINFO	2			; Must pass memory info to OS
+%define	MB_FL_KLUDGE	10000h			; Kludge present
+
+struc tMultiBootHeader
+.Magic		RESD	1
+.Flags		RESD	1
+.Checksum	RESD	1
+.HeaderAddr	RESD	1
+.LoadAddr	RESD	1
+.LoadEndAddr	RESD	1
+.BSSendAddr	RESD	1
+.Entry		RESD	1
+endstruc

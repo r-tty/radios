@@ -1,0 +1,32 @@
+
+# Cancel all built-in rules
+% : %
+
+# Control variables
+SUFFIXES = .as .rdm .rdx
+
+# Rule to make RDM from NASM source
+%.rdm : %.as
+	@echo Assembling $@
+	@$(AS) $(ASFLAGS) $(OUTPATH)/$@ $<
+	
+# Paths
+RADIOSPATH = @@RADIOSPATH@@
+STDINCLPATH = @@STDINCLPATH@@
+INCLPATH = @@INCLPATH@@
+OUTPATH = @@OBJPATH@@
+INSTALLPATH = @@INSTALLPATH@@
+
+vpath %.ah $(INCLPATH)
+vpath %.rdm $(OUTPATH)
+vpath %.rdl $(OUTPATH)
+vpath %.bin $(OUTPATH)
+
+# Commands
+AS = nasm
+LD = ldrdf
+AR = rdflib
+
+# Command flags
+ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.mac -i$(INCLPATH)/ -s -o
+LDFLAGS = -2 -xe -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx

@@ -1,0 +1,225 @@
+;-------------------------------------------------------------------------------
+; parport.ah - parallel port definitions.
+; Based upon the Linux code by Andrea Arcangeli.
+;-------------------------------------------------------------------------------
+
+; Maximum of 8 ports per machine
+%define PARPORT_MAX  8
+
+; Magic numbers
+%define PARPORT_IRQ_NONE	-1
+%define PARPORT_DMA_NONE	-1
+%define PARPORT_IRQ_AUTO	-2
+%define PARPORT_DMA_AUTO	-2
+%define PARPORT_DISABLE		-2
+%define PARPORT_IRQ_PROBEONLY	-3
+
+%define PARPORT_CTL_STROBE	0x1
+%define PARPORT_CTL_AUTOFD	0x2
+%define PARPORT_CTL_INIT	0x4
+%define PARPORT_CTL_SELECT	0x8
+%define PARPORT_CTL_INTEN	0x10
+%define PARPORT_CTL_DIRECTION	0x20
+
+%define PARPORT_ST_ERROR	0x8
+%define PARPORT_ST_SELECT	0x10
+%define PARPORT_ST_PAPEROUT	0x20
+%define PARPORT_ST_ACK		0x40
+%define PARPORT_ST_BUSY		0x80
+
+; Type classes for Plug-and-Play probe.
+%define	PARPORT_CLASS_LEGACY	0	; Non-IEEE1284 device
+%define	PARPORT_CLASS_PRINTER	1
+%define	PARPORT_CLASS_MODEM	2
+%define	PARPORT_CLASS_NET	3
+%define	PARPORT_CLASS_HDC	4	; Hard disk controller
+%define	PARPORT_CLASS_PCMCIA	5
+%define	PARPORT_CLASS_MEDIA	6	; Multimedia device
+%define	PARPORT_CLASS_FDC	7	; Floppy disk controller
+%define	PARPORT_CLASS_PORTS	8
+%define	PARPORT_CLASS_SCANNER	9
+%define	PARPORT_CLASS_DIGCAM	10
+%define	PARPORT_CLASS_OTHER	11	; Anything else
+%define	PARPORT_CLASS_UNSPEC	12	; No CLS field in ID
+
+; The "modes" entry in parport is a bit field representing the following
+; modes.
+; Note that PARPORT_MODE_PCECPEPP is for the SMC EPP+ECP mode which is NOT
+; 100% compatible with EPP.
+%define PARPORT_MODE_PCSPP	        0x0001
+%define PARPORT_MODE_PCPS2		0x0002
+%define PARPORT_MODE_PCEPP		0x0004
+%define PARPORT_MODE_PCECP		0x0008
+%define PARPORT_MODE_PCECPEPP		0x0010
+%define PARPORT_MODE_PCECR		0x0020	; ECR Register Exists
+%define PARPORT_MODE_PCECPPS2		0x0040
+
+
+; --- Macros ---
+
+; Register definitions
+%macro PP_ECONTROL 1
+	mov	dx,[%1+tPPdevParm.BasePortHi]
+	add	dx,byte 2
+%endmacro
+%macro PP_CONFIGB 1
+	mov	dx,[%1+tPPdevParm.BasePortHi]
+	inc	dx
+%endmacro
+%macro PP_CONFIGA 1
+	mov	dx,[%1+tPPdevParm.BasePortHi]
+%endmacro
+%macro PP_FIFO 1
+	mov	dx,[%1+tPPdevParm.BasePortHi]
+%endmacro
+%macro PP_EPPDATA 1
+	mov	dx,[%1+tPPdevParm.BasePort]
+	add	dx,byte 4
+%endmacro
+%macro PP_EPPADDR 1
+	mov	dx,[%1+tPPdevParm.BasePort]
+	add	dx,byte 3
+%endmacro
+%macro PP_CONTROL 1
+	mov	dx,[%1+tPPdevParm.BasePort]
+	add	dx,byte 2
+%endmacro
+%macro PP_STATUS 1
+	mov	dx,[%1+tPPdevParm.BasePort]
+	inc	dx
+%endmacro
+%macro PP_DATA 1
+	mov dx,[%1+tPPdevParm.BasePort]
+%endmacro
+
+
+; Write to EPP data port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteEPP 1-2
+	PP_EPPDATA %1
+%if %0==2
+	mov	al,%2
+%endif
+	out	dx,al
+%endmacro
+
+; Read from EPP data port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadEPP 1
+	PP_EPPDATA %1
+	in	al,dx
+%endmacro
+
+; Read from CONFIG B port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadConfigB 1
+	PP_CONFIGB %1
+	in	al,dx
+%endmacro
+
+; Write to data port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteData 1-2
+	PP_DATA %1
+%if %0==2
+	mov	al,%2
+%endif
+	out	dx,al
+%endmacro
+
+; Read from data port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadData 1
+	PP_DATA %1
+	in	al,dx
+%endmacro
+
+; Write to control port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteControl 1-2
+	PP_CONTROL %1
+%if %0==2
+	mov	al,%2
+%endif
+	mov	[%1+tPPdevParm.Private+tPPprivate.CTR],al
+	out	dx,al
+%endmacro
+
+; Write a masked value to control port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Mask,
+;		%3 - Value.
+%macro ParPort_WriteMaskControl 2-3
+	PP_CONTROL %1
+%if %0==3
+	mov	ah,%3
+%endif
+	mov	al,[%1+tPPdevParm.Private+tPPprivate.CTR]
+	and	al,~%2
+	xor	al,ah
+	out	dx,al
+%endmacro
+
+; Return stored value of control port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadControl 1
+	mov	al,[%1+tPPdevParm.Private+tPPprivate.CTR]
+%endmacro
+
+; Write to status port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteStatus 1-2
+	PP_STATUS %1
+%if %0==2
+	mov	al,%2
+%endif
+	out	dx,al
+%endmacro
+
+; Read from status port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadStatus 1
+	PP_STATUS %1
+	in	al,dx
+%endmacro
+
+; Write to ECONTROL port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteEControl 1-2
+	PP_ECONTROL %1
+%if %0==2
+	mov	al,%2
+%endif
+	out	dx,al
+%endmacro
+
+; Read from ECONTROL port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadEControl 1
+	PP_ECONTROL %1
+	in	al,dx
+%endmacro
+
+; Write to FIFO port.
+; Parameters:	%1 - PortStructAddr,
+;		%2 - Data.
+%macro ParPort_WriteFIFO 1-2
+	PP_CONFIGA %1
+%if %0==2
+	mov	al,%2
+%endif
+	out	dx,al
+%endmacro
+
+; Read from FIFO port.
+; Parameter:	%1 - PortStructAddr.
+%macro ParPort_ReadFIFO 1
+	PP_CONFIGA %1
+	in	al,dx
+%endmacro
+

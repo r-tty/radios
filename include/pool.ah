@@ -1,0 +1,23 @@
+;-------------------------------------------------------------------------------
+;  pool.ah - definitions for list manipulation routines.
+;-------------------------------------------------------------------------------
+
+; Pool descriptor
+struc tPoolDesc
+.Master		RESD	1		; Address of our master pool
+.ChunkSize	RESD	1		; Chunk size
+.RefCount	RESD	1		; Reference count
+.ChunksTotal	RESD	1		; Total number of chunks
+.ChunksFree	RESD	1		; Number of free chunks
+.FreeHead	RESD	1		; Free chunks list head
+.Next		RESD	1		; List link
+endstruc
+
+; Master pool descriptor (links single page pools together)
+struc tMasterPool
+.Pools		RESD	1		; Pool list
+.Hint		RESD	1		; Hint to avoid list traversal
+.Count		RESD	1		; How many pools we allocated
+.Size		RESD	1		; Chunk size
+.SemLock	RESB	tSemaphore_size	; Serializing semaphore
+endstruc

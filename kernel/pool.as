@@ -1,0 +1,252 @@
+;*******************************************************************************
+;  pool.as - routines for manipulations with the memory "pools".
+;  Based upon the TINOS Operating System (c) 1996-1998 Bart Sekura.
+;  RadiOS porting by Yuri Zaporogets.
+;*******************************************************************************
+
+module kernel.pool
+
+%include "errors.ah"
+%include "sema.ah"
+%include "pool.ah"
+%include "i386/paging.ah"
+
+
+; --- Exports ---
+
+global K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+
+
+; --- Imports ---
+
+library kernel.paging
+extern PG_Alloc:near, PG_Dealloc:near
+
+library kernel.semaphore
+extern K_SemP:near, K_SemV:near
+
+
+; --- Variables ---
+
+section .bss
+
+K_PoolCount	RESD	1
+K_PoolPageCount	RESD	1		; Count total pages used by pools
+
+
+; --- Code ---
+
+section .text
+
+		; K_PoolInit - initialize the master pool.
+		; Input: EBX=address of the master pool,
+		;	 ECX=chunk size.
+		; Output: none.
+proc K_PoolInit
+		xor	eax,eax
+		mov	[ebx+tMasterPool.Pools],eax
+		mov	[ebx+tMasterPool.Hint],eax
+		mov	[ebx+tMasterPool.Count],eax
+		mov	[ebx+tMasterPool.Size],ecx
+		push	ebx
+		lea	ebx,[ebx+tMasterPool.SemLock]
+		mSemInit ebx
+		pop	ebx
+		inc	dword [K_PoolCount]
+		clc
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_PoolNew - allocate a new pool for a given master pool.
+		;	      Actually rips some memory and initializes
+		;	      pool descriptor.
+		; Input: EBX=address of the master pool.
+		; Output: CF=0 - OK, ESI=pool address;
+		;	  CF=1 - error, AX=error code.
+proc K_PoolNew
+		mpush	ecx,edx,esi
+		
+		; See how many chunks will fit into a page.
+		; Take into account pool descriptor at the beginning of a page.
+		mov	eax,PG_SIZE-tPoolDesc_size
+		mov	ecx,[ebx+tMasterPool.Size]
+		xor	edx,edx
+		div	ecx
+		mov	ecx,eax				; ECX=number of chunks
+
+		; Get a page of memory
+		xor	dl,dl				; Physical memory
+		call	PG_Alloc
+		jc	.Done
+		and	eax,PGENTRY_ADDRMASK		; Mask status bits
+		mov	esi,eax				; ESI=address of page
+		
+		inc	dword [K_PoolPageCount]		; Global page counter
+
+		; Initialize pool descriptor
+		mov	[esi+tPoolDesc.Master],ebx
+		mov	dword [esi+tPoolDesc.RefCount],0
+		mov	[esi+tPoolDesc.ChunksTotal],ecx
+		mov	[esi+tPoolDesc.ChunksFree],ecx
+		mov	edx,[ebx+tMasterPool.Size]	; EDX=chunk size
+		mov	[esi+tPoolDesc.ChunkSize],edx
+		lea	eax,[esi+tPoolDesc_size]
+		mov	[esi+tPoolDesc.FreeHead],eax
+		mpush	esi,eax				; Keep page address
+							; and free list head
+		; Update master pool information: list links and count.
+		mov	eax,[ebx+tMasterPool.Pools]
+		mov	[ebx+tMasterPool.Pools],esi
+		inc	dword [ebx+tMasterPool.Count]
+
+		; Initialize free list pointers for every chunk
+		; trailing with null.
+		pop	esi				; ESI=free list head
+		dec	ecx				; ECX=chunks-1
+		jz	.TrailNULL
+.Loop:		lea	ebx,[esi+edx]
+		mov	[esi],ebx
+		add	esi,edx
+		dec	ecx
+		jnz	.Loop
+.TrailNULL:	mov	dword [esi],0
+		pop	esi				; Return address of a
+		xor	eax,eax				; new pool in ESI
+.Done		mpop	esi,edx,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_PoolAllocChunk - allocate single chunk from
+ 		;		     given master pool.
+		; Input: EBX=master pool address.
+		; Output: CF=0 - OK, ESI=chunk address;
+		;	  CF=1 - error, AX=error code.
+proc K_PoolAllocChunk
+		mpush	ebx,edx
+		mov	esi,ebx
+
+		mov	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		call	K_SemP
+
+		; First check if hint is valid. If not, go through pool list
+		; to find one containing some free chunks
+		; If no pools with free space, get a new one.
+		; Always update hint for future use
+		mov	ebx,[esi+tMasterPool.Hint]
+		or	ebx,ebx
+		jz	.FindHint
+		cmp	dword [ebx+tPoolDesc.FreeHead],0
+		jnz	.HintOK
+
+.FindHint:	mov	ebx,[esi+tMasterPool.Pools]
+.FindHintLoop:	or	ebx,ebx
+		jz	.AllocPool
+		cmp	dword [ebx+tPoolDesc.FreeHead],0
+		jne	.GotHint
+		mov	ebx,[ebx+tPoolDesc.Next]
+		jmp	short .FindHintLoop
+.GotHint:	mov	[esi+tMasterPool.Hint],ebx
+		mov	edx,ebx
+		jmp	.HintOK
+
+.AllocPool:	mov	ebx,esi
+		mov	edx,esi				; Save master pool addr
+		call	K_PoolNew
+		jc	.Done
+		xchg	edx,esi
+		mov	[esi+tMasterPool.Hint],edx
+
+		; Get a chunk and maintain pointers
+.HintOK:	mov	ebx,[edx+tPoolDesc.FreeHead]
+		mov	eax,[ebx]
+		mov	[edx+tPoolDesc.FreeHead],eax
+		inc	dword [edx+tPoolDesc.RefCount]
+		dec	dword [edx+tPoolDesc.ChunksFree]
+		mov	edx,ebx
+
+		mov	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+		call	K_SemV
+
+		mov	esi,edx				; Return chunk addr
+		xor	eax,eax				; All OK
+
+.Done		mpop	edx,ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_PoolFreeChunk - free chunk.
+		; Input: ESI=chunk address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc K_PoolFreeChunk
+		mpush	ebx,edx,edi
+		mov	edi,esi
+
+		; Find the start of page, which is our pool descriptor
+		mov	edx,esi		
+		and	edx,PGENTRY_ADDRMASK		; EDX=pooldesc address
+		mov	esi,[edx+tPoolDesc.Master]	; ESI=master pool addr
+
+		mov	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		call	K_SemP
+
+		; Free this chunk
+		mov	eax,[edx+tPoolDesc.FreeHead]
+		mov	[edi],eax
+		mov	[edx+tPoolDesc.FreeHead],edi
+		dec	dword [edx+tPoolDesc.ChunksFree]
+
+		; * Check reference count and free the whole pool if needed *
+		dec	dword [edx+tPoolDesc.RefCount]
+		jnz	.Unlock
+		
+		; If this pool is a hint, update hint
+		; since this one is about to cease to exist
+		cmp	[esi+tMasterPool.Hint],edx
+		jne	.NotHint
+		mov	eax,[edx+tPoolDesc.Next]
+		mov	[esi+tMasterPool.Hint],eax
+		
+		; Find this pool in master pool linked list and unlink it.
+		; First check out the head of the list.
+		; If not sucessful, go through the whole list.
+.NotHint:	cmp	[esi+tMasterPool.Pools],edx
+		jne	.NotHead
+		mov	eax,[edx+tPoolDesc.Next]
+		mov	[esi+tMasterPool.Pools],eax
+		jmp	.FreePage
+		
+.NotHead:	mov	ebx,[esi+tMasterPool.Pools]
+.FindHeadLoop:	or	ebx,ebx
+		jz	.Err
+		cmp	[ebx+tPoolDesc.Next],edx
+		je	.Unlink
+		mov	ebx,[ebx+tPoolDesc.Next]
+		jmp	short .FindHeadLoop
+
+.Unlink:	mov	eax,[edx+tPoolDesc.Next]
+		mov	[ebx+tPoolDesc.Next],eax
+		xor	edi,edi				; No errors
+
+		; Decrease the count and free memory of this pool.
+.FreePage:	dec	dword [esi+tMasterPool.Count]
+		mov	eax,edx
+		call	PG_Dealloc
+		dec	dword [K_PoolPageCount]
+
+.Unlock:	mov	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+		call	K_SemV
+
+		mov	ax,di				; Error code
+		shl	edi,1				; and carry flag
+		
+.Done:		mpop	edi,edx,ebx
+		ret
+
+.Err:		mov	edi,(1<<16)+ERR_KPoolFreeNoHead	; Carry flag + errcode
+		jmp	short .FreePage
+endp		;---------------------------------------------------------------
+

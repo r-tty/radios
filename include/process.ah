@@ -4,28 +4,55 @@
 
 ; Process descriptor structure
 struc tProcDesc
- FHandlesAddr	DD	?			; Address of file handles table
- NumFHandles	DB	?			; Max. number of file handles
- Flags		DB	?
- EnvSize	DW	?			; Address and size of
- EnvAddr	DD	?			; environment
- PageDir	DD	?			; Page directory address
- FirstMCB	DD	?			; First MCB address
- LastMCB	DD	?			; Last MCB address
- Next		DD	?			; NextProcessPID
- CurrDirIndex	DD	?			; Current directory index
- EventHandler	DD	?			; Event handler address
- Seg		DW	?			; Segment (0=kernel)
- Module		DW	?			; Module number
-ends
+.FHandlesAddr	RESD	1			; Address of file handles table
+.NumFHandles	RESB	1			; Max. number of file handles
+.Flags		RESB	1			; Flags
+.EnvSize	RESW	1			; Address and size of
+.EnvAddr	RESD	1			; environment
+.PageDir	RESD	1			; Page directory address
+.FirstMCB	RESD	1			; First MCB address
+.LastMCB	RESD	1			; Last MCB address
+.Next		RESD	1			; NextProcessPID
+.EventHandler	RESD	1			; Event handler address
+.Module		RESW	1			; Module number
+.FSLP		RESB	1			; Current FSLP
+.Reserved	RESB	1
+.CurrDirIndex	RESD	1			; Current directory index
 
-PROCDESCSHIFT	EQU	6
+.FirstThread	RESD	1			; Address of first TCB
+.LastThread	RESD	1			; Address of last TCB
+
+.Reserved2	RESB	56			; Complement to 128 bytes
+endstruc
+
+%define	PROCDESCSHIFT	7			; log2(tProcDesc_size)
+
+; Process descriptor flags
+%define	PDFL_USER	1			; Set = user process
 
 
 ; Process initialization structure
 struc tProcInit
- EnvSize	DW	?			; Environment size
- MaxFHandles	DB	?			; Maximum file handles
- Reserved	DB	?
- EventHandler	DD	?			; Event handler address
-ends
+.EnvSize	RESW	1			; Environment size
+.MaxFHandles	RESB	1			; Maximum file handles
+.Reserved	RESB	1
+.EventHandler	RESD	1			; Event handler address
+endstruc
+
+; Macro converts process descriptor address to PID
+%macro mPDA2PID 1
+%if %0>0
+	mov	eax,%1
+%endif
+	sub	eax,[MT_ProcTblAddr]
+	shr	eax,PROCDESCSHIFT
+%endmacro
+
+; Macro converts PID to process descriptor address (PDA)
+%macro mPID2PDA 1
+%if %0>0
+	mov	eax,%1
+%endif
+	shl	eax,PROCDESCSHIFT
+	add	eax,[MT_ProcTblAddr]
+%endmacro

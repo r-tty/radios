@@ -1,0 +1,35 @@
+
+; Initialization command words for PIC #1
+%define	PIC1_ICW1	11h
+%define	PIC1_ICW3	4
+%define	PIC1_ICW4	5
+
+; Initialization command words for PIC #2
+%define	PIC2_ICW1	11h
+%define	PIC2_ICW3	2
+%define	PIC2_ICW4	1
+
+; Operation command words
+%define	PIC_OCW2_EOI	20h
+%define	PIC_OCW3	0Ah
+
+; IRQ masks for PIC
+%define	PIC_IRQ0	1
+%define	PIC_IRQ1	2
+%define	PIC_IRQ2	4
+%define	PIC_IRQ3	8
+%define	PIC_IRQ4	16
+%define	PIC_IRQ5	32
+%define	PIC_IRQ6	64
+%define	PIC_IRQ7	128
+
+; EOI macro
+%macro mPICACK 1
+	mov	al,PIC_OCW2_EOI
+%if %1==0
+	out	PORT_PIC1_0,al
+%else
+	out	PORT_PIC2_0,al
+	out	PORT_PIC1_0,al
+%endif
+%endmacro

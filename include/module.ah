@@ -4,18 +4,17 @@
 
 ; Kernel module information structure
 struc tKModInfo
- Driver		DD	?				; Module driver ID
- PID		DD	?				; PID
- Index		DD	?				; File index
- Sections	DD	?				; MCB of first section
- StackSize	DD	?				; Stack size
- EntryPoint	DD	?				; Start entry point
- RModExportTbl	DD	?				; !=0 only for kernel
- Type		DB	?				; Module type
- Flags		DB	?				; Misc flags
- Reserved	DW	?				; Reserved
- ModName	DB	16 dup (?)			; Module name
-ends
+.Driver		RESD	1				; Module driver ID
+.PID		RESD	1				; PID
+.Index		RESD	1				; File index
+.Sections	RESD	1				; MCB of first section
+.StackSize	RESD	1				; Stack size
+.EntryPoint	RESD	1				; Start entry point
+.Type		RESB	1				; Module type
+.Flags		RESB	1				; Misc flags
+.Reserved	RESB	6				; Reserved
+.ModName	RESB	16				; Module name
+endstruc
 
-MODTYPE_EXECUTABLE	EQU	0
-MODTYPE_LIBRARY		EQU	1
+%define	MODTYPE_EXECUTABLE	0
+%define MODTYPE_LIBRARY		1

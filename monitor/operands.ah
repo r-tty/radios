@@ -1,0 +1,146 @@
+%define	TAB_ARGPOS	12
+
+%define	REG_EAX 	0
+%define	REG_DX 	2
+
+%define	OM_FSTREG	18
+%define	OM_CRX		17
+%define	OM_DRX		16
+%define	OM_TRX		15
+%define	OM_SUD		13
+%define	OM_PORT		12
+%define	OM_INT		11
+%define	OM_SHIFT	10
+%define	OM_RETURN	9
+%define	OM_SHORTBRANCH  8
+%define	OM_LONGBRANCH	7
+%define	OM_FARBRANCH	6
+%define	OM_ABSOLUTE	5
+%define	OM_IMMEDIATE	4
+%define	OM_REG		3
+%define	OM_SEGMENT	2
+%define	OM_BASED	1
+
+; Generic
+%define	OMF_ADR32 	0
+%define	OMF_OP32 	1
+%define	OMF_BYTE 	2
+%define	OMF_FST		3
+%define	OMF_FSTTAB	4
+%define	OM_FTAB		5
+%define	OMF_BASE	8
+
+; Base & immediate specific
+%define	OMF_SCALED 		OMF_BASE
+%define	OMF_SIGNED_OFFSET	OMF_BASE + 1
+%define	OMF_WORD_OFFSET		(OMF_BASE + 2)
+%define	OMF_OFFSET		((1 << OMF_SIGNED_OFFSET) | (1 << OMF_WORD_OFFSET))
+
+; Shift specific
+%define	OMF_CL		OMF_BASE
+
+; Port specific
+%define	OMF_DX		OMF_BASE
+
+; Immediate specific
+%define	OMF_SIGNED	OMF_BASE
+
+%define	SG_ES		1
+%define	SG_CS		2
+%define	SG_SS		4
+%define	SG_DS		8
+%define	SG_FS		16
+%define	SG_GS		32
+%define	SG_OPSIZ 	64
+%define	SG_ADRSIZ 	128
+%define	SG_REPNZ 	256
+%define	SG_REPZ 	512
+%define	SG_REPNC 	1024
+%define	SG_REPC 	2048
+%define	SG_TWOBYTEOP 	4096
+
+%define	SY_SIGNEDOFS 	1
+%define	SY_WORDOFS 	2
+%define	SY_BYTEOFS 	3
+%define	SY_ABSOLUTE 	4
+%define	SY_SIGNEDIMM 	5
+%define	SY_WORDIMM 	6
+%define	SY_BYTEIMM 	7
+%define	SY_PORT 	8
+%define	SY_INTR 	9
+%define	SY_RETURN 	10
+%define	SY_ABSBRANCH 	11
+%define	SY_LONGBRANCH 	12
+%define	SY_SHORTBRANCH 	13
+%define	SY_SHIFT 	14
+%define	SY_SEGMENT 	15
+
+%define	MOD_NOOFS 	0
+%define	MOD_SIGNED 	1
+%define	MOD_ADDR 	2
+%define	MOD_REG 	3
+
+%define	RM_16_ABSOLUTE	 	6
+%define	RM_32_ABSOLUTE 		5
+%define	RM_32_SCALED 		4
+%define	RM_32_STACKINDEX 	4
+
+%macro MODX 1
+	mov	al,[gs:%1 + 1]
+	shr	al,6
+%endmacro
+
+%macro REG 1
+	mov	al,[gs:%1 + 1]
+	shr	al,3
+	and	al,7
+%endmacro
+
+%macro RM 1
+	mov	al,[gs:%1 + 1]
+	and	al,7
+%endmacro
+
+%macro LONG 1
+	mov	eax,[gs:%1]
+%endmacro
+
+%macro UINT 1
+	movzx	eax,word [gs:%1]
+%endmacro
+
+%macro SIGNEDOFS 1
+	movsx	eax,[gs:%1]
+%endmacro
+
+%macro B01 0
+	and	al,3
+%endmacro
+
+%macro B12 0
+	shr	eax,1
+	and	al,3
+%endmacro
+
+%macro B02 0
+	and	al,7
+%endmacro 
+
+%macro B35 0
+	shr	eax,3
+	and	al,7
+%endmacro
+
+struc tOperand
+.FLAGS		RESW	1
+.OVERRIDE 	RESW	1
+.ADDRESS	RESD	1
+.SEG		RESW	1
+.CODE		RESB	1
+.THEREG		RESB	1
+.SCALEREG 	RESB	1
+.SCALE		RESB	1
+endstruc
+
+%define	SZ_QWORD	2
+%define	SZ_TBYTE	4

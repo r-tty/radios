@@ -1,0 +1,24 @@
+#*******************************************************************************
+#  Makefile for kernel loader (GNU make, Unix)
+#*******************************************************************************
+
+include ../etc/header.mk
+
+CONV = rdf2bin -o 0xBF000 -b 4096 -p 1
+
+
+loader.bin: loader.rdm
+	$(CONV) $(OUTPATH)/loader.rdm $(OUTPATH)/loader.bin
+	
+loader.rdm: loader.as util.as scfg.as mb_info.ah
+	$(AS) $(ASFLAGS) $(OUTPATH)/loader.rdm loader.as
+	
+	
+all-depends: dep
+dep:
+	@echo "deps_generated = TRUE" >.depend
+
+
+all-clean: clean
+clean:
+	cd $(OUTPATH) && rm -f loader.bin loader.rdm

@@ -1,0 +1,26 @@
+;-------------------------------------------------------------------------------
+;  stkframe.ah - stack frame structures.
+;-------------------------------------------------------------------------------
+
+
+; Standard stack frame - this is how stack looks upon
+; entry to kernel from user mode
+struc tStackFrame
+.ESDS		RESD	1		; These we put lastly 
+
+.EDI		RESD	1		; These are our pushl's 
+.ESI		RESD	1
+.EBP		RESD	1 
+.EBX		RESD	1
+.EDX		RESD	1
+.ECX		RESD	1
+.EAX		RESD	1
+
+.Err		RESD	1		; This is either zero or some error code 
+
+.EIP		RESD	1		; This is extra bonus from Intel 
+.ECS		RESD	1
+.EFLAGS		RESD	1
+.ESP		RESD	1
+.ESS		RESD	1
+endstruc

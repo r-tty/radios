@@ -1,7 +1,0 @@
-
-	global code_address:		dword
-	global ReadOverrides:		near
-	global DispatchOperands:	near
-	global FormatDisassembly:	near
-	global TabTo:			near
-	global put2:			near

@@ -1,0 +1,214 @@
+;-------------------------------------------------------------------------------
+;  errdefs.ah - RadiOS errors definitions.
+;-------------------------------------------------------------------------------
+
+; --- Kernel errors ---
+
+; Initialization errors
+%define	ERR_INIT_BadSCT			00E0h
+%define	ERR_INIT_NoBinFmtDrivers	00E1h
+
+; Common errors
+%define	ERR_BadFunNum			0100h
+%define	ERR_UnknEv			0101h
+%define	ERR_NoGlobDesc			0102h
+%define	ERR_InvGlobDesc			0103h
+
+; Misc kernel errors
+%define	ERR_KPoolFreeNoHead		0280h
+
+; Kernel heap errors
+%define	ERR_KH_Empty			0300h
+%define	ERR_KH_Destroyed		0301h
+%define	ERR_KH_BlNotFound		0302h
+%define	ERR_KH_NoHandles		0303h
+
+; Drivers control errors
+%define	ERR_DRV_NoIDs			0320h
+%define	ERR_DRV_BadID			0321h
+%define	ERR_DRV_NotInitialized		0322h
+%define	ERR_DRV_AlreadyInitialized	0333h
+%define	ERR_DRV_NoMinor			0334h
+%define	ERR_DRV_BadMinor		0335h
+%define	ERR_DRV_NotOpened		0336h
+%define	ERR_DRV_AlreadyOpened		0337h
+%define	ERR_DRV_OpenOverflow		0338h
+%define	ERR_DRV_NotCharDev		0339h
+%define	ERR_DRV_NameNotFound		033Ah
+
+; Memory errors
+%define	ERR_MEM_InvBaseSz		0340h
+%define	ERR_MEM_ExtTestErr		0341h
+%define	ERR_MEM_InvCMOSExtMemSz		0342h
+%define	ERR_MEM_EmptyHeap		0343h
+%define	ERR_MEM_NoMCBs			0344h
+%define	ERR_MEM_NoMemory		0345h
+%define	ERR_MEM_BadMCB			0346h
+%define	ERR_MEM_MCBnotFound		0347h
+%define	ERR_MEM_RegionLocked		0348h
+%define	ERR_MEM_BadBlockSize		0349h
+
+%define	ERR_PG_NoFreePage		0358h
+%define	ERR_PG_BadLinearAddr		0359h
+
+; Task manager errors
+%define	ERR_MT_NoPIDs			0360h
+%define	ERR_MT_BadPID			0361h
+%define ERR_MT_NoFreePD			0362h
+%define	ERR_MT_NoFreeTCB		0363h
+%define ERR_MT_CantAllocStack		0364h
+%define ERR_MT_CantAllocKernStk		0365h
+
+; Module errors
+%define	ERR_MOD_TooManyBinFmts		0370h
+%define	ERR_MOD_NotBinFmt		0371h
+%define	ERR_MOD_BinFmtNotFound		0372h
+%define	ERR_MOD_UnknownSignature	0373h
+%define	ERR_MOD_TooManyModules		0374h
+%define	ERR_MOD_BadID			0375h
+
+; File system errors
+%define	ERR_FS_InitTooManyLP		0380h
+%define	ERR_FS_InitTooManyKFH		0381h
+%define	ERR_FS_BadLP			0382h
+%define	ERR_FS_InvFSLPname		0383h
+%define	ERR_FS_NoFSdriver		0384h
+%define	ERR_FS_NoBlockDev		0385h
+%define	ERR_FS_NotLinked		0386h
+%define	ERR_FS_DevLinked		0387h
+
+%define	ERR_FS_FileNotFound		0390h
+%define	ERR_FS_FileExists		0391h
+%define	ERR_FS_DiskFull			0392h
+%define	ERR_FS_CrossDev			0393h
+%define	ERR_FS_InvRWLen			0394h
+%define	ERR_FS_InvFileHandle		0395h
+%define	ERR_FS_NoFreeHandles		0396h
+%define	ERR_FS_BadFHandleTable		0397h
+%define	ERR_FS_FileNotOpened		0398h
+%define	ERR_FS_InvDirName		0399h
+%define	ERR_FS_DirExists		039Ah
+%define	ERR_FS_DirNotEmpty		039Bh
+%define	ERR_FS_NotDirectory		039Ch
+
+
+; Transport Layer Interface (TLI) errors
+%define	ERR_TLI_BadAddr			0421h
+%define	ERR_TLI_BadOpt			0422h
+%define	ERR_TLI_NoAccess		0423h
+%define	ERR_TLI_BadTPD			0424h
+%define	ERR_TLI_NoAddr			0425h
+%define	ERR_TLI_OutOfState		0426h
+%define	ERR_TLI_BadSeq			0427h
+%define	ERR_TLI_Look			0429h
+%define	ERR_TLI_BadData			042Ah
+%define	ERR_TLI_BufOverflow		042Bh
+%define	ERR_TLI_Flow			042Ch
+%define	ERR_TLI_NoData			042Dh
+%define	ERR_TLI_NoDis			042Eh
+%define	ERR_TLI_NoUDerr			042Fh
+%define	ERR_TLI_BadFlag			0430h
+%define	ERR_TLI_NoRel			0431h
+%define	ERR_TLI_NotSupported		0432h
+%define	ERR_TLI_StateChg		0433h
+
+
+; === Internal hardware drivers errors ===
+
+; --- On-board devices ---
+
+; KBC errors
+%define	ERR_KBC_NotRDY			0800h
+
+; Counter/timer and RTC errors
+%define	ERR_TMR_BadCNBR			0820h
+
+; DMA controller errors
+%define	ERR_DMA_BadChNum		0840h
+%define	ERR_DMA_BadAddr			0841h
+%define	ERR_DMA_PageOut			0842h
+%define	ERR_DMA_AddrOdd			0843h
+
+; BIOS32 errors
+%define	ERR_BIOS32_NotFound		0860h
+%define	ERR_BIOS32_BadRevision		0861h
+
+
+; --- External devices ---
+
+; Keyboard errors
+%define	ERR_KB_DetFail			1100h
+
+; Video text device errors
+%define	ERR_VTX_DetFail			1120h
+%define	ERR_VTX_BadVPage		1121h
+%define	ERR_VTX_BadCurPos		1122h
+
+; FDC errors
+%define	ERR_FDC_BadDrNum		1140h
+%define	ERR_FDC_Timeout			1141h
+%define	ERR_FDC_Seek			1142h
+%define	ERR_FDC_Status			1143h
+%define	ERR_FDC_UnexpBytes		1144h
+
+; Common disk routines errors
+%define	ERR_DISK_MediaChgd		1160h
+%define	ERR_DISK_NoMedia		1161h
+%define	ERR_DISK_BadSectorNumber	1168h
+%define	ERR_DISK_BadNumOfSectors	1169h
+
+; DIHD errors
+%define	ERR_HD_InitTooManyDrv		1170h
+%define	ERR_HD_NoDiskOp			1171h
+%define	ERR_HD_NoDescriptors		1172h
+%define	ERR_HD_BadMBRsig		1173h
+
+; IDE errors
+%define	ERR_IDE_InitTooManyDrv		1190h
+%define	ERR_IDE_General			1191h
+%define	ERR_IDE_BadSector		1192h
+%define	ERR_IDE_ResFailed		1193h
+%define	ERR_IDE_BadDriveNum		1194h
+%define	ERR_IDE_BadLBA			1195h
+%define	ERR_IDE_TooManySectors		1196h
+%define	ERR_IDE_NoBlockMode		1197h
+
+; Paraller port driver errors
+%define	ERR_PAR_BadNumOfPorts		11B0h
+
+; Serial port driver errors
+%define	ERR_SER_BadNumOfPorts		11C0h
+%define	ERR_SER_PortNotExist		11C1h
+%define	ERR_SER_InpBufEmpty		11C2h
+%define	ERR_SER_OutBufFull		11C3h
+
+; Audio device errors
+
+
+; === Internal software drivers errors ===
+
+; --- Consoles driver error ---
+%define	ERR_CON_BadConNum		1800h
+
+
+; --- RDM driver errors ---
+%define	ERR_RDM_BadSection		1820h
+%define	ERR_RDM_TooManySections		1821h
+%define	ERR_RDM_StackNotInBSS		1822h
+%define	ERR_RDM_InvLibName		1823h
+%define	ERR_RDM_NoSection		1824h
+%define	ERR_RDM_16bitReloc		1825h
+
+
+; === File system drivers errors ===
+
+; --- RFS ---
+
+%define	ERR_RFS_NoBAMs			1C00h
+%define	ERR_RFS_NoRoot			1C01h
+%define	ERR_RFS_BadFCB			1C02h
+%define	ERR_RFS_NoFCBs			1C03h
+%define	ERR_RFS_Internal		1C04h
+
+; --- MDOSFS ---
+

@@ -2,4 +2,4 @@
 ;  signal.ah - predefined signal codes.
 ;-------------------------------------------------------------------------------
 
-SIG_CTRLALTDEL		EQU	19
+%define	SIG_CTRLALTDEL	19

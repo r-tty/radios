@@ -254,7 +254,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KB_HandleEv
 		cmp	eax,(EV_IRQ << 16)+1
-		jne	.Err
+		jne	near .Err
 		push	eax
 		call	KBC_ReadKBPort
 		mov	byte [?LastKCode],al
@@ -333,7 +333,7 @@ endp		;---------------------------------------------------------------
 		; Output: AX=pressed key code.
 proc KB_ReadKey
 		cmp	dword [?CurrThread],0
-		jz	KB_ReadKeyNoSched
+		jz	near KB_ReadKeyNoSched
 		
 		call	KB_GetKeyNoWait
 		jnz	short .Done
@@ -564,7 +564,7 @@ proc KB_AnalyseKCode
 		jmp	.Exit
 		
 .QChVirtCon:	test	word [?PrsFlags],KB_Prs_LAlt
-		jz	.Exit
+		jz	near .Exit
 		mov	ah,[?CurrVirtCon]
 		cmp	al,KB_EA_Left
 		je	short .DecVirtCon

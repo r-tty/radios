@@ -31,7 +31,7 @@ $(TARGET_LIB): $(OBJS) $(modnamesfile) $(LIB_UPDATE)
 	
 	@cd $(OUTPATH); grep '^[^#]' $(modnamesfile) | awk \
 	         -v AR=$(AR) -v TARGET=$(TARGET_LIB) \
-	          '{ printf("%s r %s %s %s\n", AR, TARGET, $$1, $$2) }' | sh
+	          '{ printf("%s r %s %s %s\n", AR, TARGET, $$2, $$1) }' | sh
 
 $(modnamesfile): $(srcfiles)
 	@echo "# Each line is just a pair of filename and module name" >$(modnamesfile)

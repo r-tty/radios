@@ -497,7 +497,7 @@ proc IDE_GetInitStatStr
 
 		; Check whether the device is initialized
 		call	IDE_Minor2HDN
-		jc	.Exit
+		jc	near .Exit
 		cmp	word [edi+tIDEdev.BasePort],0
 		jne	short .ChkSubMinor
 		stc

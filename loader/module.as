@@ -22,7 +22,7 @@ proc ModPrepare
 		test	dword [ebx+tMBinfo.Flags],MB_INFO_MODS
 		jz	short .Done
 		mov	eax,[ebx+tMBinfo.ModsCount]
-		cmp	eax,MAXMODULES			; No more than 16 mods
+		cmp	eax,MAXMODULES
 		jbe	short .NumModsOK
 		mov	eax,MAXMODULES
 .NumModsOK:	mov	[BootModulesCount],eax

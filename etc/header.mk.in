@@ -29,7 +29,7 @@ AR = rdflib
 
 # Command flags
 ifdef DEBUG
-ASFLAGS = -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
+ASFLAGS = -O1 -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 else
 ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 endif

@@ -4,17 +4,17 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../build/header.mk
 
 # Change variables here
 export TARGET_LIB = kernel.rdl
-OBJS = kernel.rdm module.rdm initmem.rdm pages.rdm \
-       pool.rdm sema.rdm setjmp.rdm time.rdm
+OBJS = kernel.rdm module.rdm rdoff.rdm initmem.rdm pages.rdm \
+       pool.rdm sema.rdm setjmp.rdm time.rdm version.rdm
 modnamesfile = $(OUTPATH)/.kernel-modules
 SUBDIRS = mm mt syscall ipc x86dev
 
 # Make in subdirs
-include ../etc/subdirs.mk
+include ../build/subdirs.mk
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../build/common.mk

@@ -4,7 +4,7 @@
 
 ; --- Loader variables ---
 
-%define	LoaderServiceEntryPoint	700h		; For debugging
+%define	LoaderServiceEntryPoint	700h		; Loader services (print, etc)
 %define	KernelCodeStart		704h		; Kernel code section start
 %define DrvHlpTableAddr		708h		; Driver helpers table
 %define	UserAPIsTableAddr	70Ch		; User APIs table

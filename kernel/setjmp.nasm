@@ -1,5 +1,5 @@
 ;*******************************************************************************
-; setjmp.h - setjmp/longjmp pair.
+; setjmp.nasm - setjmp/longjmp pair.
 ; Copyright (c) 2000 RET & COM Research.
 ; This file is based on VSTa Operating System (c) 1998-2000 Andy Valencia
 ;*******************************************************************************

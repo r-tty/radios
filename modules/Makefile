@@ -4,16 +4,16 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../build/header.mk
 
 # Change variables here
-export TARGET_LIB = softdrivers.rdl
-OBJS = console.rdm ramdisk.rdm
-modnamesfile = $(OUTPATH)/.softdrivers-modules
+export TARGET_LIB = startup.rdl
+OBJS = ramdisk.rdm
+modnamesfile = $(OUTPATH)/.startup-modules
 SUBDIRS = binfmt
 
 # Make in subdirs
-include ../etc/subdirs.mk
+include ../build/subdirs.mk
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../build/common.mk

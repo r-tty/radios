@@ -4,7 +4,7 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../build/header.mk
 
 # Converter to flat binary
 CONV = rdf2bin -o 0x100000 -b 4096 -p 1
@@ -19,7 +19,7 @@ loader.bin: .depend $(OBJS)
 	@$(CONV) $(OUTPATH)/$(OBJS) $(LOADER_BIN)
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../build/common.mk
 
 # Individual dependencies
 all-dep: dep

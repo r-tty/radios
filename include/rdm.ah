@@ -97,8 +97,7 @@ endstruc
 
 
 ; --- Generic record ---
-; It contains the type and length field, plus a 128 byte char array 'data',
-; which will probably never be used!
+
 struc tRDMgeneric
 .Type		RESB	1
 .RecLen		RESB	1

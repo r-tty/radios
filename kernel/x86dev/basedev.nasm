@@ -54,7 +54,7 @@ section .text
 		;	  CF=0 - OK.
 		; Note: destroys [almost] all registers.
 proc CPU_Init
-%define .r_eflags	ebp-4
+		locals r_eflags
 		prologue 4
 		
 		; First, we should have at least 386SX
@@ -72,32 +72,32 @@ proc CPU_Init
 		mov	word [?CPUinfo+tCPUinfo.Family],CPU_386DX
 		mov	ecx,esp			; Store original ESP
 		pushfd				;  and EFLAGS
-		pop	dword [.r_eflags]
+		pop	dword [%$r_eflags]
 		and	esp,~3			; Align stack to prevent 486
 						;  fault when AC is flipped
-		mov	eax,[.r_eflags]
+		mov	eax,[%$r_eflags]
 		xor	eax,FLAG_AC		; Flip AC flag
 		push	eax			; Store it
 		popfd
 		pushfd				; Read it back
 		pop	eax
-		push	dword [.r_eflags]	; Restore EFLAGS
+		push	dword [%$r_eflags]	; Restore EFLAGS
 		popfd
 		mov	esp,ecx			; Restore ESP
-		cmp	eax,[.r_eflags]		; Compare old/new AC bits
+		cmp	eax,[%$r_eflags]	; Compare old/new AC bits
 		je	.OK			; AC doesn't change => 386DX
 
 		; Check for ability to set/clear ID flag (Bit 21) in EFLAGS
 		; which indicates that we can execute CPUID. If not, then
 		; we have an old 486 or 487 processor.
 		mov	word [?CPUinfo+tCPUinfo.Family],CPU_486OLD
-		mov	eax,[.r_eflags]
+		mov	eax,[%$r_eflags]
 		xor	eax,FLAG_ID		; Flip ID bit in EFLAGS
 		push	eax
 		popfd
 		pushfd
 		pop	eax
-		xor	eax,[.r_eflags]		; Compare with original EFLAGS
+		xor	eax,[%$r_eflags]	; Compare with original EFLAGS
 		jz	.OK			; Can't toggle, it's an old 486
 		
 		; Execute CPUID to determine vendor, family, model, stepping

@@ -138,15 +138,6 @@ proc K_ProbeMem
 endp		;---------------------------------------------------------------
 
 
-		; K_GetMemInitStr - get memory initialization status string.
-		; Input: ESI=pointer to buffer for string.
-		; Output: none.
-proc K_GetMemInitStr
-
-		ret
-endp		;---------------------------------------------------------------
-
-
 %ifdef VERBOSE
 
 		; K_DumpBMM - Dump BIOS memory map.

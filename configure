@@ -3,8 +3,8 @@
 # Default paths
 RADIOSPATH=`pwd`
 INCLPATH=$RADIOSPATH/include
-OBJPATH=$RADIOSPATH/etc/obj
-INSTALLPATH=$RADIOSPATH/etc/obj
+OBJPATH=$RADIOSPATH/build/obj
+INSTALLPATH=/boot/RadiOS
 
 # Prompt and read string from the console
 ReadData() {
@@ -35,7 +35,7 @@ awk -v RADIOSPATH=$RADIOSPATH \
 /@@OBJPATH@@/		{ print $1,$2,OBJPATH; next }
 /@@INSTALLPATH@@/	{ print $1,$2,INSTALLPATH; next }
 			{ print $0 }
-' etc/header.mk.in > etc/header.mk
+' build/header.mk.in > build/header.mk
 
 echo
 echo "Configuration file has been generated. Now run 'gmake dep', then 'gmake'."

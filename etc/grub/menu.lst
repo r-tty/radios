@@ -9,4 +9,4 @@ default 0
 title	RadiOS current
 root	(fd0)
 kernel	/radios.rdz
-#module	/modules/syslibs.rdz
+module	/startup.rdl.gz

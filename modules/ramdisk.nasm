@@ -1,69 +1,21 @@
 ;*******************************************************************************
-;  ramdisk.as - RAM disk driver.
-;  (c) 1999 RET & COM Research.
+; ramdisk.nasm - RAM disk driver module
+; Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
 module ramdisk
 
-%define	extcall near
-
 %include "sys.ah"
 %include "errors.ah"
-%include "driver.ah"
-%include "fs/cfs.ah"
-%include "hw/partids.ah"
-
-
-; --- Exports ---
-
-global DrvRD
-
-
-; --- Imports ---
 
 library kernel
-extern DrvId_RD, DrvId_RFS
+extern AllocPhysMem
 
-library kernel.driver
-extern DRV_CallDriver:extcall 
-
-library kernel.misc
-extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern HexD2Str:extcall, DecD2Str:extcall
-
-library kernel.mm
-extern AllocPhysMem:extcall
-
-; --- Data ---
 
 section .data
 
-; RAM-disk driver main structure
-DrvRD		DB	"%ramdisk"
-		TIMES	16-$+DrvRD DB 0
-		DD	DrvRDET
-		DW	DRVFL_Block
-
-; Driver entry points table
-DrvRDET		DD	RD_Init
-		DD	NULL
-		DD	RD_Open
-		DD	RD_Close
-		DD	RD_Read
-		DD	RD_Write
-		DD	NULL
-		DD	DrvRD_Ctrl
-
-; Driver control functions
-DrvRD_Ctrl	DD	RD_GetInitStatStr
-		DD	RD_GetParameters
-		DD	RD_Cleanup
-
-; Init status string piece
 RDmsg		DB	" KB at ",0
 
-
-; --- Variables ---
 
 section .bss
 
@@ -79,8 +31,7 @@ section .bss
 section .text
 
 		; RD_Init - initialize RAM-disk.
-		; Input: ECX=size of RAM-disk (in KB),
-		;	 ESI=pointer to buffer for init status string.
+		; Input: ECX=size of RAM-disk (in KB).
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
 proc RD_Init
@@ -97,7 +48,6 @@ proc RD_Init
 		mov	[?RDnumSectors],eax
 
 		call	RD_Cleanup		; Clean disk space
-		call	RD_GetInitStatStr	; Get init status string
 		mov	byte [?RDinitialized],1	; Mark driver as initialized
 		clc
 		
@@ -117,7 +67,7 @@ proc RD_Open
 		inc	byte [?RDopenCount]
 		ret
 
-.Err:		mov	ax,ERR_DRV_AlreadyOpened
+.Err:		mov	ax,-1
 		stc
 		ret
 endp		;---------------------------------------------------------------
@@ -134,7 +84,7 @@ proc RD_Close
 		dec	byte [?RDopenCount]
 		ret
 
-.Err:		mov	ax,ERR_DRV_NotOpened
+.Err:		mov	ax,-1
 		stc
 		ret
 endp		;---------------------------------------------------------------
@@ -165,9 +115,9 @@ proc RD_Read
 		clc
 		jmp	short .Exit
 
-.Err1:		mov	ax,ERR_DISK_BadSectorNumber
+.Err1:		mov	ax,-1
 		jmp	short .Error
-.Err2:		mov	ax,ERR_DISK_BadNumOfSectors
+.Err2:		mov	ax,-1
 .Error:		stc
 .Exit:		mpop	edi,esi,ecx
 		ret
@@ -198,81 +148,11 @@ proc RD_Write
 		clc
 		jmp	short .Exit
 
-.Err1:		mov	ax,ERR_DISK_BadSectorNumber
+.Err1:		mov	ax,-1
 		jmp	short .Error
-.Err2:		mov	ax,ERR_DISK_BadNumOfSectors
+.Err2:		mov	ax,-1
 .Error:		stc
 .Exit:		mpop	edi,esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; RD_GetInitStatStr - get initialization status string.
-		; Input: ESI=buffer address.
-		; Output: none.
-proc RD_GetInitStatStr
-		mpush	eax,esi,edi
-		mov	edi,esi
-		mov	esi,DrvRD		; Copy "%ramdisk"
-		call	StrCopy
-		call	StrEnd
-		mov	eax,203A0920h		; Tabs and ':'
-		stosd
-		mov	eax,[?RDnumSectors]
-		shr	eax,1
-		xchg	esi,edi
-		call	DecD2Str
-		xchg	esi,edi
-		mov	esi,RDmsg
-		call	StrAppend
-		call	StrEnd
-		mov	esi,edi
-		mov	eax,[?RDstart]
-		call	HexD2Str
-		mov	dword [esi],0A68h	; 'h' and NL
-		mpop	edi,esi,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; RD_GetParameters - get device parameters.
-		; Input: none.
-		; Output: CF=0 - OK:
-		;		    ECX=total number of sectors on disk,
-		;		    AL=file system type or 0, if disk is empty.
-		;	  CF=1 - error, AX=error code.
-proc RD_GetParameters
-		cmp	byte [?RDinitialized],0
-		je	short .Err
-		mov	ecx,[?RDnumSectors]
-
-		push	edx				; Look of file system
-		mov	edx,[DrvId_RD]			; Get RAM-disk driver ID
-		or	edx,edx
-		stc
-		jz	short .Exit
-
-		mov	eax,[DrvId_RFS]			; RFS driver installed?
-		or	eax,eax
-		jz	short .LookMDOS
-		mCallDriverCtrl eax,FSF_LookFSonDev	; Look for RFS
-		jc	short .LookMDOS
-		mov	al,FS_ID_RFSNATIVE		; RFS found
-		jmp	short .OK
-
-.LookMDOS:	;mov	eax,[DrvId_MDOSFS]		; MDOSFS driver installed?
-;		or	eax,eax
-;		jz	short .OK
-;		mCallDriverCtrl eax,FSF_LookFSysOnDev	; Look of MDOSFS
-;		jmp	short .OK
-
-		xor	al,al
-.OK:		clc
-.Exit:		pop	edx
-		ret
-
-.Err:		mov	ax,ERR_DRV_NotInitialized
-		stc
 		ret
 endp		;---------------------------------------------------------------
 

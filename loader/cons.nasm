@@ -2,13 +2,18 @@
 ; cons.nasm - basic console I/O functions.
 ;-------------------------------------------------------------------------------
 
-%include "errors.ah"
 %include "asciictl.ah"
 %include "biosdata.ah"
 %include "hw/ports.ah"
 %include "hw/vga.ah"
 %include "hw/8042.ah"
 %include "hw/keydefs.ah"
+
+; --- Error codes ---
+%define	ERR_VTX_DetFail		1
+%define	ERR_VTX_BadVPage	2
+%define	ERR_VTX_BadCurPos	3
+
 
 ; --- Data ---
 
@@ -50,6 +55,7 @@ FunctionTable	DD	PrintCharRawTTY		; 0
 
 ?VideoMem	RESD	1		; Video memory base address
 ?KeybFlags	RESD	1		; Keyboard flags, like Shift-press, etc
+
 
 ; --- Code ---
 

@@ -2,7 +2,7 @@
 #  Makefile - RadiOS makefile (GNU make, Unix)
 #*******************************************************************************
 
-include etc/header.mk
+include build/header.mk
 
 # Some boolean definitions
 export DEBUG = 1
@@ -14,16 +14,16 @@ ifdef DEBUG
 endif
 
 # Kernel objects and libraries
-TARGET_DEP = syscall.rdm version.rdm init.rdm kernel.rdl
+TARGET_DEP = syscall.rdm init.rdm kernel.rdl
 ifdef DEBUG
     TARGET_DEP += monitor.rdl
 endif
 
 # Boot-time modules
-BOOTMODULES = devices.rdl syslibs.rdl
+BOOTMODULES = startup.rdl
 
 # Kernel file name
-KERNEL_RDX = main.rdx
+KERNEL_RDX = rmk386.rdx
 
 # Dependency file
 depfile = .depend
@@ -39,13 +39,16 @@ all: $(depfile) $(KERNEL_RDX)
 
 ifdef deps_generated
 
-$(KERNEL_RDX): subdirs $(response_file) version.rdm
-	@echo "Linking kernel..."
-	@$(LD) $(LDFLAGS) -@ $(response_file)
-	@echo -n "Building multiboot kernel..."
+$(KERNEL_RDX): subdirs $(response_file) mb_tramp.bin
+	@echo -n "Linking kernel..."
+	@$(LD) $(LDFLAGS) -o $(KERNEL_RDX) -g $(OUTPATH)/mb_tramp.bin -@ $(response_file)
 	@cat $(OUTPATH)/loader.bin >>$(KERNEL_RDX)
-	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/radios.rdz
 	@echo "done."
+
+modules: $(BOOTMODULES)
+
+$(BOOTMODULES):
+	@$(MAKE) -C modules
 
 .PHONY: subdirs $(SUBDIRS)
 
@@ -53,26 +56,31 @@ subdirs: $(SUBDIRS)
 
 $(SUBDIRS):
 	@$(MAKE) -C $@
+	
 
 endif
 
 
 
-#--- Boot-time modules ---------------------------------------------------------
+#--- Install kernel and modules -------------------------------------------------
 
-modules-install: $(BOOTMODULES)
+install: $(KERNEL_RDX)
+	@echo "Installing kernel..."
+	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/radios.rdz
+
+modules_install: $(BOOTMODULES)
 	@echo -n "Installing modules: "
 	@for m in $(BOOTMODULES) ; do \
-		gzip -c $(OUTPATH)/$$m >$(INSTALLPATH)/sys/$$m.gz ; \
-		echo $$m " " ; \
+		gzip -c $(OUTPATH)/$$m >$(INSTALLPATH)/$$m.gz ; \
+		echo -n $$m " " ; \
 	 done
+	@echo
 
 #--- Individual dependencies ---------------------------------------------------
 
-version.rdm: kernel/version.nasm
+mb_tramp.bin: etc/mb_tramp.nasm
 	@echo "Assembling $<"
-	@$(AS) $(ASFLAGS) $(OUTPATH)/version.rdm kernel/version.nasm
-	
+	@nasm -f bin $(ASFLAGS) $(OUTPATH)/mb_tramp.bin etc/mb_tramp.nasm
 
 #--- Recursive depends ---------------------------------------------------------
 
@@ -80,6 +88,7 @@ dep:
 	@echo "deps_generated = TRUE" >$(depfile)
 	@$(GENDEPS) kernel/version.nasm >>$(depfile)
 	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-dep ; done
+	@$(MAKE) -C modules all-dep
 
 	
 #--- Response file -------------------------------------------------------------
@@ -93,11 +102,12 @@ $(response_file): Makefile
 .PHONY: clean distclean release
 clean:
 	@rm -f $(KERNEL_RDX)
-	@cd $(OUTPATH) && rm -f *.rdm *.rdl *.rdz
+	@cd $(OUTPATH) && rm -f *.rdm *.rdl *.bin
 
 distclean: clean
 	@rm -f $(response_file) $(depfile)
 	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-clean ; done
+	@$(MAKE) -C modules all-clean
 
 #--- Release -------------------------------------------------------------------
 

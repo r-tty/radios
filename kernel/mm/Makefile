@@ -4,11 +4,11 @@
 ################################################################################
 
 # Standard header
-include ../../etc/header.mk
+include ../../build/header.mk
 
 # Change variables here
 OBJS = memman.rdm mm_debug.rdm
 modnamesfile = $(OUTPATH)/.memman-modules
 
 # This part shouldn't be changed
-include ../../etc/common.mk
+include ../../build/common.mk

@@ -1,8 +1,0 @@
-
-FreeXTI project - a highly modular networking stack based on the x-kernel.
-
-Key features:
- - Object-based Protocol Framework (OPF)
- - Interface specification based on the IDL
- - XTI-compatible user API
- - IP, OSI and Amateur Radio protocol modules

@@ -1,8 +1,8 @@
 ;*******************************************************************************
-;  elf.as - ELF (Linux) Modules driver.
-;  Copyright (c) 2000 RET & COM Research.
+;  elf.nasm - ELF32 binary format support.
+;  Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
 module binfmt.elf
 
-%include "elf.h"
+%include "sys.ah"

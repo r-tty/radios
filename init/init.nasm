@@ -50,7 +50,7 @@ extern MT_Init, MT_InitKernelProc
 extern MT_CreateThread, MT_ThreadExec
 
 library kernel.module
-extern MOD_InitMem, MOD_InitKernelMod, MOD_Insert
+extern MOD_InitMem, MOD_RegisterFormat, MOD_InitKernelMod, MOD_Insert
 
 library kernel.x86.basedev
 extern PIC_Init, PIC_SetIRQmask, PIC_EnbIRQ
@@ -58,6 +58,9 @@ extern TMR_InitCounter, TMR_CountCPUspeed
 extern KBC_A20Control, KBC_HardReset
 extern CMOS_EnableInt
 extern ?CPUinfo, ?CPUspeed
+
+library kernel.rdoff
+extern BinFmtRDOFF
 
 %ifdef DEBUG
 library monitor
@@ -94,6 +97,17 @@ section .text
 
 ; --- Initialization procedures ---
 
+		; INIT_BinaryFormats - initialize all binary formats
+		; Input: none.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc INIT_BinaryFormats
+		mov	edx,BinFmtRDOFF
+		call	MOD_RegisterFormat
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; INIT_BootModules - initialize boot-time modules.
 		; Input: none:
 		; Output: CF=0 - OK;
@@ -101,10 +115,20 @@ section .text
 proc INIT_BootModules
 		mov	ecx,[BootModulesCount]
 		jecxz	.Exit
+	%ifdef VERBOSE
+		mServPrintStr MsgInitBootMods
+	%endif
 		mov	edi,[BootModulesListAddr]
 		xor	esi,esi
 .Loop:		mov	ebx,[edi+tModList.Start]
+		mov	edx,[edi+tModList.End]
+		mov	esi,[edi+tModList.CmdLine]
+		push	edi
 		call	MOD_Insert
+		jc	.1
+	%ifdef VERBOSE
+	%endif
+.1:		pop	edi
 		add	edi,byte tModList_size
 		loop	.Loop
 .Exit:		ret
@@ -250,13 +274,16 @@ proc Start
 		; Initialize kernel module
 		call	MOD_InitKernelMod
 		jc	near .Monitor
+		
+		; Initialize binary formats
+		call	INIT_BinaryFormats
+		jc	near .Monitor
 
 		; Initialize memory management
 		call	MM_Init
 		jc	near FatalError
-		
+
 		; Initialize boot-time modules
-		mServPrintStr MsgInitBootMods
 		call	INIT_BootModules
 		jc	near FatalError
 

@@ -2,17 +2,18 @@
 ; sugar.ah - various useful macros, mostly TASM-like
 ;-------------------------------------------------------------------------------
 
-;*** proc/endproc pair ***
+;*** Start a procedure ***
 %macro proc 1
 %push proc
 %1:
 %endmacro
 
+;*** End a procedure. Only checks context stack ***
 %macro endp 0
 %ifnctx proc
-%error Mismatched ENDP
+    %error Mismatched ENDP
 %else
-%pop
+   %pop
 %endif
 %endmacro
 
@@ -41,18 +42,20 @@
 %endmacro
 
 ;*** C-like prologue and epilogue ***
-%macro prologue 0-1
+%macro prologue 0-1 
 %push enter
 		push	ebp
 		mov	ebp,esp
-%if %0 != 0
-%if %1 > 0
-%if %1 < 128
-		sub	esp, byte %1
-%else
+%if %0 == 0
+  %ifnum %$lc
+		sub	esp,byte %$lc
+  %endif
+%elif %1 > 0
+  %if %1 < 128
+		sub	esp,byte %1
+  %else
 		sub	esp,%1
-%endif
-%endif
+  %endif
 %endif
 %endmacro
 
@@ -66,18 +69,43 @@
 		pop	ebp
 %endmacro
 
-; For declaring many GLOBAL procedures at the same time
+; *** For declaring many GLOBAL procedures at the same time ***
 %macro publicproc 1-*
 %rep %0
-[GLOBAL %1 %+ :proc]
-%rotate 1
+    [GLOBAL %1 %+ :proc]
+    %rotate 1
 %endrep
 %endmacro
 
-; For declaring many GLOBAL data at the same time
+; *** For declaring many GLOBAL data at the same time ***
 %macro publicdata 1-*
 %rep %0
 [GLOBAL %1 %+ :data]
 %rotate 1
 %endrep
+%endmacro
+
+; *** This macro simplifies using automatic 4-byte variables ***
+%macro locals 1-*
+%ifndef %$lc
+    %assign %$lc 0
+%endif
+%rep %0
+    %assign %$lc %$lc+4
+    %xdefine %$%1 ebp-%$lc
+    %rotate 1
+%endrep
+%endmacro
+
+; *** For declaring structure instances, nicer than AT ***
+%macro instance 1
+    istruc %1
+    %define field(x,y) AT %1. %+ x, y
+    %define member(x) AT %1. %+ x, DD x
+%endmacro
+
+; *** For declaring strings together with their sizes ***
+%macro string 2
+%1	DB	%2
+%1_size	EQU	$-%1
 %endmacro

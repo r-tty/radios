@@ -2,23 +2,53 @@
 ;  module.ah - common module definitions.
 ;-------------------------------------------------------------------------------
 
-%define MODNAMEMAXLEN 14
+%define MODNAMEMAXLEN 38
 
-; Kernel module information structure
-struc tKModInfo
-.Driver		RESD	1				; Module driver ID
-.PCB		RESD	1				; Process Control Block
-.Inode		RESD	1				; Inode
-.Sections	RESD	1				; MCB of first section
-.StackSize	RESD	1				; Stack size
-.EntryPoint	RESD	1				; Start entry point
-.Type		RESB	1				; Module type
-.Flags		RESB	1				; Misc flags
+; This optional header may be present in the module file. It gives the
+; kernel information about module type, CPU type, required OS version etc.
+struc tGenericModHdr
+.Signature	RESD	1		; Signature
+.ModVersion	RESD	1		; Module version
+.ModType	RESW	1		; Module type
+.Flags		RESW	1		; Flags
+.OStype		RESW	1		; Target OS type
+.OSversion	RESW	1		; Target OS version
+.ArgBuf		RESB	112		; Buffer for command line arguments
+endstruc
+
+%define RBM_SIGNATURE	004D4252h
+
+; In-kernel module descriptor
+struc tModuleDesc
+.ModName	RESB	MODNAMEMAXLEN
+.Type		RESB	1			; Module type
+.Flags		RESB	1			; Misc flags
+.BinFmt		RESD	1			; BinFmt dispatch table addr.
+.Sections	RESD	1			; MCB of first section
+.StackSize	RESD	1			; Stack size
+.EntryPoint	RESD	1			; Start entry point
 .Next		RESD	1
 .Prev		RESD	1
-.ModName	RESB	MODNAMEMAXLEN
 endstruc
 
 %define	MODTYPE_EXECUTABLE	0
 %define MODTYPE_LIBRARY		1
 %define MODTYPE_DRIVER		2
+
+; Functions exported by binary formats
+struc tBinFmtFunctions
+.Init		RESD	1
+.Shutdown	RESD	1
+.CheckSig	RESD	1
+.GetModSize	RESD	1
+.Relocate	RESD	1
+.GetArchMember	RESD	1
+endstruc
+
+; The macro for calling these functions safely
+%macro callsafe 1
+	cmp	%1,0
+	je	%%NoCall
+	call	%1
+%%NoCall:
+%endmacro

@@ -14,10 +14,10 @@ module kernel.module
 
 ; --- Exports ---
 
-global MOD_InitMem, MOD_InitKernelMod
-global MOD_RegisterFormat, MOD_UnregisterFormat
-global MOD_Insert, MOD_Remove
-global MOD_GetType, MOD_GetIDbyName
+publicproc MOD_InitMem, MOD_InitKernelMod
+publicproc MOD_RegisterFormat, MOD_UnregisterFormat
+publicproc MOD_Insert, MOD_Remove
+publicproc MOD_GetType, MOD_GetIDbyName
 
 
 ; --- Imports ---
@@ -47,7 +47,7 @@ section .bss
 ?ModulePool	RESB	tMasterPool_size	; Modules master pool
 ?ModListHead	RESD	1			; Head of module list
 
-?BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
+?BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt entries
 
 
 ; --- Procedures ---
@@ -61,7 +61,7 @@ section .text
 proc MOD_InitMem
 		mov	[?MaxModules],eax
 		mov	ebx,?ModulePool
-		mov	ecx,tKModInfo_size
+		mov	ecx,tModuleDesc_size
 		xor	edx,edx
 		call	K_PoolInit
 		ret
@@ -77,13 +77,11 @@ proc MOD_InitKernelMod
 		mov	ebx,?ModulePool
 		call	K_PoolAllocChunk
 		jc	short .Exit
-		mov	dword [esi+tKModInfo.Driver],0
-		mov	dword [esi+tKModInfo.PCB],0
 		mov	eax,100000h
-		mov	[esi+tKModInfo.Sections],eax
-		mov	dword [esi+tKModInfo.StackSize],8000h
-		mov	byte [esi+tKModInfo.Type],MODTYPE_LIBRARY
-		lea	edi,[esi+tKModInfo.ModName]
+		mov	[esi+tModuleDesc.Sections],eax
+		mov	dword [esi+tModuleDesc.StackSize],8000h
+		mov	byte [esi+tModuleDesc.Type],MODTYPE_LIBRARY
+		lea	edi,[esi+tModuleDesc.ModName]
 		cld
 		mStrcpy KernelModName,,MODNAMEMAXLEN
 .Exit:		mpop	edi,esi
@@ -92,56 +90,44 @@ endp		;---------------------------------------------------------------
 
 
 		; MOD_RegisterFormat - register binary format driver.
-		; Input: EAX=module driver ID.
+		; Input: EDX=address of tBinFmtFunctions table.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_RegisterFormat
 		mpush	ecx,edi
-;		xor	ecx,ecx
-;		mov	cl,MOD_MAXBINFORMATS
-;		mov	edi,?BinFmtDrivers
-;		cld
-;		push	eax
-;		xor	eax,eax
-;		repne	scasd
-;		pop	eax
-;		jnz	short .Err1
-;		mov	ecx,eax
-;		call	DRV_GetFlags			; Check BINFMT flag
-;		jc	short .Exit
-;		test	ax,DRVFL_BinFmt
-;		jz	short .Err2
-;		mCallDriver ecx, byte DRVF_Init		; Initialize driver
-;		jc	short .Exit
-;		mov	[edi-4],ecx
-;		clc
+		mov	ecx,MOD_MAXBINFORMATS
+		mov	edi,?BinFmtDrivers
+		cld
+		xor	eax,eax				; Find a free slot
+		repne	scasd
+		jnz	short .Err
+		callsafe dword [edx+tBinFmtFunctions.Init] ; Initialize BinFmt
+
+		mov	[edi-4],edx
 .Exit:		mpop	edi,ecx
 		ret
 
-.Err1:		mov	ax,ERR_MOD_TooManyBinFmts
-		stc
-		jmp	.Exit
-.Err2:		mov	ax,ERR_MOD_NotBinFmt
+.Err:		mov	ax,ERR_MOD_TooManyBinFmts
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; MOD_UnregisterFormat - unregister binary format driver.
-		; Input: EAX=driver ID.
+		; Input: EDX=address of tBinFmtFunctions table.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_UnregisterFormat
 		mpush	ecx,edi
-;		xor	ecx,ecx
-;		mov	cl,MOD_MAXBINFORMATS
-;		mov	edi,?BinFmtDrivers
-;		cld
-;		repne	scasd
-;		jnz	short .Err
-;		mCallDriver dword [edi-4], byte DRVF_Done
-;		mov	dword [edi-4],0
-;		clc
+		mov	eax,edx
+		mov	ecx,MOD_MAXBINFORMATS
+		mov	edi,?BinFmtDrivers
+		cld
+		repne	scasd
+		jnz	short .Err
+		callsafe dword [edx+tBinFmtFunctions.Shutdown]
+		jc	.Exit
+		mov	dword [edi-4],0
 .Exit:		mpop	edi,ecx
 		ret
 
@@ -151,54 +137,63 @@ proc MOD_UnregisterFormat
 endp		;---------------------------------------------------------------
 
 
-		; MOD_Insert - register and link a module.
-		; Input: EBX=module image address;
-		;	 ESI=PCB address.
-		; Output: CF=0 - OK, EAX=module ID;
+		; MOD_Insert - insert a module.
+		; Input: EBX=module image start address,
+		;	 EDX=module image end address,
+		;	 ESI=module command line.
+		; Output: CF=0 - OK, EDI=module descriptor address;
 		;	  CF=1 - error, AX=error code.
 proc MOD_Insert
-	ret
-	int3
-;		mpush	ebx,edx,edi
-;
-;		call	MOD_CheckSignature
-;		jc	short .Exit
-;
-;		mov	ebx,?ModulePool
-;		call	K_PoolAllocChunk
-;		jc	short .Exit
-;		mov	edi,esi
-;
-;		mCallDriver edx, byte DRVF_Open			; Load module
-;		jc	short .Exit
-;.Resolve:	mCallDriverCtrl edx,DRVCTL_BINFMT_ResolveLinks
-;		jc	short .Exit
-;		mov	[edi+tKModInfo.Driver],edx		; Save driver ID
-;		;mov	[edi+tKModInfo.PCB],esi
-;
-;.Exit:		mpop	edi,edx,ebx
-;		ret
+		locals	imgstart,imgend,cmdline
+		prologue
+		mpush	ebx,ecx,edx
+		
+		mov	[%$imgstart],ebx
+		mov	[%$imgend],ebx
+		mov	[%$cmdline],esi
+		call	MOD_CheckSignature
+		jc	.Exit
+		or	al,al					; Single module?
+		jz	.Single
+
+		; Otherwise, it should be an archive. EBX now addresses a
+		; header of the first member.
+		callsafe dword [edx+tBinFmtFunctions.GetArchMember]
+		jc	.Exit
+		callsafe dword [edx+tBinFmtFunctions.GetModSize]
+		jc	.Exit
+		
+.Single:	mov	ebx,?ModulePool
+		call	K_PoolAllocChunk
+		jc	short .Exit
+		mov	edi,esi
+
+		mov	[edi+tModuleDesc.BinFmt],edx		; Binary format 
+
+.Exit:		mpop	edx,ecx,ebx
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; MOD_Remove - unregister a module.
-		; Input: EDI=module information structure address.
+		; Input: EDI=module descriptor address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_Remove
-;		mpush	edx,esi
-;		mov	edx,[edi+tKModInfo.Driver]
-;		mCallDriver edx, byte DRVF_Close		; Unload module
-;		jc	short .Exit				; and free its
-;		mov	esi,edi					; structure
-;		call	K_PoolFreeChunk
-;.Exit:		mpop	esi,edx
-;		ret
+		mpush	ebx,edx,esi
+		mov	edx,[edi+tModuleDesc.BinFmt]
+		;callsafe dword [edx+tBinFmtFunctions.FreeSections]	; Unload module
+		jc	.Exit					; and free its
+		mov	esi,edi					; structure
+		call	K_PoolFreeChunk
+.Exit:		mpop	esi,edx,ebx
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; MOD_GetType - get module type.
-		; Input: EAX=module ID.
+		; Input: EDI=module descriptor address.
 		; Output: CF=0 - OK, EDX=module type;
 		;	  CF=1 - error, AX=error code.
 proc MOD_GetType
@@ -206,9 +201,9 @@ proc MOD_GetType
 endp		;---------------------------------------------------------------
 
 
-		; MOD_GetIDbyName - get module ID by name.
+		; MOD_GetIDbyName - get module descriptor address by name.
 		; Input: ESI=module name.
-		; Output: CF=0 - OK, EAX=module ID;
+		; Output: CF=0 - OK, EDI=module descriptor address.
 		;	  CF=1 - error, AX=error code.
 proc MOD_GetIDbyName
 		ret
@@ -219,28 +214,26 @@ endp		;---------------------------------------------------------------
 
 
 		; MOD_CheckSignature - determine module format by its signature.
-		; Input: EAX=PID,
-		;	 ESI=pointer to file name.
+		; Input: EBX=module image address.
 		; Output: CF=0 - OK:
-		;		    EBX=opened file handle,
-		;		    EDX=module driver ID;
+		;		    AL=1 - this is an archive;
+		;		    AL=0 - this is a single module;
+		;		    EDX=address of binary format dispatch table;
 		;	  CF=1 - error, AX=error code.
-		; Note: closes file if signature is not detected.
 proc MOD_CheckSignature
 		push	ecx
-		xor	dx,dx					; Open file
-	;	call	CFS_Open		;XXX
-		jc	short .Exit
-
 		xor	ecx,ecx
+		
 .Loop:		mov	edx,[?BinFmtDrivers+ecx*4]
 		or	edx,edx
 		jz	short .Next
-;		mCallDriverCtrl edx,DRVCTL_BINFMT_CheckSignature
-		jnc	short .OK
+		
+		callsafe dword [edx+tBinFmtFunctions.CheckSig]
+		or	al,al
+		jge	short .OK
 .Next:		inc	cl
 		cmp	cl,MOD_MAXBINFORMATS
-		je	short .Err1
+		je	short .Err
 		mov	eax,edi
 		jmp	.Loop
 
@@ -248,24 +241,8 @@ proc MOD_CheckSignature
 .Exit:		pop	ecx
 		ret
 
-.Err1:	;	call	CFS_Close	;XXX			; Close file
-		jc	.Exit
-		mov	ax,ERR_MOD_UnknownSignature
+.Err:		mov	ax,ERR_MOD_UnknownSignature
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
-
-		; MOD_ResolveForEach - resolve undefined links in all modules.
-		; Input: none.
-		; Output: none.
-proc MOD_ResolveForEach
-;		push	edi
-;		mov	edi,[?ModListHead]
-;.Loop:		mCallDriverCtrl dword [edi+tKModInfo.Driver],DRVCTL_BINFMT_ResolveULinks
-;		mov	edi,[edi+tKModInfo.Next]
-;		cmp	edi,[?ModListHead]
-;		jne	short .Loop
-;.Exit:		pop	edi
-;		ret
-endp		;---------------------------------------------------------------

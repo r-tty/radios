@@ -4,7 +4,7 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../build/header.mk
 
 # Change variables here
 TARGET_LIB=NONE
@@ -12,7 +12,7 @@ OBJS = init.rdm
 modnamesfile = $(OUTPATH)/.init-modules
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../build/common.mk
 
 # Individual dependencies
 all-dep: dep

@@ -561,11 +561,8 @@ proc ServiceEntry
 		mov	eax,[FunctionTable+eax*4]
 		xchg	eax,[esp]
 		ret					; Call routine
-.Done:		xchg	eax,[ebp+4]			; Return address
-		mov	[ebp+8],eax
-		leave
-		pop	eax
-		ret
+.Done:		leave
+		ret	4
 endp		;---------------------------------------------------------------
 
 

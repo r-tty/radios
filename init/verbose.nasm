@@ -4,9 +4,6 @@
 
 section .data
 
-CPUinitMsg	DB	"CPU init: ",0
-FPUinitMsg	DB	"FPU init: ",0
-
 Msg_CPU386	DB	"i80386 compatible",0
 Msg_CPU486	DB	"i486 compatible",0
 Msg_CPUPENT	DB	"Intel Pentium",0

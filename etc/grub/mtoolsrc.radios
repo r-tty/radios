@@ -1,0 +1,6 @@
+#
+# mtools configuration file to store RadiOS kernel into a FAT floppy image.
+#
+
+drive x:
+	file="/boot/RadiOS/radios.flp"

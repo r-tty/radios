@@ -16,16 +16,13 @@ module kernel
 %include "x86/paging.ah"
 %include "hw/ports.ah"
 %include "hw/pic.ah"
+%include "boot/bootdefs.ah"
 %include "asciictl.ah"
 
 
 ; --- Exports ---
 
-global DrvNULL, KernelEventHandler
-global MemSet, BZero
-global K_CheckCPU, K_InitFPU 
-global K_GetCPUtypeStr, K_GetFPUtypeStr
-global K_TTDelay, K_LDelay, K_LDelayMs
+
 
 global K_DescriptorAddress
 global K_GetDescriptorBase, K_SetDescriptorBase
@@ -36,30 +33,16 @@ global K_GetGateOffset, K_SetGateOffset, K_SetGateCount
 global K_GetExceptionVec, K_SetExceptionVec
 
 global K_RemapToSystem, K_MapStackToSystem, K_UnmapStack
+global MemSet, BZero
 
-global KernTSS, DrvTSS, ?IDTaddr
-global ?CPUtype, ?CPUspeed
-global ?BaseMemSz, ?ExtMemSz
-global ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
-global ?DrvrAreaStart, ?UserAreaStart
+global KernTSS:data, DrvTSS:data, ?IDTaddr:data
 global ?DHlpSymAddr, ?UAPIsymAddr
 
 
 ; --- Imports ---
 
 library init
-extern SysReboot:near
-
-library kernel.mt
-extern K_SwitchTask:near
-extern ?TicksCounter:near
-
-library kernel.x86.basedev
-extern CMOS_HandleInt:near
-extern CPU_GetType:near
-extern TMR_CountCPUspeed:near
-extern PIC_EnbIRQ:near
-extern SPK_Tick:near
+extern SysReboot
 
 
 ; --- Data ---
@@ -67,13 +50,6 @@ extern SPK_Tick:near
 section .data
 
 %include "pmdata.nasm"
-
-FPUtest_X	DD	4195835,0
-FPUtest_Y	DD	3145727,0
-
-Msg_NotInst	DB	"not installed",0
-
-Msg_Reboot	DB	NL,NL,"CTRL_ALT_DEL signal received.",NL,0
 
 
 ; --- Variables ---
@@ -83,27 +59,9 @@ section .bss
 ?IDTaddr	RESD	1			; IDT address
 
 ?ExceptionNum	RESB	1			; Last exception number
-?ExcPrintPos	RESB	1
 
-?FPU_ExcFlags	RESB	1			; FPU exception flags
-
-; CPU and FPU type & CPU speed index
-?CPUtype	RESB	1
-?FPUtype	RESB	1
-?CPUspeed	RESD	1
 
 ; Memory sizes (in kilobytes)
-?BaseMemSz	RESD	1
-?ExtMemSz	RESD	1
-
-; Number of extended memory pages
-?PhysMemPages	RESD	1			; Number of upper memory pages
-?VirtMemPages	RESD	1			; Virtual memory pages
-?TotalMemPages	RESD	1			; Total pages (upper+virtual)
-
-; Driver and user area start addresses
-?DrvrAreaStart	RESD	1
-?UserAreaStart	RESD	1
 
 ; API symbol tables addresses
 ?DHlpSymAddr	RESD	1
@@ -313,136 +271,7 @@ proc K_SetExceptionVec
 endp		;---------------------------------------------------------------
 
 
-		; K_CheckCPU - determine CPU type and speed index.
-		; Input: none.
-		; Output: none.
-proc K_CheckCPU
-		push	ecx
-		call	CPU_GetType
-		mov	[?CPUtype],al
-		call	TMR_CountCPUspeed
-		mov	[?CPUspeed],ecx
-		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-
-
-
-		; K_InitFPU - initialize FPU.
-		; Input: AL=1 - use emulation library if 387 not installed.
-		; Output: none.
-proc K_InitFPU
-%define	.fcw		ebp-4
-%define	.fdiv_bug	ebp-8
-
-		prologue 8
-		push	ecx
-
-		mov	[?FPUtype],al
-		test	byte [BDA(Hardware)],2		; FPU installed?
-		jnz	short .Test387
-		cmp	al,1				; Use emulation lib?
-		jne	near .Exit
-		call	FPU_InitEmuLib
-		jmp	.Exit
-
-.Test387:	cli
-		mov	ecx,cr0
-		or	ecx,CR0_NE			; Enable exception 16
-		mov	cr0,ecx
-		mov	al,13				; Enable 387 IRQ
-		call	PIC_EnbIRQ
-		sti
-
-		clts					; Clear TS in CR0
-		fninit
-		fnstcw	[.fcw]
-		wait
-		and	word [ebp-.fcw],0FFC0h
-		fldcw	[.fcw]
-		wait
-		mov	byte [?FPU_ExcFlags],0
-		fldz
-		fld1
-		fdiv	st0,st1
-
-		mov	ecx,100				; Delay 0.1 sec
-		call	K_LDelayMs
-		test	byte [?FPU_ExcFlags],1		; IRQ13 happened?
-		jz	short .Test487
-		mov	byte [?FPUtype],3
-		jmp	short .Exit
-
-.Test487:	fninit
-		fld	qword [FPUtest_X]
-		fdiv	qword [FPUtest_Y]
-		fmul	qword [FPUtest_Y]
-		fld	qword [FPUtest_X]
-		fsubp	st1,st0
-		fistp	dword [.fdiv_bug]
-		wait
-		fninit
-
-		cmp	dword [.fdiv_bug],0
-		jne	.FdivBug
-		mov	byte [?FPUtype],4
-		jmp	short .Exit
-
-.FdivBug:	mov	byte [?FPUtype],0
-
-.Exit:		pop	ecx
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; FPU_HandleEvents - handle IRQ13 on a 387.
-		; Input: none.
-		; Output: none.
-proc FPU_HandleEvents
-		or	byte [?FPU_ExcFlags],1
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; FPU_InitEmuLib - initialize floating point emulation library.
-		; Input: none.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc FPU_InitEmuLib
-		ret
-endp		;---------------------------------------------------------------
-
-
-
-; --- Kernel event handler ---
-
-		; KernelEventHandler - handle kernel events.
-		; Input: EAX=event code.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error.
-proc KernelEventHandler
-		push	eax
-		ror	eax,16
-		cmp	ax,EV_SIGNAL
-		pop	eax
-		je	short .Signal
-		stc
-		ret
-
-.Signal:	cmp	ax,SIG_CTRLALTDEL
-		je	short .Reboot
-		ret
-
-.Reboot:	mPICACK 0
-		sti
-		jmp	SysReboot
-endp		;---------------------------------------------------------------
-
-
-; --- Another common routines ---
+; --- Another useful routines ---
 
 		; MemSet - fill memory with a constant byte.
 		; Input: EBX=block address,
@@ -508,105 +337,4 @@ proc K_TableSearch
 		ret
 .NotFound:	stc
 		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; K_TTDelay - kernel delay (using timer ticks counter).
-		; Input: ECX=number of quantum of times in delay.
-		; Output: none.
-proc K_TTDelay
-		push	eax
-		push	ecx
-		mov	eax,[?TicksCounter]
-		lea	ecx,[eax+ecx]
-.Loop:		mov	eax,[?TicksCounter]
-		cmp	eax,ecx
-		jb	.Loop
-		mpop	ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_LDelay - kernel delay (using LOOP).
-		; Input: ECX=number of repeats in loop.
-		; Output: none.
-		; Note: uses ?CPUspeed variable.
-proc K_LDelay
-		mpush	eax,ecx,edx
-		xor	edx,edx
-		mov	eax,[?CPUspeed]
-		mul	ecx
-		mov	ecx,eax
-		align 4
-.LDel:		nop
-		dec	ecx
-		js	short .Exit
-		jmp	.LDel
-.Exit:		mpop	edx,ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_LDelayMs - loop delay (in milliseconds)
-		; Input: ECX=time of delay (ms).
-		; Output: none.
-proc K_LDelayMs
-		mpush	eax,ecx,edx
-		mov	eax,159
-		xor	edx,edx
-		mul	ecx
-		mov	ecx,eax
-		call	K_LDelay
-		mpop	edx,ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_MicroDelay - loop delay (in microseconds)
-		; Input: ECX=number of microseconds.
-		; Output: none.
-proc K_MicroDelay
-		ret
-endp		;---------------------------------------------------------------
-
-
-; ========================== Time/date procedures ==============================
-
-		; K_GetDate - get current date.
-		; Input: none.
-		; Output: BL=day,
-		;	  BH=month,
-		;	  CX=year.
-proc K_GetDate
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetTime - get current time.
-		; Input: none.
-		; Output: BH=hour,
-		;	  BL=minute,
-		;	  CL=second.
-proc K_GetTime
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetSysDate - set system date.
-		; Input: AH=seconds,
-		;	 BL=minutes,
-		;	 BH=hours,
-		;	 DL=day,
-		;	 DH=month,
-		;	 CX=year.
-		; Output:
-proc K_SetSysDate
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; DrvNULL - NULL device driver.
-		; Action: simply does RET.
-proc DrvNULL
-		ret
 endp		;---------------------------------------------------------------

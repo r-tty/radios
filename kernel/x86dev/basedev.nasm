@@ -1,12 +1,13 @@
 ;*******************************************************************************
 ;  basedev.nasm - built-in devices support (CMOS,PIC,DMA etc.)
-;  Copyright (c) 1999 RET & COM Research.
+;  Copyright (c) 1999-2002 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.x86.basedev
 
 %include "sys.ah"
 %include "errors.ah"
+%include "biosdata.ah"
 %include "hw/ports.ah"
 
 %include "8042.nasm"
@@ -15,78 +16,189 @@ module kernel.x86.basedev
 %include "pic.nasm"
 %include "timer.nasm"
 
-
-; --- Miscellaneous ------------------------------------------------------------
+%define	SpeakerBeepTone	1200
 
 ; --- Exports ---
-
-global CPU_GetType:proc
-global SPK_Sound:proc, SPK_Beep:proc, SPK_Tick:proc
+publicproc CPU_Init, FPU_Init, FPU_HandleException
+publicproc SPK_Sound, SPK_Beep, SPK_Tick
+publicdata ?CPUinfo
 
 
 ; --- Imports ---
 
 library kernel.misc
-extern K_TTDelay:near
+extern K_TTDelay, K_LDelayMs
 
 
-;  CPU types
-%define	CPU_386SX	3
-%define	CPU_386DX	3
-%define	CPU_486		4
-%define	CPU_586		5
+; --- Data ---
+section .data
 
-; Speaker, etc.
-%define	SpeakerBeepTone	1200
+FPUtest_X	DD	4195835,0
+FPUtest_Y	DD	3145727,0
 
 
+; --- Variables ---
+section .bss
+
+?CPUinfo	RESB	tCPUinfo_size		; Only 1 CPU currently
+?FPUtype	RESB	1
+?FPUexcFlags	RESB	1			; FPU exception flags
+
+; --- Code ---
 section .text
 
-		; CPU_GetType - determine type of CPU.
+		; CPU_Init - initialize CPU information structure and internal
+		;	     registers (if any).
 		; Input: none.
 		; Output: CF=1 - can't determine CPU type;
-		;	  CF=0 - All OK, CPU type in AL:
-		;		  3 - i386 compatible,
-		;		  4 - i486 compatible,
-		;		  5 - Pentium compatible.
-proc CPU_GetType
-		push	ebx
+		;	  CF=0 - OK.
+		; Note: destroys [almost] all registers.
+proc CPU_Init
+%define .r_eflags	ebp-4
+		prologue 4
+		
+		; First, we should have at least 386SX
+		mov	word [?CPUinfo+tCPUinfo.Family],CPU_386SX
 		mov	eax,cr0
-		mov	ebx,eax			; Original CR0 into EBX
-		or	al,10h			; Set bit
-		mov	cr0,eax			; Store it
-		mov	eax,cr0			; Read it back
-		mov	cr0,ebx			; Restore CR0
-		test	al,10h			; Did it set?
-		jnz	.Test386DX		; Go if not 386SX
+		mov	ebx,eax			; Save original CR0
+		or	al,CR0_ET		; Set bit
+		mov	cr0,eax
+		mov	eax,cr0
+		mov	cr0,ebx
+		test	al,CR0_ET		; Did it set?
+		jz	near .OK		; No, it's 386SX
 
-                mov	al,CPU_386SX
-                jmp	.OK
-
-.Test386DX:	mov	ecx,esp			; Original ESP in ECX
-		pushfd				; Original EFLAGS in EBX
-		pop	ebx
+		; Perhaps it's 386DX?
+		mov	word [?CPUinfo+tCPUinfo.Family],CPU_386DX
+		mov	ecx,esp			; Store original ESP
+		pushfd				;  and EFLAGS
+		pop	dword [.r_eflags]
 		and	esp,~3			; Align stack to prevent 486
 						;  fault when AC is flipped
-		mov	eax,ebx			; EFLAGS => EAX
-		xor	eax,40000h		; Flip AC flag
+		mov	eax,[.r_eflags]
+		xor	eax,FLAG_AC		; Flip AC flag
 		push	eax			; Store it
 		popfd
 		pushfd				; Read it back
 		pop	eax
-		push	ebx			; Restore EFLAGS
+		push	dword [.r_eflags]	; Restore EFLAGS
 		popfd
 		mov	esp,ecx			; Restore ESP
-		cmp	eax,ebx			; Compare old/new AC bits
-		jne	.Test486		; If AC changes, not 386
+		cmp	eax,[.r_eflags]		; Compare old/new AC bits
+		je	.OK			; AC doesn't change => 386DX
 
-		mov	al,CPU_386DX
-		jmp	short .OK
+		; Check for ability to set/clear ID flag (Bit 21) in EFLAGS
+		; which indicates that we can execute CPUID. If not, then
+		; we have an old 486 or 487 processor.
+		mov	word [?CPUinfo+tCPUinfo.Family],CPU_486OLD
+		mov	eax,[.r_eflags]
+		xor	eax,FLAG_ID		; Flip ID bit in EFLAGS
+		push	eax
+		popfd
+		pushfd
+		pop	eax
+		xor	eax,[.r_eflags]		; Compare with original EFLAGS
+		jz	.OK			; Can't toggle, it's an old 486
+		
+		; Execute CPUID to determine vendor, family, model, stepping
+		; and features.
+		mov	word [?CPUinfo+tCPUinfo.Family],CPU_486
+		xor	eax,eax
+		cpuid
+		mov	[?CPUinfo+tCPUinfo.CPUIDlevel],al
+		mov	[?CPUinfo+tCPUinfo.VendorID],ebx
+		mov	[?CPUinfo+tCPUinfo.VendorID+4],edx
+		mov	[?CPUinfo+tCPUinfo.VendorID+8],ecx
+		or	eax,eax			; Can we get CPU features?
+		jz	.OK			; No, it's some DX4 clone
+		
+		; Get family/model/stepping/features
+.CheckFeat:	mov	eax,1
+		cpuid                                          
+		mov	[?CPUinfo+tCPUinfo.Features],ebx
+		mov	[?CPUinfo+tCPUinfo.Features+4],edx
+		mov	[?CPUinfo+tCPUinfo.Features+8],ecx
 
-.Test486:	mov	al,CPU_486		;Until the Pentium appears...
-
+		shr	eax,8			; isolate family
+		and	eax,0Fh
+		mov	[?CPUinfo+tCPUinfo.Family],al
+		
 .OK:		clc
-		pop	ebx
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; FPU_Init - initialize FPU.
+		; Input: none.
+		; Output: none.
+proc FPU_Init
+%define	.fcw		ebp-4
+%define	.fdiv_bug	ebp-8
+
+		prologue 8
+		push	ecx
+
+		mov	[?FPUtype],al
+		test	byte [BDA(Hardware)],2		; FPU installed?
+		jz	near .Exit
+
+		cli
+		mov	ecx,cr0
+		or	ecx,CR0_NE			; Enable exception 16
+		mov	cr0,ecx
+		mov	al,13				; Enable 387 IRQ
+		call	PIC_EnbIRQ
+		sti
+
+		clts					; Clear TS in CR0
+		fninit
+		fnstcw	[.fcw]
+		wait
+		and	word [ebp-.fcw],0FFC0h
+		fldcw	[.fcw]
+		wait
+		mov	byte [?FPUexcFlags],0
+		fldz
+		fld1
+		fdiv	st0,st1
+
+		mov	ecx,100				; Delay 0.1 sec
+		call	K_LDelayMs
+		test	byte [?FPUexcFlags],1		; IRQ13 happened?
+		jz	short .Test487
+		mov	byte [?FPUtype],3
+		jmp	short .Exit
+
+.Test487:	fninit
+		fld	qword [FPUtest_X]
+		fdiv	qword [FPUtest_Y]
+		fmul	qword [FPUtest_Y]
+		fld	qword [FPUtest_X]
+		fsubp	st1,st0
+		fistp	dword [.fdiv_bug]
+		wait
+		fninit
+
+		cmp	dword [.fdiv_bug],0
+		jne	.FdivBug
+		mov	byte [?FPUtype],4
+		jmp	short .Exit
+
+.FdivBug:	or	byte [?CPUinfo+tCPUinfo.Bugs],CPUBUG_FDIV
+		mov	byte [?FPUtype],0
+
+.Exit:		pop	ecx
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; FPU_HandleException - handle a FPU exception.
+		; Input: none.
+		; Output: none.
+proc FPU_HandleException
+		or	byte [?FPUexcFlags],1
 		ret
 endp		;---------------------------------------------------------------
 

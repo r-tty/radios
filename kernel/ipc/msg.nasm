@@ -16,10 +16,10 @@ module kernel.ipc.msg
 ; --- Imports ---
 
 library kernel.pool
-extern K_PoolInit:near, K_PoolAllocChunk:near
+extern K_PoolInit, K_PoolAllocChunk
 
-library kernel.misc
-extern BZero:near
+library kernel
+extern BZero
 
 
 ; --- Data ---

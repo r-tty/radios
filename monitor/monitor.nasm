@@ -19,11 +19,11 @@ global MonitorInit
 ; --- Imports ---
 
 library kernel
-extern K_GetExceptionVec:near, K_SetExceptionVec:near
-extern K_GetDescriptorBase:near, K_GetDescriptorAR:near
+extern K_GetExceptionVec, K_SetExceptionVec
+extern K_GetDescriptorBase, K_GetDescriptorAR
 
 library kernel.init
-extern SysReboot:near
+extern SysReboot
 
 ; --- Definitions ---
 %define	InputBufSize	72		; Input string max. size

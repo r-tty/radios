@@ -1,7 +1,7 @@
-/******************************************************************************
- * ndepgen.c - NASM dependencies file generator, version 1.1
- * (c) 1999 RET & COM Research.
- ******************************************************************************/
+/*
+ * ndepgen.c - NASM dependencies file generator.
+ * Copyright (c) 2002 RET & COM Research.
+ */
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,151 +9,168 @@
 #include <ctype.h>
 #include <errno.h>
 
-static char pathsep = '\\';             /* Path separator */
-static char pathsep2 = '/';             /* Another path separator */
+#define VERSION "1.2"
 
-static char ppctl = '%';                /* Preprocessor control char */
-static char *incldir="include";         /* Preprocessor include directive */
+const char pathsep = '/';		/* Path separator */
+const char ppctl = '%';			/* Preprocessor control char */
+const char incdirective[] = "include";  /* Preprocessor include directive */
+
+char *var_suffix = "_dep =", *obj_suffix=".rdm:";
 
 struct {
-        int separconv;
-	int makefilestyle;
-       } options = {0};
+    int makefilestyle;
+} options = {0};
 
+/*
+ * Print an error message and exit
+ */
 void error(char *msg, int errorlevel)
- {
-  fprintf(stderr,"%s\n",msg);
+{
+  fprintf(stderr, "%s\n", msg);
   exit(errorlevel);
- }
+}
 
+
+/*
+ * Print version information
+ */
+inline void version(void) {
+    puts ("ndepgen - NASM dependencies file generator, version " VERSION "\n"
+          "Copyright (c) 2002 RET & COM Research. All rights reserved");
+}
+
+
+/*
+ * Print usage and exit
+ */
 void usage(void)
- {
-  puts("\nndepgen - NASM dependencies file generator, version 1.1");
-  puts("(c) 2000 RET & COM Research.\n");
-  puts("Usage: ngepgen [options] filename\n");
-  puts("Options: -c  - path separator conversion;");
-  puts("         -M  - generate Makefile-style dependencies.");
-  exit(0);
- }
+{
+    printf("Usage: ngepgen [options] files\n\n"
+           "Options: -s<suffix>   - specify a suffix for target dependency\n"
+           "         -M           - generate Makefile-style dependencies\n"
+	   "         -V           - print defaults\n"
+	   "         -v           - print program version\n"
+	   "         -h           - get the usage\n");
+    exit(0);
+}
+
  
-char *strlwr(char *src)
- {
-  char *t=src;
-  while(*t++) {
-   *t = tolower(*t);
-  }
-  return src;
- } 
+/*
+ * Strip non-directory suffix from the path.
+ * Returns NULL if path doesn't contain any slashes; otherwise returns
+ * directory name with trailing slash.
+ */
+char *n_dirname(char *s)
+{
+    char *p = s;
 
-char *basepath(char *s)
- {
-  char *p=s;
-  int i;
+    if (!s) return NULL;
+    if ((p = strrchr(s, pathsep)) != NULL) {
+	*(++p) = '\0';
+	return s;
+    } else return NULL;
+}
 
-  for(i=0; i<strlen(s); i++) {
-    if (s[i] == pathsep || s[i] == pathsep2)
-      p = s+i;
-  }
-  if (*p == pathsep || *p == pathsep2) {
-    *(++p) = 0;
-    return s;
-  } else return 0;
- }
 
-char *Basename(char *s)
- {
-  char *p=s;
-  int i;
+/*
+ * Strip directory and suffix from the path.
+ */
+char *n_basename(char *s, char suffixsep)
+{
+    char *p = s, *t = s;
+  
+    if (!s) return NULL;
+    if (suffixsep && ((t = strchr(s, suffixsep)) != NULL)) *t = '\0';
+    if ((p = strrchr(s, pathsep)) != NULL) {
+	*p++ = '\0';
+	return p;
+    } else return s;
+}
 
-  for(i=0; i<strlen(s); i++) {
-    if (s[i] == pathsep || s[i] == pathsep2)
-      p = s+i;
-  }
-  if (*p == pathsep || *p == pathsep2)
-    *(p++) = 0;
-  return p;
- }
 
-char *depname(char *s)
- {
-  char *p=s, *p1;
-  int i;
-
-  for(i=0; i<strlen(s); i++) {
-    if (s[i] == pathsep || s[i] == pathsep2)
-      p = s+i;
-    if (s[i] == '.')
-      p1 = s+i;
-  }
-  if (*p1 == '.')
-    *(p1++) = 0;
-  return p;
- }
-
-char *convertsep(char *s)
- {
-  int i;
-
-  if (!options.separconv) return s;
-  for(i=0; i<strlen(s); i++) {
-    if (s[i] == pathsep)
-      s[i] = pathsep2;
-  }
-  return s;
- }
-
+/*
+ * Main
+ */
 int main(int argc, char *argv[])
- {
-  FILE *f, *ft;
-  char Buf[128], Buf2[256], Buf3[256], *p, *name, *searchpath;
-  int k, hasdep=0;
-  char *var_suffix="_dep =", *file_suffix=".rdm:";
-  char *suffix;
+{
+    FILE *fd, *ft;
+    char Buf[128], Buf2[256], Buf3[256];
+    char *suffix = NULL, *p, *name, *searchpath = NULL;
+    int i, wl;
 
-  if(argc<2) usage();
-  while(argv[1][0]=='-') {
-   switch(argv[1][1]) {
+    if (argc<2) usage();
+    for (++argv, --argc; argc; ++argv, --argc) {
+    	if (*(p = *argv) != '-')
+	    break;
+	switch(p[1]) {
+	    case 's':
+		if (!p[2]) error("Invalid suffix", 3);
+		suffix = p + 2;
+		break;
+	    case 'M':
+		options.makefilestyle = 1;
+		break;
+	    case 'V':
+		printf("Default suffixes: '%s', '%s'\n", var_suffix, obj_suffix);
+		exit(0);
+	    case 'v':
+		version();
+		exit(0);
+	    case 'h':
+	    case '?':
+		usage();
+	    default:
+		error("Unrecognized option. Run with '-h' to get usage", 2);
+	}
+    }
 
-    case 'c': options.separconv = 1;
-	      break;
-    case 'M': options.makefilestyle = 1;
-    	      break;
-   }
-   argv++;
-  }
-  f = fopen(argv[1],"r");
-  if (errno) error ("file opening error",2);
-  while(!feof(f)) {
-    Buf[0] = 0;
-    fgets(Buf,sizeof(Buf)-1,f);
-    if (Buf[0] != ppctl) continue;
-    if (strncmp(p=Buf+1,incldir,k=strlen(incldir))) continue;
-    p+=k; while(*p != '\"' && *p != '<') p++;
-    name = ++p; while(*p != '\"' && *p != '>') p++;
-    *p = 0;
-    if (!hasdep) {
-      hasdep=1;
-      searchpath = basepath(strcpy(Buf2,argv[1]));
-      if (options.makefilestyle) {
-      	suffix = file_suffix;
-      } else {
-      	suffix = var_suffix;
-      }
-      printf("%s%s %s ",strlwr(depname(Basename(strcpy(Buf3,argv[1])))),\
-                           suffix, strlwr(convertsep(argv[1])));
+    if (!suffix) {
+	if (options.makefilestyle)
+	    suffix = obj_suffix;
+	else
+	    suffix = var_suffix;
     }
-    if (searchpath) {
-      strcat(strcpy(Buf3,searchpath),name);
-      ft = fopen(Buf3,"r");
-      if (ft) {
-        fclose(ft);
-        name = Buf3;
-      }
+    
+    wl = strlen(incdirective);
+    for (i = 0; i < argc; i++) {
+	int hasdep = 0;
+	fd = fopen(argv[i],"r");
+	if (!fd) error ("file opening error", errno);
+	while (!feof(fd)) {
+	    Buf[0] = 0;
+	    fgets(Buf, sizeof(Buf), fd);
+	    if (Buf[0] != ppctl)
+		continue;
+	    if (strncmp(p = Buf+1, incdirective, wl))
+		continue;
+	    p += wl;
+	    while (*p != '"' && *p != '<') {
+		if(!p++) error("Invalid include directive syntax", 4);
+	    }
+	    name = ++p;
+	    while (*p != '"' && *p != '>') {
+		if(!p++) error("Invalid include directive syntax", 4);
+	    }
+	    *p = 0;
+	    if (!hasdep) {
+		hasdep = 1;
+		strcpy(Buf2, argv[i]);
+		searchpath = n_dirname(Buf2);
+		strcpy(Buf3, argv[i]);
+		printf("%s%s %s ",n_basename(Buf3, '.'), suffix, argv[i]);
+	    }
+	    if (searchpath) {
+		strcat(strcpy(Buf3,searchpath), name);
+		ft = fopen(Buf3, "r");
+		if (ft) {
+		    fclose(ft);
+		    name = Buf3;
+		}
+	    }
+	    printf("%s ", name);
+	}
+	if (hasdep) putchar('\n');
+	fclose(fd);
     }
-    printf("%s ",convertsep(name));
-  }
-  if (hasdep) putchar('\n');
-  fclose(f);
   return 0;
- }
-
+}

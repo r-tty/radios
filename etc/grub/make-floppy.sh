@@ -1,8 +1,9 @@
 #! /bin/sh
 
-# Where a floppy image is located
-WDIR="/boot/RadiOS"
+# Where is a floppy image located
+KERNEL="/boot/RadiOS/radios.rdz"
+DRIVE="x:"
+MTOOLSRC="$HOME/.mtoolsrc"
 
-( cd $WDIR && mount floppy.flp && cp radios.rdz /mnt/loop-floppy &&
-  umount floppy.flp
-  sync )
+# Start here
+grep -q "drive $DRIVE" $MTOOLSRC && mcopy -o $KERNEL $DRIVE

@@ -18,14 +18,14 @@ global MT_CreateThread, MT_ThreadExec
 ; --- Imports ---
 
 library kernel.pool
-extern K_PoolInit:near
-extern K_PoolAllocChunk:near, K_PoolFreeChunk:near
+extern K_PoolInit
+extern K_PoolAllocChunk, K_PoolFreeChunk
 
 library kernel.mm
-extern MM_AllocBlock:near
+extern MM_AllocBlock
 
 library kernel.paging
-extern PG_AllocContBlock:near
+extern PG_AllocContBlock
 
 
 ; --- Data ---

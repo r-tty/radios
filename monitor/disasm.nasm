@@ -12,7 +12,7 @@
 ; --- Imports ---
 
 library kernel
-extern K_DescriptorAddress:near, K_GetDescriptorLimit:near
+extern K_DescriptorAddress, K_GetDescriptorLimit
 
 library monitor.opcodes
 extern FindOpcode

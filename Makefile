@@ -85,7 +85,7 @@ dep:
 #--- Response file -------------------------------------------------------------
 
 $(response_file): Makefile
-	rm -f $(response_file)
+	@rm -f $(response_file)
 	@for m in $(TARGET_DEP) ; do echo $$m | sed 's/^.*\.rdl/-l&/' >>$(response_file) ; done
 
 

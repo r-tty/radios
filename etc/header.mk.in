@@ -27,7 +27,7 @@ vpath %.rdl $(OUTPATH)
 vpath %.bin $(OUTPATH)
 
 # Commands
-AS = nasm
+AS = nasm -w+orphan-labels
 CC = rncc
 LD = ldrdf
 AR = rdflib

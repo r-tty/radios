@@ -23,8 +23,8 @@ global MOD_GetType, MOD_GetIDbyName
 ; --- Imports ---
 
 library kernel.pool
-extern K_PoolInit:near
-extern K_PoolAllocChunk:near, K_PoolFreeChunk:near
+extern K_PoolInit
+extern K_PoolAllocChunk, K_PoolFreeChunk
 
 ; --- Definitions ---
 

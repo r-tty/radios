@@ -20,14 +20,14 @@ extern ?UserAreaStart
 
 library kernel.mt
 extern ?ProcListPtr
-extern MT_PID2PCB:near
+extern MT_PID2PCB
 
 library kernel.mm
-extern MM_AllocBlock:near, MM_FreeBlock:near, MM_FreeMCBarea:near
+extern MM_AllocBlock, MM_FreeBlock, MM_FreeMCBarea
 
 library kernel.paging
-extern PG_GetNumFreePages:near, PG_NewDir:near
-extern PG_AllocAreaTables:near
+extern PG_GetNumFreePages, PG_NewDir
+extern PG_AllocAreaTables
 
 section .data
 

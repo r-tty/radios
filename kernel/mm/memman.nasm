@@ -28,19 +28,17 @@ global MM_AllocRegion, MM_FreeRegion
 ; --- Imports ---
 
 library kernel
-extern K_DescriptorAddress:near, K_GetDescriptorBase:near
+extern BZero
+extern K_DescriptorAddress, K_GetDescriptorBase
 extern ?DrvrAreaStart, ?UserAreaStart, ?TotalMemPages
 
 library kernel.paging
-extern PG_GetPTEaddr:near, PG_AllocAreaTables:near
+extern PG_GetPTEaddr, PG_AllocAreaTables
 extern PG_Alloc:near, PG_Dealloc:near
 extern ?KernPageDir, ?KernPgPoolEnd
 
 library kernel.mt
 extern ?ProcListPtr
-
-library kernel.misc
-extern BZero:near
 
 
 ; --- Variables ---

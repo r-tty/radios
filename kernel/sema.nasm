@@ -15,8 +15,8 @@ global K_SemP, K_SemV
 
 library kernel.mt
 extern ?CurrThread
-extern MT_ThreadSleep:near, MT_ThreadWakeup:near
-extern MT_Schedule:near
+extern MT_ThreadSleep, MT_ThreadWakeup
+extern MT_Schedule
 
 %include "thread.ah"
 %include "sema.ah"

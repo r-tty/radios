@@ -11,14 +11,11 @@ global MT_InitProc, MT_InitKernelProc, MT_PID2PCB
 
 ; --- Imports ---
 
-library kernel
-extern KernelEventHandler:near
-
 library kernel.paging
 extern ?KernPagePool, ?KernPageDir
 
 library kernel.misc
-extern MemSet:near
+extern MemSet
 
 
 ; --- Variables ---

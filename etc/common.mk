@@ -48,9 +48,7 @@ endif
 dep:
 	@echo "Generating makefile dependencies..."
 	@echo "deps_generated = TRUE" >$(depfile)
-	@for file in $(srcfiles); do \
-	    $(GENDEPS) $$file >>$(depfile); \
-	 done
+	@$(GENDEPS) $(srcfiles) >>$(depfile)
 
 #--- Clean ---------------------------------------------------------------------
 

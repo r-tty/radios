@@ -1,6 +1,8 @@
-; This file defines various TASM-like macros
+;-------------------------------------------------------------------------------
+; sugar.ah - various useful macros, mostly TASM-like
+;-------------------------------------------------------------------------------
 
-; proc/endproc pair
+;*** proc/endproc pair ***
 %macro proc 1
 %push proc
 %1:
@@ -14,7 +16,7 @@
 %endif
 %endmacro
 
-; mpush/mpop pair
+;*** mpush/mpop pair ***
 %macro mpush 1-*
 %rep %0
 		push	%1
@@ -29,7 +31,7 @@
 %endrep
 %endmacro
 
-; push immediate
+;*** push immediate ***
 %macro pushimm 1
 %if %1<128
 		push	byte %1
@@ -38,7 +40,7 @@
 %endif
 %endmacro
 
-; C-like prologue and epilogue
+;*** C-like prologue and epilogue ***
 %macro prologue 0-1
 %push enter
 		push	ebp
@@ -62,4 +64,20 @@
 %endif
 		mov	esp,ebp
 		pop	ebp
+%endmacro
+
+; For declaring many GLOBAL procedures at the same time
+%macro publicproc 1-*
+%rep %0
+[GLOBAL %1 %+ :proc]
+%rotate 1
+%endrep
+%endmacro
+
+; For declaring many GLOBAL data at the same time
+%macro publicdata 1-*
+%rep %0
+[GLOBAL %1 %+ :data]
+%rotate 1
+%endrep
 %endmacro

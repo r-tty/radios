@@ -4,7 +4,14 @@
 
 %include "x86/stkframe.ah"
 
-extern PG_FaultHandler:near
+library kernel.mt
+extern K_SwitchTask
+
+library kernel.paging
+extern PG_FaultHandler
+
+library kernel.x86.basedev
+extern CMOS_HandleInt, FPU_HandleException
 
 ; Macros for generating entry points for CPU traps and interrupts.
 ; We push supplied code value for ones without it.
@@ -65,23 +72,24 @@ section .data
 
 ; Table of drivers for each IRQ
 
-IRQdrivers	DD	0			; 0: timer (handled by kernel)
-		DD	0			; 1: keyboard
-		DD	0			; 2: cascade (unused)
-		DD	0			; 3: serial port 2
-		DD	0			; 4: serial port 1
-		DD	0			; 5: audio (SB)
-		DD	0			; 6: floppy
-		DD	0			; 7: parallel port
-		DD	0			; 8: CMOS RTC (handled by kernel)
-		DD	0			; 9: unused
-		DD	0			; 10: unused
-		DD	0			; 11: unused
-		DD	0			; 12: unused
-		DD	0			; 13: 387 FPU (handled by kernel)
-		DD	0			; 14: primary IDE interface
-		DD	0			; 15: secondary IDE interface
+IRQdrivers	DD	0			; IRQ0: timer
+		DD	0			; IRQ1: keyboard
+		DD	0			; IRQ2: cascade (unused)
+		DD	0			; IRQ3
+		DD	0			; IRQ4
+		DD	0			; IRQ5
+		DD	0			; IRQ6
+		DD	0			; IRQ7
+		DD	0			; IRQ8: CMOS RTC
+		DD	0			; IRQ
+		DD	0			; IRQ10
+		DD	0			; IRQ11
+		DD	0			; IRQ12
+		DD	0			; IRQ13: 387 FPU
+		DD	0			; IRQ14
+		DD	0			; IRQ15
 
+MsgUnhExcept	DB	"Panic, unhandled exception ",0
 
 section .text
 
@@ -102,14 +110,13 @@ proc K_Interrupt
 endp		;---------------------------------------------------------------
 
 
-		; Temporary exception handler
-proc K_TmpExcHandler
-		mov	ebx,0B8000h
-		add	bl,[?ExcPrintPos]
-		mov	al,[?ExceptionNum]
-		mov	ah,15
-		mov	[ebx],ax
-		add	byte [?ExcPrintPos],2
+		; When some exception is occured and it's not handled
+		; by anyone, we only can panic..
+proc K_UnhandledException
+		mServPrintStr MsgUnhExcept
+		movzx	eax,byte [?ExceptionNum]
+		mServPrintDec
+		hlt
 		jmp	$
 endp		;---------------------------------------------------------------
 
@@ -124,24 +131,24 @@ endp		;---------------------------------------------------------------
 
 ; Exception handlers
 mTrapHandler Reserved,0
-mTrapHandler 0,K_TmpExcHandler
-mTrapHandler 1,K_TmpExcHandler
-mTrapHandler 2,K_TmpExcHandler
-mTrapHandler 3,K_TmpExcHandler
-mTrapHandler 4,K_TmpExcHandler
-mTrapHandler 5,K_TmpExcHandler
-mTrapHandler 6,K_TmpExcHandler
-mTrapHandler 7,K_TmpExcHandler
-mTrapHandler 8,K_TmpExcHandler
-mTrapHandler 9,K_TmpExcHandler
-mTrapHandler 10,K_TmpExcHandler
-mTrapHandler 11,K_TmpExcHandler
-mTrapHandler 12,K_TmpExcHandler
-mTrapHandler 13,K_TmpExcHandler
+mTrapHandler 0,K_UnhandledException
+mTrapHandler 1,K_UnhandledException
+mTrapHandler 2,K_UnhandledException
+mTrapHandler 3,K_UnhandledException
+mTrapHandler 4,K_UnhandledException
+mTrapHandler 5,K_UnhandledException
+mTrapHandler 6,K_UnhandledException
+mTrapHandler 7,K_UnhandledException
+mTrapHandler 8,K_UnhandledException
+mTrapHandler 9,K_UnhandledException
+mTrapHandler 10,K_UnhandledException
+mTrapHandler 11,K_UnhandledException
+mTrapHandler 12,K_UnhandledException
+mTrapHandler 13,K_UnhandledException
 mTrapHandler 14,K_PageFaultEntry
-mTrapHandler 15,K_TmpExcHandler
-mTrapHandler 16,K_TmpExcHandler
-mTrapHandler 17,K_TmpExcHandler
+mTrapHandler 15,K_UnhandledException
+mTrapHandler 16,K_UnhandledException
+mTrapHandler 17,K_UnhandledException
 
 ; Interrupt service routines (ISRs)
 
@@ -153,11 +160,11 @@ mISR K_Interrupt, 4
 mISR K_Interrupt, 5
 mISR K_Interrupt, 6
 mISR K_Interrupt, 7
-mISR2 K_Interrupt, 8
+mISR2 CMOS_HandleInt, 8
 mISR2 K_Interrupt, 9
 mISR2 K_Interrupt, 10
 mISR2 K_Interrupt, 11
 mISR2 K_Interrupt, 12
-mISR2 K_Interrupt, 13
+mISR2 FPU_HandleException, 13
 mISR2 K_Interrupt, 14
 mISR2 K_Interrupt, 15

@@ -19,7 +19,7 @@ module $init
 ; --- Exports ---
 
 global Start:export proc
-global SysReboot
+publicproc SysReboot
 
 
 ; --- Imports ---
@@ -30,34 +30,38 @@ extern GDTaddrLim, ?IDTaddr, TrapHandlersArr
 extern RadiOS_Version, Msg_RVersion, Msg_RCopyright
 
 ; Kernel procedures
-extern K_CheckCPU:near, K_InitFPU:near, K_InitMem:near
-extern K_DescriptorAddress:near
-extern K_GetDescriptorBase:near, K_GetDescriptorLimit:near
-extern K_GetDescriptorAR:near
-extern K_SetDescriptorBase:near, K_SetDescriptorLimit:near
+extern CPU_Init, FPU_Init, K_InitMem
+extern K_DescriptorAddress
+extern K_GetDescriptorBase, K_GetDescriptorLimit
+extern K_GetDescriptorAR
+extern K_SetDescriptorBase, K_SetDescriptorLimit
 
 library kernel.mm
-extern MM_Init:near
+extern MM_Init
+
+library kernel.initmem
+extern ?BaseMemSz, ?ExtMemSz
 
 library kernel.paging
-extern PG_Init:near, PG_StartPaging:near
+extern PG_Init, PG_StartPaging
 
 library kernel.mt
-extern MT_Init:near, MT_InitKernelProc:near
-extern MT_CreateThread:near, MT_ThreadExec:near
+extern MT_Init, MT_InitKernelProc
+extern MT_CreateThread, MT_ThreadExec
 
 library kernel.module
-extern MOD_InitMem:near, MOD_InitKernelMod:near, MOD_Insert:near
+extern MOD_InitMem, MOD_InitKernelMod, MOD_Insert
 
 library kernel.x86.basedev
-extern PIC_Init:near, PIC_SetIRQmask:near, PIC_EnbIRQ:near
-extern TMR_InitCounter:near
-extern KBC_A20Control:near, KBC_HardReset:near
-extern CMOS_EnableInt:near
+extern PIC_Init, PIC_SetIRQmask, PIC_EnbIRQ
+extern TMR_InitCounter, TMR_CountCPUspeed
+extern KBC_A20Control, KBC_HardReset
+extern CMOS_EnableInt
+extern ?CPUinfo, ?CPUspeed
 
 %ifdef DEBUG
 library monitor
-extern MonitorInit:near
+extern MonitorInit
 %endif
 
 
@@ -65,13 +69,12 @@ extern MonitorInit:near
 
 section .data
 
-Msg_SysReboot	DB NL,NL,"Press a key to reboot...",ASC_BEL,0
-
-Msg_Fatal	DB NL,NL,"FATAL ERROR ",0
-Msg_SysHlt	DB NL,"System halted.",0
-
-NLNL		DB NL,NL,0
-
+MsgFatalErr	DB	NL,"Fatal error. System will be halted.",0
+MsgDetected	DB	"Detected ",0
+MsgKBRAM	DB	" KB RAM",NL,0
+MsgX86family	DB	"86 family CPU, speed index=",0
+MsgInitBootMods	DB	"Linking system modules:",NL,0
+MsgProgress	DB	"System startup in progress..."
 
 ; --- Variables ---
 
@@ -114,7 +117,9 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc INIT_IdleThread
-.Infinite:	inc	byte [0xB8000+158]
+		mov	eax,"\-/|"
+.Infinite:	mov	[0xB8000+158],al
+		ror	eax,8
 		jmp	.Infinite
 endp		;---------------------------------------------------------------
 
@@ -189,20 +194,39 @@ proc Start
 
 		; Finally, enable interrupts
 		sti
-
-		; Initialize CPU and FPU.
-		call	K_CheckCPU
-		call	K_InitFPU
-
+		
+		; Show version information
+		mServPrintStr Msg_RVersion
+		mServPrintStr RadiOS_Version
+		mServPrintStr Msg_RCopyright
 %ifdef DEBUG
 		; Initialize monitor
 		call	MonitorInit
 %endif
+		; Initialize CPU and FPU
+		call	CPU_Init
+		call	FPU_Init
+		call	TMR_CountCPUspeed
+		
+		; Print basic CPU information
+		mServPrintStr MsgDetected
+		movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
+		mServPrintDec
+		mServPrintStr MsgX86family
+		mServPrintDec [?CPUspeed]
+		mServPrintChar NL
 
 		; Initialize memory
 		mov	eax,[KernelFreeMemEnd]
 		shr	eax,10				; Addr -> KB
 		call	K_InitMem
+		
+		; Print how much memory we have
+		mServPrintStr MsgDetected
+		mServPrintDec [?BaseMemSz]
+		mServPrintChar '+'
+		mServPrintDec [?ExtMemSz]
+		mServPrintStr MsgKBRAM
 
 		; Initialize multitasking memory structures
 .InitMT:	mov	eax,Init_MaxNumOfProcesses
@@ -232,13 +256,9 @@ proc Start
 		jc	near FatalError
 		
 		; Initialize boot-time modules
+		mServPrintStr MsgInitBootMods
 		call	INIT_BootModules
 		jc	near FatalError
-		
-		; Show version information
-		mServPrintStr Msg_RVersion
-		mServPrintStr RadiOS_Version
-		mServPrintStr Msg_RCopyright
 
 		; Create two initial kernel threads
 		; (idle and spin-up).
@@ -254,7 +274,8 @@ proc Start
 		call	MT_CreateThread
 		jc	.Monitor
 
-		; Enable timer interrupts and roll the dice
+		; At last, enable timer interrupts and roll the dice.
+		mServPrintStr MsgProgress
 		xor	al,al
 		call	PIC_EnbIRQ
 		mov	ebx,[IdleTCB]
@@ -263,15 +284,10 @@ proc Start
 		; This point must never be reached!
 .Monitor:	int3
 
-		; Reboot the machine
-		mServPrintStr Msg_SysReboot
-		mServReadKey
 SysReboot:	call	KBC_HardReset
 
-		; Fatal error: print error message, error number
-		; and halt the system
-FatalError:	mServPrintStr Msg_Fatal
-		mServPrintStr Msg_SysHlt
-
-.Halt:		jmp	.Halt
+FatalError:	mServPrintStr MsgFatalErr
+		mServReadKey
+.Halt:		hlt
+		jmp	.Halt
 endp		;---------------------------------------------------------------

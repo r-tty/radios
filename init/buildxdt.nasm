@@ -6,7 +6,7 @@ library kernel
 extern ?DHlpSymAddr, ?UAPIsymAddr
 
 library kernel.paging
-extern PG_AllocContBlock:near
+extern PG_AllocContBlock
 
 ; --- Code ---
 

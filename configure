@@ -6,12 +6,21 @@ INCLPATH=$RADIOSPATH/include
 OBJPATH=$RADIOSPATH/etc/obj
 INSTALLPATH=$RADIOSPATH/etc/obj
 
+# Prompt and read string from the console
 ReadData() {
     echo -n $3 "[$2]: "
     read p
     [ $p ] && eval $1=$p
 }
 
+# Check version of the tools used in Makefiles
+CheckTools() {
+    grep_ver=`grep --version 2>&1 | head -1`
+    sed_ver=`sed --version 2>&1 | head -1`
+    awk_ver=`awk --version 2>&1 | head -1`
+}
+
+# Main
 ReadData RADIOSPATH $RADIOSPATH "Source root directory"
 ReadData INCLPATH $INCLPATH "RadiOS headers directory"
 ReadData OBJPATH $OBJPATH "Object directory"

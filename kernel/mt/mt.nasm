@@ -30,7 +30,7 @@ library kernel
 extern KernTSS, DrvTSS
 
 library kernel.misc
-extern BZero:near
+extern BZero
 
 
 ; --- Variables ---

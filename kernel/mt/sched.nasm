@@ -24,17 +24,17 @@ global MT_SuspendCurr, MT_SuspendCurr1ms
 library kernel
 extern KernTSS
 %ifdef KPOPUPS
-extern K_PopUp:near
+extern K_PopUp
 %endif
 
 library kernel.setjmp
-extern K_SetJmp:near, K_LongJmp:near
+extern K_SetJmp, K_LongJmp
 
 library kernel.semaphore
-extern K_SemP:near, K_SemV: near
+extern K_SemP, K_SemV
 
 library kernel.misc
-extern K_LDelayMs:near
+extern K_LDelayMs
 
 ; --- Data ---
 

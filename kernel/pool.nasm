@@ -20,10 +20,10 @@ global K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 ; --- Imports ---
 
 library kernel.paging
-extern PG_Alloc:near, PG_Dealloc:near
+extern PG_Alloc, PG_Dealloc
 
 library kernel.semaphore
-extern K_SemP:near, K_SemV:near
+extern K_SemP, K_SemV
 
 
 ; --- Variables ---

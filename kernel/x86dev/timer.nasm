@@ -26,10 +26,17 @@
 
 ; --- Exports ---
 
-global TMR_InitCounter,TMR_CountCPUspeed
+publicproc TMR_InitCounter,TMR_CountCPUspeed
+publicdata ?CPUspeed
 
+
+; --- Variables ---
+
+section .bss
+?CPUspeed	RESD	1
 
 ; --- Procedures ---
+section .text
 
 		; TMR_InitCounter - initialize counter.
 		; Input: AL=control byte,
@@ -136,9 +143,10 @@ proc TMR_DelayLong
 endp		;---------------------------------------------------------------
 
 
-		; TMR_CountCPUspeed - count CPU speed rate.
+		; TMR_CountCPUspeed - count CPU speed rate and store it in
+		;		      the [?CPUspeed] variable.
 		; Input: none.
-		; Output: ECX=CPU speed rate.
+		; Output: none.
 proc TMR_CountCPUspeed
 		mpush	eax,ebx,edx,esi,edi
 		cli
@@ -201,8 +209,8 @@ proc TMR_CountCPUspeed
 
 .Loop3:		inc	ecx
 		sub	eax,64h
-		jbe	short .Exit
-		jmp	.Loop3
+		ja	.Loop3
+		mov	[?CPUspeed],ecx
 
 .Exit:		sti
 		mpop	edi,esi,edx,ebx,eax

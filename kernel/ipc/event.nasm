@@ -14,8 +14,7 @@ global K_HandleEvent
 
 
 ; --- Imports ---
-extern KernelEventHandler:near
-extern SysReboot:near
+extern KernelEventHandler, SysReboot
 
 ; --- Code ---
 section .text

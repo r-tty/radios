@@ -5,7 +5,7 @@
 
 module kernel.initmem
 
-%define VERBOSE
+;%define VERBOSE
 
 %include "sys.ah"
 %include "errors.ah"
@@ -20,18 +20,15 @@ module kernel.initmem
 
 ; --- Exports ---
 
-global K_InitMem
-
+global K_InitMem:proc
+global ?BaseMemSz:data, ?ExtMemSz:data
+global ?PhysMemPages:data, ?VirtMemPages:data, ?TotalMemPages:data
+global ?DrvrAreaStart:data, ?UserAreaStart:data
 
 ; --- Imports ---
 
-library kernel
-extern ?BaseMemSz, ?ExtMemSz
-extern ?PhysMemPages, ?TotalMemPages
-extern ?UserAreaStart, ?DrvrAreaStart
-
 library kernel.x86.basedev
-extern CMOS_ReadBaseMemSz:near, CMOS_ReadExtMemSz:near
+extern CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
 
 
 ; --- Data ---
@@ -39,15 +36,26 @@ extern CMOS_ReadBaseMemSz:near, CMOS_ReadExtMemSz:near
 section .data
 
 %ifdef VERBOSE
-MsgMemInit	DB	"Memory init: ",0
-MsgLowerMemKB	DB	" KB lower, ",0
-MsgUpperMemKB	DB	" KB upper",NL,0
-
 MsgDumpHdr	DB	NL,"BIOS memory map dump:"
 		DB	NL," Base address",ASC_HT,"Size (bytes)",ASC_HT
 		DB	"Pages",NL,0
 %endif
 
+; --- Variables ---
+section .bss
+
+; Memory sizes (in kilobytes)
+?BaseMemSz	RESD	1
+?ExtMemSz	RESD	1
+
+; Number of extended memory pages
+?PhysMemPages	RESD	1			; Number of upper memory pages
+?VirtMemPages	RESD	1			; Virtual memory pages
+?TotalMemPages	RESD	1			; Total pages (upper+virtual)
+
+; Driver and user area start addresses
+?DrvrAreaStart	RESD	1
+?UserAreaStart	RESD	1
 
 ; --- Code ---
 
@@ -71,14 +79,7 @@ proc K_InitMem
 		mov	[?TotalMemPages],ecx
 
 	%ifdef VERBOSE
-		; Print how much memory we have
-		mServPrintStr MsgMemInit
-		mServPrintDec [?BaseMemSz]
-		mServPrintStr MsgLowerMemKB
-		mServPrintDec [?ExtMemSz]
-		mServPrintStr MsgUpperMemKB
-		
-		; Dump enhanced memory map, if present
+		; Dump enhanced memory map, if presents
 		cmp	dword [BIOSMemMapSize],0
 		jz	short .OK
 		call	K_DumpBMM

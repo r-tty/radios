@@ -10,6 +10,7 @@ module kernel.sync
 %include "errors.ah"
 %include "sync.ah"
 %include "pool.ah"
+%include "hash.ah"
 %include "thread.ah"
 %include "tm/process.ah"
 
@@ -23,12 +24,14 @@ publicproc sys_SyncSemPost, sys_SyncSemWait
 externproc MT_ThreadSleep, MT_ThreadWakeup
 externproc MT_Schedule
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+externproc K_CreateHashTab, K_HashAdd, K_HashLookup, K_HashRelease
 externproc BZero
 externdata ?CurrThread
 
 
 section .bss
 
+?SyncHashPtr	RESD	1
 ?MaxSyncObjs	RESD	1
 ?SyncObjCount	RESD	1
 ?SyncPool	RESB	tMasterPool_size
@@ -48,7 +51,11 @@ proc K_SyncInit
 		mov	cl,tSyncDesc_size
 		xor	dl,dl
 		call	K_PoolInit
-		ret
+		jc	.Ret
+		call	K_CreateHashTab
+		jc	.Ret
+		mov	[?SyncHashPtr],esi
+.Ret:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -104,26 +111,6 @@ proc K_SemV
 endp		;---------------------------------------------------------------
 
 
-		; Find a sync descriptor by user address of sync object.
-		; Input: EBX=user address of sync object,
-		;	 ESI=PCB address.
-		; Output: CF=0 - OK, EAX=address of sync descriptor;
-		;	  CF=1 - error, EAX=errno.
-		; Note: linear search.
-proc FindSyncDesc
-		mov	eax,[esi+tProcDesc.SyncList]
-.Loop:		or	eax,eax
-		jz	.NotFound
-		cmp	[eax+tSyncDesc.Usync],ebx
-		je	.Exit
-		mov	eax,[eax+tSyncDesc.Next]
-		jmp	.Loop
-.NotFound:	mov	eax,-EINVAL
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-
 ; --- Synchronizaton system calls ----------------------------------------------
 
 
@@ -137,15 +124,18 @@ proc sys_SyncTypeCreate
 		mov	edi,[%$sync]
 		add	edi,USERAREASTART
 		jc	near .Fault
+		cmp	edi,-tSync_size
+		ja	near .Fault
 		mov	edx,[%$attr]
 		or	edx,edx
 		jz	.CheckOwner
 		add	edx,USERAREASTART
 		jc	near .Fault
+		cmp	edx,-tSyncAttr_size
+		ja	near .Fault
 
 		; Fill the "Owner" field
-.CheckOwner:	xor	ecx,ecx
-		mov	eax,[%$type]
+.CheckOwner:	mov	eax,[%$type]
 		cmp	eax,SYNC_MUTEX_FREE
 		je	.TypeMutex
 		cmp	eax,SYNC_SEM
@@ -161,19 +151,24 @@ proc sys_SyncTypeCreate
 
 		; For a mutex, check the protocol (if attr is NULL, use default)
 .TypeMutex:	or	edx,edx
-		jnz	.CheckProto
+		jnz	.ChkMutexProto
 		mov	edx,MUTEX_PRIO_INHERIT
 		jmp	.AllocDesc
 
-.CheckProto:	mov	edx,[edx+tSyncAttr.Protocol]
+.ChkMutexProto:	mov	edx,[edx+tSyncAttr.Protocol]
 		cmp	edx,MUTEX_PRIO_INHERIT
 		jne	near .Invalid
 		jmp	.AllocDesc
 
-		; Check semafore value and initialize owner
-.TypeSem:	cmp	dword [edi+tSync.Count],SEM_VALUE_MAX
-		jae	.Invalid
-		mov	[edi+tSync.Count],ecx
+		; For a semaphore - protocol contains its initial value
+.TypeSem:	or	edx,edx
+		jnz	.ChkSemProto
+		inc	edx					; Default count
+		jmp	.SemSet
+.ChkSemProto:	mov	edx,[edx+tSyncAttr.Protocol]
+		cmp	edx,SEM_VALUE_MAX
+		jae	near .Invalid
+.SemSet:	mov	[edi+tSync.Count],edx
 		mov	[edi+tSync.Owner],eax
 
 		; Allocate a syncobj descriptor and zero it
@@ -188,12 +183,18 @@ proc sys_SyncTypeCreate
 		mCurrThread
 		mov	eax,[eax+tTCB.PCB]
 		mov	[esi+tSyncDesc.PCB],eax
+
+		; Fill in another fields and enqueue it
+		mov	[esi+tSyncDesc.Type],ecx
 		mov	ebx,[%$sync]
 		mov	[esi+tSyncDesc.Usync],ebx
 		mEnqueue dword [eax+tProcDesc.SyncList], Next, Prev, esi, tSyncDesc, ecx
 
-		; Return success
-		xor	eax,eax
+		; We use PCB address as the identifier and user address of
+		; synchronization object as the key for hashing.
+		mov	edi,esi
+		mov	esi,[?SyncHashPtr]
+		call	K_HashAdd
 
 .Exit:		epilogue
 		ret
@@ -211,9 +212,20 @@ endp		;---------------------------------------------------------------
 proc sys_SyncDestroy
 		arg	sync
 		prologue
-		MISSINGSYSCALL
-		epilogue
+int3
+		; Find a descriptor in the hash table
+		mCurrThread
+		mov	eax,[eax+tTCB.PCB]
+		mov	ebx,[%$sync]
+		mov	esi,[?SyncHashPtr]
+		call	K_HashLookup
+		jc	.Invalid
+
+.Exit:		epilogue
 		ret
+
+.Invalid:	mov	eax,-EINVAL
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 

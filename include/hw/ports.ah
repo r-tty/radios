@@ -132,9 +132,8 @@ PORT_PCI_BASE		EQU	0CFCh
 
 ; Dumb delay for slow buses
 %macro PORTDELAY 0
-	jmp	%%1
-%%1:	jmp	%%2
-%%2:
+	jmp	$+2
+	jmp	$+2
 %endmacro
 
 %endif

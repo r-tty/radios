@@ -184,6 +184,11 @@ proc Start
 		kPrintDec [?UpperMemSize]
 		kPrintStr TxtKB
 
+		; Enable paging
+		call	PG_StartPaging
+		jc	near ExitKernel
+
+
 		; Initialize RTC
 		call	K_InitTime
 
@@ -207,10 +212,6 @@ proc Start
 		; Initialize multitasking memory structures
 		mov	eax,MAXNUMTHREADS
 		call	MT_Init
-		jc	near ExitKernel
-
-		; Enable paging
-		call	PG_StartPaging
 		jc	near ExitKernel
 
 		; Create idle thread

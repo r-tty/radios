@@ -63,7 +63,7 @@ TxtHelp		DB NL,"Monitor commands:",NL
 		DB " e addr",9,9,"  - examine address",NL
 		DB " g [addr][,addr1] - run from addr to addr1 (sets special breakpoint 0)",NL
 		DB " p",9,9,"  - proceed, only runs calls though",NL
-		DB " q",9,9,"  - exit from kernel",NL
+		DB " q",9,9,"  - exit the kernel",NL
 		DB " r [reg]",9,"  - view/modify registers",NL
 		DB " t",9,9,"  - single step",NL
 		DB " u [addr]",9,"  - disassemble",NL,0
@@ -97,7 +97,7 @@ section .text
 		; Note: this procedure installs all exception handlers.
 		;	If an argument "nopfh" was passed in command line,
 		;	page fault handler won't be installed.
-		;	Also it registers the handler of DebugKDBread unless
+		;	Also it registers the handler of DebugKDBreak unless
 		;	an argument "nokdb" is passed.
 proc MonitorInit
 		pushad

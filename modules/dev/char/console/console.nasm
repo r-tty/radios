@@ -30,6 +30,7 @@ externdata ?MaxColNum, ?MaxRowNum
 
 library $libc
 importproc _memset, _usleep, _ThreadCtl
+importproc _sem_init, _sem_destroy
 
 library $librm
 importproc _dispatch_create, _iofunc_func_init, _iofunc_attr_init
@@ -101,6 +102,7 @@ section .text
 proc CON_Main
 		arg	argc, argv
 		locauto	rmattr, tResMgrAttr_size
+	locauto sem, tSync_size
 		locals	dpp, id
 		prologue
 
@@ -127,6 +129,10 @@ proc CON_Main
 		jc	near .Err1
 		mov	[%$dpp],eax
 int 20h
+lea eax,[%$sem]
+Ccall _sem_init, eax, 0, 1
+lea eax,[%$sem]
+Ccall _sem_destroy, eax
 		; Initialize resource manager attributes
 		lea	edi,[%$rmattr]
 		Ccall	_memset, edi, 0, tResMgrAttr_size

@@ -342,7 +342,7 @@ proc MemSet
 		mov	edi,ebx
 		mov	ah,al
 		cld
-		shr	ecx,byte 1
+		shr	ecx,1
 		rep	stosw
 		adc	ecx,ecx
 		rep	stosb

@@ -362,7 +362,7 @@ proc MOD_CheckSignature
 .Exit:		pop	ecx
 		ret
 
-.Err:		mov	ax,ERR_MOD_UnknownSignature
+.Err:		mov	ax,ERR_MOD_UnknSignature
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------

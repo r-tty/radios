@@ -1,6 +1,6 @@
 ;-------------------------------------------------------------------------------
-;  pci.ah - PCI definitions.
-;  This file is based on Linux's pci.h.
+; pci.ah - PCI definitions.
+; This file is based on Linux's pci.h.
 ;-------------------------------------------------------------------------------
 
 

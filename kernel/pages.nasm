@@ -235,7 +235,7 @@ proc PG_AllocContBlock
 		dec	edx
 		jnz	.MarkUsed
 		
-		; Finally, count the address of allocated block
+		; Finally, calculate the address of allocated block
 		mov	ebx,esi
 		sub	ebx,[?PgBitmapAddr]
 		shl	ebx,3				; 8 bits per byte
@@ -433,10 +433,10 @@ endp		;---------------------------------------------------------------
 		; PG_IsPageReserved - check whether a page belongs to
 		;		reserved memory area in BIOS memory map.
 		; Input: EBX=page address.
-		; Output: CF=0 - page is free;
-		;	  CF=1 - page is busy by some boot module.
+		; Output: CF=0 - page is available;
+		;	  CF=1 - page is reserved.
 		; Notes: modifies EDX;
-		;	 memory sizes more than 4G are not currenly supported :)
+		;	 memory sizes more than 4G are not currenly supported.
 proc PG_IsPageReserved
 		mov	edx,[BOOTPARM(MemMapAddr)]
 		or	edx,edx

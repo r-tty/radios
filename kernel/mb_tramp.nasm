@@ -3,9 +3,9 @@
 ;-------------------------------------------------------------------------------
 
 ; Definitions
-%define RDXPOS		110000h		; Kernel image will be placed here
-%define BTL_DEST	100000h		; Target address of BTL
-%define	BTL_SIZE	16384		; Size of BTL (with spare)
+RDXPOS		EQU	110000h		; Kernel image will be placed here
+BTL_DEST	EQU	100000h		; Target address of BTL
+BTL_SIZE	EQU	16384		; Size of BTL (with spare)
 
 ; RDOFF master header
 struc tRDOFFmaster
@@ -27,10 +27,10 @@ struc tMultiBootHeader
 .Entry		RESD	1
 endstruc
 
-%define MBH_MAGIC	1BADB002h
-%define MBH_FLAGS	00010003h
+MBH_MAGIC	EQU	1BADB002h
+MBH_FLAGS	EQU	00010003h
 
-%define MBHPOS		RDXPOS+10h
+MBHPOS		EQU	RDXPOS+10h
 
 ; We are in flat binary format, specify origin and 32-bit mode
 bits 32

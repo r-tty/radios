@@ -1,41 +1,41 @@
 File					Syscall			Version	    Stat
 --------------------------------------------------------------------------------
-kernel/ipc/msg.nasm			sys_MsgReadIOV		undoc
-kernel/ipc/msg.nasm			sys_MsgKeyData		mk8
-kernel/ipc/channel.nasm			sys_ConnectDetach	mk7
-kernel/ipc/channel.nasm			sys_ConnectClientInfo	mk7
-kernel/mt/mt.nasm			sys_ThreadDetach	mk7
-kernel/mt/mt.nasm			sys_ThreadJoin		mk7
-kernel/mt/mt.nasm			sys_ThreadCancel	mk7
-kernel/mt/mt.nasm			sys_SchedYield		mk7
-kernel/sync.nasm			sys_SyncDestroy		mk7
-kernel/sync.nasm			sys_SyncMutexLock	mk7
-kernel/sync.nasm			sys_SyncMutexUnlock	mk7
-kernel/sync.nasm			sys_SyncMutexRevive	mk7
-kernel/sync.nasm			sys_SyncCondvarWait	mk7
-kernel/sync.nasm			sys_SyncCondvarSignal	mk7
-kernel/sync.nasm			sys_SyncSemPost		mk7
-kernel/sync.nasm			sys_SyncSemWait		mk7
-kernel/sync.nasm			sys_SyncCtl		mk7
-kernel/interrupt.nasm			sys_InterruptDetachFunc	undoc
-modules/taskman/ring0/thread.nasm	sys_SchedGet		mk8
-modules/taskman/ring0/thread.nasm	sys_SchedSet		mk8
-modules/taskman/ring0/thread.nasm	sys_SchedInfo		mk8
-modules/taskman/ring0/timers.nasm	sys_TimerCreate		mk8
-modules/taskman/ring0/timers.nasm	sys_TimerDestroy	mk8
-modules/taskman/ring0/timers.nasm	sys_TimerSettime	mk8
-modules/taskman/ring0/timers.nasm	sys_TimerInfo		mk8
-modules/taskman/ring0/timers.nasm	sys_TimerAlarm		mk8
-modules/taskman/ring0/timers.nasm	sys_TimerTimeout	mk8
-modules/taskman/ring0/connection.nasm	sys_ConnectServerInfo	mk7
-modules/taskman/ring0/connection.nasm	sys_ConnectFlags	mk7
-modules/taskman/ring0/sigevent.nasm	sys_MsgVerifyEvent	mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalReturn	mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalFault		mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalAction	mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalProcmask	mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalSuspend	mk7
-modules/taskman/ring0/sigevent.nasm	sys_SignalWaitinfo	mk7
-modules/taskman/ring0/clock.nasm	sys_ClockAdjust		mk7
-modules/taskman/ring0/clock.nasm	sys_ClockPeriod		mk7
-modules/taskman/ring0/clock.nasm	sys_ClockId		mk7
+kernel/ipc/msg.nasm			sys_MsgReadIOV		undoc	    -
+kernel/ipc/msg.nasm			sys_MsgKeyData		mk8	    -
+kernel/ipc/channel.nasm			sys_ConnectDetach	mk7	    -
+kernel/ipc/channel.nasm			sys_ConnectClientInfo	mk7	    -
+kernel/mt/mt.nasm			sys_ThreadDetach	mk7	    -
+kernel/mt/mt.nasm			sys_ThreadJoin		mk7	    -
+kernel/mt/mt.nasm			sys_ThreadCancel	mk7	    -
+kernel/mt/mt.nasm			sys_SchedYield		mk7	    -
+kernel/sync.nasm			sys_SyncDestroy		mk7	    -
+kernel/sync.nasm			sys_SyncMutexLock	mk7	    -
+kernel/sync.nasm			sys_SyncMutexUnlock	mk7	    -
+kernel/sync.nasm			sys_SyncMutexRevive	mk7	    -
+kernel/sync.nasm			sys_SyncCondvarWait	mk7	    -
+kernel/sync.nasm			sys_SyncCondvarSignal	mk7	    -
+kernel/sync.nasm			sys_SyncSemPost		mk7	    -
+kernel/sync.nasm			sys_SyncSemWait		mk7	    -
+kernel/sync.nasm			sys_SyncCtl		mk7	    -
+kernel/interrupt.nasm			sys_InterruptDetachFunc	undoc	    -
+modules/taskman/ring0/thread.nasm	sys_SchedGet		mk8	    -
+modules/taskman/ring0/thread.nasm	sys_SchedSet		mk8	    -
+modules/taskman/ring0/thread.nasm	sys_SchedInfo		mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerCreate		mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerDestroy	mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerSettime	mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerInfo		mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerAlarm		mk8	    -
+modules/taskman/ring0/timers.nasm	sys_TimerTimeout	mk8	    -
+modules/taskman/ring0/connection.nasm	sys_ConnectServerInfo	mk7	    -
+modules/taskman/ring0/connection.nasm	sys_ConnectFlags	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_MsgVerifyEvent	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalReturn	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalFault		mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalAction	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalProcmask	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalSuspend	mk7	    -
+modules/taskman/ring0/sigevent.nasm	sys_SignalWaitinfo	mk7	    -
+modules/taskman/ring0/clock.nasm	sys_ClockAdjust		mk7	    -
+modules/taskman/ring0/clock.nasm	sys_ClockPeriod		mk7	    -
+modules/taskman/ring0/clock.nasm	sys_ClockId		mk7	    -

@@ -41,7 +41,7 @@ section .text
 		;	  CF=1 - error, AX=error code.
 proc MT_Init
 		call	MT_InitTCBpool
-		jc	.Done
+		jc	.Ret
 
 		; Initialize kernel TSS
 		mov	edi,KernTSS
@@ -58,9 +58,7 @@ proc MT_Init
 		mov	eax,MT_ExitGateHandler
 		call	K_SetGateOffset
 
-		; Initialize scheduler timeout queue
-		call	MT_InitTimeout		
-.Done		ret
+.Ret:		ret
 endp		;---------------------------------------------------------------
 
 

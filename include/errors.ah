@@ -72,7 +72,6 @@ ERR_PoolBadChunkNum	EQU	0282h
 ERR_NoFreeID		EQU	0290h
 ERR_BadID		EQU	0291h
 ERR_NoFreeHashElem	EQU	0292h
-ERR_BadHashElemSig	EQU	0293h
 
 ; Paging primitives
 ERR_PG_NoFreePage	EQU	02A0h

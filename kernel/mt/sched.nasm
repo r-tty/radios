@@ -1,21 +1,19 @@
 ;-------------------------------------------------------------------------------
-; sched.nasm - RadiOS scheduler.
-; Copyright (c) 2000 RET & COM Research.
-; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; sched.nasm - RadiOS schedulers.
+; Copyright (c) 2000,2003 RET & COM Research.
+; Partially based on TINOS (c) 1998 Bart Sekura.
 ;-------------------------------------------------------------------------------
 
-%include "timeout.ah"
-
-%define	CNT_SHIFT	1		; CPU usage aging factor
-
 publicproc K_SwitchTask, MT_Schedule
-publicproc MT_SuspendCurr, MT_SuspendCurr1ms
-publicdata ?CurrThread, ?TicksCounter
+publicdata ?CurrThread
+exportdata ?TicksCounter
 
 externproc K_SetJmp, K_LongJmp
 externproc K_SemP, K_SemV
-externproc K_LDelayMs
 externdata KernTSS
+
+
+CNT_SHIFT	EQU	1		; CPU usage aging factor
 
 
 section .bss
@@ -49,10 +47,8 @@ section .bss
 				; Because there are potentially more important
  				; threads hanging around waiting to be activated
 
-?TimeoutQue	RESD	1	; Address of timeout queue
-?TimeoutTrailer	RESB	tTimeout_size
-?TimeoutPool	RESB	tTimeout_size*MAX_TIMEOUTS
-
+?TimeoutRoutine	RESD	1	; Task manager registers here the address of
+				; timeout handling routine
 
 section .text
 
@@ -285,9 +281,12 @@ proc K_SwitchTask
 		call	MT_SchedAging
 		mov	dword [?SchedTimer],0
 
-.ChkTimeout:	call	MT_CheckTimeout
+.ChkTimeout:	mov	eax,[?TimeoutRoutine]
+		or	eax,eax
+		jz	.1
+		call	eax
 
-		cmp	dword [ebx+tTCB.Quant],0
+.1:		cmp	dword [ebx+tTCB.Quant],0
 		jle	.Schedule
 		dec	dword [?SchedPreempt]
 		jz	.Done
@@ -296,139 +295,6 @@ proc K_SwitchTask
 .Done:		cli
 		mov	dword [?SchedInClock],0
 .Exit:		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_InitTimeout - initialize timeout pool.
-		; Input: none.
-		; Output: none.
-proc MT_InitTimeout
-		mov	ecx,MAX_TIMEOUTS
-		mov	ebx,?TimeoutPool
-.InitQLoop:	mov	byte [ebx+tTimeout.State],TM_ST_FREE
-		add	ebx,tTimeout_size
-		loop	.InitQLoop
-
-		mov	ebx,?TimeoutTrailer
-		mov	dword [ebx+tTimeout.Ticks],-1
-		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
-
-		; Enqueue trailer
-		mEnqueue dword [?TimeoutQue], Next, Prev, ebx, tTimeout, ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_SetTimeout - set timeout.
-		; Input: ECX=number of ticks.
-		; Output: none.
-proc MT_SetTimeout
-		; We just hunt for free timeout slot.
-		; Goin' do it when interrupts are disabled.
-		pushfd
-		cli
-		mov	eax,ecx
-		mov	ecx,MAX_TIMEOUTS
-		mov	ebx,?TimeoutPool
-.HuntLoop:	cmp	byte [ebx+tTimeout.State],TM_ST_FREE
-		je	.Init
-		add	ebx,tTimeout_size
-		loop	.HuntLoop
-		jmp	.NoSpace
-
-		; Initialize this timeout.
-		; Set its ticks value to current system ticks plus
-		; the amount of ticks it wants to wait; makes searching
-		; the timeout queue easier.
-.Init:		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
-		add	eax,[?TicksCounter]
-		mov	[ebx+tTimeout.Ticks],eax
-		push	ebx
-		lea	ebx,[ebx+tTimeout.Sem]
-		mSemInit ebx
-		xor	eax,eax
-		mSemSetVal ebx
-		pop	ebx
-
-		; Go through the timeout queue until we reach
-		; the one with higher timeout ticks than this one.
-		; This results in having timeout queue sorted
-		; by timeout ticks in ascending order.
-		mov	edx,[?TimeoutQue]
-.SearchLoop:	mov	eax,[ebx+tTimeout.Ticks]
-		cmp	[edx+tTimeout.Ticks],eax
-		ja	.Insert
-		mov	edx,[edx+tTimeout.Next]
-		jmp	.SearchLoop
-
-		; Insert this one before the one found above.
-.Insert:	mov	[ebx+tTimeout.Next],edx
-		mov	eax,[edx+tTimeout.Prev]
-		mov	[ebx+tTimeout.Prev],eax
-		mov	[eax+tTimeout.Next],ebx
-		mov	[edx+tTimeout.Prev],ebx
-		cmp	edx,[?TimeoutQue]
-		jne	.1
-		mov	[edx+tTimeout.Prev],ebx
-
-.1:		popfd
-		; Now actually wait for the timeout to elapse
-		; we have previously initialized the semaphore
-		; to non-singnaled state, so we block here
-		lea	eax,[ebx+tTimeout.Sem]
-		call	K_SemP
-		ret
-
-.NoSpace:	popfd
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_CheckTimeout - go through timeouts queue and release
- 		;		    those that expired.
-		; Input: none.
-		; Output: none.
-proc MT_CheckTimeout
-		mpush	ebx,edx
-		pushfd
-		cli
-		
-		mov	edx,[?TimeoutQue]
-.ChkLoop:	mov	eax,[?TicksCounter]
-		cmp	eax,[edx+tTimeout.Ticks]
-		jb	.Done
-		lea	eax,[edx+tTimeout.Sem]
-		call	K_SemV
-		mDequeue dword [?TimeoutQue], Next, Prev, edx, tTimeout, ebx
-		mov	edx,[edx+tTimeout.Next]
-		jmp	.ChkLoop
-		
-.Done:		popfd
-		mpop	edx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_SuspendCurr - suspend current thread on given interval.
-		; Input: ECX=interval in ms.
-		; Output:none.
-proc MT_SuspendCurr
-		push	ecx
-		call	K_LDelayMs
-		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_SuspendCurr1ms - suspend current thread on 1 millisecond.
-		; Input: none.
-		; Output:none.
-proc MT_SuspendCurr1ms
-		push	ecx
-		mov	ecx,1
-		call	K_LDelayMs
-		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -445,7 +311,6 @@ TxtAdjusts	DB	NL,"Sched adjusts: ",0
 TxtRecalcs	DB	NL,"Sched recalcs: ",0
 TxtCurrRets	DB	NL,"Current returns: ",0
 TxtKernTicks	DB	NL,"Kernel ticks: ",0
-TxtDrvTicks	DB	NL,"Driver ticks: ",0
 TxtUserTicks	DB	NL,"User ticks: ",0
 TxtTicksCnt	DB	NL,"Ticks counter: ",0
 TxtSysUptime	DB	NL,NL,"System uptime: ",0
@@ -472,9 +337,6 @@ proc MT_PrintSchedStat
 		mPrintString TxtKernTicks
 		mov	eax,[?KernTicks]
 		call	PrintDwordDec
-		mPrintString TxtDrvTicks
-		mov	eax,[?DrvTicks]
-		call	PrintDwordDec
 		mPrintString TxtUserTicks
 		mov	eax,[?UserTicks]
 		call	PrintDwordDec
@@ -490,4 +352,3 @@ proc MT_PrintSchedStat
 endp		;---------------------------------------------------------------
 
 %endif
-

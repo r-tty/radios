@@ -3,24 +3,24 @@
 ;-------------------------------------------------------------------------------
 
 ; Port 61h bits (R/W)
-KBC_P1_PTYCHK	     	EQU	80h	; Parity check
-KBC_P1_IOCHK 	     	EQU	40h	; I/O check
-KBC_P1_T20   	     	EQU	20h	; Counter 2 output
-KBC_P1_RFD   	     	EQU	10h	; Regeneration of RAM
-KBC_P1_EIC   	     	EQU	8	; Enable I/O checking
-KBC_P1_ERP   	     	EQU	4	; Enable RAM parity checking
-KBC_P1_SPK   	     	EQU	2	; Speaker gate
 KBC_P1_T2G   		EQU	1	; Counter GATE2 input
+KBC_P1_SPK   	     	EQU	2	; Speaker gate
+KBC_P1_ERP   	     	EQU	4	; Enable RAM parity checking
+KBC_P1_EIC   	     	EQU	8	; Enable I/O checking
+KBC_P1_RFD   	     	EQU	10h	; Regeneration of RAM
+KBC_P1_T20   	     	EQU	20h	; Counter 2 output
+KBC_P1_IOCHK 	     	EQU	40h	; I/O check
+KBC_P1_PTYCHK	     	EQU	80h	; Parity check
 
 ; Port 64h status bits (R)
-KBC_P4S_PTYERR	      	EQU	80h	; Parity error
-KBC_P4S_RXTO  	      	EQU	40h	; KB receiver timeout
-KBC_P4S_TXTO  	      	EQU	20h	; KB transmitter timeout
-KBC_P4S_KBLock	      	EQU	10h	; Keyboard locked
-KBC_P4S_Command		EQU	8	; Command/data
-KBC_P4S_ResetOK		EQU	4	; Reset OK/Power ON
-KBC_P4S_KBNRDY		EQU	2	; Keyboard not ready
 KBC_P4S_OutBFull	EQU	1	; Output buffer full
+KBC_P4S_KBNRDY		EQU	2	; Keyboard not ready
+KBC_P4S_ResetOK		EQU	4	; Reset OK/Power ON
+KBC_P4S_Command		EQU	8	; Command/data
+KBC_P4S_KBLock	      	EQU	10h	; Keyboard locked
+KBC_P4S_TXTO  	      	EQU	20h	; KB transmitter timeout
+KBC_P4S_RXTO  	      	EQU	40h	; KB receiver timeout
+KBC_P4S_PTYERR	      	EQU	80h	; Parity error
 
 ; Port 64h commands (W)
 KBC_P4W_Pulse		EQU	0FFh	; Pulse output line

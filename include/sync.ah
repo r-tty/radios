@@ -121,4 +121,8 @@ MUTEX_PRIO_PROTECT	EQU	2
 ; Maximum value of semaphore
 SEM_VALUE_MAX		EQU	40000000h
 
+; Scope of semaphore
+SEM_PROCESS_PRIVATE	EQU	0
+SEM_PROCESS_SHARED	EQU	1
+
 %endif

@@ -4,6 +4,9 @@
 
 module libc.posix1b
 
+%include "errors.ah"
+%include "locstor.ah"
+%include "sync.ah"
 %include "tm/memman.ah"
 %include "tm/memmsg.ah"
 
@@ -11,7 +14,10 @@ exportproc _mmap64
 exportproc _sem_init, _sem_destroy, _sem_post, _sem_wait, _sem_trywait
 exportproc _sched_get_priority_max, _sched_get_priority_min
 
+externproc _read, _write
 externproc _MsgSendnc, _SchedInfo
+externproc _SyncTypeCreate, _SyncDestroy
+externproc _SyncSemPost, _SyncSemWait
 
 section .text
 
@@ -62,7 +68,22 @@ endp		;---------------------------------------------------------------
 		; int sem_init(sem_t *sem, int pshared, uint value);
 proc _sem_init
 		arg	sem, pshared, value
+		locauto	attr, tSyncAttr_size
 		prologue
+		savereg	ebx
+
+		lea	ebx,[%$attr]
+		Mov32	ebx+tSyncAttr.Protocol,%$value
+		mov	eax,[%$pshared]
+		or	eax,eax
+		jnz	.Shared
+		mov	dword [ebx+tSyncAttr.Flags],SEM_PROCESS_PRIVATE
+		jmp	.1
+.Shared:	mov	dword [ebx+tSyncAttr.Flags],SEM_PROCESS_SHARED
+.1:		xor	eax,eax
+		mov	[ebx+tSyncAttr.PrioCeiling],eax
+		Ccall	_SyncTypeCreate, SYNC_SEM, dword [%$sem], ebx
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -72,8 +93,20 @@ endp		;---------------------------------------------------------------
 proc _sem_destroy
 		arg	sem
 		prologue
-		epilogue
+
+		; Force an EINVAL if the semaphore is "statically" initialized
+		mov	eax,[%$sem]
+		cmp	dword [eax+tSync.Owner],SYNC_INITIALIZER
+		je	.Invalid
+		Ccall	_SyncDestroy, eax
+
+.Exit:		epilogue
 		ret
+
+.Invalid:	mSetErrno EINVAL, eax
+		xor	eax,eax
+		not	eax
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -81,7 +114,19 @@ endp		;---------------------------------------------------------------
 proc _sem_post
 		arg	sem
 		prologue
-		epilogue
+
+		mov	eax,[%$sem]
+		cmp	dword [eax+tSync.Owner],SYNC_NAMED_SEM
+		jne	.Normal
+
+		; Named semaphore
+		Ccall	_write, dword [eax+tSync.Count], 0, 0
+		jmp	.Exit
+
+		; Normal (unnamed) semaphore
+.Normal:	Ccall	_SyncSemPost, eax
+
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -90,7 +135,19 @@ endp		;---------------------------------------------------------------
 proc _sem_wait
 		arg	sem
 		prologue
-		epilogue
+
+		mov	eax,[%$sem]
+		cmp	dword [eax+tSync.Owner],SYNC_NAMED_SEM
+		jne	.Normal
+
+		; Named semaphore
+		Ccall	_read, dword [eax+tSync.Count], 0, 0
+		jmp	.Exit
+
+		; Normal (unnamed) semaphore
+.Normal:	Ccall	_SyncSemWait, eax
+
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

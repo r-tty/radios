@@ -159,7 +159,7 @@ proc TM_ProcAttachThread
 .Exit:		pop	edi
 		ret
 
-.Error:		mov	ax,ERR_MT_UnableAttachThread
+.Error:		mov	ax,ERR_MT_UnableAttachThr
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
@@ -179,7 +179,7 @@ proc TM_ProcDetachThread
 .Exit:		mpop	edi,esi
 		ret
 		
-.Error:		mov	ax,ERR_MT_UnableDetachThread
+.Error:		mov	ax,ERR_MT_UnableDetachThr
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------

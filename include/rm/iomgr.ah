@@ -1,0 +1,70 @@
+;-------------------------------------------------------------------------------
+; iomsg.ah - low-level I/O definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _iomgr_ah
+%define _iomgr_ah
+
+; Manager types
+IOMGR_FSYS		EQU	02h		; matches DCMD_FSYS
+IOMGR_TCPIP		EQU	06h		; matches DCMD_IP
+IOMGR_PHOTON		EQU	0Bh		; matches DCMD_PHOTON
+IOMGR_CAM		EQU	0Ch		; matches DCMD_CAM
+IOMGR_PCI		EQU	0Dh		; matches DCMD_PCI
+IOMGR_NETMGR		EQU	0Eh		; matches DCMD_NETMGR
+IOMGR_REGISTRY		EQU	10h		; registry
+IOMGR_PCCARD		EQU	11h		; PCCARD Manager
+IOMGR_USB		EQU	12h		; USB
+IOMGR_PRIVATE_BASE	EQU	0F000h		; available for non-registered use
+IOMGR_PRIVATE_MAX	EQU	0FFFFh
+
+; Flags definitions
+NOTIFY_COND_EXTEN	EQU	80000000h	; Reserved - don't set
+NOTIFY_COND_OBAND	EQU	40000000h	; Out-of-band data is available
+NOTIFY_COND_OUTPUT	EQU	20000000h	; Room for more output
+NOTIFY_COND_INPUT	EQU	10000000h	; Data is available
+NOTIFY_COND_MASK	EQU	0F0000000h	; Mask for conditions
+NOTIFY_DATA_MASK	EQU	~NOTIFY_COND_MASK
+
+; Action definitions
+; 00  Always arm for data transition. Usefull for mq_notify(). [EOK, EBUSY]
+; 01  Arm if no data. Useful in that it may be combined with a read. [EOK, EAGAIN, EBUSY]
+; 10  Poll and disarm. [EOK:bits, EBUSY]
+; 11  Poll and arm if no data. Useful for select(). [EOK:bits, EBUSY]
+;
+; For actions which arm an event it will be disarmed when triggered.
+;  POLL       - Never arm. Never trig. Return cond.
+;  POLLARM    - Arm if cond not met. Never trig immed. Return cond.
+;  TRANARM    - Always arm. Never trig immed. Trig only when new data
+;		arrives in an empty buffer/queue. Return 0.
+;  CONDARM    - Arm if cond not met and return -1, errno = EAGAIN. If cond
+;		met return 0.
+NOTIFY_ACTION_TRANARM	EQU	0
+NOTIFY_ACTION_CONDARM	EQU	1
+NOTIFY_ACTION_POLL	EQU	2
+NOTIFY_ACTION_POLLARM	EQU	3
+NOTIFY_ACTION_MASK	EQU	3
+
+; This is used to return smaller path for displaying (passed to iofdinfo())
+FDINFO_FLAG_LOCALPATH	EQU	1	
+
+struc tFDinfo
+.mode		RESD	1			; File mode
+.ioflag		RESD	1			; Current io flags
+.offset		RESQ	1			; Current seek position
+.size		RESQ	1			; Current size of file
+.flags		RESD	1			; FDINFO_*
+.sflag		RESW	1			; Share flags
+.count		RESW	1			; File use count
+.rcount		RESW	1			; File reader count
+.wcount		RESW	1			; File writer count
+.rlocks		RESW	1			; Number of read locks
+.wlocks		RESW	1			; Number of write locks
+.zero		RESD	6
+endstruc
+
+; tFDinfo flags
+FDINFO_LOCKS	EQU	1	; There are active locks on the file
+FDINFO_MMAPS	EQU	2	; There are active mmaps on the file
+
+%endif

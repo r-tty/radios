@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  stkframe.ah - stack frame structures.
+; stkframe.ah - stack frame structures.
 ;-------------------------------------------------------------------------------
 
 ; Standard stack frame - this is how stack looks upon

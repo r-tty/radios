@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  mt.nasm - RadiOS multitasking.
-;  Copyright (c) 2000 RET & COM Research.
+; mt.nasm - thread and scheduling routines.
+; Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.mt
@@ -11,37 +11,29 @@ module kernel.mt
 %include "cpu/paging.ah"
 %include "cpu/stkframe.ah"
 %include "cpu/setjmp.ah"
-%include "sema.ah"
 %include "pool.ah"
 
 %ifdef DEBUG
-%include "bootdefs.ah"
+%include "serventry.ah"
 %endif
 
 ; --- Exports ---
 
-global MT_Init
+publicproc MT_Init
 
+exportproc sys_ThreadDestroy, sys_ThreadCancel
+exportproc sys_ThreadDetach, sys_ThreadJoin
+exportproc sys_ThreadCtl
+exportproc sys_SchedYield
 
 ; --- Imports ---
 
-library kernel
-extern KernTSS, DrvTSS
-extern K_DescriptorAddress, K_SetDescriptorBase
-
-library kernel.misc
-extern BZero
-
-
-; --- Variables ---
-
-section .bss
+externproc K_DescriptorAddress, K_SetDescriptorBase
+externproc BZero
+externdata KernTSS
 
 
 ; --- Procedures ---
-
-%include "thread.nasm"
-%include "sched.nasm"
 
 section .text
 
@@ -50,24 +42,12 @@ section .text
 		; Output: none.
 proc MT_InitKTSS
 		mov	edi,KernTSS
-		mov	eax,[?KernPageDir]
+		mov	eax,cr3
 		mov	[edi+tTSS.CR3],eax
 		mov	dx,KTSS
 		call	K_DescriptorAddress
 		call	K_SetDescriptorBase
 		ltr	dx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_InitDTSS - initialize drivers' TSS.
-		; Input: none.
-		; Output: none.
-proc MT_InitDTSS
-		mov	edi,DrvTSS
-		mov	dx,DTSS
-		call	K_DescriptorAddress
-		call	K_SetDescriptorBase
 		ret
 endp		;---------------------------------------------------------------
 
@@ -79,8 +59,44 @@ endp		;---------------------------------------------------------------
 proc MT_Init
 		call	MT_InitTCBpool
 		jc	.Done
-		call	MT_InitKTSS		; Initialize PL0 TSS
-		call	MT_InitDTSS		; Initialize PL1 TSS
+		call	MT_InitKTSS		; Initialize kernel TSS
 		call	MT_InitTimeout		; Initialize sched timeout queue
 .Done		ret
 endp		;---------------------------------------------------------------
+
+
+; --- System call routines -----------------------------------------------------
+
+
+proc sys_ThreadDestroy
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_ThreadDetach
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_ThreadJoin
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_ThreadCancel
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_ThreadCtl
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_SchedYield
+		ret
+endp		;---------------------------------------------------------------
+
+
+%include "thread.nasm"
+%include "sched.nasm"

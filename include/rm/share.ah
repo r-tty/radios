@@ -1,0 +1,11 @@
+;-------------------------------------------------------------------------------
+; share.ah - file sharing modes for sopen()
+;-------------------------------------------------------------------------------
+
+%define SH_COMPAT   00h    ; compatibility mode
+%define SH_DENYRW   10h    ; deny read/write mode
+%define SH_DENYWR   20h    ; deny write mode
+%define SH_DENYRD   30h    ; deny read mode
+%define SH_DENYNO   40h    ; deny none mode
+
+%define SH_MASK     70h    ; mask for standard share modes

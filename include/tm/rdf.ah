@@ -23,6 +23,7 @@ RDFREC_BSS		EQU	5
 RDFREC_SegReloc		EQU	6
 RDFREC_FarImport	EQU	7
 RDFREC_ModName		EQU	8
+RDFREC_Common		EQU	10
 RDFREC_Generic		EQU	0
 
 
@@ -46,7 +47,8 @@ endstruc
 ; --- Import record ---
 struc tRDFimport
 .Type		RESB	1			; ==2
-.RecLen		RESB	1			; content length
+.RecLen		RESB	1			; Content length
+.Flags		RESB	1			; Flags
 .Seg		RESW	1			; Segment number allocated to
 						; the label for reloc records -
 						; label is assumed to be at
@@ -105,9 +107,10 @@ endstruc
 
 
 ; --- Export record flags ---
-%define	RDFEXPORT_DATA		1
-%define	RDFEXPORT_FUNCTION	2
-%define	RDFEXPORT_GLOBAL	4
+%define	SYM_DATA		1
+%define	SYM_FUNCTION		2
+%define	SYM_GLOBAL		4
+%define	SYM_IMPORT		8
 
 
 ; --- Segment types ---

@@ -1,35 +1,100 @@
 ;-------------------------------------------------------------------------------
-;  errdefs.ah - RadiOS errors definitions.
+; errors.ah - error codes.
 ;-------------------------------------------------------------------------------
 
-; --- Kernel errors ---
+; These error codes correspond to <c/errno.h>
+%define EOK              0	; No error
+%define EPERM            1	; Not owner
+%define ENOENT           2	; No such file or directory
+%define ESRCH            3	; No such process
+%define EINTR            4	; Interrupted system call
+%define EIO              5	; I/O error
+%define ENXIO            6	; No such device or address
+%define E2BIG            7	; Arg list too big
+%define ENOEXEC          8	; Exec format error
+%define EBADF            9	; Bad file number
+%define ECHILD          10	; No child processes
+%define EAGAIN          11	; Resource unavailable, try again
+%define ENOMEM          12	; Not enough space
+%define EACCES          13	; Permission denied
+%define EFAULT          14	; Bad address
+%define ENOTBLK         15	; Block device required
+%define EBUSY           16	; Device or resource busy
+%define EEXIST          17	; File exists
+%define EXDEV           18	; Cross-device link
+%define ENODEV          19	; No such device
+%define ENOTDIR         20	; Not a directory
+%define EISDIR          21	; Is a directory
+%define EINVAL          22	; Invalid argument
+%define ENFILE          23	; File table overflow
+%define EMFILE          24	; Too many open files
+%define ENOTTY          25	; Inappropriate I/O control operation
+%define ETXTBSY         26	; Text file busy
+%define EFBIG           27	; File too large
+%define ENOSPC          28	; No space left on device
+%define ESPIPE          29	; Illegal seek
+%define EROFS           30	; Read-only file system
+%define EMLINK          31	; Too many links
+%define EPIPE           32	; Broken pipe
+%define EDOM            33	; Math argument out of domain of function
+%define ERANGE          34	; Result too large
+%define ENOMSG          35	; No message of desired type
+%define ENOSYS          89	; Unknown system call
+%define ELOOP           90	; Too many symbolic link or prefix loops
+%define ERESTART        91	; Restartable system call
+%define ESTRPIPE        92	; If pipe/FIFO, don't sleep in stream head
+%define ENOTEMPTY       93	; Directory not empty
 
-; Common errors
-%define	ERR_BadSyscall			0100h
+%define EOPNOTSUPP      103	; Operation not supported
+%define EFPOS		110	; File position error
+%define ESTALE          122	; Potentially recoverable i/o error
+
+;--- These error codes are used within the microkernel only --------------------
+
+; Kernel initialization errors
 %define	ERR_UnknEv			0101h
 %define	ERR_NoGlobDesc			0102h
 %define	ERR_InvGlobDesc			0103h
+%define	ERR_InvLowerMemSize		0104h
+%define	ERR_InvUpperMemSize		0105h
+%define	ERR_MemTestFail			0106h
 
 ; Misc kernel errors
-%define	ERR_KPoolFreeNoHead		0280h
+%define	ERR_PoolFreeNoHead		0280h
+%define ERR_PoolNotFound		0281h
+%define ERR_PoolBadChunkNum		0282h
 
-; Memory errors
-%define	ERR_MEM_InvBaseSz		0340h
-%define	ERR_MEM_ExtTestErr		0341h
-%define	ERR_MEM_InvCMOSExtMemSz		0342h
+; Paging primitives
+%define	ERR_PG_NoFreePage		02A0h
+%define	ERR_PG_NoFreeDir		02A1h
+%define	ERR_PG_BadLinearAddr		02A2h
+%define	ERR_PG_BadDirNum		02A3h
+%define	ERR_PG_BadBlockSize		02A4h
+
+; Basic devices
+%define	ERR_KBC_NotRDY			02B0h
+%define	ERR_TMR_BadCNBR			02B8h
+%define	ERR_DMA_BadChNum		02C0h
+%define	ERR_DMA_BadAddr			02C1h
+%define	ERR_DMA_PageOut			02C2h
+%define	ERR_DMA_AddrOdd			02C3h
+
+
+;--- Error codes for different task manager subsystems -------------------------
+
+; Path manager errors
+%define ERR_PTM_InvalidRAMdisk		0330h
+%define ERR_PTM_UnableAllocRD		0331h
+
+; Memory management errors
+%define	ERR_MEM_BadMCB			0341h
+%define	ERR_MEM_NoMCBs			0342h
 %define	ERR_MEM_EmptyHeap		0343h
-%define	ERR_MEM_NoMCBs			0344h
-%define	ERR_MEM_NoMemory		0345h
-%define	ERR_MEM_BadMCB			0346h
-%define	ERR_MEM_MCBnotFound		0347h
-%define	ERR_MEM_RegionLocked		0348h
-%define	ERR_MEM_BadBlockSize		0349h
-%define	ERR_MEM_InvAreaLoc		034Ah
-
-%define	ERR_PG_NoFreePage		0358h
-%define	ERR_PG_NoFreeDir		0359h
-%define	ERR_PG_BadLinearAddr		035Ah
-%define	ERR_PG_BadDirNum		035Bh
+%define	ERR_MEM_NoMemory		0344h
+%define	ERR_MEM_MCBnotFound		0345h
+%define	ERR_MEM_RegionLocked		0346h
+%define	ERR_MEM_BadBlockSize		0347h
+%define	ERR_MEM_InvAreaLoc		0348h
 
 ; Task management errors
 %define	ERR_MT_NoPIDs			0360h
@@ -50,6 +115,7 @@
 %define	ERR_MOD_BadArchMember		0374h
 %define	ERR_MOD_TooManyModules		0375h
 %define	ERR_MOD_BadID			0376h
+%define ERR_MOD_NotFound		0377h
 
 ; Error codes used by individual binary formats
 %define	ERR_RDM_BadSection		03A0h
@@ -58,21 +124,3 @@
 %define	ERR_RDM_InvLibName		03A3h
 %define	ERR_RDM_NoSection		03A4h
 %define	ERR_RDM_16bitReloc		03A5h
-
-; -- Basic device errors ---
-
-; KBC
-%define	ERR_KBC_NotRDY			0800h
-
-; Counter/timer and RTC
-%define	ERR_TMR_BadCNBR			0808h
-
-; DMA controller
-%define	ERR_DMA_BadChNum		0810h
-%define	ERR_DMA_BadAddr			0811h
-%define	ERR_DMA_PageOut			0812h
-%define	ERR_DMA_AddrOdd			0813h
-
-; BIOS32
-%define	ERR_BIOS32_NotFound		0820h
-%define	ERR_BIOS32_BadRevision		0821h

@@ -1,22 +1,28 @@
 ;*******************************************************************************
-;  pages.nasm - RadiOS memory paging primitives.
-;  Copyright (c) 2001 RET & COM Research.
+; pages.nasm - RadiOS memory paging primitives.
+; Copyright (c) 2001,2002 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.paging
 
 %include "sys.ah"
 %include "errors.ah"
-%include "cpu/paging.ah"
 %include "bootdefs.ah"
+%include "module.ah"
+%include "serventry.ah"
+%include "cpu/paging.ah"
+%include "cpu/stkframe.ah"
 
+%define PFDEBUG
 
 ; --- Exports ---
 
-publicproc PG_Init, PG_StartPaging, PG_Alloc, PG_Dealloc
-publicproc PG_AllocAreaTables, PG_MapArea, PG_NewDir, PG_AllocContBlock
-publicproc PG_GetNumFreePages, PG_GetPTEaddr, PG_FaultHandler
-publicproc AllocPhysMem
+publicproc PG_Init, PG_StartPaging
+publicproc PG_GetNumFreePages, PG_FaultHandler
+
+exportproc PG_Alloc, PG_Dealloc
+exportproc PG_AllocContBlock, PG_AllocAreaTables
+
 publicdata ?KernPagePool, ?KernPgPoolEnd
 publicdata ?KernPageDir
 
@@ -24,14 +30,20 @@ publicdata ?KernPageDir
 ; --- Imports ---
 
 library kernel
-extern ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
+externdata ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
 
 
-; --- Constants ---
-HMASTART	EQU	UPPERMEMSTART
-HMASIZE		EQU	10000h
+; --- Data ---
+
+section .data
+%ifdef PFDEBUG
+TxtPageFault	DB	"Page fault: CR2=",0
+TxtErrCode	DB	", errcode=",0
+%endif
 
 ; --- Variables ---
+
+section .bss
 
 ?PgBitmapAddr	RESD	1			; Page bitmap address
 ?PgBitmapSize	RESD	1			; Page bitmap size (bytes)
@@ -69,7 +81,7 @@ proc PG_Init
 		mov	[?KernPgPoolEnd],edx
 		
 		; Initialize page bitmap.
-		; First mark all pages which belong to loader area, kernel
+		; First mark all pages which belong to BTL area, kernel
 		; sections, syscall tables and page bitmap itself as used.
 		shr	eax,PAGESHIFT
 		mov	ecx,eax
@@ -121,15 +133,8 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc PG_StartPaging
-		locals	AllPages, LastBMDoffset
+		locals	AllPages
 		prologue
-
-		; Calculate the offset of last BMD
-		mov	eax,[BOOTPARM(NumModules)]
-		dec	eax
-		mov	ecx,tBMD_size
-		mul	ecx
-		mov	[%$LastBMDoffset],eax
 
 		; First, mark all physical pages except those which belong
 		; to boot modules and reserved area (HMA) as free.
@@ -141,24 +146,13 @@ proc PG_StartPaging
 		add	ecx,HMASIZE / PAGESIZE		; # of pages in HMA
 
 .FreeLoop:	cmp	ecx,[%$AllPages]
-		je	short .BuildTables
-		cmp	dword [BOOTPARM(NumModules)],0
-		je	short .MarkFree
-		mov	esi,ecx
-		shl	esi,PAGESHIFT			; ESI=current address
-		mov	edx,[BOOTPARM(BMDmodules)]	; Is it within
-		cmp	esi,[edx+tBMD.CodeStart]	; modules area?
-		jb	short .MarkFree
-		add	edx,[%$LastBMDoffset]		; EDX=BMD of last module
-		mov	eax,[edx+tBMD.CodeStart]
-		add	eax,[edx+tBMD.Size]
-		cmp	esi,eax
-		ja	short .MarkFree
-		inc	ecx
-		jmp	.FreeLoop
-			
-.MarkFree:	bts	[edi],ecx
-		inc	ecx
+		je	.BuildTables
+		mov	ebx,ecx
+		shl	ebx,PAGESHIFT
+		call	PG_IsBusyBootMod
+		jc	.PageBusy
+		bts	[edi],ecx
+.PageBusy:	inc	ecx
 		jmp	.FreeLoop
 		
 		; Now construct kernel page directory and tables
@@ -172,7 +166,7 @@ proc PG_StartPaging
 		mov	ecx,eax
 		mov	dl,1				; Allocate block
 		call	PG_AllocContBlock		; above 1 MB
-		jc	.Exit
+		jc	near .Exit
 		mov	[?KernPageDir],ebx
 
 		; Fill in page directory and tables with initial values
@@ -181,10 +175,10 @@ proc PG_StartPaging
 
 .FillPageDir:	add	eax,PAGESIZE
 		cmp	ecx,[?PTsPerProc]
-		jae	short .Absent
+		jae	.Absent
 		mov	[ebx+4*ecx],eax
-		or	byte [ebx+4*ecx],PG_PRESENT	; Mark as present
-		jmp	short .ChkPDENum
+		or	byte [ebx+4*ecx],PG_PRESENT | PG_WRITABLE
+		jmp	.ChkPDENum
 .Absent:	mov	dword [ebx+4*ecx],PG_DISABLE
 .ChkPDENum:	inc	ecx
 		cmp	ecx,PG_ITEMSPERTABLE
@@ -199,7 +193,7 @@ proc PG_StartPaging
 		add	edi,UPPERMEMSTART / PAGESIZE	; Add number of pages
 		cmp	ecx,edi				; in first megabyte
 		jae	short .Virtual
-		or	byte [ebx+4*ecx],PG_PRESENT	; Mark as present
+		or	byte [ebx+4*ecx],PG_PRESENT | PG_WRITABLE
 .Virtual:	inc	ecx
 		add	edi,[?VirtMemPages]
 		cmp	ecx,edi
@@ -278,7 +272,7 @@ proc PG_AllocContBlock
 		epilogue
 		ret
 
-.Err1:		mov	ax,ERR_MEM_BadBlockSize
+.Err1:		mov	ax,ERR_PG_BadBlockSize
 		stc
 		jmp	short .Done
 .Err2:		mov	ax,ERR_PG_NoFreePage
@@ -367,96 +361,33 @@ proc PG_GetNumFreePages
 endp		;---------------------------------------------------------------
 
 
-		; PG_NewDir - allocate a new page directory and page table
-		;	      for mapping first 4 MB.
-		; Input: none.
-		; Output: CF=0 - OK, EDX=new directory address;
-		;	  CF=1 - error, AX=error code.
-		; Note: This routine copies first kernel's page table into
-		;	newly created one.
-proc PG_NewDir
-		mpush	ebx,ecx,esi,edi
-		
-		; Allocate a page for a new directory
-		xor	edx,edx				; From kernel pool
-		call	PG_Alloc
-		jc	short .Exit
-		and	eax,PGENTRY_ADDRMASK
-		mov	ebx,eax				; EBX=new dir addr
-		
-		; Fill in the directory with PG_DISABLE values
-		mov	edi,ebx
-		mov	ecx,PG_ITEMSPERTABLE
-		mov	eax,PG_DISABLE
-		cld
-		rep	stosd
-		
-		; Allocate a new page table (0-4M)
-		call	PG_Alloc
-		jc	short .Exit
-		mov	[ebx],eax
-		and	eax,PGENTRY_ADDRMASK
-		
-		; Copy first kernel page table
-		mov	edi,eax
-		mov	esi,[?KernPageDir]
-		mov	esi,[esi]
-		and	esi,PGENTRY_ADDRMASK
-		mov	ecx,PG_ITEMSPERTABLE
-		rep	movsd
-
-		mov	edx,ebx
-		clc
-
-.Exit:		mpop	edi,esi,ecx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PG_DeallocDir - free a page directory with its page tables.
-		; Input: EDX=directory address.
-		; Output: none.
-proc PG_DeallocDir
-		push	ecx
-		xor	ecx,ecx
-.ChkPDE:	mov	eax,[edx+ecx*4]			; First we free all
-		test	eax,PG_PRESENT			;  page tables
-		jz	short .NextPDE
-		call	PG_Dealloc
-		
-.NextPDE:	inc	ecx
-		cmp	ecx,PG_ITEMSPERTABLE
-		jb	.ChkPDE
-		
-		mov	eax,edx				; Free directory page
-		call	PG_Dealloc
-		
-		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PG_AllocAreaTables - allocate tables for mapping specific area
-		;		       (user, shlib, drivers, etc.)
+		; PG_AllocAreaTables - allocate page tables for mapping
+		;			specific area.
 		; Input: EBX=area start address,
-		;	 EDX=directory address.
+		;	 ECX=area size (will be rounded up by PAGESIZE),
+		;	 EDX=directory address,
+		;	 AH=page table attributes.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-		; Note: this routine allocates [?PTsPerProc] page tables
-		;	for mapping a specific region and initializes PTEs.
+		; Note: this routine allocates page tables (if they are not
+		;	allocated yet) initializes PTEs with PG_DISABLE.
 proc PG_AllocAreaTables
 		mpush	ebx,ecx,edx,esi,edi
+		mAlignOnPage ecx
+		shr	ecx,PAGESHIFT
 		mov	esi,ebx
 		mov	edi,edx
 		shr	ebx,PAGEDIRSHIFT			; EBX=PDE#
-		mov	ecx,[?PTsPerProc]
 		mov	dl,1
-.Loop:		call	PG_Alloc
-		jc	short .Exit
-		or	eax,PG_PRESENT
+		mov	dh,ah
+.Loop:		cmp	dword [edi+ebx*4],PG_DISABLE
+		jne	.Next
+		call	PG_Alloc
+		jc	.Exit
+		or	al,dh
 		mov	[edi+ebx*4],eax
 		call	.InitPTattrs
-		inc	ebx
+.Next:		inc	ebx
 		loop	.Loop
 .Exit:		mpop	edi,esi,edx,ecx,ebx
 		ret
@@ -465,88 +396,12 @@ proc PG_AllocAreaTables
 .InitPTattrs:	push	ecx
 		xor	ecx,ecx
 .InitAttrLoop:	and	eax,PGENTRY_ADDRMASK
-		mov	dword [eax+ecx*4],esi
+		mov	dword [eax+ecx*4],PG_DISABLE
 		add	esi,PAGESIZE
 		inc	ecx
 		cmp	ecx,PG_ITEMSPERTABLE
 		jne	.InitAttrLoop
 		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PG_MapArea - map arbitrary area of physical memory.
-		; Input: EAX=page attributes,
-		;	 ECX=area size,
-		;	 EDX=page directory address,
-		;	 ESI=physical address of mapped area,
-		;	 EDI=virtual address.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc PG_MapArea
-		locals	pageattr,numpages,pte
-		prologue
-
-		mpush	ebx,ecx,edx,esi,edi
-		or	ecx,ecx
-		jz	near .Exit
-		mov	[%$pageattr],eax
-		mAlignOnPage ecx
-		shr	ecx,PAGESHIFT
-		mov	[%$numpages],ecx
-		shr	ecx,PAGEDIRSHIFT-PAGESHIFT	; Number of page dirs
-
-		and	esi,PGENTRY_ADDRMASK
-		mov	ebx,edx
-		mov	eax,edi
-		and	eax,ADDR_PTEMASK
-		shr	eax,PAGESHIFT			; EBX=PTE#
-		mov	[%$pte],eax
-		shr	edi,PAGEDIRSHIFT		; EBX=PDE#
-		
-.PDloop:	mov	eax,[ebx+edi*4]
-		test	eax,PG_PRESENT
-		jnz	.InitPT
-		mov	dl,1
-		call	PG_Alloc
-		jc	short .Exit
-		or	eax,[%$pageattr]
-		mov	[ebx+edi*4],eax
-		
-		; Do actual mapping and initialize page attributes
-.InitPT:	push	edi
-		mov	edi,eax
-		and	edi,PGENTRY_ADDRMASK
-		or	esi,[%$pageattr]
-		mov	eax,[%$pte]
-.PTloop:	mov	dword [edi+eax*4],esi
-		dec	dword [%$numpages]
-		jz	.InitPTdone
-		add	esi,PAGESIZE
-		inc	eax
-		cmp	eax,PG_ITEMSPERTABLE
-		jne	.PTloop
-		xor	eax,eax				; Next dir - PTE #0
-.InitPTdone:	mov	[%$pte],eax
-		pop	edi
-
-		inc	edi
-		jecxz	.OK
-		loop	.PDloop
-.OK:		clc
-.Exit:		mpop	edi,esi,edx,ecx,ebx
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PG_UnmapArea - unmap memory area.
-		; Input: EDI=virtual address,
-		;	 ECX=area size,
-		;	 EDX=page directory address.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc PG_UnmapArea
 		ret
 endp		;---------------------------------------------------------------
 
@@ -565,7 +420,7 @@ proc PG_GetPTEaddr
 		je	short .Err			; No, bad address
 		and	edx,PGENTRY_ADDRMASK		; Mask control bits
 		and	ebx,ADDR_PTEMASK
-		shr	ebx,12				; EBX=PTE number
+		shr	ebx,PAGESHIFT			; EBX=PTE number
 		lea	edi,[edx+ebx*4]			; EDI=PTE address
 		clc
 .Exit:		mpop	edx,ebx
@@ -577,23 +432,57 @@ proc PG_GetPTEaddr
 endp		;---------------------------------------------------------------
 
 
-		; AllocPhysMem - driver helper (simply calls PG_AllocContBlock).
-proc AllocPhysMem
-		jmp	PG_AllocContBlock
+		; PG_IsBusyBootMod - check whether a page belongs to some boot
+		;		   module (i.e. can it be marked as free
+		;		   during initialization).
+		; Input: EBX=page address.
+		; Output: CF=0 - page is free;
+		;	  CF=1 - page is busy by some boot module.
+proc PG_IsBusyBootMod
+		push	esi
+		mov	esi,[BOOTPARM(BMDmodules)]
+		or	esi,esi
+		jz	.Exit
+.Loop:		mov	eax,[esi+tModule.CodeStart]
+		cmp	ebx,eax
+		jb	.Next
+		add	eax,[esi+tModule.Size]
+		cmp	ebx,eax
+		jc	.Exit
+.Next:		add	esi,byte tModule_size
+		cmp	dword [esi],0
+		jne	.Loop
+.Exit:		pop	esi
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; PG_FaultHandler - handle page faults.
 		; Input: none.
 		; Output: none.
+		; Note: frame with error code is on the stack
 proc PG_FaultHandler
-		mov	ebp,esp
-		mov	eax,cr2				; EAX=faulty address
-		and	eax,PG_ATTRIBUTES
+		arg	frame
+		prologue
 
-		test	eax,PG_PRESENT			; Protection violation?
-		jnz	short .Violation
+		; Get fault address, then let interrupts back in.  This
+		; minimizes latency on kernel preemption, while still keeping
+		; a preempting task from hosing our CR2 value.
+		mov	ebx,cr2
+		sti
+		mov	dl,[%$frame+tStackFrame.Err]
+		and	dl,PG_ATTRIBUTES
+%ifdef PFDEBUG
+		mServPrintStr TxtPageFault
+		mServPrint32h ebx
+		mServPrintStr TxtErrCode
+		mServPrint8h dl
+		mServPrintChar 10
+%endif
+		test	dl,PG_PRESENT			; Protection violation?
+		jnz	.Violation
 
-.Violation:
+.Violation:	jmp	$
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

@@ -1,0 +1,122 @@
+;-------------------------------------------------------------------------------
+; rfs.ah - definitions for a simple RAM file system.
+;-------------------------------------------------------------------------------
+
+%ifndef _rfs_ah
+%define _rfs_ah
+
+%include "tm/inode.ah"
+
+; --- Common definitions ---
+
+%define	RFS_BLOCKSIZE		1024
+%define	RFS_BLOCKSHIFT		10
+
+%define	RFS_BITSPERBAM		2000h		; Blocks per BAM
+%define	RFS_BAMOFS		1		; Offset to firts BAM (in blocks)
+
+%define	RFS_FILENAMELEN		20
+
+
+; --- B-Tree definitions ---
+
+%define	RFS_DFL_LEAF		7	; Directory node is leaf (at the bottom)
+%define RFS_DFL_HEAD		6	; Directory node is head
+
+%define	RFS_MAXDIRITEMS		30	; 14 for 512 bytes block
+%define	RFS_DIRORDER		15	; 7 for 512 bytes block
+
+
+; --- Master disk block definitions ---
+
+%define	JMPinst			0EBh
+%define	BootJMP			56
+
+struc tMasterBlock
+.JmpAround	RESW	1		; For boot loader
+.ID		RESB	10		; File system ID
+.BootProg	RESB	RFS_FILENAMELEN	; Boot loader name (optional)
+.Ver		RESW	2		; File system version
+.TotalBlocks	RESD	1		; Total number of blocks (incl. master)
+.NumBAMs	RESD	1		; Number of BAMs
+.KBperBAM	RESD	1		; Kilobytes per BAM
+.RootDir	RESD	1		; Root directory block
+.Stage1Offset	RESD	1		; Offset (in sectors) stage1 loader
+.Stage1Size	RESD	1		; Size (in sectors) of stage1 loader
+endstruc
+
+
+; --- Directory node and entry definitions ---
+
+struc tDirNode
+.Flags		RESB	1
+.Items		RESB	1
+.Type		RESW	1		; Must be here (offset 2)
+.Name		RESB	RFS_FILENAMELEN
+.IAttr		RESB	tInodeAttr_size
+.AR		RESW	1
+.Reserved	RESW	3
+.Parent		RESD	1		; Parent directory node (0 for root)
+.PageLess	RESD	1		; Link
+endstruc
+
+struc tDirEntry
+.Name		RESB	RFS_FILENAMELEN
+.Spare		RESB	3
+.Flags		RESB	1
+.Entry		RESD	1
+.More		RESD	1		; This field must be last
+endstruc
+
+%define	RFS_DIRENTRYSHIFT	5	; log2(tDirEntry_size)
+%define	RFS_FIRSTDIRENTRY	64	; Offset (in bytes) to first dir entry
+
+; --- File node definitions ---
+
+%define	RFS_FNSignature		05046h
+%define	RFS_FNDirectEntries	175		; Depends on size of tFilePage
+%define	RFS_FNIndirEntries	64
+
+struc tFileNode
+.Sig		RESW	1
+.Type		RESW	1			; Must be here (offset 2)
+.Name		RESB	RFS_FILENAMELEN
+.Len		RESD	1
+.IAttr		RESB	tInodeAttr_size
+.AR		RESW	1
+.Reserved	RESD	1
+.Singles	RESD	RFS_FNDirectEntries
+.Doubles	RESD	RFS_FNIndirEntries
+endstruc
+
+
+; --- RFS Open Control Block (OCB) ---
+struc tRFSOCB
+.PoolSignature	RESD	1
+.Page		RESD	1
+.CurrPage	RESD	1
+.FSaddr		RESD	1
+.Bytes		RESD	1
+.Pages		RESD	1
+.PosBytes	RESD	1
+.PosPages	RESD	1
+.Reserved	RESD	1
+endstruc
+
+; --- Macros ---
+
+; Calculate the address of the block.
+; Input: %1 = block number (if not given, EBX is assumed),
+;	 EDX = file system address. 
+; Output: ESI=block address.
+%macro mBseek 0-2
+%if %0 == 1
+	mov	esi,%1
+%else
+	mov	esi,ebx
+%endif
+	shl	esi,RFS_BLOCKSHIFT
+	add	esi,edx
+%endmacro
+
+%endif

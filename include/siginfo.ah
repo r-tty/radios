@@ -1,0 +1,90 @@
+;-------------------------------------------------------------------------------
+; signfo.ah - signal definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _siginfo_ah
+%define _siginfo_ah
+
+SIGEV_NONE		EQU	0	; notify
+SIGEV_SIGNAL		EQU	1	; notify, signo, value
+SIGEV_SIGNAL_CODE	EQU	2	; notify, signo, value, code
+SIGEV_SIGNAL_THREAD	EQU	3	; notify, signo, value, code
+SIGEV_PULSE		EQU	4	; notify, coid, priority, code, value
+SIGEV_UNBLOCK		EQU	5	; notify
+SIGEV_INTR		EQU	6	; notify
+SIGEV_THREAD		EQU	7	; notify, notify_function, notify_attributes
+
+struc tSigEvent
+.SigEvNotify	RESD	1
+.Union1		RESD	1
+.SigEvVal	RESD	1
+.Union2		RESD	1
+endstruc
+
+; SIGILL codes (si_addr == address of faulting instruction)
+SIGILL_ILLOPC	EQU	1	; Illegal opcode
+SIGILL_ILLOPN	EQU	2	; Illegal operand
+SIGILL_ILLADR	EQU	3	; Illegal addressing mode
+SIGILL_ILLTRP	EQU	4	; Illegal trap
+SIGILL_PRVOPC	EQU	5	; Privileged opcode
+SIGILL_PRVREG	EQU	6	; Privileged register
+SIGILL_COPROC	EQU	7	; Coprocessor error
+SIGILL_BADSTK	EQU	8	; internal stack error
+NSIGILL		EQU	8
+
+; SIGSEGV codes (si_addr == address of faulting memory reference)
+SEGV_MAPERR	EQU	1	; Address not mapped
+SEGV_ACCERR	EQU	2	; No permissions
+SEGV_STKERR	EQU	3	; Stack exception
+SEGV_GPERR	EQU	4	; General protection
+SEGV_IRQERR	EQU	5	; Interrupt handler fault
+NSIGSEGV	EQU	5
+
+; SIGBUS codes (si_addr == address of faulting memory reference)
+BUS_ADRALN	EQU	1	; Invalid address alignment
+BUS_ADRERR	EQU	2	; Non-existant physical address
+BUS_OBJERR	EQU	3	; Object specific hardware error (e.g. NMI parity error)
+NSIGBUS		EQU	3
+
+; SIGCHILD codes (si_pid == child pid, si_status == exit value or signal,
+; si_uid == real uid of signaling process)
+CLD_EXITED	EQU	1	; Child has exited (si_status == exit value)
+CLD_KILLED	EQU	2	; Child was killed
+CLD_DUMPED	EQU	3	; Child terminated abnormally
+CLD_TRAPPED	EQU	4	; Traced child has trapped
+CLD_STOPPED	EQU	5	; Child has stopped
+CLD_CONTINUED	EQU	6	; Stopped child had continued
+NSIGCLD		EQU	6
+
+; SIGTRAP codes
+TRAP_BRKPT	EQU	1	; Break Point
+TRAP_TRACE	EQU	2	; Trace
+NSIGTRAP	EQU	2
+
+; SIGFPE signal codes (si_addr == address of faulting instruction)
+FPE_INTDIV	EQU	1	; Integer divide by zero
+FPE_INTOVF	EQU	2	; Integer overflow
+FPE_FLTDIV	EQU	3	; Floating point divide by zero
+FPE_FLTOVF	EQU	4	; Floating point overflow
+FPE_FLTUND	EQU	5	; Floating point underflow
+FPE_FLTRES	EQU	6	; Floating point inexact result
+FPE_FLTINV	EQU	7	; Invalid floating point operation
+FPE_FLTSUB	EQU	8	; Subscript out of range
+FPE_NOFPU	EQU	9	; No FPU or emulator
+FPE_NOMEM	EQU	10	; No kernel space for FPU save area
+NSIGFPE		EQU	10
+
+struc tSigInfo
+.signo		RESD	1
+.code		RESD	1	; If SI_NOINFO, only signo is valid
+.errno		RESD	1
+.info		RESD	3
+endstruc
+
+struc tSigHandlerInfo
+.SigInfo	RESB	tSigInfo_size
+.Handler	RESP	1
+.Context	RESP	1			
+endstruc
+
+%endif

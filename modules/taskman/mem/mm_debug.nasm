@@ -1,38 +1,34 @@
 ;-------------------------------------------------------------------------------
-;  mm_debug.nasm - memory manager debugging stuff.
+; mm_debug.nasm - memory manager debugging stuff.
 ;-------------------------------------------------------------------------------
 
 %ifdef MMDEBUG
 
-module kernel.mm_debug
+module tm.memman.debug
 
 %include "sys.ah"
 %include "errors.ah"
-%include "memman.ah"
+%include "serventry.ah"
+%include "tm/memman.ah"
+%include "tm/process.ah"
 %include "cpu/paging.ah"
-%include "process.ah"
-%include "bootdefs.ah"
 
-global MM_DebugAllocMem, MM_DebugFreeMem, MM_PrintStat, MM_DebugFreeMCBs
+publicproc MM_DebugAllocMem, MM_DebugFreeMem, MM_PrintStat, MM_DebugFreeMCBs
 
-library kernel
-extern ?UserAreaStart
-
-library kernel.mt
-extern ?ProcListPtr
+library tm.proc
+externdata ?ProcListPtr
 extern MT_PID2PCB
 
-library kernel.mm
-extern MM_AllocBlock, MM_FreeBlock, MM_FreeMCBarea
+library tm.mm
+externproc MM_AllocBlock, MM_FreeBlock, MM_FreeMCBarea
 
 library kernel.paging
-extern PG_GetNumFreePages, PG_NewDir
-extern PG_AllocAreaTables
+importproc PG_GetNumFreePages, PG_NewDir
 
 section .data
 
-MsgMemStatHdr	DB 10,"MCB",9,9,"Addr",9,9,"Len",9,9,"Next MCB",9,"Prev MCB",10,0
-MsgFreeMem	DB 10,"Physical memory free (KB): ",0
+TxtMemStatHdr	DB 10,"MCB",9,9,"Addr",9,9,"Len",9,9,"Next MCB",9,"Prev MCB",10,0
+TxtFreeMem	DB 10,"Physical memory free (KB): ",0
 
 
 section .text
@@ -72,9 +68,7 @@ proc MM_DebugAllocMem
 		jc	short .Exit
 		mov	dx,1
 		call	MM_AllocBlock
-		jnc	short .PrintAddr
-		call	RKDT_ErrorHandler
-		jmp	short .Exit
+		jc	.Exit
 
 .PrintAddr:	mServPrintChar 10
 		mServPrint32h ebx
@@ -117,8 +111,6 @@ proc MM_DebugFreeMem
 
 		xor	edi,edi
 		call	MM_FreeBlock
-		jnc	short .Exit
-		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -139,7 +131,7 @@ proc MM_PrintStat
 
 		call	MT_PID2PCB
 		jc	near .Exit
-		mov	ebx,[esi+tProcDesc.FirstMCB]
+		mov	ebx,[esi+tProcDesc.MCBlist]
 
 		mov	eax,cr3
 		push	eax
@@ -148,7 +140,7 @@ proc MM_PrintStat
 
 		or	ebx,ebx
 		jz	near .PrintTotal
-		mServPrintStr MsgMemStatHdr
+		mServPrintStr TxtMemStatHdr
 
 .Loop:		or	ebx,ebx
 		jz	near .PrintTotal
@@ -165,7 +157,7 @@ proc MM_PrintStat
 		mServPrintChar 10
 		jmp	.Loop
 
-.PrintTotal:	mServPrintStr MsgFreeMem
+.PrintTotal:	mServPrintStr TxtFreeMem
 		call	PG_GetNumFreePages
 		mov	eax,ecx
 		shl	eax,2
@@ -193,7 +185,6 @@ proc MM_DebugFreeMCBs
 		jz	short .Exit
 		mov	edx,eax
 
-		mIsKernProc ebx
 		mov	esi,ebx
 
 		mov	eax,cr3
@@ -203,24 +194,13 @@ proc MM_DebugFreeMCBs
 
 		mov	eax,edx
 		call	MM_FreeMCBarea
-		jnc	short .RestorePD
-		call	RKDT_ErrorHandler
+		jc	.Exit
 
 .RestorePD:	pop	eax
 		mov	cr3,eax
 
 .Exit:		mpop	esi,ecx
 		ret
-endp		;---------------------------------------------------------------
-
-
-		; MM_DebugAllocDir - allocate a directory and user page tables.
-proc MM_DebugAllocDir
-		call	PG_NewDir
-		jc	short .Exit
-		mov	ebx,[?UserAreaStart]
-		call	PG_AllocAreaTables
-.Exit:		ret
 endp		;---------------------------------------------------------------
 
 %endif

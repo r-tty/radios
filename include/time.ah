@@ -1,0 +1,51 @@
+;-------------------------------------------------------------------------------
+; time.ah - time definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _time_ah
+%define _time_ah
+
+%include "siginfo.ah"
+
+struc tTimeSpec
+.Seconds	RESD	1
+.Nanoseconds	RESD	1
+endstruc
+
+; Clock types
+CLOCK_REALTIME	EQU	0
+CLOCK_SOFTTIME	EQU	1
+CLOCK_MONOTONIC	EQU	2
+
+; Timer settime flags
+TIMER_ABSTIME	EQU	80000000h
+
+; Flags for TimerInfo()
+TI_ACTIVE	EQU	1
+TI_ABSOLUTE	EQU	2
+TI_EXPIRED	EQU	4
+
+struc tClockAdjust
+.TickCount	RESD	1
+.TickNanosecInc	RESD	1
+endstruc
+
+struc tITimer
+.Signature	RESD	1
+.Reserved	RESD	1
+.nsec		RESQ	1
+.intervalnsec	RESQ	1
+endstruc
+
+struc tTimerInfo
+.itime		RESB	tITimer_size
+.otime		RESB	tITimer_size
+.Flags		RESD	1
+.TID		RESD	1
+.Notify		RESD	1
+.ClockID	RESD	1
+.Overruns	RESD	1
+.Event		RESB	tSigEvent_size
+endstruc
+
+%endif

@@ -1,31 +1,11 @@
 ;*******************************************************************************
-;  pci.nasm - PCI bus driver.
-;  (c) 2000 RET & COM Research.
+; pci.nasm - PCI bus routines.
+; Copyright (c) 2000-2002 RET & COM Research.
 ;*******************************************************************************
 
-module hw.pci
+module $pci
 
 %include "hw/ports.ah"
-
-global DrvPCI
-
-
-section .data
-
-DrvPCI		DB	"%pci"
-		TIMES	16-$+DrvPCI DB 0
-		DD	DrvPCI_ET
-		DD	0
-
-DrvPCI_ET	DD	PCI_Init
-		DD	0
-		DD	PCI_ReadByte
-		DD	PCI_WriteByte
-		DD	0
-		DD	0
-		DD	0
-		DD	0
-
 
 section .text
 

@@ -51,7 +51,7 @@ Aug 13, 2000	Version 0.0.1-cvs0: I imported the whole RadiOS tree to local
 		dropped this idea (mostly because of those annoying CVS/
 		directories :), but "-cvsXXX" stuck for more than a year.
 
-Sep 19, 2000	Version 0.0.1-cvs2: first GPLed release of RadiOS
+Sep 19, 2000	Version 0.0.1-cvs2:
 
 Dec 13, 2000	Version 0.0.1-cvs007: after two weeks of hacking, multitasking
 		primitives are ready. Two kernel threads run simultaneously.
@@ -60,17 +60,34 @@ May 29, 2001	Version 0.0.1-cvs012:
 
 Oct 13, 2001	Version 0.0.1-cvs013:
 
+Nov 22, 2001	Main RadiOS development center moved 2000 km north (together
+		with a leading developer ;) . I started my "real" career of
+		Software Design Engineer.
+		
 Dec 02, 2001	Version 0.0.1-pre1:
 
-May 02, 2002	Version 0.0.1-mk0: first release available at SourceForge
+May 02, 2002	Version 0.0.1-mk0:
 
-May 06, 2002	Version 0.0.1-mk1:
+May 06, 2002	Version 0.0.1-mk1: first release available at SourceForge
 
 May 24, 2002	Version 0.0.1-mk2:
 
 Sep 15, 2002	Version 0.0.1-mk3:
 
-Nov 13, 2002	Version 0.0.1-mk4:
+Nov 14, 2002	Version 0.0.1-mk4: first user process (taskman) is running
+		in user mode. New Boot Time Linker (BTL) constructs modules
+		from their images and links them together. Microkernel just
+		maps first process's (task manager) sections and creates a
+		single user thread.
 
-Nov 26, 2002	RadiOS 0.0.1 (final) is ready.
-==*=*==*=*==
+Dec 30, 2002	Version 0.0.1-mk5: Basic message passing routines. Task
+		manager (taskman) consists of two parts - kernel extension
+		module (ring0) that implements the rest of syscalls (like
+		TimerCreate, etc), and main user-level part containing
+		memory, module, process and path management. They share common
+		address space. "Private" microkernel services (like PageAlloc)
+		are available to taskman via "SVCIF" trap.
+		Dead RFS code is alive again - it became a simple path manager
+		for taskman :-) . It handles simple B-Tree based file system
+		in memory only (this method simplifies many things, e.g. no
+		need to organize disk buffers). Untested (yet).

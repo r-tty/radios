@@ -6,8 +6,13 @@
 
 publicproc K_InitIDT
 
+exportproc sys_InterruptAttach
+exportproc sys_InterruptDetachFunc
+exportproc sys_InterruptDetach
+exportproc sys_InterruptWait
+
 library kernel.syscall
-extern K_SysInt, K_DebugServEntry
+extern K_SysInt, K_ServEntry, K_Ring0
 
 library kernel.mt
 extern K_SwitchTask
@@ -104,16 +109,16 @@ ServTrapFunct	DD	0			; INT 30h
 		DD	0			; INT 36h
 		DD	0			; INT 37h
 		DD	K_SysInt		; INT 38h
-		DD	0			; INT 39h
+		DD	K_Ring0			; INT 39h
 		DD	0			; INT 3Ah
 		DD	0			; INT 3Bh
 		DD	0			; INT 3Ch
 		DD	0			; INT 3Dh
 		DD	0			; INT 3Eh
-		DD	K_DebugServEntry	; INT 3Fh
+		DD	K_ServEntry		; INT 3Fh
 
-MsgUnhExcept	DB	"Panic, unhandled exception ",0
-MsgReservedExc	DB	"Panic, reserved exception",0
+TxtUnhExcept	DB	"Panic: unhandled exception ",0
+TxtReservedExc	DB	"Panic: reserved exception",0
 
 
 ; --- Variables ---
@@ -144,7 +149,10 @@ endp		;---------------------------------------------------------------
 		; When some exception is occured and it's not handled
 		; by anyone, we only can panic..
 proc K_UnhandledException
-		mServPrintStr MsgUnhExcept
+		mov	eax,KERNELDATA
+		mov	ds,ax
+		mov	es,ax
+		mServPrintStr TxtUnhExcept
 		movzx	eax,byte [?ExceptionNum]
 		mServPrintDec
 		hlt
@@ -154,7 +162,10 @@ endp		;---------------------------------------------------------------
 
 		; Even more weird thing - reserved exception..
 proc K_ReservedException
-		mServPrintStr MsgReservedExc
+		mov	eax,KERNELDATA
+		mov	ds,ax
+		mov	es,ax
+		mServPrintStr TxtReservedExc
 		hlt
 		jmp	$
 endp		;---------------------------------------------------------------
@@ -175,7 +186,7 @@ proc K_ServTrap
 		sub	eax,48
 		mov	eax,[ServTrapFunct+eax*4]	; EAX=function number
 		or	eax,eax
-		jz	short .Done
+		jz	.Done
 		jmp	eax
 .Done:		ret
 endp		;---------------------------------------------------------------
@@ -190,7 +201,7 @@ proc K_InitIDT
 		call	PG_AllocContBlock
 		mov	[IDTaddrLim+2],ebx
 		mov	esi,TrapHandlersArr
-		mov	ecx,IDT_size/tGateDesc_size
+		xor	ecx,ecx
 		cld
 
 .Loop:		mov	eax,[esi]
@@ -212,14 +223,22 @@ proc K_InitIDT
 		mov	byte [ebx+tGateDesc.Type],AR_IntGate+AR_DPL0+ARpresent
 		jmp	.Next
 
-.Exception:	mov	byte [ebx+tGateDesc.Type],AR_TrapGate+AR_DPL0+ARpresent
+.Exception:	cmp	cl,14
+		je	.PageFault
+		mov	byte [ebx+tGateDesc.Type],AR_TrapGate+AR_DPL0+ARpresent
+		jmp	.Next
+
+		; Page fault is interrupt, not trap (to grab CR2 safely)
+.PageFault:	mov	byte [ebx+tGateDesc.Type],AR_IntGate+AR_DPL0+ARpresent
 		jmp	.Next
 
 .UserTrap:	mov	byte [ebx+tGateDesc.Type],AR_TrapGate+AR_DPL3+ARpresent
 
 .Next:		add	esi,byte 4
 		add	ebx,byte tGateDesc_size
-		loop	.Loop
+		inc	ecx
+		cmp	ecx,IDT_size/tGateDesc_size
+		jne	.Loop
 
 		lidt	[IDTaddrLim]
 		ret
@@ -281,3 +300,25 @@ mServTrapHandler 60,K_ServTrap
 mServTrapHandler 61,K_ServTrap
 mServTrapHandler 62,K_ServTrap
 mServTrapHandler 63,K_ServTrap
+
+
+; --- System calls related to interrupt handling -------------------------------
+
+proc sys_InterruptAttach
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_InterruptDetachFunc
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_InterruptDetach
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_InterruptWait
+		ret
+endp		;---------------------------------------------------------------

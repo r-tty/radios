@@ -1,41 +1,50 @@
 ;-------------------------------------------------------------------------------
-;  process.ah - process definitions.
+; process.ah - process definitions.
 ;-------------------------------------------------------------------------------
 
 ; Process descriptor structure
 struc tProcDesc
+.PoolSignature	RESD	1			; Pool chunk signaature
 .PID		RESD	1			; PID
 .Parent		RESD	1			; Parent PCB
-.PageDir	RESD	1			; Page directory address
-.FirstMCB	RESD	1			; First MCB address
-.LastMCB	RESD	1			; Last MCB address
-.EventHandler	RESD	1			; Event handler address
 .Module		RESD	1			; Module descriptor
+.PageDir	RESD	1			; Page directory address
 .ThreadList	RESD	1			; Thread list head
+.MCBlist	RESD	1			; MCB list head
+.EventHandler	RESD	1			; Event handler address
 .Next		RESD	1			; Next PCB in list
 .Prev		RESD	1			; Previous PCB in list
-.Flags		RESD	1			; Misc flags
+.Flags		RESD	1			; PF_* flags
 
-.Files		RESD	1			; File table
+.ChanList	RESD	1			; Head of channels list
+.Files		RESD	1			; Head of open files list
 
-.Reserved	RESD	20			; Complement to 128 bytes
+.Reserved	RESD	19			; Complement to 128 bytes
 endstruc
 
 %define	PROCDESCSHIFT	7			; log2(tProcDesc_size)
 
-; Process descriptor flags
-%define	PDFL_USER	1			; Set = user process
-
-; Zero address of process descriptor is valid - it means kernel process
-; (with PID=0). This macro checks whether its argument (register) is 0
-; and if so - loads there address of kernel PCB
-%macro mIsKernProc 1
-%if %0==1
-	or	%1,%1
-	jnz	short %%Done
-	mov	%1,[?ProcListPtr]
-%%Done:
-%else
-%error mIsKernProc: invalid number of args
-%endif
-%endmacro
+; Process flags
+PF_NOCLDSTOP		EQU	1
+PF_LOADING		EQU	2
+PF_TERMING		EQU	4
+PF_ZOMBIE		EQU	8
+PF_NOZOMBIE		EQU	10h
+PF_FORKED		EQU	20h
+PF_ORPHAN_PGRP		EQU	40h
+PF_STOPPED		EQU	80h
+PF_DEBUG_STOPPED	EQU	100h
+PF_BKGND_PGRP		EQU	200h
+PF_NO_LIMITS		EQU	400h
+PF_CONTINUED		EQU	800h
+PF_CHECK_INTR		EQU	1000h
+PF_COREDUMP		EQU	2000h
+PF_PTRACED		EQU	4000h
+PF_RING0		EQU	8000h
+PF_SLEADER		EQU	10000h
+PF_WAITINFO		EQU	20000h
+PF_VFORKED		EQU	40000h
+PF_DESTROYALL		EQU	80000h
+PF_NOCOREDUMP		EQU	100000h
+PF_NOCTTY		EQU	200000h
+PF_THREADWATCH		EQU	80000000h

@@ -3,23 +3,26 @@
 # Copyright (c) 2002 RET & COM Research.
 ################################################################################
 
-include ../../build/header.mk
+# This must be defined first
+group = taskman
+
+# Global definitions
+include ../../Build/header.mk
 
 # Variables
-modnamesfile = .taskman-modules
-SUBDIRS = mem path proc
+SUBDIRS = ring0 main mem path proc module
 export TARGET_LIB = taskman.$(L)
-TARGET_RDM = taskman.$(X)
-OBJS = taskmaninit.$(O)
+TARGET_RDM = taskman.$(M)
+OBJS = tm_head.$(O)
 LIBS = $(TARGET_LIB)
 
 # Rules for subdirectories
 LINK = all
-include ../../build/subdirs.mk
+include ../../Build/subdirs.mk
 
 # Build module
-include ../../build/module.mk
+include ../../Build/module.mk
 
 # Individual rules
 install:
-	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/modules
+	cp $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/boot

@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = libc
+subgroup = _termios
+
 # Standard header
-include ../../../build/header.mk
+include ../../../Build/header.mk
 
 # Change variables here
 OBJS = termios.$(O)
-modnamesfile = .libc_termios-modules
 
 # This part shouldn't be changed
-include ../../../build/common.mk
+include ../../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

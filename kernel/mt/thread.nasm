@@ -1,36 +1,38 @@
 ;*******************************************************************************
-;  thread.nasm - RadiOS thread management.
-;  Copyright (c) 2000 RET & COM Research.
-;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; thread.nasm - RadiOS thread management.
+; Copyright (c) 2000 RET & COM Research.
+; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
+%include "parameters.ah"
 %include "thread.ah"
+%include "tm/process.ah"
 
 
 ; --- Exports ---
 
-global MT_ThreadSleep, MT_ThreadWakeup
-global MT_SleepTQ, MT_WakeupTQ
-global MT_CreateThread, MT_ThreadExec
-
+publicproc MT_ThreadSleep, MT_ThreadWakeup
+publicproc MT_SleepTQ, MT_WakeupTQ
+exportproc MT_CreateThread, MT_ThreadExec
+publicproc MT_GetNumThreads
 
 
 ; --- Imports ---
 
 library kernel.pool
-extern K_PoolInit
-extern K_PoolAllocChunk, K_PoolFreeChunk
+externproc K_PoolInit
+externproc K_PoolAllocChunk, K_PoolFreeChunk
 
 library kernel.paging
-extern PG_AllocContBlock, ?KernPageDir
+externproc PG_Alloc, PG_AllocContBlock, PG_AllocAreaTables
 
 
 ; --- Data ---
 
 section .data
 
-MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread already sleeps",0
-MsgThrRunning	DB	":THREAD:MT_ThreadWakeup: warning: this thread is already running",0
+TxtThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread already sleeps",0
+TxtThrRunning	DB	":THREAD:MT_ThreadWakeup: warning: this thread is already running",0
 
 ; --- Variables ---
 
@@ -167,16 +169,16 @@ endp		;---------------------------------------------------------------
 		; Input: EBX=TCB address.
 		; Output: none.
 proc MT_ThreadSleep
-		cmp	byte [ebx+tTCB.State],THRST_WAITING
-		jne	short .1
+		cmp	byte [ebx+tTCB.State],THRSTATE_STOPPED
+		jne	.1
 	%ifdef KPOPUPS
-		mKPopUp MsgThrSleep
+		mKPopUp TxtThrSleep
 	%endif
 		ret
 
 .1:		pushfd
 		cli
-		mov	byte [ebx+tTCB.State],THRST_WAITING
+		mov	byte [ebx+tTCB.State],THRSTATE_STOPPED
 		mov	al,[ebx+tTCB.Priority]
 		mov	[ebx+tTCB.CurrPriority],al
 		call	MT_ThrRUnlink
@@ -190,16 +192,16 @@ endp		;---------------------------------------------------------------
 		; Input: EBX=TCB address.
 		; Output: none.
 proc MT_ThreadWakeup
-		cmp	byte [ebx+tTCB.State],THRST_READY
+		cmp	byte [ebx+tTCB.State],THRSTATE_READY
 		jne	short .1
 	%ifdef KPOPUPS
-		mKPopUp MsgThrRunning
+		mKPopUp TxtThrRunning
 	%endif
 		ret
 
 .1:		pushfd
 		cli
-		mov	byte [ebx+tTCB.State],THRST_READY
+		mov	byte [ebx+tTCB.State],THRSTATE_READY
 		call	MT_ThrRLink
 		inc	dword [?ReadyThrCnt]
 		popfd
@@ -227,29 +229,30 @@ endp		;---------------------------------------------------------------
 
 		; MT_CreateThread - create new thread.
 		; Input: EBX=start address,
-		;	 ECX=kernel stack size (if 0, default value of PAGESIZE
-		;	     will be used),
-		;	 EDX=page directory address.
+		;	 ECX=user stack size (if 0, default value of 4096 bytes
+		;	     is assumed),
+		;	 EDI=user stack address (if ECX != 0),
+		;	 ESI=PCB address (may be 0 for kernel).
 		; Output: CF=0 - OK, EBX=TCB address;
 		;	  CF=1 - error, AX=error code.
 proc MT_CreateThread
 		mpush	ecx,edx,esi,edi
 
-		mov	esi,ebx
+		mov	edx,edi
+		mpush	ebx,esi
 		mov	ebx,?ThreadPool
-		push	esi
 		call	K_PoolAllocChunk			; Allocate TCB
 		mov	edi,esi
-		pop	esi
+		mpop	esi,ebx
 		jc	near .Err1
 
-		; Initialize 'Entry' and 'PageDir' fields
-		mov	[edi+tTCB.Entry],esi
-		mov	[edi+tTCB.PageDir],edx
+		; Initialize 'Entry' and 'PCB' fields
+		mov	[edi+tTCB.Entry],ebx
+		mov	[edi+tTCB.PCB],esi
 
 		; Initial values for typical scheduler fields.
-		mov	dword [edi+tTCB.State],THRST_READY
-		mov	dword [edi+tTCB.PrioClass],THRPRCL_NORMAL
+		mov	byte [edi+tTCB.State],THRSTATE_READY
+		mov	byte [edi+tTCB.PrioClass],THRPRCL_NORMAL
 		mov	dword [edi+tTCB.Priority],THRPRVAL_DEFAULT
 		mov	dword [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
 		mov	dword [edi+tTCB.Count],0
@@ -259,31 +262,41 @@ proc MT_CreateThread
 		; Every thread has a kernel stack regardless if it
 		; is a kernel thread or regular user mode thread.
 		;
-		; For user and driver mode threads, this stack is used when
-		; entering kernel mode (its state is pushed on it).
+		; For user threads, this stack is used when entering kernel
+		; mode (its state is pushed on it).
 		; For kernel threads, this is actual working stack.
 		;
-		; Note: there is no mechanism of kernel stack growing.
-		or	ecx,ecx				; Allocate kernel stack?
-		jnz	.SetKStack
-		mov	ecx,PAGESIZE
-.SetKStack:	xor	dl,dl
-		call	PG_AllocContBlock		; Get kernel stack
-		jc	short .Err2
+		; Note: currently there is no mechanism of kernel stack growing.
+		push	ecx
+		mov	ecx,DFLTKSTACKSIZE
+		xor	dl,dl				;  Get kernel stack
+		call	PG_AllocContBlock		; in lower memory
+		pop	ecx
+		jc	.Err2
 		call	BZero
+		mov	[ebx],edi			; TCB address at bottom
 		lea	ebx,[ebx+ecx-4]
 		mov	[edi+tTCB.KStack],ebx
 		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],ebx
 
-		mov	eax,[edi+tTCB.PageDir]
-		cmp	eax,[?KernPageDir]		; Kernel thread?
+		cmp	dword [edi+tTCB.PCB],0		; Kernel thread?
 		jne	.User
 
 		mov	eax,[edi+tTCB.Entry]
 		mov	[edi+tTCB.Context+tJmpBuf.R_EIP],eax
-		jmp	short .EnqReady
+		jmp	.EnqReady
 	
-.User:		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing13
+.User:		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing3
+		or	ecx,ecx
+		jz	.DfltUStk
+		lea	edx,[edx+ecx]
+		mov	dword [edi+tTCB.Stack],edx
+		jmp	.EnqReady
+		
+.DfltUStk:	mov	edx,[esi+tProcDesc.PageDir]
+		call	MT_AllocMinUserStack
+		jc	.Err3
+		mov	dword [edi+tTCB.Stack],USTACKTOP-4
 
 .EnqReady:	cli
 		mov	ebx,edi
@@ -297,11 +310,15 @@ proc MT_CreateThread
 
 .Err1:		mov	ax,ERR_MT_NoFreeTCB
 		stc
-		jmp	short .Done
+		jmp	.Done
 
 .Err2:		mov	ax,ERR_MT_CantAllocKernStk
 		stc
-		jmp	short .Done
+		jmp	.Done
+
+.Err3:		mov	ax,ERR_MT_CantAllocStack
+		stc
+		jmp	.Done
 endp		;---------------------------------------------------------------
 
 
@@ -335,10 +352,19 @@ proc MT_ThreadKillCurrent
 endp		;---------------------------------------------------------------
 
 
-		; K_GoRing13 - routine used to switch to user mode.
+		; MT_GetNumThreads - get total number of created threads.
+		; Input: none.
+		; Output: ECX=number of threads.
+proc MT_GetNumThreads
+		mov	ecx,[?NumThreads]
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_GoRing3 - routine used to switch to user mode.
 		; Input: none.
 		; Output: never returns.
-proc K_GoRing13
+proc K_GoRing3
 		; This is a layout of what 'iret' pops off the stack
 		locals	rESS, rESP, rEFLAGS, rECS, rEIP, rESDS
 		prologue
@@ -350,9 +376,10 @@ proc K_GoRing13
 		mov	[KernTSS+tTSS.ESP0],eax
 		
 		; Load a process's page directory
-		mov	eax,[ebx+tTCB.PageDir]
+		mov	eax,[ebx+tTCB.PCB]
+		mov	eax,[eax+tProcDesc.PageDir]
 		mov	cr3,eax
-
+		
 		; Prepare user registers
 		mov	eax,(USER_DSEG << 16) | USER_DSEG
 		mov	[%$rESDS],eax
@@ -363,7 +390,6 @@ proc K_GoRing13
 		mov	dword [%$rECS],USER_CSEG
 		mov	dword [%$rEFLAGS],FLAG_IOPL | FLAG_IF
 		mov	eax,[ebx+tTCB.Stack]
-
 		mov	[%$rESP],eax
 		mov	dword [%$rESS],USER_DSEG
 
@@ -378,16 +404,50 @@ proc K_GoRing13
 endp		;---------------------------------------------------------------
 
 
+		; Create a minimal user stack (if it is not allocated yet).
+		; Input: EDX=page directory address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MT_AllocMinUserStack
+		push	ebx
+		; Allocate page table if necessary
+		mov	ah,PG_USERMODE | PG_WRITABLE
+		mov	ebx,USERAREASTART+USTACKTOP-PAGESIZE
+		mov	ecx,PAGESIZE
+		call	PG_AllocAreaTables
+		jc	.Exit
+
+		mov	ebx,[edx+PG_ITEMSPERTABLE*4-4]
+		and	ebx,PGENTRY_ADDRMASK			; EBX=PT address
+		cmp	dword [ebx+PG_ITEMSPERTABLE*4-4],PG_DISABLE
+		jne	.OK
+
+		; Get a page and clean it
+		mov	dl,1
+		call	PG_Alloc
+		jc	.Exit
+		or	eax,PG_USERMODE | PG_WRITABLE
+		mov	[ebx+PG_ITEMSPERTABLE*4-4],eax
+		and	eax,PGENTRY_ADDRMASK
+		mov	ebx,eax
+		call	BZero
+		
+.OK:		clc
+.Exit:		pop	ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
 ;--- Debugging stuff -----------------------------------------------------------
 
 %ifdef MTDEBUG
 
-global MT_DumpReadyThreads
+publicproc MT_DumpReadyThreads
 
 section .data
 
-MsgNoReady	DB	10,"no ready threads.",10,0
-MsgDumpHdr	DB	10,"TCB       S     Ticks  Cnt     Prio    BPrio  Preempt  Sem     Stamp",10,0
+TxtNoReady	DB	10,"no ready threads.",10,0
+TxtDumpHdr	DB	10,"TCB       S     Ticks  Cnt     Prio    BPrio  Preempt  Sem     Stamp",10,0
   
 section .text
 
@@ -399,10 +459,10 @@ proc MT_DumpReadyThreads
 		mov	ebx,[?ReadyThrList]
 		or	ebx,ebx
 		jne	short .WrHdr
-		mPrintString MsgNoReady
+		mPrintString TxtNoReady
 		ret
 		
-.WrHdr:		mPrintString MsgDumpHdr
+.WrHdr:		mPrintString TxtDumpHdr
 .Walk:		mov	dl,[ebx+tTCB.State]
 		mov	dh,'R'
 		cmp	dl,THRST_READY

@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
-# Standard header
-include ../../../build/header.mk
+# This must be defined first
+group = taskman
+subgroup = _proc
+
+# Global definitions
+include ../../../Build/header.mk
 
 # Change variables here
-OBJS = procman.$(O)
-modnamesfile = .taskman_proc-modules
+OBJS = proc.$(O)
 
 # This part shouldn't be changed
-include ../../../build/common.mk
+include ../../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

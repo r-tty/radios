@@ -1,5 +1,10 @@
+;-------------------------------------------------------------------------------
+; asciictl.ah - definitions of ASCII control characters.
+;-------------------------------------------------------------------------------
 
-; --- ASCII control codes symbolic names ---
+%ifndef _asciictl_ah
+%define _asciictl_ah
+
 %define	ASC_NUL	0
 %define	ASC_SOH	1
 %define	ASC_STX	2
@@ -33,5 +38,7 @@
 %define	ASC_RS	30
 %define	ASC_US	31
 
-%define	NL	ASC_LF			; New line character
+%define	NL	ASC_LF			; New line
 %define HTAB	ASC_HT			; Tabulation
+
+%endif

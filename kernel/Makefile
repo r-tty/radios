@@ -3,19 +3,38 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
-# Standard header
-include ../build/header.mk
+# This must be defined first
+group = kernel
 
-# Change variables here
-OBJS = kernel.$(O) initmem.$(O) pages.$(O) pool.$(O) sema.$(O) setjmp.$(O) \
-       time.$(O) strutil.$(O) version.$(O)
-export TARGET_LIB = kernel.rdl
-modnamesfile = .kernel-modules
-SUBDIRS = mt syscall ipc x86dev
+# Standard header
+include ../Build/header.mk
+
+# File containing a multiboot header and "trampoline" code
+TRAMPOLINE = $(OBJPATH)/mb_tramp.bin
+extraclean = $(TRAMPOLINE)
+
+# Definitions
+export TARGET_LIB = kernel.$(L)
+OBJS = startup.$(O) initmem.$(O) misc.$(O) pages.$(O) pool.$(O) sync.$(O) \
+       setjmp.$(O) time.$(O) syscall.$(O) tmif.$(O) strutil.$(O) version.$(O)
+LIBS = $(TARGET_LIB)
+TARGET_RDM = kernel.$(M)
+SUBDIRS = mt ipc x86dev
 
 # Make in subdirs
-BUILD = all
-include ../build/subdirs.mk
+LINK = $(TRAMPOLINE) all
+include ../Build/subdirs.mk
 
-# This part shouldn't be changed
-include ../build/common.mk
+# To embed a multiboot header into the kernel
+LDFLAGS += -g $(TRAMPOLINE)
+ifdef LINKMONITOR
+ EXTRAOBJS += $(OBJTOP)/monitor/monitor.$(M)
+endif
+
+# For building the objects and linking target module
+include ../Build/module.mk
+
+# Rule to build trampoline
+$(TRAMPOLINE): mb_tramp.nasm
+	@echo "Assembling $<"
+	@nasm -f bin $(ASFLAGS) -o $@ $<

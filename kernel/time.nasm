@@ -5,12 +5,15 @@
 module kernel.time
 
 publicproc K_TTDelay, K_LDelay, K_LDelayMs
+exportproc sys_ClockTime, sys_ClockAdjust, sys_ClockPeriod, sys_ClockId
 
 library kernel.mt
 extern ?TicksCounter
 
 library kernel
 extern ?CPUspeed
+
+; --- Code ---
 
 section .text
 
@@ -72,37 +75,33 @@ proc K_MicroDelay
 endp		;---------------------------------------------------------------
 
 
-; ========================== Time/date procedures ==============================
+; --- System calls -------------------------------------------------------------
 
-		; K_GetDate - get current date.
-		; Input: none.
-		; Output: BL=day,
-		;	  BH=month,
-		;	  CX=year.
-proc K_GetDate
+		; int ClockTime(clockid_t id, const uint64_t *new, uint64_t *old);
+proc sys_ClockTime
+		arg	id, newlo, newhi, oldlo, oldhi
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; K_GetTime - get current time.
-		; Input: none.
-		; Output: BH=hour,
-		;	  BL=minute,
-		;	  CL=second.
-proc K_GetTime
+proc sys_ClockAdjust
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; K_SetSysDate - set system date.
-		; Input: AH=seconds,
-		;	 BL=minutes,
-		;	 BH=hours,
-		;	 DL=day,
-		;	 DH=month,
-		;	 CX=year.
-		; Output:
-proc K_SetSysDate
+proc sys_ClockPeriod
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
+
+proc sys_ClockId
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------

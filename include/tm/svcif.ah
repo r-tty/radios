@@ -1,0 +1,33 @@
+;-------------------------------------------------------------------------------
+; svcif.ah - definitions of Ring0 function codes (private kernel interface).
+;-------------------------------------------------------------------------------
+
+%ifndef _svcif_ah
+%define _svcif_ah
+
+%define SVCIFTRAP	39h
+
+R0_PoolInit		EQU	0
+R0_PoolAllocChunk	EQU	1
+R0_PoolFreeChunk	EQU	2
+R0_PoolChunkNumber	EQU	3
+R0_PoolChunkAddr	EQU	4
+R0_PageAlloc		EQU	5
+R0_PageDealloc		EQU	6
+R0_NewPageDir		EQU	7
+R0_MapArea		EQU	8
+
+%define R0_MAX	8
+
+%macro mRing0call 1
+%ifnum %1
+    %if %1 > R0_MAX
+	%error Invalid Ring0 call number
+    %endif
+%endif
+	pushimm	%1
+	int	SVCIFTRAP
+	add	esp,byte 4
+%endmacro
+
+%endif

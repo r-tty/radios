@@ -1,0 +1,47 @@
+;-------------------------------------------------------------------------------
+; stat.ah - file stat structure and definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _stat_ah
+%define _stat_ah
+
+; Mode
+ST_MODE_IFIFO			EQU	01000h	; FIFO
+ST_MODE_IFCHR			EQU	02000h	; Character special
+ST_MODE_IFDIR			EQU	04000h	; Directory
+ST_MODE_IFNAM			EQU	05000h	; Special named file
+ST_MODE_IFBLK			EQU	06000h	; Block special
+ST_MODE_IFREG			EQU	08000h	; Regular
+ST_MODE_IFLNK			EQU	0A000h	; Symbolic link
+ST_MODE_IFSOCK			EQU	0C000h	; Socket
+ST_MODE_IFMT			EQU	0F000h	; Type of file
+
+; Setuid, setgid and sticky bits
+ST_BIT_STICKY			EQU	200h	; sticky bit
+ST_BIT_GID			EQU	400h	; set group id on execution
+ST_BIT_UID			EQU	800h	; set user id on execution
+
+; Owner permissions
+ST_ACC_IEXEC			EQU     40h	; Execute/search permission
+ST_ACC_IWRITE			EQU	80h	; Write permission
+ST_ACC_IREAD			EQU	100h	; Read permission
+ST_ACC_IRWXU			EQU	1C0h	; Read, write, execute/search
+
+; Group permissions
+ST_ACC_IXGRP			EQU	8	; Execute/search permission
+ST_ACC_IWGRP			EQU	10h	; Write permission
+ST_ACC_IRGRP			EQU	20h	; Read permission
+ST_ACC_IRWXG			EQU	38h	; Read, write, execute/search
+
+; Other permissions
+ST_ACC_IXOTH			EQU	1	; Execute/search permission
+ST_ACC_IWOTH			EQU	2	; Write permission
+ST_ACC_IROTH			EQU	4	; Read permission
+ST_ACC_IRWXO			EQU	7	; Read, write, execute/search
+
+struc tUtimeBuf
+.AcTime		RESD	1	; access time
+.ModTime	RESD	1	; modification time
+endstruc
+
+%endif

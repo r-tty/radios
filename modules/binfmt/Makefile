@@ -3,26 +3,28 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = binfmt
+
 # Standard header
-include ../../build/header.mk
+include ../../Build/header.mk
 
 # Change variables here
 OBJS = coff.$(O) elf.$(O)
-modnamesfile = .binfmt-modules
-BLMS = binfmt_coff.rdd binfmt_elf.rdd
+BINFMTS = binfmt_coff.$(M) binfmt_elf.$(M)
 
-all-make: $(SUBDIRS) $(BLMS)
+all-make: $(SUBDIRS) $(BINFMTS)
 
-binfmt_coff.rdd: coff.$(O)
+binfmt_coff.$(M): coff.$(O)
 	@echo "Linking $@"
-	@$(LD) $(LDFLAGS) -g $(OBJPATH)/bmtagdrv.bin -o $(LIBPATH)/$@ $(<F)
+	@$(LD) $(LDFLAGS) -o $(LIBPATH)/$@ $(<F)
 
-binfmt_elf.rdd: elf.$(O)
+binfmt_elf.$(M): elf.$(O)
 	@echo "Linking $@"
-	@$(LD) $(LDFLAGS) -g $(OBJPATH)/bmtagdrv.bin -o $(LIBPATH)/$@ $(<F)
+	@$(LD) $(LDFLAGS) -o $(LIBPATH)/$@ $(<F)
 
 # This part shouldn't be changed
-include ../../build/common.mk
+include ../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

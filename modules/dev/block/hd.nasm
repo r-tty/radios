@@ -36,18 +36,6 @@ extern HexB2Str:near, DecD2Str:near
 
 section .data
 
-PTstr_EMPTY	DB	"Empty",0
-PTstr_FAT12	DB	"DOS FAT12",0
-PTstr_XENIXroot	DB	"XENIX root",0
-PTstr_XENIXusr	DB	"XENIX usr",0
-PTstr_FAT16	DB	"DOS FAT16 <32MB",0
-PTstr_EXT	DB	"Extended",0
-PTstr_BIGDOS	DB	"DOS FAT16 >=32MB",0
-PTstr_LinuxN	DB	"Linux native",0
-PTstr_LinuxS	DB	"Linux swap",0
-PTstr_RFSn	DB	"RFS native",0
-PTstr_RFSs	DB	"RFS swap",0
-
 HDstr_Type	DB	"type ",0
 HDstr_Size	DB	"size=",0
 HDstr_MB	DB	" MB",0

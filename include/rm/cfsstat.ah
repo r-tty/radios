@@ -1,0 +1,31 @@
+;-------------------------------------------------------------------------------
+; cfsstat.ah - Common File System information structure.
+;-------------------------------------------------------------------------------
+
+%ifndef _cfsstat_ah
+%define _cfsstat_ah
+
+struc tCFSstat
+.bsize		RESD	1	; file system block size
+.frsize		RESD	1	; fundamental filesystem block size
+.blocks		RESQ	1	; total number of blocks on file system in units of f_frsize
+.bfree		RESQ	1	; total number of free blocks
+.bavail		RESQ	1	; number of free blocks available to non-privileged process
+.files		RESQ	1	; total number of file serial numbers
+.ffree		RESQ	1	; total number of free file serial numbers
+.favail		RESQ	1	; number of file serial numbers available to non-privileged process
+.fsid		RESD	1	; file system ID
+.basetype	RESB	16	; null terminated name of target file system
+.flag		RESD	1	; bit mask of f_flag values
+.namemax	RESD	1	; maximum filename length
+.filler		RESD	21	; padding
+endstruc
+
+CFS_ST_RDONLY	EQU	1	; read only
+CFS_ST_NOEXEC	EQU	2	; can't exec from filesystem
+CFS_ST_NOSUID	EQU	4	; don't honor setuid bits on FS
+CFS_ST_NOCREAT	EQU	8	; don't allow creat on this FS
+CFS_ST_OFF32	EQU	10h	; Limit off_t to 32 bits
+CFS_ST_NOATIME	EQU	20h	; don't update times if only atime is dirty
+
+%endif

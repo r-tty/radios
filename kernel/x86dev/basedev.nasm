@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  basedev.nasm - built-in devices support (CMOS,PIC,DMA etc.)
-;  Copyright (c) 1999-2002 RET & COM Research.
+; basedev.nasm - legacy PC chips support (CMOS,PIC,DMA etc.)
+; Copyright (c) 1999-2002 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.x86.basedev
@@ -11,17 +11,9 @@ module kernel.x86.basedev
 %include "hw/ports.ah"
 %include "cpu/tss.ah"
 
-%include "8042.nasm"
-%include "cmosrtc.nasm"
-%include "dma.nasm"
-%include "pic.nasm"
-%include "timer.nasm"
-
-%define	SpeakerBeepTone	1200
 
 ; --- Exports ---
 publicproc CPU_Init, FPU_Init, FPU_HandleException
-publicproc SPK_Sound, SPK_Beep, SPK_Tick
 publicdata ?CPUinfo
 
 
@@ -232,49 +224,6 @@ proc FPU_HandleException
 endp		;---------------------------------------------------------------
 
 
-		; SPK_Sound - play sound signal on PC-speaker.
-		; Input: ECX - sound tone (high word) and length (low word).
-proc SPK_Sound
-		push	eax
-		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
-		ror	ecx,16
-		call	TMR_InitCounter
-		call	KBC_SpeakerON
-		shr	ecx,16
-		call	K_TTDelay
-		call	KBC_SpeakerOFF
-		pop	eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; SPK_Beep - play ASC_BEL.
-proc SPK_Beep
-		push	ecx
-		mov	ecx,SpeakerBeepTone
-		shl	ecx,16
-		mov	cl,5
-		call	SPK_Sound
-		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; SPK_Tick - play short sound tick.
-proc SPK_Tick
-		mpush	eax,ecx
-		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
-		mov	cx,SpeakerBeepTone/4
-		call	TMR_InitCounter
-		call	KBC_SpeakerON
-		mov	cx,5000
-		call	TMR_Delay
-		call	KBC_SpeakerOFF
-		mpop	ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; BCDW2Dec - convert a BCD word to decimal;
 		; BCDB2Dec - convert a BCD byte to decimal.
 		; Input: AX=BCD word.
@@ -302,3 +251,9 @@ BCDB2Dec:	push	ecx
 		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
+
+
+%include "cmosrtc.nasm"
+%include "dma.nasm"
+%include "pic.nasm"
+%include "pit.nasm"

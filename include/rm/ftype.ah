@@ -1,0 +1,25 @@
+;-------------------------------------------------------------------------------
+; ftype.ah - file types.
+;-------------------------------------------------------------------------------
+
+%ifndef _ftype_ah
+%define _ftype_ah
+
+FTYPE_ANY	EQU	0
+FTYPE_FILE	EQU	1
+FTYPE_LINK	EQU	2
+FTYPE_SYMLINK	EQU	3
+FTYPE_PIPE	EQU	4
+FTYPE_SHMEM	EQU	5
+FTYPE_MQUEUE	EQU	6
+FTYPE_SOCKET	EQU	7
+FTYPE_SEM	EQU	8
+FTYPE_PHOTON	EQU	9
+FTYPE_DUMPER	EQU	10
+FTYPE_MOUNT	EQU	11
+FTYPE_NAME	EQU	12
+
+FTYPE_MATCHED	EQU	-1
+FTYPE_ALL	EQU	-1
+
+%endif

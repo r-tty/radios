@@ -3,15 +3,19 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
-# Standard header
-include ../../../build/header.mk
+# This must be defined first
+group = taskman
+subgroup = _path
+
+# Global definitions
+include ../../../Build/header.mk
 
 # Change variables here
-OBJS = pathman.$(O)
-modnamesfile = .taskman_path-modules
+OBJS = pathman.$(O) ramdisk.$(O) bam.$(O) btree.$(O) \
+       rfs_super.$(O) rfs_dirops.$(O) rfs_fileops.$(O)
 
 # This part shouldn't be changed
-include ../../../build/common.mk
+include ../../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

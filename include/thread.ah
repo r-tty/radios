@@ -1,35 +1,93 @@
 ;-------------------------------------------------------------------------------
-;  thread.ah - definitions for scheduler and thread management.
+; thread.ah - definitions for scheduler and thread management.
 ;-------------------------------------------------------------------------------
+
+%ifndef _thread_ah
+%define _thread_ah
 
 %include "cpu/setjmp.ah"
 
 ; Thread states
-%define	THRST_FREE	0
-%define	THRST_READY	1
-%define	THRST_WAITING	2
-%define THRST_UNINTERRUPTIBLE	3
-%define	THRST_DEAD	4
+THRSTATE_DEAD		EQU	0
+THRSTATE_RUNNING	EQU	1
+THRSTATE_READY		EQU	2
+THRSTATE_STOPPED	EQU	3
+
+THRSTATE_SEND		EQU	4
+THRSTATE_RECEIVE	EQU	5
+THRSTATE_REPLY		EQU	6
+
+THRSTATE_STACK		EQU	7
+THRSTATE_WAITTHREAD	EQU	8
+THRSTATE_WAITPAGE	EQU	9
+
+THRSTATE_SIGSUSPEND	EQU	10
+THRSTATE_SIGWAITINFO	EQU	11
+THRSTATE_NANOSLEEP	EQU	12
+THRSTATE_MUTEX		EQU	13
+THRSTATE_CONDVAR	EQU	14
+THRSTATE_JOIN		EQU	15
+THRSTATE_INTR		EQU	16
+THRSTATE_SEM		EQU	17
+THRSTATE_WAITCTX	EQU	18
+
+THRSTATE_NET_SEND	EQU	19
+THRSTATE_NET_REPLY	EQU	20
+
+; Timeouts for different thread states
+TIMEOUT_RECEIVE		EQU	1 << THRSTATE_RECEIVE
+TIMEOUT_SEND		EQU	1 << THRSTATE_SEND
+TIMEOUT_REPLY		EQU	1 << THRSTATE_REPLY
+TIMEOUT_SIGSUSPEND	EQU	1 << THRSTATE_SIGSUSPEND
+TIMEOUT_SIGWAITINFO	EQU	1 << THRSTATE_SIGWAITINFO
+TIMEOUT_NANOSLEEP	EQU	1 << THRSTATE_NANOSLEEP
+TIMEOUT_MUTEX		EQU	1 << THRSTATE_MUTEX
+TIMEOUT_CONDVAR		EQU	1 << THRSTATE_CONDVAR
+TIMEOUT_JOIN		EQU	1 << THRSTATE_JOIN
+TIMEOUT_INTR		EQU	1 << THRSTATE_INTR
+TIMEOUT_SEM		EQU	1 << THRSTATE_SEM
+
+; Thread flags
+TF_INTR_PENDING		EQU	10000h
+TF_DETACHED		EQU	20000h
+TF_THREADS_HOLD		EQU	100000h
+TF_UNBLOCK_REQ		EQU	400000h
+TF_ALIGN_FAULT		EQU	1000000h
+TF_SSTEP		EQU	2000000h
+TF_ALLOCED_STACK	EQU	4000000h
+TF_NOMULTISIG		EQU	8000000h
+TF_FROZEN		EQU	10000000h
+TF_IOPRIV		EQU	80000000h
+
+; Thread control commands
+TCTL_IO			EQU	1
+TCTL_THREADS_HOLD	EQU	2
+TCTL_THREADS_CONT	EQU	3
+TCTL_RUNMASK		EQU	4
+TCTL_ALIGN_FAULT	EQU	5
+TCTL_RUNMASK_GETANDSET	EQU	6
 
 ; Priority classes
-%define	THRPRCL_CRIT	1			; Real-time tasks (fixed priority)
-%define	THRPRCL_NORMAL	2			; Normal tasks (float priority)
-%define	THRPRCL_IDLE	3			; Idle tasks (fixed priority)
+THRPRCL_CRIT		EQU	1		; Real-time tasks (fixed priority)
+THRPRCL_NORMAL		EQU	2		; Normal tasks (float priority)
+THRPRCL_IDLE		EQU	3		; Idle tasks (fixed priority)
 
 ; Default and maximum priority value
-%define	THRPRVAL_DEFAULT	50
-%define	THRPRVAL_MAX		200
+THRPRVAL_DEFAULT	EQU	50
+THRPRVAL_MAX		EQU	200
 
 ; Time quantums
-%define	THRQUANT_DEFAULT	5
-%define THRQUANT_MIN		2
+THRQUANT_DEFAULT	EQU	5
+THRQUANT_MIN		EQU	2
 
 ; Thread control block
 struc tTCB
-.PrioClass	RESD	1			; Priority class
+.PoolSignature	RESD	1			; Pool chunk signature
+.Reserved	RESW	1
+.State		RESB	1			; State
+.PrioClass	RESB	1			; Priority class
 .Priority	RESD	1			; Initial priority value
 .CurrPriority	RESD	1			; Current priority value
-.State		RESD	1			; State
 
 .Next		RESD	1			; Thread link
 .Prev		RESD	1
@@ -40,7 +98,10 @@ struc tTCB
 .SemNext	RESD	1			; Semaphore link
 .SemPrev	RESD	1
 
-.PageDir	RESD	1			; Page directory address
+.ProcNext	RESD	1			; Process link
+.ProcPrev	RESD	1
+
+.PCB		RESD	1			; Process descriptor address
 .Entry		RESD	1			; Start entry point
 .Stack		RESD	1			; Stack pointer
 .KStack		RESD	1			; Kernel stack pointer
@@ -55,16 +116,35 @@ struc tTCB
 .Stamp		RESD	1			; Timestamp
 
 .Context	RESB	tJmpBuf_size		; Context
-
-.Reserved	RESD	2			; Pad to 2^TCBSHIFT bytes
 endstruc
 
 %define	TCBSHIFT	7			; log2(tTCB_size)
 
+; Default kernel stack size
+%define DFLTKSTACKSIZE	8192
 
-; Macro sets AL to nonzero if thread is executed in user or driver mode
+; Macro sets AL to nonzero if thread is executed in user mode
 ; Also sets zero flag if in kernel mode.
 %macro mCheckKernelMode 1
 	mov	al,[%1+tStackFrame.ECS]
 	and	al,3
 %endmacro
+
+
+; Macro for obtaining the address of current TCB (from kernel).
+; We use the same technique that Linux: all user threads have the fixed
+; size kernel stack. When a thread is being created, the address of
+; its control block (TCB) is stored at the bottom of the kernel stack.
+;
+; Parameters: %1 - register to store the TCB address (EAX is default)
+%macro mCurrThread 0-1
+	mov	eax,-DFLTKSTACKSIZE
+	and	eax,esp
+%if %0 == 1
+	mov	%1,[eax]
+%else
+	mov	eax,[eax]
+%endif
+%endmacro
+
+%endif

@@ -47,7 +47,7 @@
 
 ; --- Exports ---
 
-global CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
+global CMOS_ReadLowerMemSize, CMOS_ReadUpperMemSize
 global CMOS_ReadFDDTypes, CMOS_ReadHDDTypes
 global CMOS_EnableInt, CMOS_DisableInt, CMOS_HandleInt
 global CMOS_GetDate, CMOS_GetTime
@@ -80,10 +80,10 @@ proc CMOS_Write
 endp		;---------------------------------------------------------------
 
 
-		; CMOS_ReadBaseMemSz - read base memory size from CMOS.
+		; CMOS_ReadLowerMemSize - read base memory size from CMOS.
 		; Input: none.
 		; Output: AX=number of KBytes of base memory.
-proc CMOS_ReadBaseMemSz
+proc CMOS_ReadLowerMemSize
 		mov	al,CMOSREG_BaseMemHi
 		call	CMOS_Read
 		mov	ah,al
@@ -93,11 +93,11 @@ proc CMOS_ReadBaseMemSz
 endp		;---------------------------------------------------------------
 
 
-		; CMOS_ReadExtMemSz - read extended memory size from CMOS.
+		; CMOS_ReadUpperMemSize - read extended memory size from CMOS.
 		; Input: none.
 		; Output: AX=number of KBytes of extended memory.
 		; Note: maximum value is 64 MB.
-proc CMOS_ReadExtMemSz
+proc CMOS_ReadUpperMemSize
 		mov	al,CMOSREG_ExtMemHi
 		call	CMOS_Read
 		mov	ah,al

@@ -1,0 +1,58 @@
+;-------------------------------------------------------------------------------
+; module.ah - common module definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _module_ah
+%define _module_ah
+
+; Module descriptor
+%define MAXMODNAMELEN	24
+
+; Module descriptor
+struc tModule
+.PoolSignature	RESD	1		; PoolChunkSignature
+.Spare		RESD	1
+.Size		RESD	1		; Total size (aligned)
+.Entry		RESD	1		; Entry point
+.VirtAddr	RESD	1		; Virtual address of module
+.CodeStart	RESD	1		; Address of .code
+.CodeLen	RESD	1		; size of .code
+.DataStart	RESD	1		; Address of .data
+.DataLen	RESD	1		; size of .data
+.BSSlen		RESD	1		; size of .bss (follows data)
+.ARGPaddr	RESD	1		; Address of argp area
+.ARGPlen	RESD	1		; size of argp area
+.SymtabAddr	RESD	1		; Address of symtab
+.SymtabLen	RESD	1		; size of symtab
+.Type		RESB	1		; Module type (MODTYPE_*)
+.Name		RESB	MAXMODNAMELEN	; Module name (NULL terminated)
+.Pad		RESB	3		; Pad
+.Flags		RESD	1		; Flags
+.BinFmt		RESD	1		; Address of binary format driver
+.Next		RESD	1		; List link
+.Prev		RESD	1
+endstruc
+
+; Module types
+%define MODTYPE_EXECUTABLE	0
+%define MODTYPE_LIBRARY		1
+%define MODTYPE_KERNEL		2
+%define MODTYPE_RAW		3
+%define MODTYPE_UNKNOWN		0FFh
+
+; This optional header may be present in the module file. It gives the
+; information about module type, CPU type, required OS version etc.
+struc tModInfoTag
+.Signature	RESD	1		; Must be RBM_SIGNATURE
+.ModVersion	RESD	1		; Module version
+.ModType	RESB	1		; Module type (MODTYPE_*)
+.Flags		RESB	1		; Flags
+.OStype		RESW	1		; Target OS type
+.OSversion	RESD	1		; Target OS version
+.Base		RESD	1		; Base address (for shared libraries)
+.Entry		RESD	1		; Entry point - alt. to "Start" label
+endstruc
+
+%define RBM_SIGNATURE	004D4252h
+
+%endif

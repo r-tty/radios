@@ -1,0 +1,23 @@
+;-------------------------------------------------------------------------------
+; sysmsg.ah - system message definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _sysmsg_ah
+%define _sysmsg_ah
+
+SYSMSG_BASE	EQU	0
+SYSMGR_BASE	EQU	0
+SYSMGR_MAX	EQU 	0Fh
+PROCMGR_BASE	EQU 	10h
+PROCMGR_MAX	EQU 	3Fh
+MEMMGR_BASE	EQU	40h
+MEMMGR_MAX	EQU	6Fh
+PATHMGR_BASE	EQU	70h
+PATHMGR_MAX	EQU 	9Fh
+CPUMSG_BASE	EQU	0A0h
+CPUMSG_MAX	EQU	0CFh
+RSRCDBMGR_BASE	EQU	0D0h
+RSRCDBMGR_MAX	EQU	0D3h
+SYSMSG_MAX	EQU	0FFh
+
+%endif

@@ -3,12 +3,15 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = dev
+subgroup = _audio
+
 # Standard header
 include ../../../etc/header.mk
 
 # Change variables here
 OBJS = sb.$(O)
-modnamesfile = .audio-modules
 
 # This part shouldn't be changed
 include ../../../etc/common.mk

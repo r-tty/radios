@@ -1,157 +1,112 @@
 ;*******************************************************************************
-;  memman.nasm - RadiOS memory management.
-;  Copyright (c) 1999-2001 RET & COM Research.
+; memman.nasm - RadiOS memory management.
+; Copyright (c) 1999-2002 RET & COM Research.
 ;*******************************************************************************
 
-module kernel.mm
+module tm.memman
 
 %include "sys.ah"
+%include "parameters.ah"
 %include "errors.ah"
-%include "memman.ah"
-%include "cpu/paging.ah"
 %include "pool.ah"
-%include "process.ah"
+%include "module.ah"
+%include "cpu/paging.ah"
+%include "tm/process.ah"
+%include "tm/memman.ah"
 
+publicproc TM_InitMemman
+publicproc MM_AllocBlock, MM_FreeBlock, MM_ReallocBlock
 
-; --- Definitions ---
-%define	MM_MCBAREABEG	104000h				; Begin of MCB area
-%define	MM_MCBAREASIZE	0C000h				; Size of MCB area
-
-
-; --- Exports ---
-
-publicproc MM_Init, MM_FreeMCBarea
-publicproc MM_AllocBlock, MM_FreeBlock
-publicproc MM_AllocRegion, MM_FreeRegion
-
-
-; --- Imports ---
-
-library kernel
-extern BZero
-extern K_DescriptorAddress, K_GetDescriptorBase
-extern ?DrvrAreaStart, ?ShlAreaStart, ?UserAreaStart, ?TotalMemPages
-
-library kernel.paging
-extern PG_GetPTEaddr, PG_AllocAreaTables
-extern PG_Alloc:near, PG_Dealloc:near
-extern ?KernPageDir, ?KernPgPoolEnd
-
-library kernel.mt
-extern ?ProcListPtr
+externproc PageAlloc, PageDealloc, AllocPTifNecessary, GetPTEaddr
+externproc PoolInit, PoolAllocChunk, PoolFreeChunk
+externdata ?ProcListPtr
 
 
 ; --- Variables ---
 
 section .bss
 
-PagesPerProc	RESD	1				; Pages per process
+?MaxMCBs	RESD	1
+?NumUsedMCBs	RESD	1
+?MCBpool	RESB	tMasterPool_size
 
 
 ; --- Procedures ---
 
-%include "region.nasm"
-
 section .text
 
-		; MM_Init - initialize memory management.
-		; Input: none.
+		; TM_InitMemman - initialize memory management.
+		; Input: EAX=maximum number of MCBs (system-wide).
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MM_Init
-		; Initialize kernel MCB area
-		mov	ebx,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE
-		call	BZero
-		
-		shr	ecx,PAGESHIFT			; ECX=# of pages in MCB
-		mov	edx,[?KernPageDir]
-
-.Loop:		call	PG_GetPTEaddr
-		or	dword [edi],PG_ALLOCATED
-		add	ebx,PAGESIZE
-		loop	.Loop
-		
-		; Allocate page tables for mapping Driver, Shlib and User area
-		mov	ebx,[?DrvrAreaStart]
-		call	PG_AllocAreaTables
-		jc	short .Exit
-		mov	ebx,[?ShlAreaStart]
-		call	PG_AllocAreaTables
-		jc	short .Exit
-		mov	ebx,[?UserAreaStart]
-		call	PG_AllocAreaTables
-		jc	short .Exit
-		
-		; Initialize kernel process region
-		mov	esi,[?ProcListPtr]
-		call	MM_GetMCB
-		jc	short .Exit
-		mov	word [ebx+tMCB.Signature],MCBSIG_SHARED
-		mov	word [ebx+tMCB.Flags],MCBFL_LOCKED
-		mov	byte [ebx+tMCB.Type],REGTYPE_KERNEL
-		mov	word [ebx+tMCB.Count],1
-		mov	eax,1000h
-		mov	[ebx+tMCB.Addr],eax
-		mov	ecx,[?KernPgPoolEnd]
-		sub	ecx,eax
-		mov	[ebx+tMCB.Len],ecx
-		clc
+proc TM_InitMemman
+		mov	[?MaxMCBs],eax
+		xor	ecx,ecx
+		xor	edx,edx
+		mov	[?NumUsedMCBs],ecx
+		mov	ebx,?MCBpool
+		mov	cl,tMCB_size
+		call	PoolInit
+		jc	.Exit
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
 
 		; MM_AllocBlock - allocate memory block.
 		; Input: ESI=PCB address,
-		;	 ECX=block size,
-		;	 DL=area (AREALOC_* macros),
-		;	 DH=block attributes (PG_USERMODE or/and PG_WRITEABLE).
+		;	 ECX=block size.
+		;	 AH=block attributes (PG_WRITABLE).
 		; Output: CF=0 - OK:
 		;		     EAX=address of MCB,
 		;		     EBX=block address;
 		;	  CF=1 - error, AX=error code.
 proc MM_AllocBlock
-%define	.mcbaddr	ebp-4
-%define	.flags		ebp-8
-
-		prologue 8
+		locals	flags, pcbaddr, mcbaddr
+		prologue
 		mpush	ecx,edx,esi,edi
 
-		mIsKernProc esi				; ESI=PCB address
-		mov	[.flags],edx			; Save attributes
+		mov	[%$pcbaddr],esi
+		mov	[%$flags],eax
+		mov	edx,[esi+tProcDesc.PageDir]
 
 		call	MM_GetMCB			; Get a MCB
-		jc	short .Exit			; and keep its address
-		mov	[.mcbaddr],ebx
+		jc	.Exit				; and save its address
+		mov	[%$mcbaddr],ebx
 		mov	edi,ebx
 
-		mov	[ebx+tMCB.Len],ecx		; Keep block length
+		mov	[edi+tMCB.Len],ecx		; Keep block length
 		add	ecx,PAGESIZE-1			; Calculate number of
 		and	ecx,~ADDR_OFSMASK		; pages to hold the data
 
 		call	MM_FindRegion			; Search a region
-		jc	short .FreeMCB			; If OK - EBX=linear
+		jc	.FreeMCB			; If OK - EBX=linear
 							; address of region
 		mov	[edi+tMCB.Addr],ebx		; Fill MCB 'Addr' field
 		shr	ecx,PAGESHIFT			; ECX=number of pages
 							; to allocate
 		mov	eax,ERR_MEM_BadBlockSize
 		jecxz	.FreeMCB
-.Loop:		mov	dl,1				; Allocate one page
-		call	PG_Alloc			; of physical or virtual
-		jc	short .FreePages		; memory
-		push	eax				; Save its physical addr
-		mov	edx,[esi+tProcDesc.PageDir]
-		call	PG_GetPTEaddr
-		pop	eax
-		or	eax,PG_ALLOCATED		
-		or	al,[.flags+1]			; Store physical address
+.Loop:		push	edx
+		mov	dl,1				; Request one page
+		call	PageAlloc			; of physical or virtual
+		pop	edx
+		jc	.FreePages			; memory
+		mov	esi,eax				; Save its physical addr
+		mov	ah,PG_USERMODE | PG_WRITABLE
+		call	AllocPTifNecessary
+		jc	.FreePages
+		call	GetPTEaddr
+		jc	.FreePages
+		mov	eax,esi
+		or	eax,PG_USERMODE | PG_ALLOCATED
+		or	al,[%$flags+1]			; Store physical address
 		mov	[edi],eax			; in PTE
 		add	ebx,PAGESIZE
 		loop	.Loop
 
-		mov	eax,[.mcbaddr]
+		mov	eax,[%$mcbaddr]
 		mov	ebx,[eax+tMCB.Addr]
+		sub	ebx,USERAREASTART
 		clc
 
 .Exit:		mpop	edi,esi,edx,ecx
@@ -159,14 +114,15 @@ proc MM_AllocBlock
 		ret
 
 .FreeMCB:	push	eax				; Free MCB if error
-		mov	ebx,[.mcbaddr]
+		mov	ebx,[%$mcbaddr]
+		mov	esi,[%$pcbaddr]
 		call	MM_FreeMCB
 		pop	eax
 		stc
 		jmp	.Exit
 
-.FreePages:	push	eax				; Keep error code
-		mov	ebx,[.mcbaddr]
+.FreePages:	push	eax				; Save error code
+		mov	ebx,[%$mcbaddr]
 		mov	eax,ecx
 		mov	ecx,[ebx+tMCB.Len]
 		add	ecx,PAGESIZE-1
@@ -175,11 +131,10 @@ proc MM_AllocBlock
 		jecxz	.NoDeall
 		mov	ebx,[ebx+tMCB.Addr]
 
-		mov	edx,[esi+tProcDesc.PageDir]
-.DeallLoop:	call	PG_GetPTEaddr
+.DeallLoop:	call	GetPTEaddr
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
-		call	PG_Dealloc
+		call	PageDealloc
 		add	ebx,PAGESIZE
 		loop	.DeallLoop
 .NoDeall:	pop	eax				; Restore error code
@@ -195,36 +150,34 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_FreeBlock
-%define	.mcbaddr	ebp-4
-
-		prologue 4
+		locals	mcbaddr
+		prologue
 		mpush	ebx,edx,esi,edi
 		
-		mIsKernProc esi				; ESI=PCB address
 		xchg	edi,ebx
 		or	ebx,ebx				; Got MCB address?
-		jnz	short .GotMCBaddr
+		jnz	.GotMCBaddr
 		mov	ebx,edi				; Find the MCB by addr
 		call	MM_FindMCB
-		jc	short .Exit
+		jc	.Exit
 
 .GotMCBaddr:	test	word [ebx+tMCB.Flags],MCBFL_LOCKED	; Locked region?
-		jnz	short .Err
-		mov	[.mcbaddr],ebx
+		jnz	.Err
+		mov	[%$mcbaddr],ebx
 		mov	ecx,[ebx+tMCB.Len]
 		add	ecx,PAGESIZE-1
 		shr	ecx,PAGESHIFT
 		mov	ebx,edi				; EBX=block address
 
 		mov	edx,[esi+tProcDesc.PageDir]
-.Loop:		call	PG_GetPTEaddr
+.Loop:		call	GetPTEaddr
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
-		call	PG_Dealloc
+		call	PageDealloc
 		add	ebx,PAGESIZE
 		loop	.Loop
 
-		mov	ebx,[.mcbaddr]
+		mov	ebx,[%$mcbaddr]
 		call	MM_FreeMCB
 
 .Exit:		mpop	edi,esi,edx,ebx
@@ -237,40 +190,12 @@ proc MM_FreeBlock
 endp		;---------------------------------------------------------------
 
 
-		; MM_GetSharedMem - allocate shared memory block.
-		; Input: ECX=block size.
-		; Output: CF=0 - OK; EBX=block physical address;
+		; MM_ReallocBlock - reallocate block.
+		; Input: EBX=old block address,
+		;	 ECX=new size.
+		; Output: CF=0 - OK, EBX=new block address;
 		;	  CF=1 - error, AX=error code.
-proc MM_GetSharedMem
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MM_DisposeSharedMem - dispose shared memory block.
-		; Input: EBX=physical address of block.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MM_DisposeSharedMem
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MM_AllocPages - allocate memory pages.
-		; Input: ESI=PCB address,
-		;	 ECX=number of pages.
-		; Output: CF=0 - OK, ESI=address of first allocated page;
-		;	  CF=1 - error, AX=error code.
-proc MM_AllocPages
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MM_FreePages - free memory pages.
-		; Input: ESI=address of first page,
-		;	 ECX=number of pages.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MM_FreePages
+proc MM_ReallocBlock
 		ret
 endp		;---------------------------------------------------------------
 
@@ -279,58 +204,45 @@ endp		;---------------------------------------------------------------
 
 		; MM_FindRegion - find a linear memory region.
 		; Input: ESI=address of PCB,
-		;	 ECX=required size,
-		;	 DL=area location (AREALOC_*).
+		;	 ECX=required size.
 		; Output: CF=0 - OK, EBX=region address;
 		;	  CF=1 - error, AX=error code.
 proc MM_FindRegion
-%define	.regionsize	ebp-4
-%define .regionaddr	ebp-8
-%define .linearend	ebp-12
-
-		prologue 12
+		locals	regionsize,regionaddr,linearend
+		prologue
 		mpush	edx,edi
 
-		mov	dword [.regionsize],0
-
-		mov	ebx,[?UserAreaStart]
-		cmp	dl,AREALOC_USER
-		je	short .1
-		mov	ebx,[?ShlAreaStart]
-		cmp	dl,AREALOC_SHLIB
-		je	short .1
-		mov	ebx,[?DrvrAreaStart]
-		cmp	dl,AREALOC_DRV
-		jne	.Err2
-		
-.1:		or	ebx,ebx
-		jz	short .Empty
-		mov	[.regionaddr],ebx
-		mov	eax,[?TotalMemPages]
-		shl	eax,PAGESHIFT
-		add	eax,ebx
-		mov	[.linearend],eax
+		mov	dword [%$regionsize],0
+		mov	eax,[esi+tProcDesc.Module]
+		mov	ebx,[eax+tModule.CodeStart]
+		add	ebx,[eax+tModule.Size]
+		add	ebx,USERAREASTART
+		mov	[%$regionaddr],ebx
+		lea	eax,[ebx+MAXHEAPSIZE]
+		mov	[%$linearend],eax
 		mov	edx,[esi+tProcDesc.PageDir]		; For PG_GetPTEaddr
 
-.Loop:		cmp	ebx,[.linearend]
-		jae	short .Err1
-		call	PG_GetPTEaddr
+.Loop:		cmp	ebx,[%$linearend]
+		jae	.Err1
+		mov	ah,PG_USERMODE | PG_WRITABLE
+		call	AllocPTifNecessary
+		jc	.Exit
+		call	GetPTEaddr
+		jc	.Exit
 		cmp	dword [edi],PG_DISABLE
-		je	short .Err1
-		test	dword [edi],PG_ALLOCATED
-		jnz	short .Used
-		add	dword [.regionsize],PAGESIZE
-		cmp	[.regionsize],ecx
-		jae	short .Found
+		jne	.Used
+		add	dword [%$regionsize],PAGESIZE
+		cmp	[%$regionsize],ecx
+		jae	.Found
 		add	ebx,PAGESIZE
 		jmp	.Loop
 
 .Used:		add	ebx,PAGESIZE
-		mov	[.regionaddr],ebx
-		mov	dword [.regionsize],0
+		mov	[%$regionaddr],ebx
+		mov	dword [%$regionsize],0
 		jmp	.Loop
 
-.Found:		mov	ebx,[.regionaddr]
+.Found:		mov	ebx,[%$regionaddr]
 		clc
 
 .Exit:		mpop	edi,edx
@@ -348,137 +260,68 @@ endp		;---------------------------------------------------------------
 
 
 		; MM_GetMCB - get a new MCB.
-		; Input:  ESI=address of PCB.
-		; Output: CF=0 - OK, EBX=linear address of MCB;
+		; Input:  ESI=process descriptor address.
+		; Output: CF=0 - OK, EBX=MCB address;
 		;	  CF=1 - error, AX=error code.
 proc MM_GetMCB
-		mpush	ecx,edx,esi,edi
-		mov	ebx,MM_MCBAREABEG
-		xor	ecx,ecx				; Start with first MCB
+		mov	eax,[?NumUsedMCBs]
+		cmp	eax,[?MaxMCBs]
+		je	.Err
+		mov	ebx,?MCBpool
+		push	esi
+		call	PoolAllocChunk
+		mov	ebx,esi
+		pop	esi
+		jc	.Exit
 
-.Scan:		cmp	ecx,MM_MCBAREASIZE
-		jae	short .Err
-		mov	edx,[esi+tProcDesc.PageDir]
-		call	PG_GetPTEaddr
-		jc	short .Exit
-		test	dword [edi],PG_ALLOCATED	; MCB page allocated?
-		jnz	short .CheckMCB			; Yes, check MCB
-
-		mov	dl,1
-		call	PG_Alloc			; Else allocate one page
-		jc	short .Exit			; of physical memory
-		or	eax,PG_ALLOCATED		; Store address of page
-		mov	[edi],eax			; in PTE
-		mov	word [ebx+tMCB.Signature],0
-
-.CheckMCB:	cmp	word [ebx+tMCB.Signature],0
-		je	short .Found
-
-		add	ebx,MCBSIZE
-		add	ecx,MCBSIZE
-		jmp	.Scan
-
-.Found:		mov	word [ebx+tMCB.Signature],MCBSIG_PRIVATE
+		mov	word [ebx+tMCB.Signature],MCBSIG_PRIVATE
 		mov	byte [ebx+tMCB.Type],REGTYPE_DATA
-		cmp	dword [esi+tProcDesc.FirstMCB],0 ; 'First' field initialized?
-		jne	short .ChkLast
-		mov	[esi+tProcDesc.FirstMCB],ebx
-
-.ChkLast:	mov	eax,[esi+tProcDesc.LastMCB]
-		or	eax,eax
-		jz	short .InitPtrs
-		mov	[eax+tMCB.Next],ebx		; Last->Next=EBX
-
-.InitPtrs:	mov	dword [ebx+tMCB.Next],0		; EBX->Next=0
-		mov	[ebx+tMCB.Prev],eax		; EBX->Prev=Last
-		mov	[esi+tProcDesc.LastMCB],ebx	; Last=EBX
+		inc	dword [?NumUsedMCBs]
+		mEnqueue dword [esi+tProcDesc.MCBlist], Next, Prev, ebx, tMCB
 		clc
 
-.Exit:		mpop	edi,esi,edx,ecx
-		ret
+.Exit:		ret
 
 .Err:		mov	ax,ERR_MEM_NoMCBs
 		stc
-		jmp	.Err
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; MM_FreeMCB - free a MCB.
-		; Input: EBX=linear address of MCB,
-		;	 ESI=PCB address.
+		; Input: EBX=MCB address,
+		;	 ESI=process descriptor address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_FreeMCB
-		push	edx
-		mov	word [ebx+tMCB.Signature],0
-		mov	eax,[ebx+tMCB.Prev]		; Pointer manipulations..
-		mov	edx,[ebx+tMCB.Next]
-		or	eax,eax
-		jz	short .NoPrev
-		mov	[eax+tMCB.Next],edx
-.NoPrev:	or	edx,edx
-		jz	short .CheckLast
-		mov	[edx+tMCB.Prev],eax
-
-.CheckLast:	cmp	ebx,[esi+tProcDesc.LastMCB]
-		jne	short .CheckFirst
-		mov	[esi+tProcDesc.LastMCB],eax
-
-.CheckFirst:	cmp	ebx,[esi+tProcDesc.FirstMCB]
-		jne	short .Exit
-		mov	[esi+tProcDesc.FirstMCB],edx
-
-.Exit:		pop	edx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MM_FreeMCBarea - free MCB area of process.
-		; Input: ESI=address of PCB.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MM_FreeMCBarea
-		mpush	ebx,ecx,edx,edi
-		mov	ebx,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE/PAGESIZE
-		mov	edx,[esi+tProcDesc.PageDir]
-.Loop:		call	PG_GetPTEaddr
-		jc	short .Exit
-		mov	eax,[edi]
-		test	eax,PG_ALLOCATED
-		jz	short .Next
-		and	eax,~ADDR_OFSMASK
-		call	PG_Dealloc
-		mov	dword [edi],(~ADDR_OFSMASK)+PG_PRESENT
-.Next:		add	ebx,PAGESIZE
-		loop	.Loop
-
-.OK:		clc
-.Exit:		mpop	edi,edx,ecx,ebx
+		push	esi
+		mDequeue dword [esi+tProcDesc.MCBlist], Next, Prev, ebx, tMCB
+		mov	esi,ebx
+		call	PoolFreeChunk
+		pop	esi
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; MM_FindMCB - find MCB by block address.
 		; Input: EBX=block address,
-		;	 ESI=address of PCB.
+		;	 ESI=process descriptor address.
 		; Output: CF=0 - OK, EBX=MCB address;
 		;	  CF=1 - error, AX=error code.
 proc MM_FindMCB
-		mpush	ecx,edx
-		mov	edx,ebx
-		mov	ebx,[esi+tProcDesc.FirstMCB]
+		mov	eax,ebx
+		mov	ebx,[esi+tProcDesc.MCBlist]
 
-.Loop:		cmp	[ebx+tMCB.Addr],edx		; If found - ZF=0
-		je	short .Exit			; and CF=0
+.Loop:		or	ebx,ebx
+		jz	.NotFound
+		cmp	[ebx+tMCB.Addr],eax		; If found - ZF=0
+		je	.Exit				; and CF=0
 		mov	ebx,[ebx+tMCB.Next]		; Next MCB
-		or	ebx,ebx
-		jnz	.Loop
+		jmp	.Loop
 
-.Err:		mov	ax,ERR_MEM_MCBnotFound
+.NotFound:	mov	ax,ERR_MEM_MCBnotFound
 		stc
-		jmp	.Exit
-
-.Exit:		mpop	edx,ecx
-		ret
+.Exit:		ret
 endp		;---------------------------------------------------------------
+
+%include "region.nasm"

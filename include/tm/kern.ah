@@ -1,0 +1,32 @@
+;-------------------------------------------------------------------------------
+; kern.ah - definitions for kernel part of task manager (that runs in Ring0).
+;-------------------------------------------------------------------------------
+
+%ifndef _kern_ah
+%define _kern_ah
+
+%include "syscall.ah"
+
+; Entry in the system call table.
+; Parameters: %1 = syscall name (used to construct number and function name)
+;	      %2 = number of parameters.
+%macro mSyscallTabEnt 1-2
+%ifnum %1
+    %if %1 == 0
+    	DD	0
+	DW	0
+    %else
+	%error Bad parameter
+    %endif
+%else
+	DD	sys_%1
+	DW	S_%1
+%endif
+%if %0 == 2
+	DW	%2
+%else
+	DW	0
+%endif
+%endmacro
+
+%endif

@@ -1,6 +1,6 @@
 ;-------------------------------------------------------------------------------
-;  perm.h - definitions for permission/protection structures.
-;  This file is based on the VSTa Operating System (c) 1996-2001 Andy Valencia.
+; perm.ah - definitions for permission/protection structures.
+; This file is based on the VSTa Operating System (c) 1996-2001 Andy Valencia.
 ;-------------------------------------------------------------------------------
 
 %define PERMLEN	7		; Max levels of permission discrimination
@@ -18,3 +18,9 @@ struc tProt
 .ID		RESB	PERMLEN		; Permission values
 .Bits		RESB	PERMLEN		; Capabilities granted
 endstruc
+
+; Set carry flag if the process doesn't have "root" capabilities.
+; Parameters: %1 = process descriptor address.
+%macro mIsRoot 1
+	clc
+%endmacro

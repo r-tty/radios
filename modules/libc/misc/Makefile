@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = libc
+subgroup = _misc
+
 # Standard header
-include ../../../build/header.mk
+include ../../../Build/header.mk
 
 # Change variables here
-OBJS = kernsyscall.$(O)
-modnamesfile = .libc_misc-modules
+OBJS = kernsyscall.$(O) misc.$(O)
 
 # This part shouldn't be changed
-include ../../../build/common.mk
+include ../../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = taskman
+subgroup = _mem
+
 # Standard header
-include ../../../build/header.mk
+include ../../../Build/header.mk
 
 # Change variables here
-OBJS = tm_mm.$(O)
-modnamesfile = .taskman_mem-modules
+OBJS = paging.$(O) memman.$(O)
 
 # This part shouldn't be changed
-include ../../../build/common.mk
+include ../../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

@@ -1,0 +1,85 @@
+;-------------------------------------------------------------------------------
+; dispatch.ah - dispatch definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _dispatch_ah
+%define _dispatch_ah
+
+%include "sys.ah"
+%include "msg.ah"
+%include "rm/iomgr.ah"
+
+; Select dispatch functions
+SELECT_FLAG_READ	EQU	NOTIFY_COND_INPUT
+SELECT_FLAG_WRITE	EQU	NOTIFY_COND_OUTPUT
+SELECT_FLAG_EXCEPT	EQU	NOTIFY_COND_OBAND
+SELECT_FLAG_REARM	EQU	1
+SELECT_FLAG_SRVEXCEPT	EQU	2
+
+; Resmgr dispatch functions
+RESMGR_FLAG_NO_DEFAULT_FUNC	EQU	1
+RESMGR_FLAG_ATTACH_LOCAL	EQU	2
+RESMGR_FLAG_ATTACH_OTHERFUNC	EQU	4
+
+struc tResMgrAttr
+.flags		RESD	1
+.NpartsMax	RESD	1
+.MsgMaxSize	RESD	1
+.OtherFunc	RESD	1
+.Reserved	RESD	4	
+endstruc
+
+; Name dispatch functions
+NAME_FLAG_DETACH_SAVEDPP	EQU	1	; Dispatch ptr saved
+NAME_FLAG_ATTACH_GLOBAL		EQU	2	; Attach a global name
+
+struc tNameAttach
+.dpp	RESP	1
+.chid	RESD	1
+.mntid	RESD	1
+.zero	RESD	2
+endstruc
+
+; Message dispatch functions
+MSG_FLAG_TYPE_PULSE	EQU	1
+MSG_FLAG_ALLOC_PULSE	EQU	2
+MSG_FLAG_TYPE_SELECT	EQU	4
+MSG_FLAG_TYPE_RESMGR	EQU	8
+MSG_FLAG_DEFAULT_FUNC	EQU	100h
+MSG_FLAG_SIDE_CHANNEL	EQU	200h
+
+struc tMessageAttr
+.Flags		RESD	1
+.NpartsMax	RESD	1
+.MsgMaxSize	RESD	1
+.Reserved	RESD	5
+endstruc
+
+struc tMessageContext
+.rcvid		RESD	1
+.info		RESB	tMsgInfo_size
+.msg		RESP	1
+.dpp		RESP	1
+.id		RESD	1
+.tid		RESD	1
+.MsgMaxSize	RESD	1
+.status		RESD	1;
+.offset		RESD	1;
+.size		RESD	1;
+.iov		RESD	1;
+endstruc
+
+; General dispatch functions
+DISPATCH_FLAG_NOLOCK	EQU	1
+
+; Dispatch types
+DISPATCH_NONE		EQU	0
+DISPATCH_TIMEOUT	EQU	1
+DISPATCH_RESMGR		EQU	2
+DISPATCH_MESSAGE	EQU	3
+DISPATCH_SELECT		EQU	4
+DISPATCH_SIGWAIT	EQU	5
+DISPATCH_MAX		EQU	6
+DISPATCH_ERROR		EQU	-1
+
+%endif

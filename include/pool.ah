@@ -1,8 +1,22 @@
 ;-------------------------------------------------------------------------------
-;  pool.ah - definitions for list manipulation routines.
+; pool.ah - definitions for pools.
 ;-------------------------------------------------------------------------------
 
-%include "sema.ah"
+%ifndef _pool_ah
+%define _pool_ah
+
+%include "sync.ah"
+
+; Master pool descriptor (links single page pools together)
+struc tMasterPool
+.Pools		RESD	1		; Pool list
+.Hint		RESD	1		; Hint to avoid list traversal
+.Count		RESD	1		; How many pools we allocated
+.Size		RESD	1		; Chunk size
+.Flags		RESD	1		; Flags
+.Signature	RESD	1		; Signature stored in each chunk
+.SemLock	RESB	tSemaphore_size	; Serializing semaphore
+endstruc
 
 ; Pool descriptor
 struc tPoolDesc
@@ -15,16 +29,8 @@ struc tPoolDesc
 .Next		RESD	1		; List link
 endstruc
 
-; Master pool descriptor (links single page pools together)
-struc tMasterPool
-.Pools		RESD	1		; Pool list
-.Hint		RESD	1		; Hint to avoid list traversal
-.Count		RESD	1		; How many pools we allocated
-.Size		RESD	1		; Chunk size
-.Flags		RESD	1		; Flags
-.SemLock	RESB	tSemaphore_size	; Serializing semaphore
-endstruc
-
-%define	POOLFL_HIMEM		1	; Pool is allocated in the user space
+%define	POOLFL_HIMEM		1	; Pool is allocated above 1M
 %define POOLFL_BUCKETALLOC	100h	; Allocate as many chunks as fit into
 					; a page
+
+%endif

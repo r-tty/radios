@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = kernel
+subgroup = _ipc
+
 # Standard header
-include ../../build/header.mk
+include ../../Build/header.mk
 
 # Change variables here
-OBJS = event.$(O) msg.$(O)
-modnamesfile = .ipc-modules
+OBJS = ipc.$(O) msg.$(O) channel.$(O) event.$(O)
 
 # This part shouldn't be changed
-include ../../build/common.mk
+include ../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

@@ -1,26 +1,87 @@
 ;-------------------------------------------------------------------------------
-;  msg.ah - messaging definitions.
+; msg.ah - definitions for message passing.
 ;-------------------------------------------------------------------------------
 
-%define	MSGBUF_MAX	32
+%ifndef _msg_ah
+%define _msg_ah
 
-struc tMessage
+%include "sync.ah"
+
+; Message descriptor
+struc tMsgDesc
 .Flags		RESD	1
 .Qref		RESD	1			; Queue reference count
 .ID		RESD	1
 .DataPtr	RESD	1			; Address of data
 .Length		RESD	1			; Length of data
-.Buf		RESB	MSGBUF_MAX
 .Lock		RESB	tSemaphore_size 	; Message is still on the queue
-.Next		RESD	1			; Message queue under the port
+.Next		RESD	1			; Message queue in the channel
 .NextFree	RESD	1
 endstruc
 
-struc tIPCport
-.Flags		RESD	1
-.Head		RESD	1			; Message queue: head
-.Tail		RESD	1			; message queue: tail
-.Lock		RESB	tSemaphore_size 	; To manipulate port safely
-.Recv		RESB	tSemaphore_size 	; Serializing receive requests
-.FreeList	RESD	1			; A list of free messages
+; Connection descriptor
+struc tConnDesc
+.PoolSignature	RESD	1			; Pool chunk signature
+.ChanDesc	RESD	1			; Channel descriptor
+.Prio		RESD	1			; Priority
+.Status		RESD	1			; Connection status
+.Flags		RESD	1			; COF_* flags
+.SendWaitQ	RESD	1			; Head of send wait queue
+.Lock		RESB	tSemaphore_size		; To manipulate conndesc safely
+.SendSem	RESB	tSemaphore_size		; "Send" semaphore
+.Next		RESD	1			; List link
+.Prev		RESD	1
 endstruc
+
+; Channel descriptor
+struc tChanDesc
+.PoolSignature	RESD	1			; Pool signature
+.PCB		RESD	1			; Process descriptor address
+.Flags		RESD	1			; CHF_* flags
+.BaseIndex	RESD	1			; Base index
+.NumConn	RESD	1			; Number of connections
+.ConnList	RESD	1			; Connection list
+.Head		RESD	1			; Message queue: head
+.Tail		RESD	1			; Message queue: tail
+.FreeList	RESD	1			; A list of free messages
+.Lock		RESB	tSemaphore_size 	; To manipulate channel safely
+.RecvSem	RESB	tSemaphore_size 	; "Receive" semaphore
+.Next		RESD	1			; List link
+.Prev		RESD	1
+endstruc
+
+; Message information structure - for MsgInfo()
+struc tMsgInfo
+.ND		RESD	1
+.SrcNd		RESD	1
+.PID		RESD	1
+.TID		RESD	1
+.ChID		RESD	1
+.ScoID		RESD	1
+.CoID		RESD	1
+.MsgLen		RESD	1
+.SrcMsgLen	RESD	1
+.DstMsgLen	RESD	1
+.Priority	RESW	1
+.Flags		RESW	1
+.Reserved	RESD	1
+endstruc
+
+; Channel flags
+CHF_FIXED_PRIORITY	EQU	1
+CHF_UNBLOCK		EQU	2
+CHF_THREAD_DEATH	EQU	4
+CHF_DISCONNECT		EQU	8
+CHF_NET_MSG		EQU	10h
+CHF_SENDER_LEN		EQU	20h
+CHF_COID_DISCONNECT	EQU	40h
+CHF_REPLY_LEN		EQU	80h
+
+; Connect flags
+COF_CLOEXEC		EQU	1
+COF_DEAD		EQU	2
+COF_NOSHARE		EQU	40h
+COF_NETCON		EQU	80h
+COF_VCONNECT		EQU	100h
+
+%endif

@@ -1,6 +1,63 @@
 ;-------------------------------------------------------------------------------
-; sugar.ah - various useful macros, mostly TASM-like
+; sugar.ah - various useful macros.
 ;-------------------------------------------------------------------------------
+
+;*** These are needed for mResMax and unions ***
+Byte_size	EQU	1
+Word_size	EQU	2
+Dword_size	EQU	4
+Qword_size	EQU	8
+
+; *** Calculate maximum value and reserve it ***
+%macro mResMax 1-*
+%assign %$m %1_size
+%rep %0
+    %if %1_size > %$m
+	%assign %$m %1_size
+    %endif
+    %rotate 1
+%endrep
+    RESB   %$m
+%endmacro
+
+; *** Declaring a union ***
+%macro union 1
+    struc %1
+%push union
+%endmacro
+
+; Union member
+%macro unimemb 1
+%ifnctx union
+    %error Not inside a union
+%else
+    %ifndef %$unionsize
+        %assign %$unionsize 0
+    %endif
+    %if %1_size > %$unionsize
+	%assign %$unionsize %1_size
+    %endif
+%endif
+%endmacro
+
+%macro endunion 0
+%ifnctx union
+    %error Unexpected 'endunion'
+%else
+    %ifndef %$unionsize
+    	%error Zero union size (no members)
+    %endif
+    RESB   %$unionsize
+    %pop
+    endstruc
+%endif
+%endmacro
+
+
+;*** Declare a pointer - until we add this to NASM.. ***
+%define RESP RESD
+
+
 
 ;*** Start a procedure ***
 %macro proc 1
@@ -17,6 +74,7 @@
 %endif
 %endmacro
 
+
 ;*** mpush/mpop pair ***
 %macro mpush 1-*
 %rep %0
@@ -32,6 +90,7 @@
 %endrep
 %endmacro
 
+
 ;*** push immediate ***
 %macro pushimm 1
 %if %1<128
@@ -40,6 +99,7 @@
 		push	dword %1
 %endif
 %endmacro
+
 
 ;*** C-like prologue and epilogue ***
 %macro prologue 0-1 
@@ -85,8 +145,8 @@
 ; *** For declaring many GLOBAL data at the same time ***
 %macro publicdata 1-*
 %rep %0
-[GLOBAL %1 %+ :data]
-%rotate 1
+    [GLOBAL %1 %+ :data]
+    %rotate 1
 %endrep
 %endmacro
 
@@ -102,8 +162,41 @@
 ; *** For exporting many GLOBAL data at the same time ***
 %macro exportdata 1-*
 %rep %0
-[GLOBAL %1 %+ :export data]
-%rotate 1
+    [GLOBAL %1 %+ :export data]
+    %rotate 1
+%endrep
+%endmacro
+
+
+; *** Declare external procedure ***
+%macro externproc 1-*
+%rep %0
+    [EXTERN %1 %+ :proc]
+    %rotate 1
+%endrep
+%endmacro
+
+; *** Declare external data ***
+%macro externdata 1-*
+%rep %0
+    [EXTERN %1 %+ :data]
+    %rotate 1
+%endrep
+%endmacro
+
+; *** Import the procedure ***
+%macro importproc 1-*
+%rep %0
+    [EXTERN %1 %+ :import proc]
+    %rotate 1
+%endrep
+%endmacro
+
+; *** Import the data ***
+%macro importdata 1-*
+%rep %0
+    [EXTERN %1 %+ :import data]
+    %rotate 1
 %endrep
 %endmacro
 
@@ -140,6 +233,25 @@
     %xdefine %$%1 ebp+%$ac
     %rotate 1
 %endrep
+%endmacro
+
+; *** For calling C-like functions (that accept parameters on the stack) ***
+%macro Ccall 1-*
+%if %0 > 1
+    %rotate -1
+    %rep %0-1
+    %ifnum %1
+	pushimm %1
+    %else
+    	push %1
+    %endif
+	%rotate -1
+    %endrep
+%endif
+    call %1
+%if %0 > 1
+    add esp,byte 4*(%0-1)
+%endif
 %endmacro
 
 ; *** For declaring structure instances, nicer than AT ***

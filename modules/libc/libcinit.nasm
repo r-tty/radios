@@ -1,12 +1,13 @@
 ;-------------------------------------------------------------------------------
-; libcinit.nasm - initialize different libc components.
+; libcinit.nasm - initialize libc components.
 ;-------------------------------------------------------------------------------
 
 module $libc
 
-%include "bootdefs.ah"
+%include "sys.ah"
+%include "module.ah"
 
-exportdata ModuleInfo, Start
+exportdata ModuleInfo
 
 extern libc_init_syscall
 extern libc_init_signal
@@ -15,8 +16,10 @@ extern libc_init_stdlib
 extern libc_init_string
 extern libc_init_termios
 extern libc_init_unistd
+extern libc_init_posix1j
+extern libc_init_xopen
 
-%define SHLIB_BASE 40000000h
+%define SHLIB_BASE 50000000h
 
 section .data
 
@@ -28,11 +31,12 @@ ModuleInfo: instance tModInfoTag
     field(OStype,	DW	1)
     field(OSversion,	DD	0)
     field(Base,		DD	SHLIB_BASE)
+    field(Entry,	DD	libc_initialize)
 iend
 
 section .text
 
-proc Start
+proc libc_initialize
 		call	libc_init_syscall
 		call	libc_init_signal
 		call	libc_init_stdio
@@ -40,5 +44,7 @@ proc Start
 		call	libc_init_string
 		call	libc_init_termios
 		call	libc_init_unistd
+		call	libc_init_posix1j
+		call	libc_init_xopen
 		ret
 endp		;---------------------------------------------------------------

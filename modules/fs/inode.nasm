@@ -23,20 +23,20 @@ global IND_Init
 ; --- Imports ---
 
 library kernel.driver
-extern DRV_CallDriver:near
+extern DRV_CallDriver
 
 library kernel.paging
-extern AllocPhysMem:near
+extern AllocPhysMem
 
 library kernel.pool
-extern K_PoolInit:near, K_PoolAllocChunk:near
+extern K_PoolInit, K_PoolAllocChunk
 
 library kernel.mt
-extern MT_WakeupTQ:near, MT_SleepTQ:near, MT_Schedule:near
+extern MT_WakeupTQ, MT_SleepTQ, MT_Schedule
 extern ?CurrThread
 
 library kernel.misc
-extern BZero:near
+extern BZero
 
 
 ; --- Definitions ---
@@ -561,7 +561,7 @@ proc IND_Invalidate
 .Busy:
 	%ifdef KPOPUP
 		push	esi
-		mov	esi,MsgInodeBusy
+		mov	esi,TxtInodeBusy
 		call	K_PopUp
 		pop	esi
 	%endif

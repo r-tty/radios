@@ -3,17 +3,19 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = fs
+
 # Standard header
-include ../etc/header.mk
+include ../../Build/header.mk
 
 # Change variables here
-export TARGET_LIB = fs.rdl
-OBJS = buffer.$(O) inode.$(O) open.$(O) rw.$(O) path.$(O) cfs_init.$(O)
-modnamesfile = .fs-modules
-SUBDIRS = vstafs tarfs
+export TARGET_LIB = fs.$(L)
+OBJS = buffer.$(O) inode.$(O) open.$(O) rw.$(O) path.$(O)
+SUBDIRS = rfs
 
 # Make in subdirs
-include ../etc/subdirs.mk
+include ../../Build/subdirs.mk
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../../Build/common.mk

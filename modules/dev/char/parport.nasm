@@ -1,19 +1,19 @@
 ;*******************************************************************************
-;  parport.nasm - parallel port driver.
-;  Based upon Linux code of parport_pc.c.
+; parport.nasm - parallel port driver.
+; Copyright (c) 1999, 2002 RET & COM Research.
+; Based upon Linux code of parport_pc.c.
 ;*******************************************************************************
 
-module hw.parport
+module $parport
 
 %include "sys.ah"
 %include "errors.ah"
-%include "driver.ah"
-%include "biosdata.ah"
+%include "module.ah"
 %include "hw/parport.ah"
 
 ; --- Exports ---
 
-global DrvParport
+exportdata ModuleInfo
 
 
 ; --- Imports ---
@@ -50,29 +50,16 @@ endstruc
 
 section .data
 
-; Driver main structure
-DrvParport	DB	"%parport"
-		TIMES	16-$+DrvParport DB 0
-		DD	DrvParportET
-		DW	DRVFL_Char
-
-; Driver entry points table
-DrvParportET	DD	PAR_Init
-		DD	PAR_HandleEvent
-		DD	PAR_Open
-		DD	PAR_Close
-		DD	PAR_Read
-		DD	PAR_Write
-		DD	NULL
-		DD	DrvPar_Ctrl
-
-DrvPar_Ctrl	DD	PAR_GetInitStatStr
-		DD	PAR_GetParameters
-
-PP_InitStatStr	DB	9,": 0 port(s) detected",0
-PP_BaseStr	DB	9,": base port ",0
-PP_IRQstr	DB	", IRQ ",0
-PP_DMAstr	DB	", DMA ",0
+ModuleInfo: instance tModInfoTag
+    field(Signature,	DD	RBM_SIGNATURE)
+    field(ModVersion,	DD	1)
+    field(ModType,	DB	MODTYPE_EXECUTABLE)
+    field(Flags,	DB	0)
+    field(OStype,	DW	1)
+    field(OSversion,	DD	0)
+    field(Base,		DD	0)
+    field(Entry,	DD	PAR_Main)
+iend
 
 ParPortBases	DW	378h			; Port base addresses
 		DW	278h
@@ -99,33 +86,14 @@ NumOfParPorts	RESB	1			; Number of supported ports
 
 section .text
 
-		; PAR_Init - initialize driver.
-		; Input: AL!=0 - maximum number of supported ports (1..8);
-		;	 AL==0 - get number of ports and base addresses
-		;		 from BIOS data area.
-		;	 ESI=buffer for init status string.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc PAR_Init
+		; PAR_Main - main routine.
+proc PAR_Main
 		mpush	ebx,ecx,esi,edi
-		or	al,al
-		jz	.FromBIOS
-		cmp	al,PARPORT_MAX
-		ja	.Err
-		mov	cl,al
+		mov	byte [NumOfParPorts],PARPORT_MAX
 		mov	edi,ParPortBases
-		jmp	short .BeginInit
-
-.FromBIOS:	mov	cx,[BDA(Hardware)]
-		shr	ecx,14
-		lea	edi,[BDA(LPT1addr)]
-
-.BeginInit:	or	cl,cl
-		jz	short .FillString
-		mov	[NumOfParPorts],cl
 		mov	ebx,PPdevTable
-		xor	ecx,ecx
 		mov	edx,ParPortIRQs
+		xor	ecx,ecx
 
 .FillTblLoop:	mov	ax,[edi]
 		mov	[ebx+tPPdevParm.BasePort],ax
@@ -138,41 +106,27 @@ proc PAR_Init
 		mov	[ebx+tPPdevParm.OpenCount],al
 		inc	cl
 		cmp	cl,[NumOfParPorts]
-		je	short .FillString
+		je	short .1
 		add	ebx,tPPdevParm_size
 		inc	edi
 		inc	edi
 		inc	edx
 		jmp	.FillTblLoop
-
-.FillString:	xor	edx,edx
-		call	PAR_GetInitStatStr
+		
+.1:	jmp $
 
 .Exit:		mpop	edi,esi,ecx,ebx
 		ret
-.Err:		mov	ax,ERR_PAR_BadNumOfPorts
-		stc
+
+.Err:		xor	eax,eax
+		dec	eax
 		jmp	short .Exit
 endp		;---------------------------------------------------------------
 
 
 		; PAR_Open - "open" device.
-		; Input: EDX (high word) = full minor number of device.
-		; Output: CF=0 - OK, EAX=0;
-		;	  CF=1 - error, AX=error code.
 proc PAR_Open
-		mpush	ebx,edx
-		call	PAR_Minor2PortNum
-		jc	short .Exit
-		cmp	byte [ebx+tPPdevParm.OpenCount],255
-		je	short .Err
-		inc	byte [ebx+tPPdevParm.OpenCount]
-		clc
-.Exit:		mpop	edx,ebx
 		ret
-.Err:		mov	ax,ERR_DRV_OpenOverflow
-		stc
-		jmp	short .Exit
 endp		;---------------------------------------------------------------
 
 
@@ -200,103 +154,6 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EAX=0;
 		;	  CF=1 - error, AX=error code.
 proc PAR_Write
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PAR_HandleEvent - handle parallel port interrupts.
-		; Input: EAX=event code.
-		; Output: none.
-proc PAR_HandleEvent
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PAR_GetInitStatStr - get initialization status string.
-		; Input: ESI=buffer for string.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error.
-proc PAR_GetInitStatStr
-		mpush	ebx,esi,edi
-		mov	edi,esi
-		mov	esi,DrvParport			; Copy "%parallel"
-		call	StrCopy
-		call	StrEnd
-
-		test	edx,0FFFF0000h			; Minor present?
-		jnz	short .Minor
-		mov	esi,PP_InitStatStr
-		call	StrCopy
-		mov	al,[NumOfParPorts]
-		add	al,30h
-		mov	[edi+3],al
-		jmp	short .OK
-
-.Minor:		call	PAR_Minor2PortNum		; Get port number
-		jc	short .Exit			; and DPS address
-		add	dl,'1'
-		mov	[edi],dl
-		inc	edi
-		mov	esi,PP_BaseStr
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		mov	ax,[ebx+tPPdevParm.BasePort]
-		call	HexW2Str
-		mov	edi,esi
-		mov	byte [edi],'h'
-		inc	edi
-		mov	esi,PP_IRQstr
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		xor	eax,eax
-		mov	al,[ebx+tPPdevParm.IRQ]
-		call	DecD2Str
-
-.OK:		clc
-.Exit:		mpop	edi,esi,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; PAR_GetParameters - get device parameters.
-		; Input: EDX (high word) = full minor number of device.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc PAR_GetParameters
-		ret
-endp		;---------------------------------------------------------------
-
-
-; === Implementation routines ===
-
-		; PAR_Minor2PortNum - convert minor number to port number
-		;		      and get address of parameters structure.
-		; Input: EDX (high word) = full minor number of device.
-		; Output: CF=0 - OK:
-		;		    DL=port number (0..),
-		;		    EBX=structure address;
-		;	  CF=1 - error, AX=error code.
-proc PAR_Minor2PortNum
-		mov	ebx,edx
-		shr	ebx,16
-		or	bl,bl
-		jz	short .Err1
-		dec	bl
-		cmp	bl,[NumOfParPorts]
-		jae	short .Err2
-		mov	dl,bl
-		shl	ebx,PPDstrucShift
-		add	ebx,PPdevTable
-		clc
-		ret
-
-.Err1:		mov	ax,ERR_DRV_NoMinor
-		stc
-		ret
-.Err2:		mov	ax,ERR_DRV_BadMinor
-		stc
 		ret
 endp		;---------------------------------------------------------------
 

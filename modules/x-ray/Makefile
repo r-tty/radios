@@ -3,20 +3,22 @@
 # Copyright (c) 2002 RET & COM Research.
 ################################################################################
 
-include ../../build/header.mk
+# This must be defined first
+group = xray
+
+# Global definitions
+include ../../Build/header.mk
 
 # Variables
-modnamesfile = .xray-modules
 TARGET_RDM = x-ray.$(X)
-OBJS = x-ray.$(O)
-
-# Rules for subdirectories
-LINK = all
-include ../../build/subdirs.mk
+OBJS = x-ray.$(O) cons.$(O)
 
 # Build module
-include ../../build/module.mk
+include ../../Build/module.mk
 
 # Individual rules
 install:
-	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/modules
+	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/sys
+
+all-dep: dep
+all-clean: clean

@@ -1,123 +1,90 @@
 ;*******************************************************************************
-;  proc.nasm - process management.
-;  Copyright (c) 2000 RET & COM Research.
+; proc.nasm - process management.
+; Copyright (c) 2000-2002 RET & COM Research.
 ;*******************************************************************************
 
-; --- Exports ---
+module tm.proc
 
-publicdata ?ProcListPtr, ?MaxNumOfProc
-publicproc MT_InitProc, MT_InitKernelProc, MT_PID2PCB
-publicproc MT_NewProcess, MT_DelProcess
+%include "sys.ah"
+%include "parameters.ah"
+%include "errors.ah"
+%include "pool.ah"
+%include "thread.ah"
+%include "msg.ah"
+%include "tm/process.ah"
 
+publicproc TM_InitProc
+publicproc TM_NewProcess, TM_DelProcess
+publicdata ?ProcessPool, ?ProcListPtr, ?MaxNumOfProc
 
-; --- Imports ---
+externproc PoolAllocChunk, PoolFreeChunk, PoolChunkNumber, PoolChunkAddr
+externproc NewPageDir
 
-library kernel.paging
-extern ?KernPagePool, ?KernPageDir
-extern PG_NewDir, PG_AllocAreaTables
+library $libc
+importproc _memset
 
-library kernel.initmem
-extern ?UserAreaStart
-
-library kernel.misc
-extern MemSet
-
-
-; --- Variables ---
 
 section .bss
 
 ?ProcListPtr	RESD	1			; Address of process list
 ?MaxNumOfProc	RESD	1			; Max. number of processes
 ?ProcessPool	RESB	tMasterPool_size	; Process master pool
-?PIDsBitmap	RESD	1			; Address of PIDs bitmap
 
-
-; --- Code ---
 
 section .text
 
-		; MT_InitPCBpool - initialize the process descriptor pool.
-		; Input: EAX=maximum number of processes.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MT_InitPCBpool
-		mpush	ebx,ecx,edx
-		mov	[?MaxNumOfProc],eax
-		mov	ebx,?ProcessPool
-		mov	ecx,tProcDesc_size
-		xor	edx,edx
-		call	K_PoolInit
-		jc	short .Exit
-		
-		; Allocate memory for PIDs bitmap
-		mov	ecx,[?MaxNumOfProc]
-		shr	ecx,3				; 8 bits per byte
-		xor	dl,dl
-		call	PG_AllocContBlock
-		jc	short .Exit
-		mov	[?PIDsBitmap],ebx
-		
-		mov	al,0FFh				; All PIDs are free
-		call	MemSet
-		
-.Exit:		mpop	edx,ecx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_NewProcess - create a new process.
-		; Input: ESI=address of parent PCB.
+		; TM_NewProcess - create a new process.
+		; Input: EBX=address of module descriptor,
+		;	 ESI=address of parent PCB.
 		; Output: CF=0 - OK, ESI=address of PCB;
 		;	  CF=1 - error, AX=error code.
-proc MT_NewProcess
-		mpush	ebx,ecx,edx
-		mov	edx,esi				; Save parent PCB
+proc TM_NewProcess
+		push	edi
+		mov	edi,esi				; Save parent PCB
+		push	ebx
 		mov	ebx,?ProcessPool
-		call	K_PoolAllocChunk
-		jc	short .Exit
+		call	PoolAllocChunk
+		pop	ebx
+		jc	.Exit
 
-		mov	ecx,tProcDesc_size		; Zero PCB body
-		mov	ebx,esi
-		call	BZero
+		lea	eax,[esi+4]			; Don't erase signature
+		Ccall	_memset, eax, byte 0, dword tProcDesc_size-4
+		mov	[esi+tProcDesc.Parent],edi
+		mov	[esi+tProcDesc.Module],ebx
 
-		call	MT_GetNewPID
-		jc	short .Exit
+		call	PoolChunkNumber
 		mov	[esi+tProcDesc.PID],eax
-
-		mov	[esi+tProcDesc.Parent],edx
 		
-		; Allocate a new page directory and build initial page tables
-		call	PG_NewDir
-		jc	short .Exit
+		; Allocate a new page directory
+		call	NewPageDir
+		jc	.Exit
 		mov	[esi+tProcDesc.PageDir],edx
-		mov	ebx,[?UserAreaStart]
-		call	PG_AllocAreaTables
-		jc	short .Exit
+
+		; Put the process descriptor into a linked list
 		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
 
-.Exit:		mpop	edx,ecx,ebx
+.Exit:		pop	edi
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; MT_DelProcess - delete process.
+		; TM_DelProcess - delete process.
 		; Input: ESI=PCB address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MT_DelProcess
+proc TM_DelProcess
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; MT_ProcAttachThread - add thread to process.
+		; TM_ProcAttachThread - add thread to process.
 		; Input: EBX=address of TCB.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MT_ProcAttachThread
+proc TM_ProcAttachThread
 		mov	esi,[ebx+tTCB.PCB]
 		or	esi,esi
-		jz	short .Error
+		jz	.Error
 		mEnqueue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB
 		clc
 		ret
@@ -128,11 +95,11 @@ proc MT_ProcAttachThread
 endp		;---------------------------------------------------------------
 
 
-		; MT_ProcDetachThread - remove thread from process.
+		; TM_ProcDetachThread - remove thread from process.
 		; Input: EBX=address of TCB.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MT_ProcDetachThread
+proc TM_ProcDetachThread
 		mov	esi,[ebx+tTCB.PCB]
 		or	esi,esi
 		jz	short .Error
@@ -144,86 +111,3 @@ proc MT_ProcDetachThread
 		stc
 		ret
 endp		;---------------------------------------------------------------
-
-
-		; MT_InitKernelProc - initialize process 0 (kernel).
-		; Input: none.
-		; Output: none.
-proc MT_InitKernelProc
-		xor	esi,esi				; No parent process
-		call	MT_NewProcess
-		jc	short .Exit
-		mov	eax,[?KernPageDir]
-		mov	[esi+tProcDesc.PageDir],eax
-		
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_GetNewPID - get a new PID for process.
-		; Input: none.
-		; Output: EAX=PID.
-		; Note: [?MaxNumOfProc] must be >= 32, otherwise this
-		;	procedure won't work!
-proc MT_GetNewPID
-		mpush	ecx,esi
-		mov	ecx,[?MaxNumOfProc]
-		shr	ecx,byte 5			; # of dwords
-		mov	esi,[?PIDsBitmap]
-		sub	esi,byte 4
-		
-.Loop:		add	esi,byte 4
-		bsf	eax,[esi]			; Look for free PID
-		loopz	.Loop
-		jz	short .Err
-		btr	[esi],eax
-		sub	esi,[?PIDsBitmap]
-		shl	esi,3
-		add	eax,esi
-		clc
-		
-.Exit:		mpop	esi,ecx
-		ret
-		
-.Err:		mov	ax,ERR_MT_NoPIDs
-		stc
-		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; MT_ReleasePID - release a PID.
-		; Input: EAX=PID.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MT_ReleasePID
-		cmp	eax,[?MaxNumOfProc]
-		jae	short .Err
-		push	esi
-		mov	esi,[?PIDsBitmap]
-		bts	[esi],eax
-		pop	esi
-		clc
-		ret
-		
-.Err:		mov	ax,ERR_MT_BadPID
-		stc
-		ret
-endp		;--------------------------------------------------------------
-
-
-		; MT_PID2PCB - get an address of PCB by a PID.
-		; Input: EAX=PID.
-		; Output: CF=0 - OK, ESI=address of PCB;
-		;	  CF=1 - error, AX=error code.
-proc MT_PID2PCB
-		mov	esi,[?ProcListPtr]
-.Loop:		cmp	eax,[esi+tProcDesc.PID]
-		je	short .Exit
-		mov	esi,[esi+tProcDesc.Next]
-		cmp	esi,[?ProcListPtr]
-		jne	.Loop
-		
-		mov	ax,ERR_MT_BadPID
-		stc
-.Exit:		ret
-endp		;--------------------------------------------------------------

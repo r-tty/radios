@@ -1,0 +1,124 @@
+;-------------------------------------------------------------------------------
+; resmgr.ah - definitions for resource manager layer.
+;-------------------------------------------------------------------------------
+
+%ifndef _resmgr_ah
+%define _resmgr_ah
+
+%include "msg.ah"
+
+struc tResMgrContext
+.rcvid		RESD	1
+.info		RESB	tMsgInfo_size
+.msg		RESP	1
+.dpp		RESP	1
+.id		RESD	1
+.tid		RESD	1
+.MsgMaxSize	RESD	1
+.status		RESD	1
+.offset		RESD	1
+.size		RESD	1
+.iov		RESD	1
+endstruc
+
+struc tResMgrConnectFunctions
+.nfuncs		RESD	1
+.open		RESD	1
+.unlink		RESD	1
+.rename		RESD	1
+.mknod		RESD	1
+.readlink	RESD	1
+.link		RESD	1
+.unblock	RESD	1
+.mount		RESD	1
+endstruc
+
+struc tResMgrIOfunctions
+.nfuncs		RESD	1
+.read		RESD	1
+.write		RESD	1
+.close_ocb	RESD	1
+.stat		RESD	1
+.notify		RESD	1
+.devctl		RESD	1
+.unblock	RESD	1
+.pathconf	RESD	1
+.lseek		RESD	1
+.chmod		RESD	1
+.chown		RESD	1
+.utime		RESD	1
+.openfd		RESD	1
+.fdinfo		RESD	1
+.lock		RESD	1
+.space		RESD	1
+.shutdown	RESD	1
+.mmap		RESD	1
+.msg		RESD	1
+.reserved	RESD	1
+.dup		RESD	1
+.close_dup	RESD	1
+.lock_ocb	RESD	1
+.unlock_ocb	RESD	1
+.sync		RESD	1
+endstruc
+
+%define RESMGR_NOREPLY	((~0 ^ (~0 >> 1)) | 0)	; Do not reply to sender (could use _RESMGR_AGAIN later)
+%define RESMGR_DEFAULT	((~0 ^ (~0 >> 1)) | 1)	; Default action (usually return ENOSYS)
+
+; Handle types
+RESMGR_HANDLE_FIND		EQU	0
+RESMGR_HANDLE_SET		EQU	1
+RESMGR_HANDLE_REMOVE		EQU	2
+RESMGR_HANDLE_DISCONNECT	EQU	3
+RESMGR_HANDLE_UNLOCK		EQU	4
+RESMGR_HANDLE_NEXT		EQU	((~0 ^ (~0 >> 1)) >> 1)
+RESMGR_HANDLE_LOCK		EQU	(~0 ^ (~0 >> 1))
+RESMGR_HANDLE_FIND_LOCK		EQU	RESMGR_HANDLE_FIND | RESMGR_HANDLE_LOCK
+RESMGR_HANDLE_DISCONNECT_LOCK	EQU	RESMGR_HANDLE_DISCONNECT | RESMGR_HANDLE_LOCK
+
+RESMGR_PULSE_ALLOC		EQU	~0
+
+struc tResMgrHandleEntry
+.next		RESP	1
+.handle		RESP	1
+.coid		RESD	1
+endstruc
+
+struc tResMgrHandleList
+.list		RESP	1
+.waiting	RESD	1
+.pid		RESD	1
+.nd		RESD	1
+endstruc
+
+struc tResMgrHandleTable
+.vector		RESP	1		; Pointer to an array of lists
+.FreeList	RESP	1
+.mutex		RESB	tSync_size
+.cond		RESB	tSync_size
+.nentries	RESD	1
+.total		RESD	1
+.free		RESD	1
+.min		RESD	1
+.reserved	RESD	6
+endstruc
+
+; Flags for resmgr_attach(). Must match PATHMGR_FLAG_*
+RESMGR_FLAG_BEFORE	EQU	1	; Force path to be resolved before others at the same mountpoint
+RESMGR_FLAG_AFTER	EQU	2	; Force path to be resolved after others at the same mountpoint
+RESMGR_FLAG_OPAQUE	EQU	4	; Don't resolve to mountpoints with shorter pathname matches
+RESMGR_FLAG_FTYPEONLY	EQU	8	; Only attach at "/", and only match ftype
+RESMGR_FLAG_FTYPEALL	EQU	10h	; Matching all ftypes (for redirecting servers)
+RESMGR_FLAG_DIR		EQU	100h	; Allow resolving of longer pathnames
+RESMGR_FLAG_SELF	EQU	200h	; Allow resolving names to itself
+RESMGR_FLAG_MASK	EQU	31Fh	; Flags allowed by resmgr_attach()
+
+; Flags for resmgr_detach()
+RESMGR_DETACH_ALL	EQU	0	; Detach the name from the namespace and invalidate all open bindings
+RESMGR_DETACH_PATHNAME	EQU	1	; Only detach the name from the namespace
+RESMGR_DETACH_CLOSE	EQU	8000h	; Call close on bindings when detaching
+
+; Flags for resmgr_pathname() - must match FDINFO_FLAG_*
+RESMGR_PATHNAME_LOCALPATH	EQU	1	; Used to return smaller path for displaying
+
+%endif

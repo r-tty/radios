@@ -17,13 +17,13 @@ module kernel.initmem
 ; --- Exports ---
 
 publicproc K_InitMem
-publicdata ?BaseMemSz, ?ExtMemSz
+exportdata ?LowerMemSize, ?UpperMemSize
 publicdata ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
 
 ; --- Imports ---
 
 library kernel.x86.basedev
-extern CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
+extern CMOS_ReadLowerMemSize, CMOS_ReadUpperMemSize
 
 
 ; --- Data ---
@@ -31,7 +31,7 @@ extern CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
 section .data
 
 %ifdef VERBOSE
-MsgDumpHdr	DB	NL,"BIOS memory map dump:"
+TxtDumpHdr	DB	NL,"BIOS memory map dump:"
 		DB	NL," Base address",ASC_HT,"Size (bytes)",ASC_HT
 		DB	"Pages",NL,0
 %endif
@@ -40,8 +40,8 @@ MsgDumpHdr	DB	NL,"BIOS memory map dump:"
 section .bss
 
 ; Memory sizes (in kilobytes)
-?BaseMemSz	RESD	1
-?ExtMemSz	RESD	1
+?LowerMemSize	RESD	1
+?UpperMemSize	RESD	1
 
 ; Number of extended memory pages
 ?PhysMemPages	RESD	1			; Number of upper memory pages
@@ -59,13 +59,13 @@ section .text
 		;	  CF=0 - OK.
 proc K_InitMem
 		mov	eax,[BOOTPARM(MemLower)]
-		mov	[?BaseMemSz],eax
+		mov	[?LowerMemSize],eax
 		mov	ecx,[BOOTPARM(MemUpper)]	; Memory size supplied?
 		or	ecx,ecx
 		jnz	short .MemSizOK
 		call	K_ProbeMem			; If no map - probe mem
 		jc	short .Exit
-.MemSizOK:	mov	[?ExtMemSz],ecx
+.MemSizOK:	mov	[?UpperMemSize],ecx
 		shr	ecx,2
 		mov	[?PhysMemPages],ecx
 		mov	[?TotalMemPages],ecx
@@ -85,9 +85,9 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, ECX=size of extended memory in KB;
 		;	  CF=1 - error, AX=error code.
 proc K_ProbeMem
-		call	CMOS_ReadExtMemSz	; Get upper memory size
+		call	CMOS_ReadUpperMemSize	; Get upper memory size
 		movzx	eax,ax
-		mov	[?ExtMemSz],eax		; Store (<=64 MB)
+		mov	[?UpperMemSize],eax	; Store (<=64 MB)
 
 		xor	eax,eax			; Prepare to test
 		mov	[?PhysMemPages],eax	; extended memory
@@ -108,18 +108,18 @@ proc K_ProbeMem
 
 .StopScan:	mov	eax,[?PhysMemPages]
 		shl	eax,2
-		cmp	dword [?ExtMemSz],32768
+		cmp	dword [?UpperMemSize],32768
 		jae	short .SizeOK
-		cmp	eax,[?ExtMemSz]
+		cmp	eax,[?UpperMemSize]
 		jne	short .Err3
 .SizeOK:	mov	ecx,eax
 		clc
 .Exit:		ret
 
-.Err2:		mov	ax,ERR_MEM_ExtTestErr
+.Err2:		mov	ax,ERR_MemTestFail
 		stc
 		ret
-.Err3:		mov	ax,ERR_MEM_InvCMOSExtMemSz
+.Err3:		mov	ax,ERR_InvUpperMemSize
 		stc
 		ret
 endp		;---------------------------------------------------------------
@@ -135,7 +135,7 @@ proc K_DumpBMM
 		mov	ecx,[BOOTPARM(MemMapSize)]
 		or	ecx,ecx
 		jz	near .Exit
-		mServPrintStr MsgDumpHdr
+		mServPrintStr TxtDumpHdr
 		mov	ebx,[BOOTPARM(MemMapAddr)]
 .Loop:		mServPrintChar ' '
 		mov	eax,[ebx+tAddrRangeDesc.BaseAddrLow]

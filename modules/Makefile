@@ -4,13 +4,13 @@
 ################################################################################
 
 # Standard header
-include ../build/header.mk
+include ../Build/header.mk
 
 # Change variables here
-SUBDIRS = libc taskman
+SUBDIRS = monitor libc libm taskman x-ray dev
 
 # Build in subdirs
-include ../build/subdirs.mk
+include ../Build/subdirs.mk
 
 # Install modules
 install: all-make

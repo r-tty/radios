@@ -1,59 +1,62 @@
 ;*******************************************************************************
-;  msg.nasm - RadiOS IPC "message" primitives.
-;  Copyright (c) 2000 RET & COM Research.
-;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; msg.nasm - core message routines.
+; Copyright (c) 2000-2002 RET & COM Research.
+; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
 module kernel.ipc.msg
 
 %include "sys.ah"
 %include "errors.ah"
-%include "sema.ah"
+%include "thread.ah"
 %include "pool.ah"
 %include "msg.ah"
 
+; --- Exports ---
+publicproc IPC_MsgInit
+publicproc IPC_MsgAlloc, IPC_MsgPutFreeList
+exportproc sys_MsgSend, sys_MsgSendnc, sys_MsgReply, sys_MsgReceive
+exportproc sys_MsgWrite, sys_MsgRead, sys_MsgReadiov
+exportproc sys_MsgSendPulse, sys_MsgReceivePulse
+exportproc sys_MsgInfo, sys_MsgError, sys_MsgKeyData
 
 ; --- Imports ---
 
-library kernel.pool
-extern K_PoolInit, K_PoolAllocChunk
-
-library kernel
-extern BZero
-
+externproc K_PoolInit, K_PoolAllocChunk
+externproc K_SemP, K_SemV
+externproc IPC_ChanDescAddr, IPC_ConnDescAddr
+externproc MT_ThreadSleep
+externproc BZero
 
 ; --- Data ---
 
 section .data
 
-MsgCantAllocMsg	DB	":IPC:IPC_PortAlloc: warning: cannot allocate message",0
+TxtCantAllocMsg	DB	":IPC:IPC_PortAlloc: warning: cannot allocate message",0
 
 
 ; --- Variables ---
 
 section .bss
 
-?PortPool	RESB	tMasterPool_size
 ?MsgPool	RESB	tMasterPool_size
+?MaxMessages	RESD	1
 
 
 ; --- Code ---
 
 section .text
 
-		; IPC_MsgInit - initialize messaging structures.
-		; Input: none.
+		; IPC_Init - initialize messaging memory structures.
+		; Input: EAX=maximum number of messages present in kernel.
 		; Output: none.
 proc IPC_MsgInit
-		mov	ebx,?PortPool
-		mov	ecx,tIPCport_size
+		mov	[?MaxMessages],eax
+		mov	ebx,?MsgPool
+		mov	ecx,tMsgDesc_size
 		xor	edx,edx
 		call	K_PoolInit
-		jc	short .Done
-		mov	ebx,?MsgPool
-		mov	ecx,tMessage_size
-		call	K_PoolInit		
-.Done:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -68,10 +71,10 @@ proc IPC_MsgAlloc
 		jc	short .Exit
 		
 		mov	ebx,esi
-		mov	ecx,tMessage_size
+		mov	ecx,tMsgDesc_size
 		call	BZero
 
-		lea	ebx,[esi+tMessage.Lock]
+		lea	ebx,[esi+tMsgDesc.Lock]
 		xor	eax,eax
 		mSemInit ebx
 		mSemSetVal ebx
@@ -82,60 +85,17 @@ proc IPC_MsgAlloc
 endp		;---------------------------------------------------------------
 
 
-		; IPC_PortAlloc - initialize messaging port.
-		; Input: none.
-		; Output: EDI=address of port structure.
-proc IPC_PortAlloc
-		mpush	ebx,esi
-		mov	ebx,?PortPool
-		call	K_PoolAllocChunk
-		jc	short .Exit
 
-		; Initialize queue pointers
-		xor	eax,eax
-		mov	[esi+tIPCport.Head],eax
-		mov	[esi+tIPCport.Tail],eax
-
-		; Port semaphore
-		lea	ebx,[esi+tIPCport.Lock]
-		mSemInit ebx
-
-		; "Receive" semaphore
-		lea	ebx,[esi+tIPCport.Lock]
-		mSemInit ebx
-		mSemSetVal ebx				; Semaphore count=0
-
-		; Initialize free list
-		mov	edi,esi
-		mov	ecx,8
-		mov	dword [edi+tIPCport.FreeList],0
-.Loop:		call	IPC_MsgAlloc
-		jc	short .Warning
-		call	IPC_PutFree
-		loop	.Loop
-		jmp	short .Exit
-.Warning:
-	%ifdef KPOPUPS
-		push	esi
-		mov	esi,MsgCantAllocMsg
-		call	K_PopUp
-		pop	esi
-	%endif
-.Exit:		mpop	esi,ebx
-		ret		
-endp		;---------------------------------------------------------------
-
-
-		; IPC_PutFree - put a message in the free list.
+		; IPC_PutMsgFreeList - put a message in the free list.
 		; Input: ESI=message structure address,
 		;	 EDI=port structure address.
 		; Output: none.
-proc IPC_PutFree
+proc IPC_MsgPutFreeList
 		pushfd
 		cli
-		mov	eax,[edi+tIPCport.FreeList]
-		mov	[esi+tMessage.NextFree],eax
-		mov	[edi+tIPCport.FreeList],esi
+		mov	eax,[edi+tChanDesc.FreeList]
+		mov	[esi+tMsgDesc.NextFree],eax
+		mov	[edi+tChanDesc.FreeList],esi
 		popfd
 		ret
 endp		;---------------------------------------------------------------
@@ -147,12 +107,12 @@ endp		;---------------------------------------------------------------
 proc IPC_GetFree
 		pushfd
 		cli
-		mov	esi,[edi+tIPCport.FreeList]
+		mov	esi,[edi+tChanDesc.FreeList]
 		or	esi,esi
 		jz	short .Exit
-		mov	eax,[esi+tMessage.NextFree]
-		mov	[edi+tIPCport.FreeList],eax
-		mov	dword [esi+tMessage.NextFree],0
+		mov	eax,[esi+tMsgDesc.NextFree]
+		mov	[edi+tChanDesc.FreeList],eax
+		mov	dword [esi+tMsgDesc.NextFree],0
 .Exit:		popfd
 		ret
 endp		;---------------------------------------------------------------
@@ -163,16 +123,16 @@ endp		;---------------------------------------------------------------
 		;	 EDI=port structure address.
 		; Output: none.
 proc IPC_MsgEnqueue
-		mov	eax,[edi+tIPCport.Tail]
+		mov	eax,[edi+tChanDesc.Tail]
 		or	eax,eax
 		jz	short .NoTail
-		mov	[eax+tMessage.Next],esi
+		mov	[eax+tMsgDesc.Next],esi
 
-.NoTail:	mov	dword [esi+tMessage.Next],0
-		mov	[edi+tIPCport.Tail],esi
-		cmp	dword [edi+tIPCport.Head],0
+.NoTail:	mov	dword [esi+tMsgDesc.Next],0
+		mov	[edi+tChanDesc.Tail],esi
+		cmp	dword [edi+tChanDesc.Head],0
 		jnz	short .Exit
-		mov	[edi+tIPCport.Head],esi
+		mov	[edi+tChanDesc.Head],esi
 
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -183,30 +143,154 @@ endp		;---------------------------------------------------------------
 		;	 EDI=port structure address.
 		; Output: none.
 proc IPC_MsgDequeue
-		cmp	[edi+tIPCport.Head],esi
+		cmp	[edi+tChanDesc.Head],esi
 		jne	short .1
-		mov	eax,[esi+tMessage.Next]
-		mov	[edi+tIPCport.Head],eax
+		mov	eax,[esi+tMsgDesc.Next]
+		mov	[edi+tChanDesc.Head],eax
 		ret
 
 .1:		push	ebx
-		mov	ebx,[edi+tIPCport.Head]
+		mov	ebx,[edi+tChanDesc.Head]
 
 .Loop:		or	ebx,ebx
 		jz	short .Exit
-		cmp	esi,[ebx+tMessage.Next]
+		cmp	esi,[ebx+tMsgDesc.Next]
 		je	short .2
-		mov	ebx,[ebx+tMessage.Next]
+		mov	ebx,[ebx+tMsgDesc.Next]
 		jmp	.Loop
 
-.2:		mov	eax,[esi+tMessage.Next]
-		mov	[ebx+tMessage.Next],eax
-		cmp	[edi+tIPCport.Tail],esi
+.2:		mov	eax,[esi+tMsgDesc.Next]
+		mov	[ebx+tMsgDesc.Next],eax
+		cmp	[edi+tChanDesc.Tail],esi
 		jne	short .Exit
-		mov	[edi+tIPCport.Tail],ebx
+		mov	[edi+tChanDesc.Tail],ebx
 
 .Exit:		pop	ebx
 		ret
 endp		;---------------------------------------------------------------
 
 
+; --- System call routines -----------------------------------------------------
+
+		; int MsgSend(int coid, const void *smsg, int sbytes,
+		;		void *rmsg, int rbytes);
+proc sys_MsgSend
+		arg	coid, smsg, sbytes, rmsg, rbytes
+		prologue
+
+		; Get a current thread and set its state
+		mCurrThread ebx
+;		mov	dword [ebx+tTCB.State],THRSTATE_SEND
+		mov	edx,ebx
+
+		; Get connection descriptor address
+		mov	eax,[%$coid]
+		call	IPC_ConnDescAddr
+		jc	.Exit
+
+		; Wake up a thread that's waiting for a message
+		mov	edi,[esi+tConnDesc.ChanDesc]
+		push	ebx
+		lea	ebx,[edi+tChanDesc.RecvSem]
+		call	K_SemV
+		pop	ebx
+
+.Exit:		mCheckNeg
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgSendnc
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgError
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int MsgReceive(int chid, void *msg, int bytes, 
+		;		 struct _msg_info *info);
+proc sys_MsgReceive
+		arg	chid, msg, bytes, info
+		prologue
+
+		; Get a current thread and set its state
+		mCurrThread ebx
+;		mov	dword [ebx+tTCB.State],THRSTATE_RECEIVE
+		mov	edx,ebx
+	
+		; If there are no connections to the channel - fall asleep
+		mov	eax,[%$chid]
+		call	IPC_ChanDescAddr
+		jc	.Exit
+		mov	eax,[esi+tChanDesc.NumConn]
+		or	eax,eax
+		jz	.Sleep
+
+		; Check channel semaphore, if no messages for us - sleep
+		push	ebx
+		lea	ebx,[esi+tChanDesc.RecvSem]
+		call	K_SemP
+		pop	ebx
+		jmp	.Exit
+
+		; OK, there are some. Check if somebody sent a message
+		mov	edi,[esi+tChanDesc.ConnList]
+.ConnLoop:	or	edi,edi
+		jz	.Sleep
+		mov	eax,[edi+tConnDesc.SendWaitQ]
+		or	eax,eax
+		jnz	.SendWaitFound
+		mov	edi,[edi+tConnDesc.Next]
+		jmp	.ConnLoop
+
+.Sleep:
+
+.SendWaitFound:	clc
+
+.Exit:		mCheckNeg
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+proc sys_MsgReply
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgRead
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgWrite
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgInfo
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgSendPulse
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgKeyData
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgReadiov
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_MsgReceivePulse
+		ret
+endp		;---------------------------------------------------------------

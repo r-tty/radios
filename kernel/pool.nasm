@@ -1,20 +1,21 @@
 ;*******************************************************************************
-;  pool.nasm - routines for manipulations with the memory "pools".
-;  Copyright (c) 2000 RET & COM Research.
-;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; pool.nasm - routines for manipulations with the memory "pools".
+; Copyright (c) 2000-2002 RET & COM Research.
+; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
 module kernel.pool
 
 %include "errors.ah"
-%include "sema.ah"
+%include "sync.ah"
 %include "pool.ah"
 %include "cpu/paging.ah"
 
 
 ; --- Exports ---
 
-global K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+exportproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+exportproc K_PoolChunkNumber, K_PoolChunkAddr
 
 
 ; --- Imports ---
@@ -22,7 +23,7 @@ global K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 library kernel.paging
 extern PG_Alloc, PG_Dealloc
 
-library kernel.semaphore
+library kernel.sync
 extern K_SemP, K_SemV
 
 
@@ -50,6 +51,7 @@ proc K_PoolInit
 		mov	[ebx+tMasterPool.Count],eax
 		mov	[ebx+tMasterPool.Size],ecx
 		mov	[ebx+tMasterPool.Flags],edx
+		mov	[ebx+tMasterPool.Signature],ebx
 		push	ebx
 		lea	ebx,[ebx+tMasterPool.SemLock]
 		mSemInit ebx
@@ -81,7 +83,7 @@ proc K_PoolNew
 		mov	dl,[ebx+tMasterPool.Flags]	; Low or high memory?
 		and	dl,POOLFL_HIMEM			; Mask unused flags
 		call	PG_Alloc
-		jc	short .Done
+		jc	.Done
 		and	eax,PGENTRY_ADDRMASK		; Mask status bits
 		mov	esi,eax				; ESI=address of page
 		
@@ -107,7 +109,7 @@ proc K_PoolNew
 		; trailing with null.
 		pop	esi				; ESI=free list head
 		dec	ecx				; ECX=chunks-1
-		jz	short .TrailNULL
+		jz	.TrailNULL
 .Loop:		lea	ebx,[esi+edx]
 		mov	[esi],ebx
 		add	esi,edx
@@ -138,33 +140,33 @@ proc K_PoolAllocChunk
 		; First check if "bucket alloc" flag is set. If so - 
 		; immediately allocate new pool.
 		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
-		jnz	short .AllocPool
+		jnz	.AllocPool
 
 		; Now check if hint is valid. If not, go through pool list
 		; to find one containing some free chunks
 		; If no pools with free space, get a new one.
-		; Always update hint for future use
+		; Always update hint for future use.
 		mov	edx,[esi+tMasterPool.Hint]
 		or	edx,edx
-		jz	short .FindHint
+		jz	.FindHint
 		cmp	dword [edx+tPoolDesc.FreeHead],0
-		jnz	short .HintOK
+		jnz	.HintOK
 
 .FindHint:	mov	ebx,[esi+tMasterPool.Pools]
 .FindHintLoop:	or	ebx,ebx
-		jz	short .AllocPool
+		jz	.AllocPool
 		cmp	dword [ebx+tPoolDesc.FreeHead],0
-		jne	short .GotHint
+		jne	.GotHint
 		mov	ebx,[ebx+tPoolDesc.Next]
-		jmp	short .FindHintLoop
+		jmp	.FindHintLoop
 .GotHint:	mov	[esi+tMasterPool.Hint],ebx
 		mov	edx,ebx
-		jmp	short .HintOK
+		jmp	.HintOK
 
 .AllocPool:	mov	ebx,esi
 		mov	edx,esi				; Save master pool addr
 		call	K_PoolNew
-		jc	short .Done
+		jc	.Done
 		xchg	edx,esi
 		mov	[esi+tMasterPool.Hint],edx
 
@@ -178,7 +180,7 @@ proc K_PoolAllocChunk
 		; Return number of chunks in ECX if the pool is marked
 		; for "bucket alloc"
 		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
-		jz	short .Finish
+		jz	.Finish
 		mov	ecx,[edx+tPoolDesc.ChunksFree]
 		inc	ecx
 		
@@ -186,6 +188,8 @@ proc K_PoolAllocChunk
 		lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
+		mov	eax,[esi+tMasterPool.Signature]	; Store signature of
+		mov	[edx],eax			; master pool in a chunk
 		mov	esi,edx				; Return chunk addr
 		xor	eax,eax				; All OK
 
@@ -242,7 +246,7 @@ proc K_PoolFreeChunk
 		cmp	[ebx+tPoolDesc.Next],edx
 		je	.Unlink
 		mov	ebx,[ebx+tPoolDesc.Next]
-		jmp	short .FindHeadLoop
+		jmp	.FindHeadLoop
 
 .Unlink:	mov	eax,[edx+tPoolDesc.Next]
 		mov	[ebx+tPoolDesc.Next],eax
@@ -263,7 +267,112 @@ proc K_PoolFreeChunk
 .Done:		mpop	edi,edx,ebx
 		ret
 
-.Err:		mov	edi,(1<<16)+ERR_KPoolFreeNoHead	; Carry flag + errcode
-		jmp	short .FreePage
+.Err:		mov	edi,(1<<16)+ERR_PoolFreeNoHead	; Carry flag + errcode
+		jmp	.FreePage
 endp		;---------------------------------------------------------------
 
+
+		; K_PoolChunkNumber - get a chunk number by its address.
+		; Input: ESI=chunk address.
+		; Output: CF=0 - OK, EAX=chunk number;
+		;	  CF=1 - error, AX=error code.
+proc K_PoolChunkNumber
+		mpush	ebx,ecx,edx,edi
+
+		; Find the start of page, which is our pool descriptor
+		mov	ebx,esi		
+		and	ebx,PGENTRY_ADDRMASK
+		mov	edx,ebx				; EDX=pool desc. address
+		mov	ebx,[edx+tPoolDesc.Master]	; EBX=master pool addr.
+
+		; Find out what is a pool number for requested chunk
+		mov	edi,[ebx+tMasterPool.Pools]
+		or	edi,edi
+		jz	.Err1
+		xor	ecx,ecx
+.Loop:		cmp	edi,edx				; Is is our pool?
+		je	.Found
+		inc	ecx
+		mov	edi,[edi+tPoolDesc.Next]
+		or	edi,edi
+		jnz	.Loop
+
+		; Error: the chunk doesn't belong to any pool
+		mov	eax,ERR_PoolNotFound
+		stc
+		jmp	.Exit
+
+		; We have found the pool number (it's in ECX).
+		; Chunk number is:
+		;  (pool_number * chunks_per_pool) + chunk_num_inside_pool
+.Found:		mov	eax,[edi+tPoolDesc.ChunksTotal]
+		mul	ecx
+		mov	ecx,eax
+		mov	eax,esi
+		sub	eax,edi
+		sub	eax,byte tPoolDesc_size
+		div	dword [edi+tPoolDesc.ChunkSize]
+		add	eax,ecx
+		clc
+
+.Exit:		mpop	edi,edx,ecx,ebx
+		ret
+
+.Err1:		mov	ax,ERR_PoolFreeNoHead
+		stc
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; K_PoolChunkAddr - get a chunk address by its number.
+		; Input: EBX=master pool address,
+		;	 EAX=chunk number.
+		; Output: CF=0 - OK, ESI=chunk address;
+		;	  CF=1 - error, AX=error code.
+proc K_PoolChunkAddr
+		mpush	ecx,edx
+		mov	esi,[ebx+tMasterPool.Pools]
+		or	esi,esi
+		jz	.Err1
+
+		; Calculate pool number (and chunk number inside its pool)
+		xor	edx,edx
+		div	dword [esi+tPoolDesc.ChunksTotal]
+		cmp	eax,[ebx+tMasterPool.Count]
+		jae	.Err2
+
+		; Find our pool walking through the pool list
+		xor	ecx,ecx
+.Loop:		cmp	eax,ecx
+		je	.Found
+		inc	ecx
+		mov	esi,[esi+tPoolDesc.Next]
+		or	esi,esi
+		jnz	.Loop
+
+		; Error: the chunk doesn't belong to any pool (weird case)
+		mov	eax,ERR_PoolNotFound
+		stc
+		jmp	.Exit
+
+		; Pool is found. Calculate chunk address
+.Found:		mov	eax,edx
+		mul	dword [ebx+tMasterPool.Size]
+		lea	esi,[esi+eax+tPoolDesc_size]
+
+		; Check the chunk signature
+		mov	eax,[ebx+tMasterPool.Signature]
+		cmp	eax,[esi]
+		jne	.Err2
+
+.Exit:		mpop	edx,ecx
+		ret
+		
+.Err1:		mov	ax,ERR_PoolFreeNoHead
+		stc
+		jmp	.Exit
+
+.Err2:		mov	ax,ERR_PoolBadChunkNum
+		stc
+		jmp	.Exit
+endp		;---------------------------------------------------------------

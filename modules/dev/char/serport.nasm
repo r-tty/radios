@@ -1,38 +1,25 @@
 ;*******************************************************************************
-;  serport.nasm - serial port driver.
-;  (c) 1995 David Lindauer.
-;  (c) 1999 Yuri Zaporogets.
+; serport.nasm - serial port driver.
+; Copyright (c) 1999, 2002 RET & COM Research.
+; Based on the OS-32 serial driver (c) 1995 David Lindauer.
 ;*******************************************************************************
 
-module hw.serport
+module $serport
 
 %include "sys.ah"
 %include "errors.ah"
-%include "driver.ah"
+%include "module.ah"
 %include "hw/ports.ah"
+
 %include "serport.ah"
-%include "biosdata.ah"
+
 
 ; --- Exports ---
 
-global DrvSerial
+exportdata ModuleInfo
 
 
 ; --- Imports ---
-
-library kernel.driver
-extern MT_SuspendCurr1ms
-
-library kernel.mm
-extern AllocPhysMem
-
-library kernel.misc
-extern StrEnd, StrCopy, StrAppend
-extern HexW2Str, DecD2Str
-
-library onboard.pic
-extern PIC_EnbIRQ
-
 
 
 ; --- Definitions ---
@@ -96,52 +83,16 @@ endstruc
 
 section .data
 
-; Serial driver main structure
-DrvSerial	DB	"%serial"
-		TIMES	16-$+DrvSerial DB 0
-		DD	DrvSerialET
-		DW	DRVFL_Char
-
-; Driver entry points table
-DrvSerialET	DD	SER_Init
-		DD	SER_HandleEvent
-		DD	SER_Open
-		DD	SER_Close
-		DD	SER_Read
-		DD	SER_Write
-		DD	NULL
-		DD	DrvSer_Ctrl
-
-DrvSer_Ctrl	DD	SER_GetInitStatStr
-		DD	SER_GetParameters
-		DD	NULL
-		DD	NULL
-		DD	NULL
-		DD	SER_ClearReceiveBuffer
-		DD	SER_ClearTransmitBuffer
-		DD	NULL
-
-		DD	SER_GetUARTmode
-		DD	SER_SetUARTmode
-		DD	SER_GetRXbufStat
-		DD	SER_GetTXbufStat
-
-
-SP_InitStatStr	DB	9,": 0 port(s) detected",0
-SP_NotPresent	DB	9,": not present",0
-SP_BaseStr	DB	9,": base port ",0
-SP_IRQstr	DB	", IRQ ",0
-SP_UARTstr	DB	", UART ",0
-SP_FIFOstr	DB	", FIFO ",0
-SP_8250		DB	"8250",0
-SP_16450	DB	"16450",0
-SP_16550	DB	"16550",0
-SP_16550A	DB	"16550A",0
-SP_Unknown	DB	"unknown",0
-SP_16650	DB	"16650",0
-
-SP_TypeStrs	DD	SP_Unknown,SP_8250,SP_16450,SP_16550,SP_16550A
-		DD	SP_Unknown,SP_16650
+ModuleInfo: instance tModInfoTag
+    field(Signature,	DD	RBM_SIGNATURE)
+    field(ModVersion,	DD	1)
+    field(ModType,	DB	MODTYPE_EXECUTABLE)
+    field(Flags,	DB	0)
+    field(OStype,	DW	1)
+    field(OSversion,	DD	0)
+    field(Base,		DD	0)
+    field(Entry,	DD	SER_Main)
+iend
 
 SerPortBases	DW	3F8h			; Port base addresses
 		DW	2F8h
@@ -153,59 +104,30 @@ SerPortBases	DW	3F8h			; Port base addresses
 
 section .bss
 
-SerPortIRQs	RESB	4			; IRQ channels
-LastIRQnum	RESB	1			; Used by 'DetectIRQ'
+?SerPortIRQs	RESB	4			; IRQ channels
+?LastIRQnum	RESB	1			; Used by 'DetectIRQ'
 
-NumOfSerPorts	RESB	1			; Number of initialized ports
+?NumOfSerPorts	RESB	1			; Number of initialized ports
 
-PortParameters	RESB	4*tSPdevParm_size	; Port parameters
+?PortParameters	RESB	4*tSPdevParm_size	; Port parameters
 
-BufParms	RESB	8*tSerialBuf_size
+?BufParms	RESB	8*tSerialBuf_size
 
 
 ; --- Procedures ---
 
 section .text
 
-		; SER_Init - initialize the driver.
-		; Input: AL!=0 - maximum number of supported ports (1..8);
-		;	 AL==0 - get number of ports and base addresses
-		;		 from BIOS data area,
-		;	 CX=input buffer size,
-		;	 ECX (high word)=output buffer size,
-		;	 ESI=buffer for init status string.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc SER_Init
-%define	.statstraddr	ebp-4
-%define	.bufsizes	ebp-8
-
-		prologue 8
+		; SER_Main - main loop.
+proc SER_Main
 		mpush	ebx,ecx,edx,esi,edi
 
-		mov	[.statstraddr],esi
-		mov	[.bufsizes],ecx
-
-		or	al,al
-		jz	short .FromBIOS
-		cmp	al,8
-		ja	near .Err
-		mov	cl,al
 		mov	edi,SerPortBases
-		jmp	short .InitParams
-
-.FromBIOS:	mov	cx,[BDA(Hardware)]
-		shr	ecx,9
-		and	cl,7
-		lea	edi,[BDA(COM1addr)]
-
-.InitParams:	or	cl,cl
-		jz	near .FillString
-		mov	[NumOfSerPorts],cl
+		mov	[NumOfSerPorts],SER_MAXPORTS
 		xor	ecx,ecx
-		mov	ebx,PortParameters		; Prepare to fill
-		mov	edx,SerPortIRQs			; device parameters
-		mov	esi,BufParms			; structure
+		mov	ebx,?PortParameters		; Prepare to fill
+		mov	edx,?SerPortIRQs		; device parameters
+		mov	esi,?BufParms			; structure
 
 .FillTblLoop:	mov	ax,[edi]
 		mov	[ebx+tSPdevParm.BasePort],ax	; Port base address
@@ -260,12 +182,7 @@ proc SER_Init
 		add	esi,tSerialBuf_size
 		jmp	.FillTblLoop
 
-.FillString:	xor	edx,edx
-		mov	esi,[.statstraddr]
-		call	SER_GetInitStatStr
-
 .Exit:		mpop	edi,esi,edx,ecx,ebx
-		epilogue
 		ret
 
 .Err:		mov	ax,ERR_SER_BadNumOfPorts
@@ -440,78 +357,6 @@ proc SER_Write
 .Err:		mov	ax,ERR_SER_PortNotExist
 		stc
 		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; SER_GetInitStatStr - get initialization status string.
-		; Input: ESI=buffer for string.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error.
-proc SER_GetInitStatStr
-		mpush	ebx,edx,esi,edi
-		mov	edi,esi
-		mov	esi,DrvSerial			; Copy "%serial"
-		call	StrCopy
-		call	StrEnd
-
-		test	edx,0FFFF0000h			; Minor present?
-		jnz	short .Minor
-		mov	esi,SP_InitStatStr
-		call	StrCopy
-		mov	al,[NumOfSerPorts]
-		add	al,30h
-		mov	[edi+3],al
-		jmp	.OK
-
-.Minor:		call	SER_Minor2PortNum		; Get port number
-		jc	near .Exit			; and DPS address
-		add	dl,'1'
-		mov	[edi],dl
-		inc	edi
-		cmp	word [ebx+tSPdevParm.BasePort],0
-		jne	short .Present
-		mov	esi,SP_NotPresent
-		call	StrCopy
-		jmp	short .OK
-
-.Present:	mov	esi,SP_BaseStr
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		mov	ax,[ebx+tSPdevParm.BasePort]
-		call	HexW2Str
-		mov	edi,esi
-		mov	byte [edi],'h'
-		inc	edi
-		mov	esi,SP_IRQstr
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		xor	eax,eax
-		mov	al,[ebx+tSPdevParm.IRQ]
-		call	DecD2Str
-
-		mov	esi,SP_UARTstr
-		call	StrAppend
-		xor	eax,eax
-		mov	al,[ebx+tSPdevParm.Type]
-		mov	esi,[SP_TypeStrs+eax*4]
-		push	eax
-		call	StrAppend
-		pop	eax
-		cmp	al,UART_16550A
-		jb	short .OK
-		mov	esi,SP_FIFOstr
-		call	StrAppend
-		call	StrEnd
-		mov	esi,edi
-		xor	eax,eax
-		mov	al,[ebx+tSPdevParm.FIFOsize]
-		call	DecD2Str
-
-.OK:		clc
-.Exit:		mpop	edi,esi,edx,ebx
-		ret
 endp		;---------------------------------------------------------------
 
 
@@ -1130,100 +975,3 @@ proc SER_Minor2PortNum
 		stc
 		ret
 endp		;---------------------------------------------------------------
-
-
-;--- Debugging stuff -----------------------------------------------------------
-
-%ifdef DEBUG
-
-global SER_DumbTTY
-
-library kernel.driver
-extern DRV_CallDriver, DRV_FindName
-
-library kernel.kconio
-extern PrintChar, PrintString
-extern PrintByteHex, PrintDwordDec
-extern ReadChar
-
-%include "drvctrl.ah"
-%include "kconio.ah"
-%include "asciictl.ah"
-
-
-section .data
-
-MsgTTYHlp	DB	NL,NL,"Press Ctrl-Z to exit, Ctrl-V to get stat",NL,0
-
-section .text
-
-		; SER_DumbTTY - serial driver test (dumb tty).
-		; Input: ESI=address of command line,
-		;	 ECX=length of a command.
-		; Output: none.
-proc SER_DumbTTY
-		mpush	ecx,esi
-
-		add	esi,ecx
-		cmp	byte [esi],0
-		je	.Exit
-		inc	esi
-
-		call	DRV_FindName
-		jnc	short .Start
-		call	RKDT_ErrorHandler
-		jmp	.Exit
-
-.Start:		test	eax,00FF0000h
-		jz	near .Exit
-		mov	edi,eax
-		mPrintString MsgTTYHlp
-
-		mCallDriver edi, byte DRVF_Open
-		jnc	short .TTYmode
-		call	RKDT_ErrorHandler
-		jmp	.Exit
-
-.TTYmode:	mCallDriverCtrl edi,DRVCTL_SER_GetRXbufStat
-		jc	near .Close
-		or	dx,dx
-		jz	short .CheckKey
-		mCallDriver edi, byte DRVF_Read
-		mPrintChar
-		jmp	.TTYmode
-
-.CheckKey:	mCallDriverCtrl byte DRVID_Keyboard,DRVCTL_KB_CheckKeyPress
-		jz	.TTYmode
-		call	ReadChar
-		cmp	al,ASC_SUB
-		je	near .Close
-		cmp	al,ASC_SYN
-		je	short .PrintStat
-		mCallDriver edi, byte DRVF_Write
-		jnc	.TTYmode
-		call	RKDT_ErrorHandler
-		jmp	short .Close
-
-.PrintStat:	mCallDriverCtrl edi,DRVCTL_SER_GetUARTmode
-		jc	short .Close
-		mPrintChar NL
-		mov	eax,ecx
-		call	PrintDwordDec
-		mPrintChar ','
-		mov	al,bl
-		call	PrintByteHex
-		mPrintChar ','
-		mov	al,bh
-		call	PrintByteHex
-		mPrintChar NL
-		jmp	.TTYmode
-
-.Close:		mCallDriver edi, byte DRVF_Close
-		jnc	short .Exit
-		call	RKDT_ErrorHandler
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-%endif

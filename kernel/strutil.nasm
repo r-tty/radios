@@ -6,10 +6,10 @@ module kernel.strutil
 
 ; --- Exports ---
 
-publicproc StrLen, StrEnd, StrMove, StrCopy, StrAppend
-publicproc StrComp, StrLComp, StrLIComp
-publicproc StrScan, StrRScan, StrPos
-publicproc StrLower, StrUpper
+exportproc StrLen, StrEnd, StrMove, StrCopy, StrAppend
+exportproc StrComp, StrLComp, StrLIComp
+exportproc StrScan, StrRScan, StrPos
+exportproc StrLower, StrUpper
 
 ; --- Code ---
 

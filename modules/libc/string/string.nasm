@@ -6,11 +6,11 @@ module libc.string
 
 ; Exports
 
-exportproc memchr, memcmp, memcpy, memmove, memset
-exportproc strcat, strcmp, strcpy, strcspn, strlen
-exportproc strncat, strncmp, strncpy, strpbrk
-exportproc strrchr, strstr, strspn, strcspn
-exportproc strlwr, strupr
+exportproc _memchr, _memcmp, _memcpy, _memmove, _memset
+exportproc _strcat, _strcmp, _strcpy, _strcspn, _strlen
+exportproc _strncat, _strncmp, _strncpy, _strpbrk
+exportproc _strchr, _strrchr, _strstr, _strspn, _strcspn
+exportproc _strlwr, _strupr, _strend
 publicproc libc_init_string
 
 
@@ -19,7 +19,7 @@ publicproc libc_init_string
 section .text 
 
 		; void memchr(const void *s, int c, size_t n);
-proc memchr
+proc _memchr
 		arg	str, char, size
 		prologue
 		push	edi
@@ -40,13 +40,14 @@ endp		;---------------------------------------------------------------
 
 	
 		; int memcmp(const void s1, const void s2, size_t size);
-proc memcmp
+proc _memcmp
+		arg	s1, s2, size
 		prologue
 		mpush	esi,edi
 		xor	eax,eax
-		mov	esi,[ebp+8]
-		mov	edi,[ebp+12]
-		mov	ecx,[ebp+16]
+		mov	esi,[%$s1]
+		mov	edi,[%$s2]
+		mov	ecx,[%$size]
 		cld
 		repe	cmpsb
 		je	.Done
@@ -62,7 +63,7 @@ endp		;---------------------------------------------------------------
 		
 
 		; void *memcpy(void *to, const void *from, size_t size);
-proc memcpy
+proc _memcpy
 		arg	to, from, size
 		prologue
 		mpush	esi,edi
@@ -79,12 +80,13 @@ endp		;---------------------------------------------------------------
 
 
 		; void *memmove(void *to, const void *from, size_t size);
-proc memmove
+proc _memmove
+		arg	to, from, size
 		prologue
 		mpush	esi,edi
-		mov	ecx,[ebp+16]
-		mov	esi,[ebp+12]
-		mov	edi,[ebp+8]
+		mov	ecx,[%$size]
+		mov	esi,[%$from]
+		mov	edi,[%$to]
 		mov	eax,edi
 		cmp	edi,esi	
 		ja	.NegMove
@@ -107,15 +109,16 @@ endp		;---------------------------------------------------------------
 
 
 		; void *memset(void *block, unsigned char c, size_t size);
-proc memset
+proc _memset
+		arg	block, char, size
 		prologue
 		push	edi
-		mov	ecx,[16+ebp]
-		mov	eax,[12+ebp]
-		mov	edi,[8+ebp]
+		mov	ecx,[%$size]
+		mov	eax,[%$char]
+		mov	edi,[%$block]
 		cld
 		rep	stosb
-		mov	eax,[8+ebp]
+		mov	eax,[%$block]
 		pop	edi
 		epilogue
 		ret
@@ -123,18 +126,19 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strcat(char *to, const char *from);
-proc strcat
+proc _strcat
+		arg	to, from
 		prologue
 		mpush	esi,edi
 	
-		mov	edi,[8+ebp]
+		mov	edi,[%$to]
 		mov	ecx,-1
-		sub	al,al
+		xor	al,al
 		cld
 		repne	scasb
 		dec	edi
 		push	edi
-		mov	edi,[12+ebp]
+		mov	edi,[%$from]
 		mov	esi,edi
 		mov	ecx,-1
 		sub	al,al
@@ -143,7 +147,7 @@ proc strcat
 		dec	ecx
 		pop	edi
 		rep	movsb
-		mov	eax,[8+ebp]
+		mov	eax,[%$to]
 		mpop	edi,esi
 		epilogue
 		ret
@@ -151,32 +155,33 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strchr(const char *s, unsigned char c);
-proc strchr
+proc _strchr
+		arg	str, char
 		prologue
-		push	edi
-		mov	edi,[8+ebp]
-		sub	al,al
+		mpush	ecx,edi
+		mov	edi,[%$str]
+		xor	al,al
 		cld
 		mov	ecx,-1
 		repne	scasb
 		not	ecx
-		mov	edi,[8+ebp]
-		mov	eax,[12+ebp]
+		mov	edi,[%$str]
+		mov	eax,[%$char]
 		repne	scasb
 		je	.OK
 		sub	edi,edi
 		inc 	edi
-.OK:
-		mov	eax,edi
+
+.OK:		mov	eax,edi
 		dec	eax
-		pop	edi
+		mpop	edi,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; int strcmp(const char *s1, const char *s2);
-proc strcmp
+proc _strcmp
 		arg	s1, s2
 		prologue
 		mpush	esi,edi
@@ -206,13 +211,13 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strcpy(char *to, const char *from);
-proc strcpy
+proc _strcpy
 		arg	to, from
 		prologue
 		mpush	esi,edi
 		mov	esi,[%$from]
 		mov	edi,esi
-		sub	al,al
+		xor	al,al
 		mov	ecx,-1
 		cld
 		repne	scasb
@@ -227,11 +232,12 @@ endp		;---------------------------------------------------------------
 
 
 		; size_t strcspn(const char *string, const char stopset);
-proc strcspn
+proc _strcspn
+		arg	str, stopset
 		prologue
-		mpush	esi,edi
-		mov	esi,[8+ebp]
-		mov	edx,[12+ebp]
+		mpush	ecx,edx,esi,edi
+		mov	esi,[%$str]
+		mov	edx,[%$stopset]
 		sub	eax,eax
 .Loop:
 		inc	eax
@@ -249,14 +255,14 @@ proc strcspn
 		jmp	.Loop1
 .Done:
 		dec	eax
-		mpop	edi,esi
+		mpop	edi,esi,edx,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; size_t strlen(const char *s);
-proc strlen
+proc _strlen
 		arg	str
 		prologue
 		push	edi
@@ -275,7 +281,7 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strlwr(char *s);
-proc strlwr
+proc _strlwr
 		push	esi
 		mov	esi,[esp+8]
 		
@@ -297,20 +303,21 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strncat(char *to, const char *from, size_t size);
-proc strncat
+proc _strncat
+		arg	to, from, size
 		prologue
 		mpush	esi,edi
-		mov	edi,[ebp+8]
+		mov	edi,[%$to]
 		mov	ecx,-1
 		sub	al,al
 		cld
 		repne	scasb
 		dec	edi
-		mov	esi,[ebp+12]
-		mov	ecx,[ebp+16]
+		mov	esi,[%$from]
+		mov	ecx,[%$size]
 		rep	movsb
 		mov	byte [edi],0
-		mov	eax,[ebp+8]
+		mov	eax,[%$to]
 		mpop	edi,esi
 		epilogue
 		ret
@@ -318,49 +325,51 @@ endp		;---------------------------------------------------------------
 
  
 		; int strncmp(const char *s1, const char *s2, size_t n);
-proc strncmp
+proc _strncmp
+		arg	s1, s2, n
 		prologue
-		mpush	esi,edi
-		mov	ecx,[16+ebp]
+		mpush	ecx,esi,edi
+		mov	ecx,[%$n]
 		jecxz	.Zero
-		mov	edi,[12+ebp]
-		mov	esi,[8+ebp]
+		mov	edi,[%$s2]
+		mov	esi,[%$s1]
 		cld
 		repe	cmpsb
 		je	.Zero
 		js	.Neg
 		mov	eax,1
 		jmp	.Done
-.Zero:
-		sub	eax,eax
+		
+.Zero:		sub	eax,eax
 		jmp	.Done
-.Neg:
-		mov	eax,-1
-.Done:
-		mpop	edi,esi
+		
+.Neg:		mov	eax,-1
+
+.Done:		mpop	edi,esi,ecx
 		epilogue
 		ret
 endp		;--------------------------------------------------------------- 
 
 
 		; char *strncpy(char *to, const char *from, size_t size);
-proc strncpy
+proc _strncpy
+		arg	to, from, size
 		prologue
 		mpush	esi,edi
-		mov	edi,[ebp+12]
+		mov	edi,[%$from]
 		mov	ecx,-1
 		sub	al,al
 		cld
 		repne	scasb
 		not	ecx
 		dec	ecx
-		mov	edx,[ebp+16]
+		mov	edx,[%$size]
 		sub	edx,ecx
 		jge	.UseECX
-		mov	ecx,[ebp+16]
-.UseECX:
-		mov	esi,[ebp+12]
-		mov	edi,[ebp+8]
+		mov	ecx,[%$size]
+		
+.UseECX:	mov	esi,[%$from]
+		mov	edi,[%$to]
 		rep	movsb
 
 		or	edx,edx
@@ -369,7 +378,7 @@ proc strncpy
 		sub	al,al
 		rep	stosb
 
-.NoPad:		mov	eax,[ebp+8]
+.NoPad:		mov	eax,[%$to]
 		mpop	edi,esi
 		epilogue
 		ret
@@ -377,11 +386,12 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strpbrk(const char *s, const char *stopset);
-proc strpbrk
+proc _strpbrk
+		arg	str, stopset
 		prologue
 		mpush	esi,edi
-		mov	esi,[8+ebp]
-		mov	edx,[12+ebp]
+		mov	esi,[%$str]
+		mov	edx,[%$stopset]
 		sub	eax,eax
 .Loop:
 		inc	eax
@@ -402,7 +412,7 @@ proc strpbrk
 		jmp	short .Done
 		
 .ex2:		dec	eax
-		add	eax,[8+ebp]
+		add	eax,[%$str]
 		
 .Done:		mpop	edi,esi
 		epilogue
@@ -411,17 +421,18 @@ endp		;---------------------------------------------------------------
 
 	
 		; char *strrchr(const char *s, unsigned char c);
-proc strrchr
+proc _strrchr
+		arg	str, char
 		prologue
 		push	edi
-		mov	edi,[ebp+8]
+		mov	edi,[%$str]
 		mov	ecx,-1
 		sub	al,al
 		cld
 		repne	scasb
 		not	ecx
 		dec	edi
-		mov	al,[ebp+12]
+		mov	al,[%$char]
 		std
 		repne	scasb
 		cld
@@ -429,7 +440,7 @@ proc strrchr
 		sub	eax,eax
 		jmp	.Done
 		
-.OK:		add	ecx,[ebp+8]
+.OK:		add	ecx,[%$str]
 		mov	eax,ecx
 		inc	eax
 		
@@ -440,11 +451,12 @@ endp		;---------------------------------------------------------------
 	
 
 		; size_t strspn(const char *s, const char *skipset);
-proc strspn
+proc _strspn
+		arg	str, skipset
 		prologue
-		mpush	esi,edi
-		mov	esi,[12+ebp]
-		mov	edx,[8+ebp]
+		mpush	ecx,edx,esi,edi
+		mov	esi,[%$skipset]
+		mov	edx,[%$str]
 		sub	eax,eax
 		
 .Loop:		inc	eax
@@ -454,7 +466,7 @@ proc strspn
 		mov	cl,[esi]
 		inc	esi
 		
-.Loop1:		test	byte [edi],0ffh
+.Loop1:		test	byte [edi],0FFh
 		je	.Done
 		cmp	cl,[edi]
 		je	.Loop
@@ -462,17 +474,18 @@ proc strspn
 		jmp	.Loop1
 		
 .Done:		dec	eax
-		mpop	 edi,esi
+		mpop	edi,esi,edx,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------	
 
 
 		; char *strstr(const char *s1, const char s2);
-proc strstr
+proc _strstr
+		arg	s1, s2
 		prologue
 		mpush	esi,edi
-		mov	edi,[ebp+12]
+		mov	edi,[%$s2]
 		push	edi
 		sub	al,al
 		mov	ecx,-1
@@ -481,7 +494,7 @@ proc strstr
 		not	ecx
 		dec	ecx
 		pop	edi
-		mov	esi,[ebp+8]
+		mov	esi,[%$s1]
 		
 .Loop:		mov	al,[esi]
 		or	al,al
@@ -493,7 +506,7 @@ proc strstr
 		mpop	edi,esi,ecx
 		je	.Done
 		
-.NoComp:	inc esi
+.NoComp:	inc	esi
 		jmp	.Loop
 		
 .NotFound:	sub	esi,esi
@@ -506,9 +519,11 @@ endp		;---------------------------------------------------------------
 
 
 		; char *strupr(char *s);
-proc strupr
+proc _strupr
+		arg	str
+		prologue
 		push	esi
-		mov	esi,[esp+8]
+		mov	esi,[%$str]
 		
 .Loop:		lodsb
 		or	al,al
@@ -521,11 +536,29 @@ proc strupr
 		mov	[esi-1],al
 		jmp	.Loop
 
-.Done:		mov	eax,[esp + 8]
+.Done:		mov	eax,[%$str]
 		pop	esi
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
+
+		; char strend(const char *s);
+proc _strend
+		arg	str
+		prologue
+		mpush	ecx,edi
+		mov	edi,[%$str]
+		xor	ecx,ecx
+		dec	ecx
+		xor	al,al
+		cld
+		repne	scasb
+		mov	eax,edi
+		mpop	edi,ecx
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
 
 		; Initialization
 proc libc_init_string

@@ -1,103 +1,79 @@
 ;*******************************************************************************
-;  x-ray.nasm - a simple kernel debugging tool.
-;  Copyright (c) 2002 RET & COM Research.
+; x-ray.nasm - a simple system debugging tool.
+; Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
-module x-ray
+module $x-ray
 
 %include "sys.ah"
 %include "errors.ah"
-%include "pool.ah"
+%include "module.ah"
+%include "serventry.ah"
 %include "asciictl.ah"
-%include "memman.ah"
 
-global XR_ErrorHandler, XR_Main
+exportdata ModuleInfo
 
-library kernel.paging
-extern PG_GetNumFreePages
+library $libc
+importproc _strncmp
+importproc _MsgSend
 
-library kernel.mm
-extern MM_AllocBlock, MM_FreeBlock
-extern MM_FreeMCBarea
-extern MM_DebugAllocMem, MM_DebugFreeMem
-extern MM_PrintStat, MM_DebugFreeMCBs
-
-library kernel.mt
-extern ?ProcListPtr
-extern MT_DumpReadyThreads, MT_PrintSchedStat
-
-library kernel.strutil
-extern StrLComp, StrScan
-
-library kernel.time
-extern K_LDelayMs
-
-library kernel.kconio
-extern PrintChar, PrintString
-extern PrintDwordDec,
-extern PrintByteHex, PrintWordHex, PrintDwordHex
-extern ReadString
-extern DecD2Str
-
-library init
-extern SysReboot
-
-library hw.onboard
-extern TMR_CountCPUspeed
-
-
-; --- Macros ---
-
-%macro mPrintMsg 1
- mPrintString msg_Debugging
- mPrintString %1
-%endmacro
-
+library monitor.cons
+extern ReadString, PrintWordHex
 
 ; --- Data ---
 
 section .data
 
-msg_Banner	DB NL,"x-ray - RadiOS kernel debugging tool",NL
-		DB "Copyright (c) 2002 RET & COM Research.",NL,0
+ModuleInfo: instance tModInfoTag
+    field(Signature,	DD	RBM_SIGNATURE)
+    field(ModVersion,	DD	1)
+    field(ModType,	DB	MODTYPE_EXECUTABLE)
+    field(Flags,	DB	0)
+    field(OStype,	DW	1)
+    field(OSversion,	DD	0)
+    field(Base,		DD	0)
+    field(Entry,	DD	XR_Main)
+iend
 
-msg_Help	DB NL,"Commands:",NL
-		DB "S                    - call monitor (g to go back)",NL
-		DB "stat                 - view scheduler statistics",NL
-		DB "ts                   - view thread statistics",NL
-		DB "allocmem [pid] size  - allocate <size> bytes to [pid] (default 0)",NL
-		DB "freemem [pid] addr   - free memory block",NL
-		DB "memstat [pid]        - print memory allocation info",NL
-		DB "reboot               - reboot machine",NL,0
+TxtBanner	DB	NL,"x-ray - RadiOS system debugging tool",NL
+		DB	"Copyright (c) 2002 RET & COM Research.",NL,0
+
+TxtHelp		DB	NL,"Commands:",NL
+		DB     "S		- call monitor (g to go back)",NL
+		DB     "smsg num	- send a message to task manager",NL
+		DB     "stat		- view scheduler statistics",NL
+		DB     "ts		- view thread statistics",NL
+		DB     "allocmem size	- allocate <size> bytes block",NL
+		DB     "freemem addr	- free memory block",NL
+		DB     "memstat		- print memory allocation info",NL
+		DB     "reboot		- reboot machine",NL,0
 		
-msg_DbgPrompt	DB NL,"x-ray>",0
-msg_Err		DB NL,NL,7,"ERROR ",0
-msg_Debugging	DB NL,"DEBUGGING: ",0
-msg_Rebooting	DB NL,"...rebooting...",0
+TxtDbgPrompt	DB	NL,"x-ray> ",0
+TxtErr		DB	NL,NL,7,"ERROR ",0
 
-CommandTable	DB 1,"?"
+CommandTable	DB	1,"?"
 		DD	XR_Help
-		DB 4,"help"
+		DB	4,"help"
 		DD	XR_Help
-		DB 1,"S"
+		DB	1,"S"
 		DD	XR_CallMonitor
-		DB 7,"cpuinfo"
-		DD	XR_CPUinfo
-		DB 8,"allocmem"
-		DD	MM_DebugAllocMem
-		DB 7,"freemem"
-		DD	MM_DebugFreeMem
-		DB 7,"memstat"
-		DD	MM_PrintStat
-		DB 8,"freemcbs"
-		DD	MM_DebugFreeMCBs
+		DB	4,"smsg"
+		DD	XR_SendMsg
+;		DB	8,"allocmem"
+;		DD	MM_DebugAllocMem
+;		DB	7,"freemem"
+;		DD	MM_DebugFreeMem
+;		DB	7,"memstat"
+;		DD	MM_PrintStat
+;		DB	8,"freemcbs"
+;		DD	MM_DebugFreeMCBs
 
-		DB	4,"stat"
-		DD	MT_PrintSchedStat
-		DB	2,"ts"
-		DD	MT_DumpReadyThreads
-		DB	6,"reboot"
-		DD	XR_Reboot
+;		DB	4,"stat"
+;		DD	MT_PrintSchedStat
+;		DB	2,"ts"
+;		DD	MT_DumpReadyThreads
+;		DB	6,"reboot"
+;		DD	XR_Reboot
 		DB	0
 
 
@@ -124,8 +100,9 @@ proc XR_DispatchCmd
 		or	cl,cl
 		jz	short .Done
 		inc	edi
-		call	StrLComp
-		jz	short .GotCmd
+		Ccall	_strncmp, esi, edi, ecx
+		or	eax,eax
+		jz	.GotCmd
 		lea	edi,[edi+ecx+4]
 		jmp	.Loop
 		
@@ -139,12 +116,13 @@ proc XR_DispatchCmd
 endp		;---------------------------------------------------------------
 
 
-		; XR_Main - entry point of RKDT.
+		; XR_Main - start entry point.
 		; Input: none.
 		; Output: never.
 proc XR_Main
-		mPrintString msg_Banner
-.Loop:		mPrintString msg_DbgPrompt
+;jmp $
+		mServPrintStr TxtBanner
+.Loop:		mServPrintStr TxtDbgPrompt
 		mov	esi,SBuffer
 		mov	cl,48
 		call	ReadString
@@ -158,7 +136,7 @@ endp		;---------------------------------------------------------------
 
 		; XR_Help - print a short help message.
 proc XR_Help
-		mPrintString msg_Help
+		mServPrintStr TxtHelp
 		ret
 endp		;---------------------------------------------------------------
 
@@ -170,61 +148,17 @@ proc XR_CallMonitor
 endp		;---------------------------------------------------------------
 
 
-		; XR_Reboot - reboot machine.
-proc XR_Reboot
-		mPrintString msg_Rebooting
-		call	SysReboot
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; XR_CPUinfo - print CPU information.
-proc XR_CPUinfo
+		; XR_SendMsg - send a message to task manager.
+proc XR_SendMsg
+		locauto msgbuf, 256
+		prologue
 		mpush	ecx,esi
 
-		add	esi,ecx
-		inc	esi
+		lea	eax,[%$msgbuf]
+		Ccall	_MsgSend, SYSMGR_COID, eax, 256, eax, 256
 
-		call	TMR_CountCPUspeed
-		mPrintChar NL
-		mov	eax,ecx
-		push	eax
-		cli					; 10 sec test
-		mov	ecx,10000
-		call	K_LDelayMs
-		sti
-		pop	eax
-		call	PrintDwordDec
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; XR_GetISS - get and print driver initialization status
-		;		string.
-proc XR_GetISS
-		mpush	ecx,esi
-
-		add	esi,ecx
-		cmp	byte [esi],0
-		je	short .Exit
-		inc	esi
-
-		call	DRV_FindName
-		jnc	short .GotDID
-		call	XR_ErrorHandler
-		jmp	short .Exit
-
-.GotDID:	mCallDriverCtrl eax,DRVCTL_GetInitStatStr
-		jnc	short .Print
-                call	XR_ErrorHandler
-		jmp	short .Exit
-
-.Print:		mPrintChar NL
-		mPrintString
-
-.Exit:		mpop	esi,ecx
+		mpop	esi,ecx
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -233,7 +167,7 @@ endp		;---------------------------------------------------------------
 		; Input: AX=error code.
 		; Output: none.
 proc XR_ErrorHandler
-		mPrintString msg_Err
+		mServPrintStr TxtErr
 		call	PrintWordHex
 		xor	eax,eax
 .Exit:		ret

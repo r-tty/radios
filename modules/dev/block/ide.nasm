@@ -10,7 +10,6 @@ module hw.ide
 %include "errors.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
-%include "sema.ah"
 %include "hw/ports.ah"
 %include "hd.ah"
 

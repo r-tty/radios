@@ -1,0 +1,5 @@
+
+; Error codes
+%define	ERR_VTX_DetFail			1120h
+%define	ERR_VTX_BadVPage		1121h
+%define	ERR_VTX_BadCurPos		1122h

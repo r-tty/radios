@@ -1,7 +1,7 @@
 ;-------------------------------------------------------------------------------
-;  sched.nasm - RadiOS scheduler.
-;  Copyright (c) 2000 RET & COM Research.
-;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; sched.nasm - RadiOS scheduler.
+; Copyright (c) 2000 RET & COM Research.
+; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;-------------------------------------------------------------------------------
 
 %include "timeout.ah"
@@ -29,7 +29,7 @@ extern KernTSS
 library kernel.setjmp
 extern K_SetJmp, K_LongJmp
 
-library kernel.semaphore
+library kernel.sync
 extern K_SemP, K_SemV
 
 library kernel.misc
@@ -39,8 +39,8 @@ extern K_LDelayMs
 
 section .data
 
-MsgSwToCurr	DB	":SCHEDULER:MT_ContextSwitch: switching to current thread",0
-MsgNoMoreTmQ	DB	":SCHEDULER:MT_SetTimeout: no more space in the queue",0
+TxtSwToCurr	DB	":SCHEDULER:MT_ContextSwitch: switching to current thread",0
+TxtNoMoreTmQ	DB	":SCHEDULER:MT_SetTimeout: no more space in the queue",0
 
 
 ; --- Variables ---
@@ -92,15 +92,31 @@ section .text
 		; Output: none.
 proc MT_ContextSwitch
 		cmp	ebx,[?CurrThread]
-		jne	short .Switch
+		jne	short .SetKstack
 	%ifdef KPOPUPS
-		mKPopUp MsgSwToCurr
+		mKPopUp TxtSwToCurr
 	%endif
 		ret
 		
-.Switch:	mov	[?CurrThread],ebx		; New thread pointer
-		mov	eax,[ebx+tTCB.KStack]		; Set new kernel stack
+		; Set new kernel stack
+.SetKstack:	mov	eax,[ebx+tTCB.KStack]
 		mov	[KernTSS+tTSS.ESP0],eax
+
+		; If new thread belongs to another process - switch
+		; to its page directory.
+		; There may be kernel threads with PCB == 0. We don't
+		; switch PD for them
+		mov	eax,[?CurrThread]
+		mov	esi,[ebx+tTCB.PCB]
+		cmp	esi,[eax+tTCB.PCB]
+		je	.Warp
+		or	esi,esi
+		je	.Warp
+		mov	eax,[esi+tProcDesc.PageDir]
+		mov	cr3,eax
+
+		; Warp out to a new context
+.Warp:		mov	[?CurrThread],ebx
 		inc	dword [ebx+tTCB.Preempt]
 		lea	edi,[ebx+tTCB.Context]
 		xor	eax,eax
@@ -268,7 +284,7 @@ endp		;---------------------------------------------------------------
 proc K_SwitchTask
 		arg	frame
 		prologue
-		
+
 		; If multitasking isn't yet initialized - just leave
 		cmp	dword [?CurrThread],0
 		je	near .Exit
@@ -307,7 +323,7 @@ proc K_SwitchTask
 		jz	short .Done
 .Schedule:	call	MT_Schedule
 
-.Done		cli
+.Done:		cli
 		mov	dword [?SchedInClock],0
 .Exit:		epilogue
 		ret
@@ -396,7 +412,7 @@ proc MT_SetTimeout
 
 .NoSpace:	
 	%ifdef KPOPUPS
-		mKPopUp MsgNoMoreTmQ
+		mKPopUp TxtNoMoreTmQ
 	%endif
 		popfd
 		ret
@@ -458,16 +474,16 @@ endp		;---------------------------------------------------------------
 global MT_PrintSchedStat
 
 section .data
-MsgNested	DB	NL,"Nested clocks: ",0
-MsgAdjusts	DB	NL,"Sched adjusts: ",0
-MsgRecalcs	DB	NL,"Sched recalcs: ",0
-MsgCurrRets	DB	NL,"Current returns: ",0
-MsgKernTicks	DB	NL,"Kernel ticks: ",0
-MsgDrvTicks	DB	NL,"Driver ticks: ",0
-MsgUserTicks	DB	NL,"User ticks: ",0
-MsgTicksCnt	DB	NL,"Ticks counter: ",0
-MsgSysUptime	DB	NL,NL,"System uptime: ",0
-MsgSeconds	DB	" seconds",0
+TxtNested	DB	NL,"Nested clocks: ",0
+TxtAdjusts	DB	NL,"Sched adjusts: ",0
+TxtRecalcs	DB	NL,"Sched recalcs: ",0
+TxtCurrRets	DB	NL,"Current returns: ",0
+TxtKernTicks	DB	NL,"Kernel ticks: ",0
+TxtDrvTicks	DB	NL,"Driver ticks: ",0
+TxtUserTicks	DB	NL,"User ticks: ",0
+TxtTicksCnt	DB	NL,"Ticks counter: ",0
+TxtSysUptime	DB	NL,NL,"System uptime: ",0
+TxtSeconds	DB	" seconds",0
 
 section .text
 
@@ -475,35 +491,35 @@ section .text
 		; Input: none.
 		; Output: none.
 proc MT_PrintSchedStat
-		mPrintString MsgNested
+		mPrintString TxtNested
 		mov	eax,[?NestedClocks]
 		call	PrintDwordDec
-		mPrintString MsgAdjusts
+		mPrintString TxtAdjusts
 		mov	eax,[?SchedAdjusts]
 		call	PrintDwordDec
-		mPrintString MsgRecalcs
+		mPrintString TxtRecalcs
 		mov	eax,[?SchedRecalcs]
 		call	PrintDwordDec
-		mPrintString MsgCurrRets
+		mPrintString TxtCurrRets
 		mov	eax,[?CurReturns]
 		call	PrintDwordDec
-		mPrintString MsgKernTicks
+		mPrintString TxtKernTicks
 		mov	eax,[?KernTicks]
 		call	PrintDwordDec
-		mPrintString MsgDrvTicks
+		mPrintString TxtDrvTicks
 		mov	eax,[?DrvTicks]
 		call	PrintDwordDec
-		mPrintString MsgUserTicks
+		mPrintString TxtUserTicks
 		mov	eax,[?UserTicks]
 		call	PrintDwordDec
-		mPrintString MsgTicksCnt
+		mPrintString TxtTicksCnt
 		mov	eax,[?TicksCounter]
 		call	PrintDwordDec
-		
-		mPrintString MsgSysUptime
+
+		mPrintString TxtSysUptime
 		mov	eax,[?SchedSeconds]
 		call	PrintDwordDec
-		mPrintString MsgSeconds
+		mPrintString TxtSeconds
 		ret
 endp		;---------------------------------------------------------------
 

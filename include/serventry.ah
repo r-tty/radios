@@ -1,0 +1,97 @@
+;-------------------------------------------------------------------------------
+; serventry.ah - macros to call routines via the kernel service trap.
+;-------------------------------------------------------------------------------
+
+%ifndef _serventry_ah
+%define _serventry_ah
+
+; Service trap number
+SERVTRAP		EQU	3Fh
+
+; BTL functions
+SERVPROC_PRINTCHARRAW	EQU	0
+SERVPROC_PRINTCHAR	EQU	1
+SERVPROC_PRINTSTR	EQU	2
+SERVPROC_PRINTSTRPAD	EQU	3
+SERVPROC_PRINT32H	EQU	4
+SERVPROC_PRINT16H	EQU	5
+SERVPROC_PRINT8H	EQU	6
+SERVPROC_PRINTDEC	EQU	7
+SERVPROC_READKEY	EQU	8
+
+%macro mCallServ 1
+	pushimm	%1
+	int	SERVTRAP
+	add	esp,byte 4
+%endmacro
+
+;--- BTL services --------------------------------------------------------------
+
+%macro mServPrintCharRaw 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mCallServ SERVPROC_PRINTCHARRAW
+%endmacro
+
+%macro mServPrintChar 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mCallServ SERVPROC_PRINTCHAR
+%endmacro
+
+%macro mServPrintStr 0-1
+%if %0 == 1
+	mov	esi,%1
+%endif
+	mCallServ SERVPROC_PRINTSTR
+%endmacro
+
+%macro mServPrintStrPad 0-2
+	push	ecx
+%if %0>=1
+	mov	esi,%1
+%ifnum %2
+	mov	cl,%2
+%else
+	xor	cl,cl
+%endif
+%endif
+	mCallServ SERVPROC_PRINTSTRPAD
+	pop	ecx
+%endmacro
+
+%macro mServPrint8h 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mCallServ SERVPROC_PRINT8H
+%endmacro
+
+%macro mServPrint16h 0-1
+%if %0==1
+	mov	ax,%1
+%endif
+	mCallServ SERVPROC_PRINT16H
+%endmacro
+
+%macro mServPrint32h 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	mCallServ SERVPROC_PRINT32H
+%endmacro
+
+%macro mServPrintDec 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	mCallServ SERVPROC_PRINTDEC
+%endmacro
+
+%macro mServReadKey 0
+	mCallServ SERVPROC_READKEY
+%endmacro
+
+%endif

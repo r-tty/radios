@@ -1,0 +1,84 @@
+;-------------------------------------------------------------------------------
+; sync.ah - synchronization structures and macros (semaphores, mutexes, etc).
+;-------------------------------------------------------------------------------
+
+%ifndef _sync_ah
+%define _sync_ah
+
+%include "macros/queue.ah"
+
+struc tSemaphore
+.Count		RESD	1		; Semaphore itself
+.WaitQ		RESD	1		; Address of waiting thread queue
+endstruc
+
+
+; mSemInit - initialize a semaphore
+; Parameter: address of semaphore structure
+%macro mSemInit 1
+%if %0>0
+	pushfd
+	cli
+	mov	dword [%1+tSemaphore.Count],1
+	mov	dword [%1+tSemaphore.WaitQ],0
+	popfd
+%else
+%error mSemInit: missing argument
+%endif
+%endmacro
+
+
+; mSemSetVal - set semaphore value
+; Parameter: address of semaphore structure
+%macro mSemSetVal 1
+%if %0>0
+	pushfd
+	cli
+	mov	[%1+tSemaphore.Count],eax
+	popfd
+%else
+%error mSemSetVal: missing argument
+%endif
+%endmacro
+
+
+; mSemEnq - enqueue a thread to semaphore wait queue
+%macro mSemEnq 2
+%if %0=2
+	mEnqueue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB
+%else
+%error mSemEnq: invalid number of arguments
+%endif
+%endmacro
+
+
+; mSemDeq - dequeue a thread from semaphore wait queue
+%macro mSemDeq 2
+%if %0=2
+	mDequeue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB
+%else
+%error mSemDeq: invalid number of arguments
+%endif
+%endmacro
+
+
+; Sync control commands
+SCTL_SETPRIOCEILING	EQU	1	; mutex	const int *prioceiling
+SCTL_GETPRIOCEILING	EQU	2	; mutex	int *prioceiling
+SCTL_SETEVENT		EQU	3	; mutex	struct sigevent *event
+
+; Synchronization types
+struc tSync
+.Count		RESD	1	; Count for recursive mutexs and semaphores
+.Owner		RESD	1	; Thread id (valid for mutex only)
+endstruc
+
+struc tSyncAttr
+.Protocol	RESD	1
+.Flags		RESD	1
+.PrioCeiling	RESD	1	; Reserved
+.ClockID	RESD	1	; Condvars only
+.Reserved	RESD	4
+endstruc
+
+%endif

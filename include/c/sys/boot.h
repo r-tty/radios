@@ -13,7 +13,8 @@
  * This describes a module which was created by BTL.
  */
 typedef struct {
-    void  *imgstart;		/* Used by linker (RDOFF image address) */
+    void  *imgstart;		/* Used by linker */
+    void  *imgend;		/*  (RDOFF image location) */
     uint  size;			/* Total size (aligned) */
     ulong entry;		/* Entry point */
     ulong virtaddr;		/* Virtual address of module */
@@ -28,6 +29,10 @@ typedef struct {
     uint  symtablen;		/* size of symtab */
     char  type;			/* Module type (MODTYPE_*) */
     char  name[MAXMODNAMELEN];	/* Module name (NULL terminated) */
+    /* These fields are used only by a task manager */
+    ulong flags;
+    void  *binfmt;
+    void  *next, *prev;
 } tBMD;
 
 /*
@@ -57,6 +62,7 @@ typedef struct {
     ushort OStype;		/* Target OS type */
     uint   OSversion;		/* Target OS version */
     long   Base;		/* Base address */
+    long   Entry;		/* Entry point - alternative to "Start" label */
 } tModInfoTag;
 #pragma pack(0)
 
@@ -68,5 +74,6 @@ typedef struct {
 #define MODTYPE_EXECUTABLE	0
 #define MODTYPE_LIBRARY		1
 #define MODTYPE_KERNEL		2
+#define MODTYPE_RAW		3
 
 #endif

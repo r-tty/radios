@@ -3,8 +3,11 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = btl
+
 # Standard header
-include ../build/header.mk
+include ../Build/header.mk
 
 # Converter to flat binary
 CONV = rdf2bin -o 0x100000 -b 12288 -p 1
@@ -20,10 +23,10 @@ $(BIN): $(TARGET_RDM)
 	@$(CONV) $(OBJPATH)/$< $(OBJPATH)/$@
 
 # Build module
-include ../build/module.mk
+include ../Build/module.mk
 
 # Individual dependencies
 all-dep: dep
 
 all-clean: clean
-	@rm -f $(TARGET_RDM) $(BIN)
+	@cd $(OBJPATH) && rm -f $(TARGET_RDM) $(BIN)

@@ -1,6 +1,9 @@
 ;-------------------------------------------------------------------------------
-;  biosdata.ah - structure of RM interrupt table and BIOS data area
+; biosdata.ah - definitions of the BIOS data area and real mode interrupts.
 ;-------------------------------------------------------------------------------
+
+%ifndef _biosdata_ah
+%define _biosdata_ah
 
 ; --- Real mode interrupt table ---
 struc tRMIntsTbl
@@ -372,3 +375,5 @@ struc tBIOSDA
 endstruc
 
 %define BDA(x) BDASTART+tBIOSDA. %+ x
+
+%endif

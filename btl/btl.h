@@ -4,10 +4,10 @@
 
 #define	KERNIMG		0x110000	/* Kernel image is loaded here */
 #define	KERNSTART	0x4000		/* ...and its .text will be here */
-#define BOOTPARM	0x700		/* Boot parameters area */
-#define MEMMAP		0x2000		/* BIOS memory map area */
+#define BOOTPARM	0x107C00	/* Boot parameters area */
+#define MEMMAP		0x108000	/* BIOS memory map area */
 
-#define MAXMODULES	32		/* Maximum number of boot modules */
+#define MAXMODULES	64		/* Maximum number of boot modules */
 
 void putchar(char c);
 void puts(char *s);

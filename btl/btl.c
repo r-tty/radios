@@ -1,5 +1,6 @@
 /*
  * btl.c - Boot-time RDOFF linker/loader.
+ * Copyright (c) 2002 RET & COM Research.
  */
  
 #include <stddef.h>
@@ -122,7 +123,8 @@ static tBMD *is_module_loaded(const char *name)
 static void modhdr_pass1(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
 {
     char *iptr = (char *)hdrstart;
-    uint bsslen = 0;
+    uint bsslen = 0, modnamefound = 0, infotagfound = 0;
+    static const char *infotagmsg = "module information tag";
     
     while (hdrlen > 0) {
 	tURDFrec *recp = (void *)iptr;
@@ -135,6 +137,25 @@ static void modhdr_pass1(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
 	    case RDFREC_COMMON:
 		panic("%s: COMMON record encountered");
 	    case RDFREC_EXPORT:
+		if (strcmp(recp->e.Lbl, "ModuleInfo") == 0) {
+		    tModInfoTag *mtag = (void *)(btlp->dataaddr + recp->e.Ofs);
+		    /* Is module information tag inside the data segment? */
+		    if (recp->e.Seg != 1)
+		    	panic("%s: %s is not in data segment", btlp->name, infotagmsg);
+		    if (mtag->Signature != RBM_SIGNATURE)
+		    	panic("%s: invalid %s signature (%#x)", btlp->name, infotagmsg, mtag->Signature);
+		    btlp->type = mtag->ModType;
+		    if (mtag->Base == -1)
+			/* Special case - for kernel extension modules */
+		    	btlp->virtaddr = btlp->codeaddr;
+		    else
+		    	btlp->virtaddr = mtag->Base;
+		    if (mtag->Entry != -1)
+		    	/* Alternative method to specify entry point */
+			btlp->entry = btlp->virtaddr + mtag->Entry;
+		    infotagfound = 1;
+		    break;
+		}
 		if (strcmp(recp->e.Lbl, "Start") == 0) {
 		    /* Is entry point inside the code segment? */
 		    if (recp->e.Seg != 0)
@@ -142,35 +163,24 @@ static void modhdr_pass1(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
 		    btlp->entry = btlp->virtaddr + recp->e.Ofs;
 		    break;
 		}
-		if (strcmp(recp->e.Lbl, "ModuleInfo") == 0) {
-		    tModInfoTag *mtag = (void *)(btlp->dataaddr + recp->e.Ofs);
-		    /* Is module information tag inside the data segment? */
-		    if (recp->e.Seg != 1)
-		    	panic("%s: module information tag is not in data segment", btlp->name);
-		    if (mtag->Signature != RBM_SIGNATURE)
-		    	panic("%s: invalid module information tag signature (%#x)", btlp->name, mtag->Signature);
-		    btlp->type = mtag->ModType;
-		    if (mtag->Base == -1)
-		    	/* Special case - for kernel extension modules */
-		    	btlp->virtaddr = btlp->codeaddr;
-		    else
-		    	btlp->virtaddr = mtag->Base;
-		    break;
-		}
 		break;
 	    case RDFREC_MODNAME:
-		strncpy(btlp->name, recp->m.ModName, MAXMODNAMELEN);
-		btlp->name[MAXMODNAMELEN-1] = '\0';
+	    	if (!modnamefound) {
+		    strncpy(btlp->name, recp->m.ModName, MAXMODNAMELEN);
+		    btlp->name[MAXMODNAMELEN-1] = '\0';
+		    modnamefound = 1;
+		}
 		break;
 	}
     }
+    if (!infotagfound)
+	panic("%s: %s not found", btlp->name, infotagmsg);
     btlp->bsslen = _PARALIGN(bsslen);
 }
 
 
 /*
  * Walk through header records, pass 2:
- *  - handle static relocations
  *  - build symbol table
  */
 static void modhdr_pass2(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
@@ -184,7 +194,7 @@ static void modhdr_pass2(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
 	iptr += rsize, hdrlen -= rsize;
 	switch (recp->g.Type) {
 	    case RDFREC_EXPORT:
-		if (recp->e.Flags & RDFEXPORT_GLOBAL) {
+		if (recp->e.Flags & SYM_GLOBAL) {
 		    memcpy(stentry, recp, rsize);
 		    stentry += rsize;
 		    btlp->symtablen += rsize;
@@ -240,6 +250,19 @@ void build_module(tBMD *btlp, ulong destaddr, char *cmdline)
     if (i > MAXMODNAMELEN) i = MAXMODNAMELEN;
     strncpy(btlp->name, cmdline, i);
     btlp->name[i-1] = '\0';
+
+    /*
+     * If module name begins with '!' - it is a "raw" module (e.g. RAM-disk
+     * image or non-RDOFF module). This is a special case, when there is no
+     * code and BSS. And we don't copy this module to destaddr!
+     */
+    if (btlp->name[0] == '!') {
+	btlp->type = MODTYPE_RAW;
+	btlp->virtaddr = (ulong)btlp->imgstart;
+	btlp->dataaddr = (ulong)btlp->imgstart;
+	btlp->size = (ulong)btlp->imgend - btlp->dataaddr;
+	return;
+    }
 
     /* Check RDOFF signature and version */
     if (memcmp(master->Signature, rdf_signature, sizeof(rdf_signature)-1) != 0)
@@ -305,10 +328,10 @@ done:
  */
 void resolve_module(const tBMD *btlp, ulong imptbuf)
 {
-    const tRDFmaster *master = (void *)btlp->imgstart;
+    const tRDFmaster *master = btlp->imgstart;
     char *imptentry = (char *)imptbuf;
     tBMD *dll = NULL;
-    int pass;
+    int pass, unres_links = 0;
 
     for (pass = 0; pass < 2; pass++) {
 	char *iptr = btlp->imgstart;
@@ -321,7 +344,6 @@ void resolve_module(const tBMD *btlp, ulong imptbuf)
 	    iptr += rsize, hdrlen -= rsize;
 	    switch (recp->g.Type) {
 		case RDFREC_DLL:
-		    if (pass) break;
 		    if ((dll = is_module_loaded(recp->l.LibName)) == NULL)
 			panic("%s: DLL `%s' is not loaded", btlp->name, recp->l.LibName);
 		    if (dll->type == MODTYPE_EXECUTABLE)
@@ -378,26 +400,51 @@ void resolve_module(const tBMD *btlp, ulong imptbuf)
 			imptentry += n;
 		    }
 		    if (impsymbol == NULL)
-			panic("%s: relative relocation to undefined segment %d", btlp->name, recp->r.RefSeg);
+			panic("%s: dynamic relocation to undefined segment %d", btlp->name, recp->r.RefSeg);
 
 		    /* Next, find imported symbol in a symtab */
-		    if ((etp = symtab_search((void *)dll->symtabaddr, impsymbol)) == NULL)
-			panic("%s: imported name not found in DLL's symtab", btlp->name);
-#ifdef DEBUG
+		    if ((etp = symtab_search((void *)dll->symtabaddr, impsymbol)) == NULL) {
+			printf("%s: imported name '%s' not found in %s\n",
+			        btlp->name, impsymbol, dll->name);
+			unres_links++;
+			break;
+		    }
+#ifdef BTL_DEBUG
 		    printf("Relocation in %s @ %#x:%#x -> %s::%s (%#x:%#x)\n",
 			    btlp->name, recp->r.Seg, recp->r.Ofs, 
 			    dll->name, etp->Lbl, etp->Seg, etp->Ofs);
 #endif
-		    /* Finally, fix everything up */
-		    refsegstart = (etp->Seg == 0) ? dll->codeaddr : dll->dataaddr;
-		    *where = PA2VA(dll, ((recp->r.Seg & 64) ? *where : 0) + refsegstart + etp->Ofs);
+		    /* Finally, perform a fix-up */
+		    switch (etp->Seg) {
+		        case 0:
+			    refsegstart = dll->codeaddr;
+			    break;
+			case 1:
+			    refsegstart = dll->dataaddr;
+			    break;
+			case 2:
+			    refsegstart = dll->dataaddr + dll->datalen;
+			    break;
+			default:
+			    panic("%s::%s has unknown segment %#x", \
+			    		dll->name, etp->Lbl, etp->Seg);
+		    }
+		    if (recp->r.Seg & 64)
+		    	/* This is relative relocation */
+			*where += PA2VA(dll, (refsegstart + etp->Ofs)) -
+			          PA2VA(btlp, segstart);
+		    else
+		    	/* Normal relocation */
+		    	*where = PA2VA(dll, (refsegstart + etp->Ofs));
 		    break;
 		}
 	    }
 	}
-	/* Write null terminator of the import table */
 	if (!pass)
+	    /* Write null terminator of the import table */
 	    imptentry[0] = 0;
+	else if (unres_links)
+	    panic("%d unresolved links encountered", unres_links);
     }
 }
 
@@ -420,19 +467,21 @@ void print_module_info(const tBMD *btlp)
 	case MODTYPE_KERNEL:
 	    t = 'k';
 	    break;
+	case MODTYPE_RAW:
+	    t = 'r';
+	    break;
 	default:
 	    t = '?';
     }
-    printf("%-24s%c\t%-8d%#-9X%#-9X", btlp->name, t, btlp->size,
-	   btlp->codeaddr, btlp->dataaddr);
-    if (btlp->bsslen)
-	printf("%#-9X", btlp->dataaddr + btlp->datalen);
-    else
-	printf("%-9s", none);
-    if (btlp->symtablen)
-	printf("%#-9X", btlp->symtabaddr);
-    else
-	printf("%-9s", none);
+    printf("%-24s%c\t%-8d", btlp->name, t, btlp->size);
+    if (btlp->codeaddr) printf("%#-9X", btlp->codeaddr);
+    else printf("%-9s", none);
+    if (btlp->dataaddr) printf("%#-9X", btlp->dataaddr);
+    else printf("%-9s", none);
+    if (btlp->bsslen) printf("%#-9X", btlp->dataaddr + btlp->datalen);
+    else printf("%-9s", none);
+    if (btlp->symtablen) printf("%#-9X", btlp->symtabaddr);
+    else printf("%-9s", none);
     putchar('\n');
 }
 
@@ -503,6 +552,7 @@ ulong cmain(ulong magic, tMultibootInfo *mbi)
 	/* Build modules (sections, argp, symtabs) */
 	for (i = 0; i < nmods; i++) {
 	    bmd_modules[i].imgstart = (void *)bm[i].mod_start;
+	    bmd_modules[i].imgend = (void *)bm[i].mod_end;
 	    build_module(bmd_modules+i, heap, (void *)bm[i].string);
 	    heap += bmd_modules[i].size;
 	    print_module_info(bmd_modules+i);
@@ -528,11 +578,12 @@ ulong cmain(ulong magic, tMultibootInfo *mbi)
     
     /* Finally, resolve all imported references in the modules... */
     for (i = 0; i < nmods; i++)
-	resolve_module(bmd_modules+i, heap);
+	if (bmd_modules[i].type != MODTYPE_RAW)
+	    resolve_module(bmd_modules+i, heap);
 
     /* ...and let the kernel to do the job. */
     bootparam->bmd_kernel = &bmd_kernel;
-    bootparam->bmd_modules = bmd_modules;
     bootparam->num_modules = nmods;
+    bootparam->bmd_modules = nmods ? bmd_modules : NULL;
     return bmd_kernel.entry;
 }

@@ -1,0 +1,131 @@
+;-------------------------------------------------------------------------------
+; kbdcodes.ah - keyboard generated and BIOS-compatible scan codes definitions.
+;-------------------------------------------------------------------------------
+
+; Control keys
+%define	KB_Enter		1Ch
+
+; Functional keys definitions
+
+; Shift, Ctrl & Alt keys
+%define	KB_LShift		2Ah
+%define	KB_RShift		36h
+%define	KB_Ctrl			1Dh
+%define	KB_Alt			38h
+
+; Caps lock, Num lock, Scroll lock & Insert keys
+%define	KB_CapsLock		3Ah
+%define	KB_NumLock		45h
+%define	KB_ScrollLock		46h
+%define	KB_Insert		52h
+
+; Keypad keys
+%define	KB_KeypadEnter		1Ch
+%define	KB_KeypadSlash		35h
+%define	KB_KeypadDel		53h
+
+
+; --- Extended ASCII keycodes ---
+%define	KB_EA_F1		3Bh
+%define	KB_EA_F2		3Ch
+%define	KB_EA_F3		3Dh
+%define	KB_EA_F4		3Eh
+%define	KB_EA_F5		3Fh
+%define	KB_EA_F6		40h
+%define	KB_EA_F7		41h
+%define	KB_EA_F8		42h
+%define	KB_EA_F9		43h
+%define	KB_EA_F10		44h
+%define	KB_EA_F11		85h
+%define	KB_EA_F12		86h
+
+%define	KB_EA_Shift_F1		54h
+%define	KB_EA_Shift_F2		55h
+%define	KB_EA_Shift_F3		56h
+%define	KB_EA_Shift_F4		57h
+%define	KB_EA_Shift_F5		58h
+%define	KB_EA_Shift_F6		59h
+%define	KB_EA_Shift_F7		5Ah
+%define	KB_EA_Shift_F8		5Bh
+%define	KB_EA_Shift_F9		5Ch
+%define	KB_EA_Shift_F10		5Dh
+%define	KB_EA_Shift_F11		87h
+%define	KB_EA_Shift_F12		88h
+
+%define	KB_EA_Ctrl_F1		5Eh
+%define	KB_EA_Ctrl_F2		5Fh
+%define	KB_EA_Ctrl_F3		60h
+%define	KB_EA_Ctrl_F4		61h
+%define	KB_EA_Ctrl_F5		62h
+%define	KB_EA_Ctrl_F6		63h
+%define	KB_EA_Ctrl_F7		64h
+%define	KB_EA_Ctrl_F8		65h
+%define	KB_EA_Ctrl_F9		66h
+%define	KB_EA_Ctrl_F10		67h
+%define	KB_EA_Ctrl_F11		89h
+%define	KB_EA_Ctrl_F12		8Ah
+
+%define	KB_EA_Alt_F1		68h
+%define	KB_EA_Alt_F2		69h
+%define	KB_EA_Alt_F3		6Ah
+%define	KB_EA_Alt_F4		6Bh
+%define	KB_EA_Alt_F5		6Ch
+%define	KB_EA_Alt_F6		6Dh
+%define	KB_EA_Alt_F7		6Eh
+%define	KB_EA_Alt_F8		6Fh
+%define	KB_EA_Alt_F9		70h
+%define	KB_EA_Alt_F10		71h
+%define	KB_EA_Alt_F11		8Bh
+%define	KB_EA_Alt_F12		8Ch
+
+%define	KB_EA_Alt_A		1Eh
+%define	KB_EA_Alt_B		30h
+%define	KB_EA_Alt_C		2Eh
+%define	KB_EA_Alt_D		20h
+%define	KB_EA_Alt_E		12h
+%define	KB_EA_Alt_F		21h
+%define	KB_EA_Alt_G		22h
+%define	KB_EA_Alt_H		23h
+%define	KB_EA_Alt_I		17h
+%define	KB_EA_Alt_J		24h
+%define	KB_EA_Alt_K		25h
+%define	KB_EA_Alt_L		26h
+%define	KB_EA_Alt_M		32h
+%define	KB_EA_Alt_N		31h
+%define	KB_EA_Alt_O		18h
+%define	KB_EA_Alt_P		19h
+%define	KB_EA_Alt_Q		10h
+%define	KB_EA_Alt_R		13h
+%define	KB_EA_Alt_S		1Fh
+%define	KB_EA_Alt_T		14h
+%define	KB_EA_Alt_U		16h
+%define	KB_EA_Alt_V		2Fh
+%define	KB_EA_Alt_W		11h
+%define	KB_EA_Alt_X		2Dh
+%define	KB_EA_Alt_Y		15h
+%define	KB_EA_Alt_Z		2Ch
+
+%define	KB_EA_Alt_1		78h
+%define	KB_EA_Alt_2		79h
+%define	KB_EA_Alt_3		7Ah
+%define	KB_EA_Alt_4		7Bh
+%define	KB_EA_Alt_5		7Ch
+%define	KB_EA_Alt_6		7Dh
+%define	KB_EA_Alt_7		7Eh
+%define	KB_EA_Alt_8		7Fh
+%define	KB_EA_Alt_9		80h
+%define	KB_EA_Alt_0		81h
+%define	KB_EA_Alt_Minus		82h
+%define	KB_EA_Alt_Equal		83h
+
+%define	KB_EA_Left		4Bh
+%define	KB_EA_Right		4Dh
+%define	KB_EA_Up		48h
+%define	KB_EA_Down		50h
+
+%define	KB_EA_Insert		52h
+%define	KB_EA_Delete		53h
+%define	KB_EA_Home		47h
+%define	KB_EA_End		4Fh
+%define	KB_EA_PageUp		49h
+%define	KB_EA_PageDown		51h

@@ -5,13 +5,12 @@
 %ifndef _inlines_ah
 %define _inlines_ah
 
-
 ; Copy ASCIIZ-string. Direction flag must be set.
 ; Optional parameters:
 ;  %1 - source (otherwise ESI must be set),
 ;  %2 - destination (otherwise EDI must be set),
 ;  %3 - length delimiter (otherwise ECX must be set),
-%macro mStrcpy 0-3
+%macro mStrCopy 0-3
 %ifid %1
 	mov	esi,%1
 %endif
@@ -31,49 +30,18 @@
 %endmacro
 
 
-; Copy a memory block from kernel to user space.
-; Optional parameters:
-;  %1 - source address (otherwise ESI must be set),
-;  %2 - destination address, as seen from kernel (otherwise EDI must be set),
-;  %3 - block size (otherwise ECX) must be set,
-;  %4 - process descriptor address (otherwise CR3 must be set).
-; Notes: this macro changes EAX,
-;	 %4 must be register (if specified).
-%macro mCopyToUser 0-4
-%ifid %1
-	mov	esi,%1
-%endif
-%ifid %2
-	mov	edi,%2
-%endif
-%ifid %3
-	mov	ecx,%3
-%endif
-	cld
-%ifid %4
-	or	%4,%4
-	jnz	short %%1
-	rep	movsb
-	jmp	short %%2
-	
-%%1:	mov	eax,cr3
-	push	eax
-	mov	eax,[%4+tProcDesc.PageDir]
-	mov	cr3,eax
-	rep	movsb
-	pop	eax
-	mov	cr3,eax
-%%2:
-%else
-	rep	movsb
-%endif
+; Check if the argument is aligned on page boundary, if not - align
+%macro mAlignOnPage 1
+	add	%1,PAGESIZE-1
+	and	%1,~ADDR_OFSMASK
 %endmacro
 
 %endif
 
 
-; Check if the argument is aligned on page boundary, if not - align
-%macro mAlignOnPage 1
-	add	%1,PAGESIZE-1
-	and	%1,~ADDR_OFSMASK
+; Check the carry flag, if set - negate EAX
+%macro mCheckNeg 0
+	jnc	%%1
+	neg	eax
+%%1:
 %endmacro

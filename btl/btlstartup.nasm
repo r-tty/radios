@@ -5,7 +5,7 @@
 
 %include "bootdefs.ah"
 
-extern ConsInit, ServiceEntry, cmain
+extern ConsInit, ServiceEntry, _cmain
 
 section .text
 
@@ -21,12 +21,12 @@ section .text
 		mov	ss,eax
 		jmp	Start
 
-Start:		mov	esp,1000h
+Start:		mov	esp,10FFF0h			; 64K in HMA are for us
 		call	ConsInit			; Initialize console
 		
 		push	ebx				; Multiboot info
 		push	edx				; Multiboot magic
-		call	cmain
+		call	_cmain
 		add	esp,byte 8
 		mov	dword [BOOTPARM(ServiceEntry)],ServiceEntry
 		jmp	eax

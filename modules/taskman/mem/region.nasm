@@ -1,6 +1,8 @@
 ;-------------------------------------------------------------------------------
-;  region.nasm - process memory region manipulation routines.
+; region.nasm - routines for manipulating memory regions.
 ;-------------------------------------------------------------------------------
+
+publicproc MM_AllocRegion, MM_FreeRegion
 
 %macro mLockRegion 0
 	or	word [ebx+tMCB.Flags],MCBFL_LOCKED
@@ -27,11 +29,11 @@ section .text
 proc MM_AllocRegion
 		push	edx
 		mov	ah,PG_USERMODE
-		cmp	dh,REGTYPE_TEXT
+		cmp	dh,REGTYPE_CODE
 		je	short .DoAlloc
 		cmp	dh,REGTYPE_DATA
 		je	short .DoAlloc
-		or	ah,PG_WRITEABLE
+		or	ah,PG_WRITABLE
 .DoAlloc:	push	edx
 		mov	dh,ah
 		call	MM_AllocBlock

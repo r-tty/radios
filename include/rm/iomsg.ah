@@ -1,0 +1,448 @@
+;-------------------------------------------------------------------------------
+; iomsg.ah - I/O messages.
+;-------------------------------------------------------------------------------
+
+%ifndef _iomsg_ah
+%define _iomsg_ah
+
+%include "msg.ah"
+%include "siginfo.ah"
+%include "rm/stat.ah"
+%include "rm/ftype.ah"
+%include "rm/mount.ah"
+%include "rm/iomgr.ah"
+
+; --- Message types ---
+IOM_CONNECT		EQU	100h
+IOM_READ		EQU	101h
+IOM_WRITE		EQU	102h
+IOM_RSVD_CLOSE_OCB	EQU	103h
+IOM_STAT		EQU	103h
+IOM_NOTIFY		EQU	104h
+IOM_DEVCTL		EQU	105h
+IOM_RSVD_UNBLOCK	EQU	106h
+IOM_PATHCONF		EQU	107h
+IOM_LSEEK		EQU	108h
+IOM_CHMOD		EQU	109h
+IOM_CHOWN		EQU	10Ah
+IOM_UTIME		EQU	10Bh
+IOM_OPENFD		EQU	10Ch
+IOM_FDINFO		EQU	10Dh
+IOM_LOCK		EQU	10Eh
+IOM_SPACE		EQU	10Fh
+IOM_SHUTDOWN		EQU	110h
+IOM_MMAP		EQU	111h
+IOM_MSG			EQU	112h
+IOM_RSVD		EQU	113h
+IOM_DUP			EQU	114h
+IOM_CLOSE		EQU	115h
+IOM_RSVD_LOCK_OCB	EQU	116h
+IOM_RSVD_UNLOCK_OCB	EQU	117h
+IOM_SYNC		EQU	118h
+
+IOM_XTYPE_NONE		EQU	0
+IOM_XTYPE_READCOND	EQU	1
+IOM_XTYPE_MQUEUE	EQU	2
+IOM_XTYPE_TCPIP		EQU	3
+IOM_XTYPE_TCPIP_MSG	EQU	4
+IOM_XTYPE_OFFSET	EQU	5
+IOM_XTYPE_REGISTRY	EQU	6
+IOM_XTYPE_MASK		EQU	0FFh
+
+; The IOM_XFLAG_DIR_EXTRA_HINT flag is only valid when
+; reading from a directory. The filesystem should normally
+; return extra directory information when it is easy to get.
+; If this flag is set, it is a hint to the filesystem
+; to try harder (possibly causing media lookups) to return
+; the extra information. The most common use would be to
+; return _DTYPE_LSTAT information.
+; Upper 16 bits are for use by the specific xtype
+IOM_XFLAG_DIR_EXTRA_HINT	EQU	0100h
+IOM_XFLAG_NONBLOCK		EQU	4000h
+IOM_XFLAG_BLOCK			EQU	8000h
+
+struc _xtype_readcond
+.min		RESD	1    
+.time		RESD	1    
+.timeout	RESD	1    
+endstruc
+
+;--- Pathname based IO messages ------------------------------------------------
+
+; --- Message of IOM_CONNECT ---
+struc tIOMconnect
+.type		RESW	1
+.subtype	RESW	1	; IOM_CONNECT_*
+.FileType	RESD	1	; FTYPE_* in ftype.ah
+.ReplyMax	RESW	1
+.EntryMax	RESW	1
+.key		RESD	1
+.handle		RESD	1
+.ioflag		RESD	1	; IOM_FLAG_*
+.mode		RESD	1	; ST_MODE_* in stat.ah
+.sflag		RESW	1	; SH_* in share.ah
+.access		RESW	1	; ST_ACC_* in stat.ah
+.zero		RESW	1
+.PathLen	RESW	1
+.eflag		RESB	1	; IOM_CONNECT_EFLAG_*
+.ExtraType	RESB	1	; IOM_EXTRA_*
+.ExtraLen	RESW	1
+.path		RESB	1	; path_len, null, extra_len
+endstruc
+
+; subtype
+IOM_CONNECT_COMBINE		EQU	0	; Combine with IO msg
+IOM_CONNECT_COMBINE_CLOSE	EQU	1	; Combine with IO msg and always close
+IOM_CONNECT_OPEN		EQU	2
+IOM_CONNECT_UNLINK		EQU	3
+IOM_CONNECT_RENAME		EQU	4
+IOM_CONNECT_MKNOD		EQU	5
+IOM_CONNECT_READLINK		EQU	6
+IOM_CONNECT_LINK		EQU	7
+IOM_CONNECT_RSVD_UNBLOCK	EQU	8
+IOM_CONNECT_MOUNT		EQU	9
+
+; ExtraType
+IOM_CONNECT_EXTRA_NONE		EQU	0
+IOM_CONNECT_EXTRA_LINK		EQU	1
+IOM_CONNECT_EXTRA_SYMLINK	EQU	2
+IOM_CONNECT_EXTRA_MQUEUE	EQU	3
+IOM_CONNECT_EXTRA_PHOTON	EQU	4
+IOM_CONNECT_EXTRA_SOCKET	EQU	5
+IOM_CONNECT_EXTRA_SEM		EQU	6
+IOM_CONNECT_EXTRA_RESMGR_LINK	EQU	7
+IOM_CONNECT_EXTRA_PROC_SYMLINK	EQU	8
+IOM_CONNECT_EXTRA_RENAME	EQU	9
+IOM_CONNECT_EXTRA_MOUNT		EQU	10
+IOM_CONNECT_EXTRA_MOUNT_OCB	EQU	11
+
+; ioflag
+IOM_FLAG_RD			EQU	1	; read permission
+IOM_FLAG_WR			EQU	2	; write permission
+IOM_FLAG_MASK			EQU	3	; permission mask
+IOM_FLAG_APPEND			EQU	8	; Append (writes guaranteed at the end)
+IOM_FLAG_DSYNC			EQU	10h	; Data integrity synch
+IOM_FLAG_SYNC			EQU	20h	; File integrity synch
+IOM_FLAG_RSYNC			EQU	100h	; Data integrity synch
+IOM_FLAG_NONBLOCK		EQU	200h	; Non-blocking I/O
+IOM_FLAG_CREAT			EQU     100h	; Opens with file create
+IOM_FLAG_TRUNC			EQU     200h	; Open with truncation
+IOM_FLAG_EXCL			EQU	400h	; Exclusive open
+IOM_FLAG_NOCTTY			EQU	800h	; Don't assign a controlling terminal
+IOM_FLAG_CLOEXEC		EQU	2000h	; File descriptor will be close-on-exec
+IOM_FLAG_REALIDS		EQU	4000h	; Use real uid/gid for permision checking
+IOM_FLAG_LARGEFILE		EQU	8000h	; Largest off_t can be 64 bits
+IOM_FLAG_ASYNC			EQU	10000h	; Set async I/O
+
+; eflag
+IOM_CONNECT_EFLAG_DIR		EQU	1	; Path referenced a directory   
+IOM_CONNECT_EFLAG_DOT		EQU	2	; Last component was . or ..    
+
+; Return status from connect (these are continuation cases that always
+; negative - RET_FLAG is set). To avoid conflicts, IO msgs must never 
+; return a negative status
+IOM_CONNECT_RET_UMASK		EQU	020000h	; umask field in link reply is valid
+IOM_CONNECT_RET_NOCTTY		EQU	040000h	; No controling terminal defined
+IOM_CONNECT_RET_CHROOT		EQU	080000h	; chroot_len field in link reply is valid
+IOM_CONNECT_RET_MSG		EQU	100000h	; Connect to server and send new message
+
+IOM_CONNECT_RET_TYPE_MASK	EQU	01e000h	; Mask for returned file type
+IOM_CONNECT_RET_FTYPE		EQU	008000h	; File type was matched, IOM_connect_ftype_reply expected
+IOM_CONNECT_RET_LINK		EQU	010000h	; Not fully resolved, follow link
+
+IOM_CONNECT_RET_FLAG		EQU	80000000h ; Must be set to signify connect is returing
+
+; Sets the connect return code
+%define IOM_SET_CONNECT_RET(c,s) _RESMGR_STATUS(_c, IOM_CONNECT_RET_FLAG | (_s))
+
+; IOM_CONNECT reply redirecting resolution to other entries
+struc tIOMconnectLinkReply
+.reserved1	RESD	1
+.FileType	RESD	1	; FTYPE_* in ftype.ah
+.eflag		RESB	1	; IOM_CONNECT_EFLAG_*
+.reserved2	RESB	1
+.ChrootLen	RESW	1	; Length of chroot in returned path
+.umask		RESD	1	; ST_MODE_* in stat.ah 
+.nentries	RESW	1	; If zero, path is a symbolic link
+.PathLen	RESW	1	; Length including null. If zero, path is null terminated
+endstruc
+
+; IOM_CONNECT reply indicating a change/reply of a certain ftype and errno
+struc IOMconnectFtypeReply
+.status		RESW	1	; Typically an errno
+.reserved	RESW	1
+.FileType	RESD	1	; FTYPE_* in ftype.ah
+endstruc
+
+; used in tIOMconnectLinkReply
+struc tIOMconnectEntry
+.nd		RESD	1
+.pid		RESD	1	    
+.chid		RESD	1
+.handle		RESD	1
+.key		RESD	1
+.FileType	RESD	1
+.PrefixLen	RESW	1
+.zero		RESW	3
+endstruc
+
+struc tIOresmgrLinkExtra
+.nd		RESD	1
+.pid		RESD	1	    
+.chid		RESD	1
+.handle		RESD	1
+.flags		RESD	1
+.FileType	RESD	1
+.reserved	RESD	2
+endstruc
+
+; Server receives this structure filled in
+struc tIOmountSrv
+.ocb		RESP	1	; OCB to the path (remount) or special (first)
+.data		RESP	1	; Server specific data of len datalen
+.type		RESP	1	; Character string with type information
+.special	RESP	1	; Optional special device info
+.zero		RESP	4	; Padding
+endstruc
+
+struc tIOmountExtra
+.flags		RESD	1	; MOUNT_* or CFS_ST_* flags above
+.nbytes		RESD	1	; size of entire structure
+.datalen	RESD	1	; length of the data structure
+.zero		RESD	1
+				; if EXTRA_MOUNT_PATHNAME these set
+				; Sent from client to resmgr framework
+				; special info on first mount, path info on remount
+.extra		mResMax	tMsgInfo, tIOmountSrv
+endstruc
+
+
+;--- File descriptor based I/O messages ----------------------------------------
+
+; Common header for combining io messages
+
+struc tIOMcombine
+.type		RESW	1
+.CombineLen	RESW	1			; < 8000h
+endstruc
+
+IOM_COMBINE_FLAG	EQU	8000h		; ORed with combine len to cause combine
+
+
+; --- Message of IOM_CLOSE ---
+struc tIOMclose
+.Type		RESW	1
+.CombineLen	RESW	1
+endstruc
+
+
+; --- Message of IOM_WRITE ---
+struc tIOMwrite
+.Type		RESW	1
+.CombineLen	RESW	1
+.Nbytes		RESD	1
+.Xtype		RESD	1
+.Zero		RESD	1
+endstruc
+
+
+; --- Message of IOM_READ ---
+struc tIOMread
+.Type		RESW	1
+.CombineLen	RESW	1
+.Nbytes		RESD	1
+.Xtype		RESD	1
+.Zero		RESD	1
+endstruc
+
+
+; --- Message of IOM_STAT ---
+struc tIOM_stat
+.Type		RESW	1
+.CombineLen	RESW	1
+.Zero		RESD	1
+endstruc
+
+
+; --- Message of IOM_NOTIFY ---
+struc tIOMnotify
+.type		RESW	1
+.CombineLen	RESW	1
+.Action		RESD	1
+.Flags		RESD	1
+.Event		RESD	tSigEvent_size
+endstruc
+
+struc tIOMnotifyReply
+.Zero		RESD	1
+.Flags		RESD	1   
+endstruc
+
+
+; --- Message of IOM_DEVCTL ---
+struc tIOMdevctl
+.Type		RESW	1
+.CombineLen	RESW	1
+.Dcmd		RESD	1
+.Nbytes		RESD	1
+.Zero		RESD	1
+endstruc
+
+struc tIOMdevctlReply
+.Zero		RESD	1
+.RetVal		RESD	1
+.Nbytes		RESD	1
+.Zero2		RESD	1
+endstruc
+
+
+; --- Message of IOM_PATHCONF ---
+struc tIOMpathconf
+.Type		RESW	1
+.CombineLen	RESW	1
+.Name		RESW	1
+.Zero		RESW	1
+endstruc
+
+
+; --- Message of IOM_LSEEK ---
+struc tIOMlseek
+.Type		RESW	1
+.CombineLen	RESW	1
+.Whence		RESW	1
+.Zero		RESW	1
+.Offset		RESQ	1
+endstruc
+
+
+; --- Message of IOM_CHMOD ---
+struc tIOMchmod
+.Type		RESW	1
+.CombineLen	RESW	1
+.Mode		RESD	1
+endstruc
+
+
+; --- Message of IOM_CHOWN ---
+struc tIOMchown
+.Type		RESW	1
+.CombineLen	RESW	1
+.GID		RESD	1
+.UID		RESD	1
+endstruc
+
+
+; --- Message of IOM_UTIME ---
+struc tIOMutime
+.Type		RESW	1
+.CombineLen	RESW	1
+.CurFlag	RESD	1		; If set, ignore times and set to "now"
+.Times		RESB	tUtimeBuf_size
+endstruc
+
+
+; --- Message of IOM_OPENFD ---
+
+; IOM_OPENFD xtypes
+IOM_OPENFD_NONE		EQU	0
+IOM_OPENFD_PIPE		EQU	1
+IOM_OPENFD_RESERVED	EQU	2
+IOM_OPENFD_ACCEPT	EQU	3
+
+struc tIOMopenFD
+.type		RESW	1
+.CombineLen	RESW	1
+.IOflag		RESD	1		; IOM_FLAG_*
+.Sflag		RESW	1		; SH_* in share.ah
+.xtype		RESW	1
+.Info		RESB	tMsgInfo_size
+.Reserved2	RESD	1
+.Key		RESD	1
+endstruc
+
+
+; --- Message of IOM_FDINFO ---
+struc tIOMfdInfo
+.Type		RESW	1
+.CombineLen	RESW	1
+.Flags		RESD	1
+.PathLen	RESD	1
+.Reserved	RESD	1
+endstruc
+
+
+; --- Message of IOM_LOCK ---
+struc tIOMlock
+.Type		RESW	1
+.CombineLen	RESW	1
+.Subtype	RESD	1
+.Nbytes		RESD	1
+endstruc
+
+
+; --- Message of IOM_SPACE ---
+struc tIOMspace
+.type		RESW	1
+.CombineLen	RESW	1
+.Subtype	RESW	1	; F_ALLOCSP or F_FREESP 
+.Whence		RESW	1
+.Start		RESQ	1
+.Len		RESQ	1	; zero means to end of file
+endstruc
+
+
+; --- Message of IOM_SHUTDOWN ---
+struc tIOMshutdown
+.Type		RESW	1
+.CombineLen	RESW	1
+endstruc
+
+
+; --- Message of IOM_MMAP ---
+struc tIOMmmap
+.Type		RESW	1
+.CombineLen	RESW	1
+.Prot		RESD	1
+.Offset		RESQ	1
+.Info		RESB	tMsgInfo_size
+.Zero		RESD	6
+endstruc
+
+struc tIOMmmapReply
+.Zero		RESD	1
+.Flags		RESD	1
+.Offset		RESQ	1
+.CoID		RESD	1	    
+.FD		RESD	1
+endstruc
+
+
+; --- Message of IOM_DUP ---
+
+struc IOM_dup
+.Type		RESW	1
+.CombineLen	RESW	1
+.Info		RESB	tMsgInfo_size
+.Reserved	RESD	1
+.key		RESD	1
+endstruc
+
+
+; --- Message of IOM_MSG ---
+
+struc IOM_msg
+.Type		RESW	1
+.CombineLen	RESW	1
+.MgrID		RESW	1	; Manager ID (iomgr.ah)
+.Subtype	RESW	1	; Manager specific subtype
+endstruc
+
+
+; --- Message of IOM_SYNC ---
+struc tIOMsync
+.Type		RESW	1
+.CombineLen	RESW	1
+.Flag		RESD	1	; IOM_FLAG_{SYNC,DSYNC,RSYNC}
+endstruc
+
+%endif

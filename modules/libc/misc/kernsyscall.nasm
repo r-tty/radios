@@ -8,94 +8,94 @@ module libc.kernsyscall
 
 ; Macro for declaring actual system call C routine
 %macro mSyscall 1
-    exportproc %1
-%1:
-    mDoSyscall S_%1
-    ret
+	exportproc %1
+%1:	pop	edx
+	mDoSyscall S%1
+	jmp	edx
 %endmacro
 
 ;******* Exports *******
 
 ; Interrupt handling
-mSyscall InterruptAttach
-mSyscall InterruptDetach
-mSyscall InterruptDetachFunc
-mSyscall InterruptWait
+mSyscall _InterruptAttach
+mSyscall _InterruptDetach
+mSyscall _InterruptDetachFunc
+mSyscall _InterruptWait
 
 ; Message passing
-mSyscall MsgSend
-mSyscall MsgSendnc
-mSyscall MsgError
-mSyscall MsgReceive
-mSyscall MsgReply
-mSyscall MsgRead
-mSyscall MsgWrite
-mSyscall MsgInfo
-mSyscall MsgSendPulse
-mSyscall MsgDeliverEvent
-mSyscall MsgKeyData
-mSyscall MsgReadiov
-mSyscall MsgReceivePulse
-mSyscall MsgReceivePulsev
-mSyscall MsgVerifyEvent
+mSyscall _MsgSend
+mSyscall _MsgSendnc
+mSyscall _MsgError
+mSyscall _MsgReceive
+mSyscall _MsgReply
+mSyscall _MsgRead
+mSyscall _MsgWrite
+mSyscall _MsgInfo
+mSyscall _MsgSendPulse
+mSyscall _MsgDeliverEvent
+mSyscall _MsgKeyData
+mSyscall _MsgReadiov
+mSyscall _MsgReceivePulse
+mSyscall _MsgReceivePulsev
+mSyscall _MsgVerifyEvent
 
 ; Signal handling
-mSyscall SignalKill
-mSyscall SignalReturn
-mSyscall SignalFault
-mSyscall SignalAction
-mSyscall SignalProcmask
-mSyscall SignalSuspend
-mSyscall SignalWaitinfo
+mSyscall _SignalKill
+mSyscall _SignalReturn
+mSyscall _SignalFault
+mSyscall _SignalAction
+mSyscall _SignalProcmask
+mSyscall _SignalSuspend
+mSyscall _SignalWaitinfo
 
 ; Channel operations
-mSyscall ChannelCreate
-mSyscall ChannelDestroy
-mSyscall ConnectAttach
-mSyscall ConnectDetach
-mSyscall ConnectServerInfo
-mSyscall ConnectClientInfo
-mSyscall ConnectFlags
+mSyscall _ChannelCreate
+mSyscall _ChannelDestroy
+mSyscall _ConnectAttach
+mSyscall _ConnectDetach
+mSyscall _ConnectServerInfo
+mSyscall _ConnectClientInfo
+mSyscall _ConnectFlags
 
 ; Thread management
-mSyscall ThreadCreate
-mSyscall ThreadDestroy
-mSyscall ThreadDetach
-mSyscall ThreadJoin
-mSyscall ThreadCancel
-mSyscall ThreadCtl
+mSyscall _ThreadCreate
+mSyscall _ThreadDestroy
+mSyscall _ThreadDetach
+mSyscall _ThreadJoin
+mSyscall _ThreadCancel
+mSyscall _ThreadCtl
 
 ; Clock primitives
-mSyscall ClockTime
-mSyscall ClockAdjust
-mSyscall ClockPeriod
-mSyscall ClockId
+mSyscall _ClockTime
+mSyscall _ClockAdjust
+mSyscall _ClockPeriod
+mSyscall _ClockId
 
 ; Timer handling
-mSyscall TimerCreate
-mSyscall TimerDestroy
-mSyscall TimerSettime
-mSyscall TimerInfo
-mSyscall TimerAlarm
-mSyscall TimerTimeout
+mSyscall _TimerCreate
+mSyscall _TimerDestroy
+mSyscall _TimerSettime
+mSyscall _TimerInfo
+mSyscall _TimerAlarm
+mSyscall _TimerTimeout
 
 ; Synchronization
-mSyscall SyncTypeCreate
-mSyscall SyncDestroy
-mSyscall SyncMutexLock
-mSyscall SyncMutexUnlock
-mSyscall SyncCondvarWait
-mSyscall SyncCondvarSignal
-mSyscall SyncSemPost
-mSyscall SyncSemWait
-mSyscall SyncCtl
-mSyscall SyncMutexRevive
+mSyscall _SyncTypeCreate
+mSyscall _SyncDestroy
+mSyscall _SyncMutexLock
+mSyscall _SyncMutexUnlock
+mSyscall _SyncCondvarWait
+mSyscall _SyncCondvarSignal
+mSyscall _SyncSemPost
+mSyscall _SyncSemWait
+mSyscall _SyncCtl
+mSyscall _SyncMutexRevive
 
 ; Scheduling
-mSyscall SchedGet
-mSyscall SchedSet
-mSyscall SchedYield
-mSyscall SchedInfo
+mSyscall _SchedGet
+mSyscall _SchedSet
+mSyscall _SchedYield
+mSyscall _SchedInfo
 
 publicproc libc_init_syscall
 

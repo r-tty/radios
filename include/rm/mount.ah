@@ -1,0 +1,28 @@
+;-------------------------------------------------------------------------------
+; mount.ah - mount definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _mount_ah
+%define _mount_ah
+
+%include "rm/cfsstat.ah"
+
+; These flags match with the iofunc mount flags and can be masked directly
+MOUNT_READONLY	EQU	CFS_ST_RDONLY	; read only
+MOUNT_NOEXEC	EQU	CFS_ST_NOEXEC	; can't exec from filesystem
+MOUNT_NOSUID	EQU	CFS_ST_NOSUID	; don't honor setuid bits on fs
+MOUNT_NOCREAT	EQU	CFS_ST_NOCREAT	; don't allow creat on this fs
+MOUNT_OFF32	EQU	CFS_ST_OFF32	; Limit off_t to 32 bits
+MOUNT_NOATIME	EQU	CFS_ST_NOATIME	; don't update times if only atime is dirty
+
+; Mount specific flags
+MOUNT_UNMOUNT	EQU	1000h	; Unmount this path
+MOUNT_REMOUNT	EQU	2000h	; This path is already mounted, perform an update
+MOUNT_FORCE	EQU	4000h	; Force an unmount or a remount change
+MOUNT_ENUMERATE	EQU	8000h	; Auto-detect on this device
+
+MFLAG_OCB	EQU	80000000h	; Attempt to open the device and send and ocb to server
+MFLAG_SPEC	EQU	40000000h	; Send the special device string to the server
+MFLAG_STRUCT	EQU	20000000h	; The data is not a string, but a structure and datalen is defined
+
+%endif

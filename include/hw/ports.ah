@@ -112,6 +112,7 @@
 %define	PORT_CGA_Status		3DAh
 %define	PORT_VGA_Sequencer	3C4h
 %define	PORT_VGA_Graphics	3CEh
+%define PORT_MDA_CAddr		3B4h
 
 ; --- FDC registers ---
 %define	PORT_FDC_DOR		3F2h		; Digital Output Register

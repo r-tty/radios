@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  memman.ah - memory management definitions.
+; memman.ah - memory management definitions.
 ;-------------------------------------------------------------------------------
 
 %ifndef _memman_ah
@@ -7,20 +7,18 @@
 
 ; Memory control block structure
 struc tMCB
-.Signature	RESW	1				; Signature
-.Flags		RESW	1				; Flags
-.Addr		RESD	1				; Region address
-.Len		RESD	1				; Region length
-.Count		RESW	1				; References count
-.Type		RESB	1				; Region type
+.PoolSignature	RESD	1			; Pool chunk signature
+.Signature	RESW	1			; Signature
+.Flags		RESW	1			; Flags
+.Addr		RESD	1			; Region address
+.Len		RESD	1			; Region length
+.Count		RESW	1			; References count
+.Type		RESB	1			; Region type
 .Reserved	RESB	1
-.Next		RESD	1				; Next MCB
-.Prev		RESD	1				; Previous MCB
-.Reserved2	RESD	2
+.Next		RESD	1			; List link
+.Prev		RESD	1
+.Pad		RESD	1
 endstruc
-
-%define	MCBSIZE		32
-%define	MCBSHIFT	5
 
 ; MCB signatures
 %define	MCBSIG_PRIVATE	"RP"
@@ -34,16 +32,19 @@ endstruc
 %define	MCBFL_READY	8
 
 ; Region types
-%define	REGTYPE_KERNEL	0			; Only for kernel
-%define	REGTYPE_TEXT	1			; Text (read-only)
-%define	REGTYPE_DATA	2			; Data
-%define	REGTYPE_BSS	3			; BSS
+%define	REGTYPE_PRIV	0			; For task manager
+%define	REGTYPE_CODE	1			; Code section (read-only)
+%define	REGTYPE_DATA	2			; Data section
+%define	REGTYPE_BSS	3			; BSS (follows data)
 %define	REGTYPE_STACK	4			; Stack
 %define	REGTYPE_OTHER	5			; Other read-only data
 
-; Memory block can be allocated in different areas
-%define AREALOC_USER	0
-%define	AREALOC_SHLIB	1
-%define	AREALOC_DRV	2
+; Page protection flags which may be ORed together
+%define PROT_NONE	0
+%define PROT_READ	100h			; Pages can be read
+%define PROT_WRITE	200h			; Pages can be written
+%define PROT_EXEC	400h			; Pages can be executed
+%define PROT_NOCACHE	800h			; Pages are not cached
+%define PROT_MASK	0F00h			; Mask for prot bits
 
 %endif

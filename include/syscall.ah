@@ -6,6 +6,8 @@
 %define _syscall_ah
 
 ; Syscall numbers
+S_traceevent		EQU	1
+S_Ring0			EQU	2
 S_MsgSend		EQU	0Bh
 S_MsgSendnc		EQU	0Ch
 S_MsgError		EQU	0Dh
@@ -35,7 +37,7 @@ S_ConnectDetach		EQU	28h
 S_ConnectServerInfo	EQU	29h
 S_ConnectClientInfo	EQU	2Ah
 S_ConnectFlags		EQU	2Bh
-S_ThreadCreate		EQU	2Ch
+S_ThreadCreate		EQU	2Eh
 S_ThreadDestroy		EQU	2Fh
 S_ThreadDetach		EQU	31h
 S_ThreadJoin		EQU	32h
@@ -73,13 +75,13 @@ S_SchedInfo		EQU	5Bh
 ; Syscall trap
 %define	SYSCALL_TRAP	38h
 
-; Macro for performing a system call
+; Macro for performing a system call.
 %macro mDoSyscall 1
 	mov	eax,%1
 %ifdef USE_SYSENTER
 	; Use fast call via SYSENTER
+	mov	edx,%%1
 	mov	ecx,esp
-	mov	edx,%1
 	sysenter
 %%1:
 %else

@@ -1,0 +1,28 @@
+;-------------------------------------------------------------------------------
+; binfmt.ah - definitions for Binary Format drivers.
+;-------------------------------------------------------------------------------
+
+%ifndef _binfmt_ah
+%define _binfmt_ah
+
+; Functions exported by binary formats
+struc tBinFmtFunctions
+.Init		RESD	1
+.Shutdown	RESD	1
+.CheckSig	RESD	1
+.GetModSize	RESD	1
+.GetModType	RESD	1
+.LoadModule	RESD	1
+.Relocate	RESD	1
+.GetArchMember	RESD	1
+endstruc
+
+; The macro for calling these functions safely
+%macro callsafe 1
+	cmp	%1,0
+	je	%%NoCall
+	call	%1
+%%NoCall:
+%endmacro
+
+%endif

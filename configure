@@ -3,15 +3,16 @@
 # Default paths
 RADIOSPATH=`pwd`
 INCLPATH=$RADIOSPATH/include
-OBJPATH=$RADIOSPATH/build/obj
-LIBPATH=$RADIOSPATH/build/obj/lib
-INSTALLPATH=/boot/RadiOS
+OBJTOP=$RADIOSPATH/Build/obj
+LIBPATH=$RADIOSPATH/Build/lib
+INSTALLPATH=/mnt/radios
 
 # Prompt and read string from stdin
 ReadData() {
     echo -n $3 "[$2]: "
     read p
     [ $p ] && eval $1=$p
+    export $1
 }
 
 # Check version of the tools used in Makefiles
@@ -24,22 +25,18 @@ CheckTools() {
 # Main
 ReadData RADIOSPATH $RADIOSPATH "Source root directory"
 ReadData INCLPATH $INCLPATH "RadiOS headers directory"
-ReadData OBJPATH $OBJPATH "Object directory"
+ReadData OBJTOP $OBJTOP "Object top-level directory"
 ReadData LIBPATH $LIBPATH "Library directory"
 ReadData INSTALLPATH $INSTALLPATH "Install directory"
 
-awk -v RADIOSPATH=$RADIOSPATH \
-    -v INCLPATH=$INCLPATH \
-    -v OBJPATH=$OBJPATH \
-    -v LIBPATH=$LIBPATH \
-    -v INSTALLPATH=$INSTALLPATH '
-/@@RADIOSPATH@@/	{ print $1,$2,RADIOSPATH; next }
-/@@INCLPATH@@/		{ print $1,$2,INCLPATH; next }
-/@@OBJPATH@@/		{ print $1,$2,OBJPATH; next }
-/@@LIBPATH@@/		{ print $1,$2,LIBPATH; next }
-/@@INSTALLPATH@@/	{ print $1,$2,INSTALLPATH; next }
+awk '
+/@@RADIOSPATH@@/	{ print $1, $2, ENVIRON["RADIOSPATH"]; next }
+/@@INCLPATH@@/		{ print $1, $2, ENVIRON["INCLPATH"]; next }
+/@@OBJTOP@@/		{ print $1, $2, ENVIRON["OBJTOP"]; next }
+/@@LIBPATH@@/		{ print $1, $2, ENVIRON["LIBPATH"]; next }
+/@@INSTALLPATH@@/	{ print $1, $2, ENVIRON["INSTALLPATH"]; next }
 			{ print $0 }
-' build/header.mk.in > build/header.mk
+' Build/header.mk.in > Build/header.mk
 
 echo
 echo "Configuration file has been generated. Now run 'gmake dep', then 'gmake'."

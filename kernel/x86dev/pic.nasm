@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  pic.nasm - Programmable interrupt controller routines.
+; pic.nasm - Programmable interrupt controller routines.
 ;-------------------------------------------------------------------------------
 
 %include "hw/pic.ah"

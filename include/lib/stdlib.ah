@@ -1,0 +1,27 @@
+;
+; stdlib.ah - standard library functions.
+;
+
+%ifndef _stdlib_ah
+%define _stdlib_ah
+
+%define RAND_MAX        7FFFh
+%define EXIT_SUCCESS    0
+%define EXIT_FAILURE    1
+
+struc tDiv
+.Quot	RESD	1
+.Rem	RESD	1
+endstruc
+
+struc tLdiv
+.Quot	RESD	1
+.Rem	RESD	1
+endstruc
+
+struc tLLdiv
+.Quot	RESQ	1
+.Rem	RESQ	1
+endstruc
+
+%endif

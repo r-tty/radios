@@ -7,8 +7,18 @@
 
 %include "cpu/paging.ah"
 
-%define	MAXNUMTHREADS	32		; Maximum number of threads
-%define UMINSTACK	PAGESIZE*16	; Initial user stack size
+%define	MAXNUMTHREADS	1024		; Maximum number of threads
+%define	MAXNUMPROCESSES	512		; Maximum number of processes
+%define MAXMODULES	768		; Maximun number of modules
+%define MAXMCBS		8192		; Maximum number of memory ctrl blocks
+%define MAXOCBS		4096		; Maximum number of open control blocks
+%define MAXTIMERS	128		; Maximum number of timers
+%define MAXCHANNELS	1024		; Maximum number of channels
+%define MAXCONNECTIONS	64		; Maximum number of channel connections
+
+%define MAXHEAPSIZE	10000000h	; Maximum user heap size
+%define INITRDSIZE	1440		; Size of new RAM-disk (in kilobytes)
+
 %define UMAXSTACK	PAGESIZE*256	; Maximum user stack size
 
 %define	HZ		100		; Timer ticks per second

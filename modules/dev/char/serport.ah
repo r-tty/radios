@@ -2,7 +2,6 @@
 ; serport.ah - serial port driver definitions.
 ;-------------------------------------------------------------------------------
 
-
 ; UART registers
 %define	UART_RX			0		; Receive buffer (DLAB=0) (in)
 %define	UART_TX			0		; Transmit buffer (DLAB=0) (out)

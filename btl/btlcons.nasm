@@ -1,17 +1,19 @@
 ;-------------------------------------------------------------------------------
-; cons.nasm - basic console I/O functions.
+; btlcons.nasm - basic console I/O functions.
 ;-------------------------------------------------------------------------------
 
 %include "asciictl.ah"
 %include "biosdata.ah"
 %include "hw/ports.ah"
 %include "hw/vga.ah"
-%include "hw/8042.ah"
-%include "hw/keydefs.ah"
+%include "hw/kbc.ah"
+%include "hw/kbdcodes.ah"
 
 publicproc ConsInit, ServiceEntry
-publicproc putchar, puts, getc
-publicproc printlong, panic
+publicproc _putchar, _puts, _getc
+publicproc _printlong, _panic
+
+extern _printf
 
 ; --- Error codes ---
 %define	ERR_VTX_DetFail		1
@@ -56,7 +58,12 @@ FunctionTable	DD	PrintCharRawTTY		; 0
 		DD	GetChar			; 8
 		
 
+TxtPanic	DB	"BTL fatal error: ", 0
+
+
 ; --- Variables ---
+
+section .bss
 
 ?VideoMem	RESD	1		; Video memory base address
 ?KeybFlags	RESD	1		; Keyboard flags, like Shift-press, etc
@@ -585,9 +592,9 @@ endp		;---------------------------------------------------------------
 
 		; ServiceEntry - entry used for kernel debugging.
 		; Input: function code must be on the stack.
-		;	 Arguments passed in the registers as usual.
+		;	 Arguments are passed in the registers as usual.
 		; Output: function results.
-		; Note: Pascal-style (removes argument from the stack)
+		; Note: C-style (doesn't remove argument from the stack)
 proc ServiceEntry
 		arg	funcnum
 		prologue
@@ -600,7 +607,7 @@ proc ServiceEntry
 		xchg	eax,[esp]
 		ret					; Call routine
 .Done:		epilogue
-		ret	4
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -622,7 +629,7 @@ endp		;---------------------------------------------------------------
 ; *** C interface ***
 
 		; void putchar(char c);
-proc putchar
+proc _putchar
 		arg	char
 		prologue
 		mpush	esi,edi
@@ -635,7 +642,7 @@ endp		;---------------------------------------------------------------
 
 
 		; void puts(char *s);
-proc puts
+proc _puts
 		arg	str
 		prologue
 		mpush	esi,edi
@@ -650,7 +657,7 @@ endp		;---------------------------------------------------------------
 
 
 		; void printlong(unsigned long u);
-proc printlong
+proc _printlong
 		arg	val
 		prologue
 		mov	eax,[%$val]
@@ -660,17 +667,18 @@ proc printlong
 endp		;---------------------------------------------------------------
 
 		; char getc(void);
-proc getc
+proc _getc
 		call	GetChar
 		and	eax,0FFh
 		ret
 endp		;---------------------------------------------------------------
 
 		; void panic(const char *fmt, ...);
-proc panic
-extern printf
+proc _panic
+		mov	esi,TxtPanic
+		call	PrintStr
 		mov	[esp],dword .Forever
-		jmp	printf
+		jmp	_printf
 .Forever:	hlt
 		jmp	.Forever
 endp		;---------------------------------------------------------------

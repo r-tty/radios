@@ -1,0 +1,126 @@
+;-------------------------------------------------------------------------------
+; iomsg.ah - definitions for iofunc layer.
+;-------------------------------------------------------------------------------
+
+%ifndef _iofunc_ah
+%define _iofunc_ah
+
+%include "siginfo.ah"
+
+; --- Mount point definitions ---
+
+struc tIOfuncMount
+.Flags		RESD	1
+.Conf		RESD	1
+.Dev		RESD	1
+.BlockSize	RESD	1
+.Funcs		RESP	1
+endstruc
+
+IOFUNC_MOUNT_FLAGS	EQU	0FFh
+IOFUNC_MOUNT_32BIT	EQU	100h	; offset, nbytes, inode and size are always 32-bit
+IOFUNC_MOUNT_FLAGS_PRIV	EQU	0FFFFF000h ; Bits available for private implementations
+
+IOFUNC_PC_CHOWN_RESTR	EQU	1	; Filesystem is chown restricted
+IOFUNC_PC_NO_TRUNC	EQU	2	; Filesystem doesn't truncate names
+IOFUNC_PC_SYNC_IO	EQU	4	; Filesystem sync I/O supported
+IOFUNC_PC_LINK_DIR	EQU	8	; Link (and unlink) on dir allowed
+
+
+; --- File or device attributes (usually embeded within an inode ---
+
+struc tIOfuncAttr
+.Mount		RESP	1		; Used to find tIOfuncMount
+.Flags		RESD	1		; Dirty and invalid flags
+.LockTID	RESD	1		; Thread that has attr locked
+.LockCount	RESW	1		; Lock count (0 == unlocked)
+.count		RESW	1		; File use count
+.rcount		RESW	1		; File reader count
+.wcount		RESW	1		; File writer count
+.rlocks		RESW	1		; Number of read locks
+.wlocks		RESW	1		; Number of write locks
+.MmapList	RESP	1		; List of mmap ids
+.LockList	RESP	1		; Lock lists
+.list		RESP	1		; Reserved for future use
+.ListSize	RESD	1		; Size of reserved area
+.nbytes		RESQ	1		; Always Number of bytes
+.inode		RESQ	1		; mount point specific inode
+.UID		RESD	1		; User Id
+.GID		RESD	1		; Group Id
+.mtime		RESD	1		; Modification time (write updates)
+.atime		RESD	1		; Access time (read updates
+.ctime		RESD	1		; Change time (write/ch* updates)
+.mode		RESD	1		; File mode (ST_MODE_* from stat.ah)
+.nlink		RESD	1		; Number of links to the file
+.rdev		RESD	1		; dev num for CHR special, rdev num for NAME special
+endstruc
+
+IOFUNC_ATTR_RSVD	EQU	0FFFFh		; Bits reserved for iofunc
+IOFUNC_ATTR_PRIVATE	EQU	0FFFF0000h	; Bits for private implementation
+IOFUNC_ATTR_SYNTHETIC	EQU	08000h		; Attr may be modified regardless of ST_RDONLY/EROFS
+
+IOFUNC_ATTR_MTIME	EQU	0x00000001  ; File written -- mtime invalid
+IOFUNC_ATTR_ATIME	EQU	0x00000002  ; File read -- atime invalid
+IOFUNC_ATTR_CTIME	EQU	0x00000004  ; File info changed -- ctime invalid
+IOFUNC_ATTR_INLIST	EQU	0x00000008  ; Iterating through attr's lock list
+IOFUNC_ATTR_DIRTY_MASK	EQU	0x00000FF0  ; Some attributes are dirty
+IOFUNC_ATTR_DIRTY_SIZE	EQU	0x00000010  ; size changed
+IOFUNC_ATTR_DIRTY_OWNER	EQU	0x00000020  ; uid or gid changed
+IOFUNC_ATTR_DIRTY_TIME	EQU	0x00000040  ; mtime, atime or ctime changed
+IOFUNC_ATTR_DIRTY_MODE	EQU	0x00000080  ; mode changed
+IOFUNC_ATTR_DIRTY_NLINK	EQU	0x00000100  ; # links changed
+IOFUNC_ATTR_DIRTY_RDEV	EQU	0x00000200  ; dev/rdev num changed
+
+
+; --- Open control block (usually embeded within file system ocb) ---
+struc tIOfuncOCB
+.Attr		RESP	1	; Used to find tIOfuncAttr
+.IOflag		RESD	1	; open's oflag + 1
+.Offset		RESQ	1
+.Sflag		RESW	1
+.Flags		RESW	1
+.Reserved	RESP	1
+endstruc
+
+IOFUNC_OCB_PRIVILEGED	EQU	1	; set if ocb opened by privileged process
+IOFUNC_OCB_MMAP		EQU	2	; set if ocb used by mmap
+IOFUNC_OCB_FLAGS_PRIVATE EQU	0F000h	; Bits for private implementation
+
+
+; --- Other definitions used by iofunc functions ---
+
+struc tIOiofuncFuncs
+.Nfuncs		RESD	1
+.OCBcalloc	RESP	1	; Address of ocb_calloc()
+.OCBfree	RESP	1	; Address of ocb_free()
+endstruc
+
+; Flags returned from iofunc_ocb_detach
+IOFUNC_OCB_LAST_INUSE	EQU	1
+IOFUNC_OCB_LAST_READER	EQU	2
+IOFUNC_OCB_LAST_WRITER	EQU	4
+IOFUNC_OCB_LAST_RDLOCK	EQU	8
+IOFUNC_OCB_LAST_WRLOCK	EQU	10h
+
+
+; --- Notify structures ---
+
+struc tIOfuncNotifyEvent
+.Next		RESP	1
+.RcvID		RESD	1
+.SCoID		RESD	1
+.Cnt		RESD	1
+.Event		RESB	tSigEvent_size
+endstruc
+
+struc tIOfuncNotify
+.Cnt		RESD	1
+.List		RESP	1	; Address of tIOfuncNotifyEvent head
+endstruc
+
+; Indexes to the array of tIOfuncNotify
+IOFUNC_NOTIFY_INPUT	EQU	0
+IOFUNC_NOTIFY_OUTPUT	EQU	1
+IOFUNC_NOTIFY_OBAND	EQU	2
+
+%endif

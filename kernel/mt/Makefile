@@ -3,15 +3,18 @@
 # Copyright (c) 2000 RET & COM Research.
 ################################################################################
 
+# This must be defined first
+group = kernel
+subgroup = _mt
+
 # Standard header
-include ../../build/header.mk
+include ../../Build/header.mk
 
 # Change variables here
 OBJS = mt.$(O)
-modnamesfile = .mt-modules
 
 # This part shouldn't be changed
-include ../../build/common.mk
+include ../../Build/common.mk
 
 # Individual dependencies
 all-dep: dep

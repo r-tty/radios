@@ -1,0 +1,30 @@
+;-------------------------------------------------------------------------------
+; pit.ah - programmable interval timer (8254) definitions
+;-------------------------------------------------------------------------------
+
+%ifndef _pit_ah
+%define _pit_ah
+
+%define	PIT_INPCLK	1193180			; Input clock (Hz)
+%define PIT_SPEAKERFREQ	1200			; Default speaker tone (Hz)
+
+; Control word bits
+%define	PITCW_BCD		1		; BCD counting
+
+%define	PITCW_Mode0		0		; Counting modes
+%define	PITCW_Mode1		2
+%define	PITCW_Mode2		4
+%define	PITCW_Mode3		6
+%define	PITCW_Mode4		8
+%define	PITCW_Mode5		10
+
+%define	PITCW_Latch		0		; Latch value
+%define	PITCW_LB		10h		; Low byte
+%define	PITCW_HB		20h		; High byte
+%define	PITCW_LH		30h		; Low & high
+
+%define	PITCW_CT0		0		; Counter select
+%define	PITCW_CT1		40h
+%define	PITCW_CT2		80h
+
+%endif

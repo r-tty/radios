@@ -55,6 +55,7 @@ typedef struct {
 typedef struct {
     uint8 Type;				/* 2 */
     uint8 RecLen;			/* Content length */
+    uint8 Flags;			/* SYM_* flags */
     uint16 Seg;				/* Segment number allocated to
 					   the label for reloc records -
 					   label is assumed to be at
@@ -71,7 +72,7 @@ typedef struct {
 typedef struct {
     uint8 Type;				/* 3 */
     uint8 RecLen;			/* Content length */
-    uint8 Flags;			/* Flags */
+    uint8 Flags;			/* SYM_* flags */
     uint8 Seg;				/* Segment referred to (0/1/2) */
     uint32 Ofs;				/* Offset within segment */
     char Lbl[33];			/* Zero terminated as above */
@@ -120,9 +121,10 @@ typedef struct {
 } tRDFgeneric;
 
 /* Export record flags */
-#define	RDFEXPORT_DATA		1
-#define	RDFEXPORT_FUNCTION	2
-#define	RDFEXPORT_GLOBAL	4
+#define	SYM_DATA		1
+#define	SYM_FUNCTION		2
+#define	SYM_GLOBAL		4
+#define SYM_IMPORT		8
 
 /* Segment types */
 #define	RDFSEG_NULL		0

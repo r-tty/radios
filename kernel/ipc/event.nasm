@@ -1,37 +1,21 @@
-;*******************************************************************************
-;  event.nasm - RadiOS IPC "events" primitives.
-;  Copyright (c) 2000 RET & COM Research.
-;*******************************************************************************
+;-------------------------------------------------------------------------------
+; event.nasm - event delivery functions.
+;-------------------------------------------------------------------------------
 
 module kernel.ipc.event
 
 %include "sys.ah"
 %include "errors.ah"
 
+publicproc sys_MsgDeliverEvent, sys_MsgVerifyEvent
 
-; --- Exports ---
-global K_HandleEvent
-
-
-; --- Imports ---
-extern KernelEventHandler, SysReboot
-
-; --- Code ---
 section .text
 
-		; K_HandleEvent - immediate event handling.
-		; Input: EDX=PID,
-		;	 EAX=event code.
-		; Output: CF=0 - OK;
-		;	  CF=1 - return.
-proc K_HandleEvent
-	;XXX
-	jmp SysReboot
-		or	edx,edx				; Kernel process?
-		jz	short .Kernel
-		
-.Kernel:	xchg	eax,edx
-		call	KernelEventHandler
+proc sys_MsgDeliverEvent
+		ret
+endp		;---------------------------------------------------------------
 
-.Exit		ret
+
+proc sys_MsgVerifyEvent
+		ret
 endp		;---------------------------------------------------------------

@@ -69,13 +69,31 @@ Nov 22, 2001	Main RadiOS development center moved 2000 km north (together
 		
 Dec 02, 2001	Version 0.0.1-pre1:
 
-May 02, 2002	Version 0.0.1-mk0:
+Feb 21, 2002	Being totally impressed after reading Jochen Liedtke's articles
+		about L4 and after trying a fresh QNX 6.1, I decided to change
+		the RadiOS architecture completely. I almost decided to write
+		a new micro-kernel from scratch and prepared a branch version,
+		consisting of old RadiOS loader and "jmp $" init. Later,
+		however, I understood how big this work could be, and decided
+		to use some existing RadiOS stuff.
 
-May 06, 2002	Version 0.0.1-mk1: first release available at SourceForge
+May 02, 2002	Version 0.0.1-mk0: this is a starting point of the RadiOS
+		microkernel. The result of massive code cleanup is a 10 KB
+		"kernel" that is only able to print "Hello world".
 
-May 24, 2002	Version 0.0.1-mk2:
+May 06, 2002	Version 0.0.1-mk1: first release available at SourceForge.
+		Nothing radically new comparing with previous release;
+		again code cleanup and re-arrangements.
 
-Sep 15, 2002	Version 0.0.1-mk3:
+May 24, 2002	Version 0.0.1-mk2: just removing an old cruft and preparing
+		for coding the core microkernel services.
+
+Sep 15, 2002	Version 0.0.1-mk3: a bunch of the empty functions appeared in
+		the syscall module. I decided to have a QNX6 compatibility
+		in the syscall numbers and parameters. In other words,
+		when these functions will be written, it could be possible
+		to provide [some] binary compatibility with QNX6 programs.
+		Some new opcodes (like sysenter) added to monitor/debugger.
 
 Nov 14, 2002	Version 0.0.1-mk4: first user process (taskman) is running
 		in user mode. New Boot Time Linker (BTL) constructs modules
@@ -98,7 +116,7 @@ Dec 30, 2002	Version 0.0.1-mk5: Basic message passing routines. Task
 Jan 20, 2003	Version 0.0.1-mk6: Message passing primitives - the core of
 		RadiOS microkernel - work (not for multipart messages, though).
 
-May 30, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
+Jun 15, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
 		multipart data (IOVs). This brings some performance penalty,
 		but.. that's the price of compatibility :) . Synchronization
 		syscalls (mutexes, semaphores and condvars) are implemented.

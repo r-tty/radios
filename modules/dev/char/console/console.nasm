@@ -32,10 +32,9 @@ library $libc
 importproc _memset, _usleep, _ThreadCtl
 
 library $librm
-importproc RM_InitHandlers, RM_InitAttributes
-importproc RM_AttachName, RM_HandleMsg
-importproc RM_AllocDesc, RM_AllocContext
-importproc RM_WaitMsg
+importproc _dispatch_create, _iofunc_func_init, _iofunc_attr_init
+importproc _resmgr_attach, _resmgr_context_alloc
+importproc _resmgr_block, _resmgr_handler
 
 
 %define	NUMVIRTCONS	8			; Number of virtual consoles
@@ -124,7 +123,7 @@ proc CON_Main
 		mov	word [?BeepTone],1200
 
 		; Allocate the descriptor
-		call	RM_AllocDesc
+		call	_dispatch_create
 		jc	near .Err1
 		mov	[%$dpp],eax
 
@@ -135,37 +134,27 @@ proc CON_Main
 		mov	dword [edi+tResMgrAttr.MsgMaxSize],2048
 
 		; Initialize functions for handling messages
-		mov	ecx,RESMGR_CONNECT_NFUNCS + (RESMGR_IO_NFUNCS << 16)
-		mov	ebx,?ConnectFuncs
-		mov	edx,?IOfuncs
-		call	RM_InitHandlers
+		Ccall	_iofunc_func_init, byte RESMGR_CONNECT_NFUNCS, \
+			?ConnectFuncs, byte RESMGR_IO_NFUNCS, ?IOfuncs
 
 		; Initialize device attributes
-		mov	ebx,?Attr
-		mov	eax,ST_MODE_IFNAM | 1B6h
-		call	RM_InitAttributes
+		Ccall	_iofunc_attr_init, ?Attr, ST_MODE_IFNAM | 1B6h, 0, 0
 
 		; Attach device name
-		mov	eax,[%$dpp]
-		mov	esi,ConDevPath
-		mov	ecx,FTYPE_ANY
-		mov	ebx,?ConnectFuncs
-		mov	edx,?IOfuncs
-		push	?Attr
-		call	RM_AttachName
-		jc	.Err2
-		mov	edx,eax
+		lea	edi,[%$rmattr]
+		Ccall	_resmgr_attach, dword [%$dpp], edi, ConDevPath, \
+			FTYPE_ANY, byte 0, ?ConnectFuncs, ?IOfuncs, ?Attr
+		test	eax,eax
+		js	.Err2
 
 		; Allocate a context structure
-		mov	eax,[%$dpp]
-		call	RM_AllocContext
-		mov	ebx,eax
+		Ccall	_resmgr_context_alloc, dword [%$dpp]
 
 		; Start the message processing loop
-.Loop:		call	RM_WaitMsg
-		jc	.Err3
-		mov	ebx,eax
-		call	RM_HandleMsg
+.Loop:		Ccall	_resmgr_block, eax
+		or	eax,eax
+		jz	.Err3
+		Ccall	_resmgr_handler, eax
 		jmp	.Loop
 
 .Exit:		epilogue

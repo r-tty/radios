@@ -16,6 +16,23 @@ SELECT_FLAG_EXCEPT	EQU	NOTIFY_COND_OBAND
 SELECT_FLAG_REARM	EQU	1
 SELECT_FLAG_SRVEXCEPT	EQU	2
 
+struc tSelectAttr
+.Flags		RESD	1
+.Reserved	RESD	3
+endstruc
+
+struc tSelectContext
+.RcvId		RESD	1
+.Info:		mResMax	tMsgInfo, tSigInfo
+.Msg		RESP	1
+.dpp		RESP	1
+.FD		RESD	1
+.TID		RESD	1
+.Reserved	RESD	1
+.Spare		RESD	2
+.IOV		RESB	tIOV_size
+endstruc
+
 ; Resmgr dispatch functions
 RESMGR_FLAG_NO_DEFAULT_FUNC	EQU	1
 RESMGR_FLAG_ATTACH_LOCAL	EQU	2
@@ -66,7 +83,25 @@ struc tMessageContext
 .Status		RESD	1
 .Offset		RESD	1
 .Size		RESD	1
-.IOV		RESD	1
+.IOV:					; Arbitrary number of IOVs may follow
+endstruc
+
+; Sigwait context definitions
+struc tSigwaitAttr
+.Flags		RESD	1
+.Reserved	RESD	3
+endstruc
+
+struc tSigwaitContext
+.Signo		RESD	1
+.Info:		mResMax	tMsgInfo, tSigInfo
+.Msg		RESP	1
+.dpp		RESP	1
+.Status		RESD	1
+.TID		RESD	1
+.Sigset		RESQ	1
+.Spare		RESD	2
+.IOV		RESB	tIOV_size
 endstruc
 
 ; General dispatch functions
@@ -83,10 +118,10 @@ DISPATCH_MAX		EQU	6
 DISPATCH_ERROR		EQU	-1
 
 union tDispatchContext
-	unimemb	tResmgrContext;					
-	unimemb	tMessageContext;					
-	unimemb	tSelectContext;
-	unimemb	tSigwaitContext;
+	unimemb	tResMgrContext
+	unimemb	tMessageContext
+	unimemb	tSelectContext
+	unimemb	tSigwaitContext
 endunion
 
 %endif

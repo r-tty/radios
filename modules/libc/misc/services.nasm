@@ -10,8 +10,7 @@ module libc.services
 %include "rm/pathmgr.ah"
 
 exportproc _netmgr_remote_nd
-exportproc _pathmgr_symlink, _pathmgr_unlink
-publicproc PathmgrLink
+exportproc _pathmgr_symlink, _pathmgr_unlink, _pathmgr_link
 
 externproc ConnectEntry
 externproc _ConnectDetach
@@ -32,10 +31,10 @@ proc _netmgr_remote_nd
 endp		;---------------------------------------------------------------
 
 
-		; int PathmgrLink(const char *path, uint nd, pid_t pid,
+		; int _pathmgr_link(const char *path, uint nd, pid_t pid,
 		;		int chid, uint handle, enum file_type file_type,
 		;		unsigned flags);
-proc PathmgrLink
+proc _pathmgr_link
 		arg	path, nd, pid, chid, handle, ftype, flags
 		locauto	link, tIOresmgrLinkExtra
 		prologue

@@ -37,6 +37,7 @@ $(SUBDIRS):
 
 #--- Install kernel and modules -------------------------------------------------
 
+.PHONY: install install_kernel install_modules
 install: install_kernel install_modules
 	@Misc/boot/install_to_hdimg.sh $(INSTALLPATH)
 
@@ -50,6 +51,7 @@ install_modules:
 
 #--- Recursive depends ---------------------------------------------------------
 
+.PHONY: dep
 dep:
 	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir all-dep ; done
 	@$(MAKE) -s -C modules all-dep
@@ -57,7 +59,7 @@ dep:
 
 #--- Clean ---------------------------------------------------------------------
 
-.PHONY: clean distclean release
+.PHONY: clean distclean
 clean:
 	@rm -f $(RMK)
 	@find $(OBJTOP) -name *.$(O) -exec rm '{}' \;
@@ -65,17 +67,20 @@ clean:
 
 distclean: clean
 	@echo "Cleaning up..."
+	@find . -name CVS -type d -exec rm -r '{}' \;
 	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir all-clean ; done
 	@$(MAKE) -s -C modules all-clean
 	@$(MAKE) -s -C Documentation clean
 
 #--- Documentation -------------------------------------------------------------
 
+.PHONY: doc
 doc:
 	$(MAKE) -s -C Documentation all
 
 #--- Snapshot, diff and release ------------------------------------------------
 
+.PHONY: snapshot diff release
 snapshot: distclean
 	@echo -n "Snapshot file: "
 	@snap="radios-`date +%Y%m%d_%H%M`.tar"; \

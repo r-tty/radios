@@ -14,7 +14,6 @@ VSTa,		Andy Valencia <vandys@vsta.org>
 TINOS,		Bart Sekura <bsekura@impaq.com.pl>
 OS-32,		David Lindauer <camille@bluegrass.net>
 Minix 2.0,	Kees J. Bot <kjb@cs.vu.nl> and others
-x-kernel,	University of Arizona (http://www.cs.arizona.edu/xkernel)
 
 C stuff is compiled with LCC 4.2, NASM module was provided by
 John Coffman <johninsd@san.rr.com>. Thanks John and all LCC authors.

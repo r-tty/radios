@@ -27,6 +27,10 @@ DISPATCH_BLOCK_TIMEOUT	EQU	3
 DISPATCH_FLAG_RESMGR	EQU	1
 DISPATCH_FLAG_SELECT	EQU	2
 DISPATCH_FLAG_TIMEOUT	EQU	4
+DISPATCH_CONTEXT_ALLOCED EQU	80000000h
+
+; Vector flags
+VEC_VALID		EQU	80000000h
 
 ; Select control structure
 struc tSelectControl
@@ -44,7 +48,7 @@ struc tSelectControl
 endstruc
 
 ; Resmgr control structure
-struc tResmgrControl
+struc tResMgrControl
 .OtherFunc	RESP	1
 .NpartsMax	RESD	1
 .MsgMaxSize	RESD	1
@@ -63,6 +67,15 @@ struc tMessageControl
 .NpartsMax	RESD	1
 .Mutex		RESB	tSync_size
 .Reserved	RESD	1
+endstruc
+
+; Message vector structure
+struc tMessageVec
+.Flags		RESD	1
+.Low		RESW	1
+.High		RESW	1
+.Func		RESP	1
+.Handle		RESP	1
 endstruc
 
 ; Sigwait control structure

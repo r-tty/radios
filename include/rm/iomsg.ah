@@ -481,7 +481,7 @@ union tIOMunion
 	unimemb	tIOMchown
 	unimemb	tIOMutime
 	unimemb	tIOMopenFD
-	unimemb	tIOMdfdInfo
+	unimemb	tIOMfdInfo
 	unimemb	tIOMlock
 	unimemb	tIOMspace
 	unimemb	tIOMshutdown

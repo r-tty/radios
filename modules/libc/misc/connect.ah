@@ -5,7 +5,7 @@
 %ifndef _connect_ah
 %define _connect_ah
 
-%include "tm/taskman.ah"
+%include "lib/defs.ah"
 
 ; Flags used in the connect_ctrl structure
 FLAG_NOCTTY		EQU	1

@@ -7,7 +7,7 @@
 
 %include "perm.ah"
 %include "resource.ah"
-%include "tm/taskman.ah"
+%include "lib/defs.ah"
 %include "tm/sysmsg.ah"
 %include "tm/spawn.ah"
 

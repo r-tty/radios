@@ -257,7 +257,7 @@ proc R0_Pid2PCBaddr
 endp		;---------------------------------------------------------------
 
 
-		; Iterate through a process grup applying the function.
+		; Iterate through a process group applying the function.
 		; Input: EDX=function address,
 		;	 ESI=address of head's PCB.
 		; Output: CF=0 - OK, all processes have been processed;

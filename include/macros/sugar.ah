@@ -89,6 +89,12 @@ Ptr_size	EQU	4
 	mov	[%1],al
 %endmacro
 
+;*** Compare two 32-bit values in memory ***
+%macro Cmp32 2
+	mov	eax,[%1]
+	cmp	eax,[%2]
+%endmacro
+
 ;*** Push a MMX register to the stack ***
 %macro pushq 1-8
 %rep %0

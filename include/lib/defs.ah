@@ -5,6 +5,9 @@
 %ifndef _lib_defs_ah
 %define _lib_defs_ah
 
+SYMLOOP_MAX	EQU	32
+PATH_MAX	EQU	1024
+
 STDIN_FILENO	EQU	0
 STDOUT_FILENO	EQU	1
 STDERR_FILENO	EQU	2

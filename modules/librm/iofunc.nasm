@@ -1,5 +1,5 @@
 ;------------------------------------------------------------------------------
-; iomh.nasm - message handlers.
+; iofunc.nasm - message handlers.
 ;------------------------------------------------------------------------------
 
 module librm.iofunc
@@ -7,7 +7,7 @@ module librm.iofunc
 %include "rm/resmgr.ah"
 %include "rm/iomsg.ah"
 
-exportproc RM_InitHandlers, RM_InitAttributes
+exportproc _iofunc_func_init, _iofunc_attr_init
 
 section .data
 
@@ -177,15 +177,21 @@ endp		;---------------------------------------------------------------
 ; --- Other functions ----------------------------------------------------------
 
 
-		; void IOMH_func_init(uint nconn, resmgr_connect_funcs_t *connect,
+		; void iofunc_func_init(uint nconn, resmgr_connect_funcs_t *connect,
 		;		 uint nio, resmgr_io_funcs_t *io);
-proc RM_InitHandlers
+proc _iofunc_func_init
+		arg	nconn, connect, nio, io
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; void IOMH_attr_init(IOMH_attr_t *attr, mode_t mode,
+		; void iofunc_attr_init(IOMH_attr_t *attr, mode_t mode,
 		;		IOMH_attr_t *dattr, struct _client_info *info);
-proc RM_InitAttributes
+proc _iofunc_attr_init
+		arg	attr, mode, dattr, info
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

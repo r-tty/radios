@@ -8,6 +8,8 @@ module $librm
 
 exportdata ModuleInfo
 
+library $libc
+
 %define SHLIB_BASE 50100000h
 
 section .data

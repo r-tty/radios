@@ -11,7 +11,7 @@ include ../../Build/header.mk
 
 # Change variables here
 TARGET_RDM = librm.$(M)
-OBJS = head.$(O) resmgr.$(O) iomh.$(O) dispatch.$(O)
+OBJS = head.$(O) resmgr.$(O) iofunc.$(O) dispatch.$(O) message.$(O)
 
 # This part shouldn't be changed
 include ../../Build/module.mk

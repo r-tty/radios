@@ -8,7 +8,7 @@ module libc.stdlib
 %include "locstor.ah"
 %include "lib/stdlib.ah"
 
-exportproc _ldiv, _malloc, _free, _atexit
+exportproc _ldiv, _malloc, _calloc, _free, _atexit
 
 publicproc libc_init_stdlib
 
@@ -75,7 +75,7 @@ endp		;---------------------------------------------------------------
 proc _malloc
 		arg	size
 		prologue
-		push	edx
+		savereg	ebx,ecx,edx,esi,edi
 
 		; Calculate the number of units
 		mov	ecx,[%$size]
@@ -125,8 +125,7 @@ proc _malloc
 		add	edi,byte tMallocHdr_size
 		mov	eax,edi
 
-.Exit:		pop	edx
-		epilogue
+.Exit:		epilogue
 		ret
 
 		; Subroutine: get a memory block of ECX units and
@@ -147,6 +146,29 @@ GetMem:		mpush	ecx,esi
 		Ccall	_free, eax
 		mov	edi,[edx+tTLS.HlastPtr]
 .done:		mpop	esi,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; void *calloc(size_t nmemb, size_t size);
+proc _calloc
+		arg	nmemb, size
+		prologue
+		savereg	ecx,edx,edi
+		mov	eax,[%$size]
+		mov	ecx,[%$nmemb]
+		mul	ecx
+		mov	ecx,eax
+		Ccall	_malloc, ecx
+		or	eax,eax
+		je	.Exit
+		mov	edi,eax
+		mov	edx,eax
+		xor	eax,eax
+		cld
+		rep	stosb
+		mov	eax,edx
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

@@ -4,16 +4,22 @@
 
 module librm.dispatch
 
-library $libc
 importproc _ChannelCreate, _ChannelDestroy
 importproc _malloc, _free
 
 %include "errors.ah"
+%include "locstor.ah"
+%include "rm/resmgr.ah"
 %include "rm/dispatch.ah"
 %include "private.ah"
 
 exportproc _dispatch_create, _dispatch_destroy
-publicproc DISP_Attach
+exportproc _dispatch_context_alloc, _dispatch_context_free
+exportproc _dispatch_block, _dispatch_unblock
+exportproc _dispatch_handler, _dispatch_timeout
+publicproc DISP_Attach, DISP_SetContextSize
+
+importproc _malloc, _calloc, _free
 
 section .text
 
@@ -34,13 +40,102 @@ proc _dispatch_destroy
 		arg	dpp
 		prologue
 		mov	eax,[%$dpp]
-		mov	eax,[eax+tDispatch.ChID],
+		mov	eax,[eax+tDispatch.ChID]
 		test	eax,eax
 		js	.FreeDesc
 		Ccall	_ChannelDestroy, eax
 .FreeDesc:	Ccall	_free, dword [%$dpp]
 		epilogue
 		ret
+endp		;---------------------------------------------------------------
+
+
+		; dispatch_context_t *dispatch_block(dispatch_context_t *ctp);
+proc _dispatch_block
+		arg	ctp
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; void dispatch_unblock(dispatch_context_t *ctp);
+proc _dispatch_unblock
+		arg	ctp
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; void dispatch_handler(dispatch_context_t *ctp);
+proc _dispatch_handler
+		arg	ctp
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int dispatch_timeout(dispatch_t *dpp, struc timespec *timeout);
+proc _dispatch_timeout
+		arg	dpp, timeout
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; dispatch_context_t *dispatch_context_alloc(dispatch_t *dpp);
+proc _dispatch_context_alloc
+		arg	dpp
+		prologue
+		savereg	ebx,ecx,esi
+
+		mov	ebx,[%$dpp]
+		mov	eax,[ebx+tDispatch.BlockType]
+		cmp	eax,DISPATCH_BLOCK_RECEIVE
+		jne	.ChkSigWait
+
+		mov	eax,[ebx+tDispatch.MessageCtrl]
+		test	eax,eax
+		jz	.Invalid
+		Ccall	_calloc, 1, dword [ebx+tDispatch.ContextSize]
+		test	eax,eax
+		jz	.NoMemory
+		mov	esi,eax
+
+		mov	[esi+tMessageContext.dpp],ebx
+		mov	eax,[ebx+tDispatch.NpartsMax]
+		lea	eax,[eax*tIOV_size+tMessageContext.IOV]
+		mov	ecx,[ebx-tDispatch.ContextSize]
+		sub	ecx,eax
+		mov	[esi+tMessageContext.MsgMaxSize],ecx
+		add	eax,esi
+		mov	[esi+tMessageContext.Msg],eax
+
+		or	dword [ebx+tDispatch.Flags],DISPATCH_CONTEXT_ALLOCED
+		jmp	.Exit
+
+.ChkSigWait:	cmp	eax,DISPATCH_BLOCK_SIGWAIT
+		jne	.Invalid
+		xor	eax,eax
+.Exit:		epilogue
+		ret
+
+.Invalid:	mSetErrno EINVAL, eax
+		xor	eax,eax
+		jmp	.Exit
+
+.NoMemory:	mSetErrno ENOMEM, eax
+		xor	eax,eax
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; void dispatch_context_free(dispatch_context_t *ctp);
+proc _dispatch_context_free
+		jmp	_free
 endp		;---------------------------------------------------------------
 
 
@@ -113,7 +208,7 @@ proc DISP_Attach
 
 		; If block type is already set, do some checks
 .ChkBlockType:	cmp	dl,DISPATCH_SELECT
-		je	.Select
+		je	near .Select
 		cmp	dl,DISPATCH_RESMGR
 		je	.Resmgr1
 		cmp	dl,DISPATCH_MESSAGE
@@ -140,8 +235,8 @@ proc DISP_Attach
 		je	.Message
 
 .Resmgr:	mov	[ebx+tDispatch.ResmgrCtrl],esi
-		mov	ecx,[esi+tResmgrControl.ContextSize]
-		mov	edx,[esi+tResmgrControl.MsgMaxSize]
+		mov	ecx,[esi+tResMgrControl.ContextSize]
+		mov	edx,[esi+tResMgrControl.MsgMaxSize]
 		jmp	.CheckChID
 
 .Message:	mov	[ebx+tDispatch.MessageCtrl],esi
@@ -176,7 +271,7 @@ proc DISP_Attach
 .CountMax1:	cmp	[ebx+tDispatch.MsgMaxSize],edx
 		jae	.CountMax2
 		mov	[ebx+tDispatch.MsgMaxSize],edx
-.CountMax2:	mov	eax,[esi+tResmgrControl.NpartsMax]
+.CountMax2:	mov	eax,[esi+tResMgrControl.NpartsMax]
 		cmp	[ebx+tDispatch.NpartsMax],eax
 		jae	.OK
 		mov	[ebx+tDispatch.NpartsMax],eax
@@ -187,5 +282,67 @@ proc DISP_Attach
 
 .Invalid:	mov	eax,EINVAL
 		stc
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; Set the dispatch context size based on the attach type.
+		; Input: EBX=dispatch handle address,
+		;	 DL=attach type.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+proc DISP_SetContextSize
+		mpush	ecx,edx
+
+		xor	eax,eax
+		cmp	dl,DISPATCH_SELECT
+		je	.Select
+		cmp	dl,DISPATCH_RESMGR
+		je	.Resmgr
+		cmp	dl,DISPATCH_MESSAGE
+		je	.Message
+		cmp	dl,DISPATCH_SIGWAIT
+		jne	.Error
+
+		mov	eax,[ebx+tDispatch.SigwaitCtrl]
+		mov	ecx,[eax+tSigwaitControl.ContextSize]
+		jmp	.1
+
+.Select:	mov	eax,[ebx+tDispatch.SelectCtrl]
+		mov	ecx,[eax+tSelectControl.ContextSize]
+		jmp	.1
+
+.Resmgr:	mov	eax,[ebx+tDispatch.ResmgrCtrl]
+		mov	ecx,[eax+tResMgrControl.ContextSize]
+		mov	eax,[eax+tResMgrControl.MsgMaxSize]
+		jmp	.1
+
+.Message:	mov	eax,[ebx+tDispatch.MessageCtrl]
+		mov	ecx,[eax+tMessageControl.ContextSize]
+		mov	eax,[eax+tMessageControl.MsgMaxSize]
+
+.1:		mov	edx,[ebx+tDispatch.ContextSize]
+		test	dword [ebx+tDispatch.Flags],DISPATCH_CONTEXT_ALLOCED
+		jz	.Set
+		cmp	ecx,edx
+		ja	.Error
+		cmp	eax,[ebx+tDispatch.MsgMaxSize]
+		ja	.Error
+
+.Set:		cmp	ecx,edx
+		jae	.2
+		mov	ecx,edx
+.2:		mov	[ebx+tDispatch.ContextSize],ecx
+		mov	edx,[ebx+tDispatch.MsgMaxSize]
+		cmp	eax,edx
+		jae	.3
+		mov	eax,edx
+.3:		mov	[ebx+tDispatch.MsgMaxSize],eax
+		xor	eax,eax
+
+.Exit:		mpop	edx,ecx
+		ret
+
+.Error:		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------

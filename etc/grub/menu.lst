@@ -15,5 +15,7 @@ default 0
 title  RadiOS current
 root   (fd0)
 kernel /sys/radios.rdz rootdev=%hd2.1 rootlp=C:
+
+# Additional boot-time modules
 #module /sys/modules/ext2fs.rdz
 

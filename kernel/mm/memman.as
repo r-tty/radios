@@ -9,7 +9,6 @@ module kernel.mm
 %include "errors.ah"
 %include "memman.ah"
 %include "x86/paging.ah"
-%include "sema.ah"
 %include "pool.ah"
 %include "process.ah"
 
@@ -409,8 +408,8 @@ proc MM_FreeMCB
 		push	edx
 		mov	word [ebx+tMCB.Signature],0
 		mov	eax,[ebx+tMCB.Prev]		; Pointer manipulations..
-		or	eax,eax
 		mov	edx,[ebx+tMCB.Next]
+		or	eax,eax
 		jz	short .NoPrev
 		mov	[eax+tMCB.Next],edx
 .NoPrev:	or	edx,edx

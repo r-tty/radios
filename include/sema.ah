@@ -2,6 +2,9 @@
 ;  sema.ah - semaphore structure and macros.
 ;-------------------------------------------------------------------------------
 
+%ifndef _sema_ah
+%define _sema_ah
+
 %include "macros/queue.ah"
 
 struc tSemaphore
@@ -58,3 +61,4 @@ endstruc
 %endif
 %endmacro
 
+%endif

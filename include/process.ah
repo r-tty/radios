@@ -16,7 +16,7 @@ struc tProcDesc
 .Prev		RESD	1			; Previous PCB in list
 .Flags		RESD	1			; Misc flags
 
-.Files		RESD	1			; Address of open files
+.Files		RESD	1			; File table
 
 .Reserved	RESD	20			; Complement to 128 bytes
 endstruc
@@ -39,3 +39,12 @@ endstruc
 %error mIsKernProc: invalid number of args
 %endif
 %endmacro
+
+
+; File structure
+struc tFile
+.Count		RESD	1
+.CloseOnExec	RESD	1
+.FDptr		RESD	1
+.Reserved	RESD	1
+endstruc

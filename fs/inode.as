@@ -10,10 +10,8 @@ module cfs.inode
 %include "errors.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
-%include "sema.ah"
 %include "pool.ah"
 %include "wait.ah"
-%include "x86/setjmp.ah"
 %include "thread.ah"
 
 %include "fs/cfs.ah"

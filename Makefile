@@ -45,7 +45,7 @@ $(KERNEL_RDX): $(response_file) version.rdm rkdt.rdm dummy
 ifdef MULTIBOOT
 	@echo -n "Building multiboot kernel..."
 	@cat $(OUTPATH)/loader.bin >>$(KERNEL_RDX)
-	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/sys/radios.rdz
+	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/radios.rdz
 	@echo "done."
 endif
 

@@ -2,6 +2,9 @@
 ;  sys.ah - various kernel definitions.
 ;-------------------------------------------------------------------------------
 
+%ifndef _sys_ah
+%define _sys_ah
+
 %include "x86/cpu.ah"
 %include "macros/drvcall.ah"
 
@@ -57,3 +60,5 @@
 %define	HZ		100		; Timer ticks per second
 %define	TIMER_InpFreq	1193180		; Timer input frequency (Hz)
 %define	TIMER_OutFreq	HZ		; Channel 0 output freq (Hz)
+
+%endif

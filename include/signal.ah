@@ -2,4 +2,9 @@
 ;  signal.ah - predefined signal codes.
 ;-------------------------------------------------------------------------------
 
+%ifndef _signal_ah
+%define _signal_ah
+
 %define	SIG_CTRLALTDEL	19
+
+%endif

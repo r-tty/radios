@@ -2,6 +2,8 @@
 ;  thread.ah - definitions for scheduler and thread management.
 ;-------------------------------------------------------------------------------
 
+%include "x86/setjmp.ah"
+
 ; Thread states
 %define	THRST_FREE	0
 %define	THRST_READY	1

@@ -2,6 +2,9 @@
 ;  memman.ah - memory management definitions.
 ;-------------------------------------------------------------------------------
 
+%ifndef _memman_ah
+%define _memman_ah
+
 ; Memory control block structure
 struc tMCB
 .Signature	RESW	1				; Signature
@@ -37,3 +40,5 @@ endstruc
 %define	REGTYPE_BSS	3			; BSS
 %define	REGTYPE_STACK	4			; Stack
 %define	REGTYPE_OTHER	5			; Other read-only data
+
+%endif

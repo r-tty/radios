@@ -7,7 +7,6 @@ module rkdt
 
 %include "sys.ah"
 %include "errors.ah"
-%include "sema.ah"
 %include "pool.ah"
 %include "process.ah"
 %include "driver.ah"
@@ -71,15 +70,21 @@ extern SER_DumbTTY:near
 
 section .data
 
-msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
-		DB "Copyright (c) 1999,2000 RET & COM Research.",NL,0
-		
+msg_Warranty	DB NL,"RadiOS is free software, covered by the GNU General Public License,",NL
+		DB "and you are welcome to change it and/or distribute copies of it",NL
+		DB "under certain conditions.",NL,0
+
+msg_Banner	DB NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
+		DB "Copyright (C) 1999-2001 RET & COM Research.",NL,0
+
 msg_Help	DB NL,"Commands:",NL
-		DB "S      - call monitor (g to go back)",NL
-		DB "stat   - view scheduler statistics",NL
-		DB "ts     - view thread statistics",NL
-		DB "reboot - reboot machine",NL
-		DB "help   - get this message",NL,0
+		DB "S                    - call monitor (g to go back)",NL
+		DB "stat                 - view scheduler statistics",NL
+		DB "ts                   - view thread statistics",NL
+		DB "allocmem [pid] size  - allocate <size> bytes to [pid] (default 0)",NL
+		DB "freemem [pid] addr   - free memory block",NL
+		DB "memstat [pid]        - print memory allocation info",NL
+		DB "reboot               - reboot machine",NL,0
 		
 msg_DbgPrompt	DB NL,"RKDT>",0
 msg_Err		DB NL,NL,7,"ERROR ",0

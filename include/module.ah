@@ -5,8 +5,8 @@
 ; Kernel module information structure
 struc tKModInfo
 .Driver		RESD	1				; Module driver ID
-.PID		RESD	1				; PID
-.Index		RESD	1				; File index
+.PCB		RESD	1				; Process Control Block
+.Inode		RESD	1				; Inode
 .Sections	RESD	1				; MCB of first section
 .StackSize	RESD	1				; Stack size
 .EntryPoint	RESD	1				; Start entry point
@@ -19,3 +19,4 @@ endstruc
 
 %define	MODTYPE_EXECUTABLE	0
 %define MODTYPE_LIBRARY		1
+%define MODTYPE_DRIVER		2

@@ -2,6 +2,9 @@
 ;  setjmp.ah - definitions for setjmp/longjmp
 ;-------------------------------------------------------------------------------
 
+%ifndef _setjmp_ah
+%define _setjmp_ah
+
 struc tJmpBuf
 .R_EIP		RESD	1
 .R_EDI		RESD	1
@@ -14,3 +17,4 @@ struc tJmpBuf
 .R_EAX		RESD	1
 endstruc
 
+%endif

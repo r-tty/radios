@@ -8,7 +8,6 @@ module kernel.module
 %include "sys.ah"
 %include "errors.ah"
 %include "module.ah"
-%include "sema.ah"
 %include "pool.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
@@ -17,8 +16,8 @@ module kernel.module
 ; --- Exports ---
 
 global MOD_InitMem, MOD_InitKernelMod
-global MOD_Register, MOD_Unregister
-global MOD_Load, MOD_Unload
+global MOD_RegisterFormat, MOD_UnregisterFormat
+global MOD_Insert, MOD_Remove
 global MOD_GetType, MOD_GetIDbyName
 
 
@@ -86,7 +85,7 @@ proc MOD_InitKernelMod
 		call	K_PoolAllocChunk
 		jc	short .Exit
 		mov	dword [esi+tKModInfo.Driver],0
-		mov	dword [esi+tKModInfo.PID],0
+		mov	dword [esi+tKModInfo.PCB],0
 		mov	eax,100000h
 		mov	[esi+tKModInfo.Sections],eax
 		mov	dword [esi+tKModInfo.StackSize],8000h
@@ -99,11 +98,11 @@ proc MOD_InitKernelMod
 endp		;---------------------------------------------------------------
 
 
-		; MOD_Register - register binary format driver.
+		; MOD_RegisterFormat - register binary format driver.
 		; Input: EAX=module driver ID.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MOD_Register
+proc MOD_RegisterFormat
 		mpush	ecx,edi
 		xor	ecx,ecx
 		mov	cl,MOD_MAXBINFORMATS
@@ -135,11 +134,11 @@ proc MOD_Register
 endp		;---------------------------------------------------------------
 
 
-		; MOD_Unregister - unregister binary format driver.
+		; MOD_UnregisterFormat - unregister binary format driver.
 		; Input: EAX=driver ID.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MOD_Unregister
+proc MOD_UnregisterFormat
 		mpush	ecx,edi
 		xor	ecx,ecx
 		mov	cl,MOD_MAXBINFORMATS
@@ -159,52 +158,41 @@ proc MOD_Unregister
 endp		;---------------------------------------------------------------
 
 
-		; MOD_Load - load module in memory.
-		; Input: EAX=PID,
-		;	 ESI=module file name.
+		; MOD_Insert - register and link a module.
+		; Input: EBX=module image address;
+		;	 ESI=PCB address.
 		; Output: CF=0 - OK, EAX=module ID;
 		;	  CF=1 - error, AX=error code.
-proc MOD_Load
-%define	.pid		ebp-4
-
-		prologue 4
+proc MOD_Insert
+	ret
+	int3
 		mpush	ebx,edx,edi
 
-		mov	[.pid],eax
 		call	MOD_CheckSignature
 		jc	short .Exit
 
 		mov	ebx,?ModulePool
 		call	K_PoolAllocChunk
-		jc	short .CloseAndExit
+		jc	short .Exit
 		mov	edi,esi
 
 		mCallDriver edx, byte DRVF_Open			; Load module
-		jc	short .CloseAndExit
+		jc	short .Exit
 .Resolve:	mCallDriverCtrl edx,DRVCTL_BINFMT_ResolveLinks
-		jc	short .CloseAndExit
-		mov	[edi+tKModInfo.Driver],edx		; Keep driver ID
-		mov	eax,[.pid]
-		mov	[edi+tKModInfo.PID],eax			; Keep PID
+		jc	short .Exit
+		mov	[edi+tKModInfo.Driver],edx		; Save driver ID
+		;mov	[edi+tKModInfo.PCB],esi
 
-	;	call	CFS_Close	;XXX
 .Exit:		mpop	edi,edx,ebx
-		epilogue
 		ret
-
-.CloseAndExit:	push	eax					; If failed-
-	;	call	CFS_Close	;XXX			; close file
-		pop	eax					; and keep
-		stc						; error code
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
-		; MOD_Unload - unload module from memory.
+		; MOD_Remove - unregister a module.
 		; Input: EDI=module information structure address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc MOD_Unload
+proc MOD_Remove
 		mpush	edx,esi
                 mov	edx,[edi+tKModInfo.Driver]
 		mCallDriver edx, byte DRVF_Close		; Unload module

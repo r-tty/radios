@@ -1,11 +1,15 @@
-;-------------------------------------------------------------------------------
+;*******************************************************************************
 ;  rw.as - read/write routines.
-;-------------------------------------------------------------------------------
+;  Copyright (c) 1999-2001 RET & COM Research.
+;  This file is based on the Linux Kernel (c) 1991-2001 Linus Torvalds.
+;*******************************************************************************
 
 module cfs.rw
 
 %include "sys.ah"
 %include "errors.ah"
+%include "thread.ah"
+%include "process.ah"
 
 
 ; --- Exports ---
@@ -17,6 +21,8 @@ global CFS_ReadDir, CFS_Lseek, CFS_Read, CFS_Write
 library cfs.open
 extern ?MaxOpenFiles
 
+library kernel.mt
+extern ?CurrThread
 
 ; --- Code ---
 
@@ -28,10 +34,26 @@ section .text
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc CFS_ReadDir
+%define .fd		ebp-4
+
+		prologue 4
+		push	esi
+		mov	esi,ebx
+		mov	[.fd],edx
+		
+		; Check whether a file descriptor is valid
 		cmp	edx,[?MaxOpenFiles]
 		jae	short .Error1
+		mov	eax,[?CurrThread]
+		mov	eax,[eax+tTCB.PCB]
+		mov	eax,[eax+tProcDesc.Files]
+		mov	ebx,[eax+tFile.FDptr]
+		cmp	dword [ebx+edx*4],0
+		je	short .Error1
 
-.Exit:		ret
+.Exit:		pop	esi
+		epilogue
+		ret
 
 .Error1:	mov	ax,ERR_FS_InvFileDesc
 		stc

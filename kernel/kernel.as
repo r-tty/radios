@@ -11,7 +11,6 @@ module kernel
 %include "biosdata.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
-%include "sema.ah"
 %include "pool.ah"
 %include "process.ah"
 %include "x86/descript.ah"

@@ -373,7 +373,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc RDM_ResolveLinks
-		mov	ebx,[edi+tKModInfo.Index]
+		mov	ebx,[edi+tKModInfo.Inode]
 	;	call	CFS_OpenByIndex			;XXX
 		jc	.Done
 

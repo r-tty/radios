@@ -9,6 +9,7 @@ module $init
 %include "errors.ah"
 %include "initdefs.ah"
 %include "boot/bootdefs.ah"
+%include "boot/mb_info.ah"
 %include "biosdata.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
@@ -17,8 +18,6 @@ module $init
 %include "kconio.ah"
 %include "asciictl.ah"
 %include "hw/partids.ah"
-
-%define	DEBUG
 
 
 ; --- Exports ---
@@ -68,7 +67,7 @@ extern MT_CreateThread:near, MT_ThreadExec:near
 
 library kernel.module
 extern MOD_InitMem:near, MOD_InitKernelMod:near
-extern MOD_Register:near
+extern MOD_RegisterFormat:near, MOD_Insert:near
 
 library kernel.misc
 extern StrLComp:near
@@ -103,22 +102,19 @@ extern RadiOS_Version
 
 section .data
 
-Msg_A20Fail	DB "A20 line opening failure.",0
+Msg_A20Fail	DB "A20 line opening failure",0
 Msg_Bytes	DB " bytes.",NL,0
-Msg_RVersion	DB NL,"Radiant Operating System (RadiOS), kernel version ",0
-Msg_RCopyright	DB NL,"Copyright (c) 1998-2001 RET & COM Research.",NL
-		DB "RadiOS is free software, covered by the GNU General Public License,",NL
-		DB "and you are welcome to change it and/or distribute copies of it",NL
-		DB "under certain conditions.",NL,0
+Msg_RVersion	DB NL,"RadiOS kernel, version ",0
+Msg_RCopyright	DB " (C) 1998-2001 RET & COM Research.",NL,0
 
 Msg_InitDskDr	DB NL,NL,"Initializing disk drivers"
 Msg_Dots	DB "...",NL,0
 Msg_SearchPart	DB NL,"Searching partitions on ",0
 Msg_InitChDr	DB NL,"Initializing character device drivers...",NL,0
 Msg_InitErr	DB ": init error ",0
+Msg_InitBootMod	DB NL,"Initializing boot-time modules...",NL,0
 
-Msg_SysReset1	DB ASC_BEL,NL,NL,"Main process completed (exit code=",0
-Msg_SysReset2	DB "). Press any key to reset...",0
+Msg_SysReboot	DB NL,NL,"Press a key to reboot...",ASC_BEL,0
 
 Msg_Fatal	DB NL,NL,"FATAL ERROR ",0
 Msg_SysHlt	DB NL,"System halted.",0
@@ -240,7 +236,7 @@ proc INIT_InitDiskDrvs
 
 
 		; Initialize HD IDE driver
-.InitIDE:	mov	dl,4				; Max # of drives to search
+.InitIDE:	mov	dl,2				; Max # of drives to search
 		mCallDriver byte DRVID_HDIDE, byte DRVF_Init
 		jnc	short .IDEinitOK
 		mov	ebx,DRVID_HDIDE
@@ -428,10 +424,28 @@ proc INIT_InstallBinFmtDrvs
 		xor	edx,edx
 		call	DRV_InstallNew
 		jc	short .Exit
-		call	MOD_Register
+		call	MOD_RegisterFormat
 		jc	short .Exit
 		inc	cl
 		jmp	.Loop
+.Exit:		ret
+endp		;---------------------------------------------------------------
+
+
+		; INIT_BootModules - initialize boot-time modules.
+		; Input: none:
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc INIT_BootModules
+		mov	ecx,[BootModulesCount]
+		jecxz	.Exit
+		mPrintString Msg_InitBootMod
+		mov	edi,[BootModulesListAddr]
+		xor	esi,esi
+.Loop:		mov	ebx,[edi+tModList.Start]
+		call	MOD_Insert
+		add	edi,byte tModList_size
+		loop	.Loop
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
@@ -572,7 +586,7 @@ proc Start
 		mPrintChar ' '
 		mPrintString
 		mPrintString NLNL
-call ReadChar
+
 		; Install and initialize BIOS32 driver
 		mov	ebx,DrvBIOS32
 		xor	edx,edx
@@ -631,11 +645,6 @@ call ReadChar
 		call	CFS_Init
 		jc	.Monitor
 
-		; Show kernel version message
-		mPrintString Msg_RVersion
-		mPrintString RadiOS_Version
-		mPrintString Msg_RCopyright
-
 		; Initialize module table
 		mov	eax,Init_MaxNumLoadedMods
 		call	MOD_InitMem
@@ -652,6 +661,15 @@ call ReadChar
 		; Initialize memory management
 		call	MM_Init
 		jc	FatalError
+		
+		; Initialize boot-time modules
+		call	INIT_BootModules
+		jc	FatalError
+		
+		; Show version information
+		mPrintString Msg_RVersion
+		mPrintString RadiOS_Version
+		mPrintString Msg_RCopyright
 
 		; Create two initial kernel threads
 		; (idle and RKDT).
@@ -676,12 +694,9 @@ call ReadChar
 		; This point must never be reached!
 .Monitor:	int3
 
-		; Reset system
-		mPrintString Msg_SysReset1
-		call	PrintByteDec
-		mPrintString Msg_SysReset2
+		; Reboot the machine
+		mPrintString Msg_SysReboot
 		call	ReadChar
-
 SysReboot:	call	KBC_HardReset
 
 		; Fatal error: print error message, error number
@@ -694,4 +709,3 @@ FatalError:	push	eax
 
 .Halt:		jmp	.Halt
 endp		;---------------------------------------------------------------
-

@@ -2,6 +2,8 @@
 ;  pool.ah - definitions for list manipulation routines.
 ;-------------------------------------------------------------------------------
 
+%include "sema.ah"
+
 ; Pool descriptor
 struc tPoolDesc
 .Master		RESD	1		; Address of our master pool

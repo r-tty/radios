@@ -75,17 +75,32 @@ endp		;---------------------------------------------------------------
 ; --- System call routines -----------------------------------------------------
 
 
+		; int ThreadDetach(int tid);
 proc sys_ThreadDetach
+		arg	tid
+		prologue
+		MISSINGSYSCALL
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int ThreadJoin(int tid, void **status);
 proc sys_ThreadJoin
+		arg	tid, status
+		prologue
+		MISSINGSYSCALL
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int ThreadCancel(int tid, void (*canstub)(void));
 proc sys_ThreadCancel
+		arg	tid, canstub
+		prologue
+		MISSINGSYSCALL
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -116,7 +131,10 @@ proc sys_ThreadCtl
 endp		;---------------------------------------------------------------
 
 
+		; int SchedYield(void);
 proc sys_SchedYield
+		mCurrThread ebx
+		MISSINGSYSCALL
 		ret
 endp		;---------------------------------------------------------------
 

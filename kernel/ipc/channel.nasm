@@ -169,6 +169,7 @@ endp		;---------------------------------------------------------------
 proc sys_ConnectDetach
 		arg	coid
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -179,6 +180,7 @@ endp		;---------------------------------------------------------------
 proc sys_ConnectClientInfo
 		arg	scoid, info, ngroups
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

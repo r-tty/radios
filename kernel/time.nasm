@@ -67,7 +67,7 @@ proc K_LDelay
 		align 4
 .LDel:		nop
 		dec	ecx
-		js	short .Exit
+		js	.Exit
 		jmp	.LDel
 .Exit:		mpop	edx,ecx,eax
 		ret

@@ -124,10 +124,10 @@ proc CMOS_ReadHDDTypes
 		mov	al,CMOSREG_HDDtype
 		xor	cl,cl
 		test	al,0Fh
-		jz	short .Exit
+		jz	.Exit
 		inc	cl
 		test	al,0F0h
-		jz	short .Exit
+		jz	.Exit
 		inc	cl		
 .Exit:		ret
 endp		;---------------------------------------------------------------

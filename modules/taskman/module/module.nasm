@@ -126,7 +126,7 @@ proc TM_RegisterBinFmt
 		cld
 		xor	eax,eax				; Find a free slot
 		repne	scasd
-		jnz	short .Err
+		jnz	.Err
 		callsafe dword [edx+tBinFmtFunctions.Init] ; Initialize BinFmt
 
 		mov	[edi-4],edx
@@ -150,7 +150,7 @@ proc TM_UnregisterBinFmt
 		mov	edi,?BinFmtDrivers
 		cld
 		repne	scasd
-		jnz	short .Err
+		jnz	.Err
 		callsafe dword [edx+tBinFmtFunctions.Shutdown]
 		jc	.Exit
 		mov	dword [edi-4],0
@@ -351,7 +351,7 @@ proc MOD_CheckSignature
 		
 		callsafe dword [edx+tBinFmtFunctions.CheckSig]
 		or	al,al
-		jge	short .OK
+		jge	.OK
 .Next:		inc	cl
 		cmp	cl,MOD_MAXBINFORMATS
 		je	.Err

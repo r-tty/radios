@@ -126,7 +126,7 @@ proc CON_Main
 		call	_dispatch_create
 		jc	near .Err1
 		mov	[%$dpp],eax
-
+int 20h
 		; Initialize resource manager attributes
 		lea	edi,[%$rmattr]
 		Ccall	_memset, edi, 0, tResMgrAttr_size
@@ -203,9 +203,9 @@ endp		;---------------------------------------------------------------
 proc CON_HandleCTRL
 		mpush	ebx,edx
 		cmp	al,ASC_BEL
-		je	short .BEL
+		je	.BEL
 		cmp	al,ASC_BS
-		je	short .BS
+		je	.BS
 		cmp	al,ASC_HT
 		je	near .HT
 		cmp	al,ASC_VT
@@ -222,7 +222,7 @@ proc CON_HandleCTRL
 
 .BS:		call	VTX_GetCurPos
 		or	dl,dl
-		jz      short .BS_Up
+		jz      .BS_Up
 		dec	dl
 		call	VTX_MoveCursor
 		jmp	.BS_Delete
@@ -251,14 +251,14 @@ proc CON_HandleCTRL
 		jmp	.Done
 
 .VT:		call	VTX_GetCurPos
-		jmp	short .Done
+		jmp	.Done
 
 .LF:		call	VTX_GetCurPos
 		cmp	dh,[?MaxRowNum]
 		jae	.LF_Scroll
 		inc	dh
 		call	VTX_MoveCursor
-		jmp	short .Done
+		jmp	.Done
 
 .LF_Scroll:	mov	dl,1
 		call	VTX_Scroll
@@ -269,7 +269,7 @@ proc CON_HandleCTRL
 		stc
 		call	VTX_ClrLine
 		pop	eax
-		jmp	short .Done
+		jmp	.Done
 
 .CR:		call	VTX_GetCurPos
 		xor	dl,dl
@@ -298,14 +298,14 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc CON_Write
 		call	CON_HandleCTRL
-		jnc	short .NoCtrl
+		jnc	.NoCtrl
 		cmp	al,ASC_LF
-		jne	short .OK
+		jne	.OK
 		push	eax
 		mov	al,ASC_CR
 		call	CON_HandleCTRL
 		pop	eax
-		jmp	short .OK
+		jmp	.OK
 .NoCtrl:	call	VTX_WrCharTTY
 .OK:		clc
 		ret
@@ -319,7 +319,7 @@ proc CON_WrString
 		mpush	eax,esi
 .Loop:		mov	al,[esi]
 		or	al,al
-		jz	short .Exit
+		jz	.Exit
 		call	CON_Write
                 inc	esi
 		jmp	.Loop

@@ -214,7 +214,7 @@ proc StrScan
 		repne	scasb
 		jne	.NotFound
 		dec	edi
-		jmp	short .OK
+		jmp	.OK
 .NotFound:	xor	edi,edi
 .OK:		mpop	esi,ecx
 		ret
@@ -281,7 +281,7 @@ proc StrPos
 		mov	ecx,eax
 		jne	.Search
 		dec	edi
-		jmp	short .OK
+		jmp	.OK
 .NotOccur:	xor	edi,edi
 .OK:		mpop	esi,edx,ecx,ebx,eax
 		ret

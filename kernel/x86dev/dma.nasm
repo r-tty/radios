@@ -1,42 +1,42 @@
 ;-------------------------------------------------------------------------------
-;  dma.nasm - Direct memory access control routines.
+; dma.nasm - ISA DMA controller routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
 
 ; Command register bits
-%define	DMACMD_MemMem		1
-%define	DMACMD_Ch0Hold		2
-%define	DMACMD_DisCtrl		4
-%define	DMACMD_ComprTim		8
-%define	DMACMD_RotPrior		16
-%define	DMACMD_ExtWrite		32
-%define	DMACMD_DRQhi		64
-%define	DMACMD_DACKhi		128
+DMACMD_MemMem		EQU	1
+DMACMD_Ch0Hold		EQU	2
+DMACMD_DisCtrl		EQU	4
+DMACMD_ComprTim		EQU	8
+DMACMD_RotPrior		EQU	16
+DMACMD_ExtWrite		EQU	32
+DMACMD_DRQhi		EQU	64
+DMACMD_DACKhi		EQU	128
 
 ; Request and single mask bit registers control bytes
-%define	DMA_CH0			0
-%define	DMA_CH1			1
-%define	DMA_CH2			2
-%define	DMA_CH3			3
-%define	DMARQMS_Set		4
+DMA_CH0			EQU	0
+DMA_CH1			EQU	1
+DMA_CH2			EQU	2
+DMA_CH3			EQU	3
+DMARQMS_Set		EQU	4
 
 ; Mode register
-%define	DMAMODE_Verify		0
-%define	DMAMODE_Write		4
-%define	DMAMODE_Read		8
-%define	DMAMODE_AutoInit	16
-%define	DMAMODE_AddrInc		32
-%define	DMAMODE_Demand		0
-%define	DMAMODE_Single		64
-%define	DMAMODE_Block		128
-%define	DMAMODE_Cascade		192
+DMAMODE_Verify		EQU	0
+DMAMODE_Write		EQU	4
+DMAMODE_Read		EQU	8
+DMAMODE_AutoInit	EQU	16
+DMAMODE_AddrInc		EQU	32
+DMAMODE_Demand		EQU	0
+DMAMODE_Single		EQU	64
+DMAMODE_Block		EQU	128
+DMAMODE_Cascade		EQU	192
 
 ; All mask register bits
-%define	DMAMASK_CH0		1
-%define	DMAMASK_CH1		2
-%define	DMAMASK_CH2		4
-%define	DMAMASK_CH3		8
+DMAMASK_CH0		EQU	1
+DMAMASK_CH1		EQU	2
+DMAMASK_CH2		EQU	4
+DMAMASK_CH3		EQU	8
 
 
 publicproc DMA_Reset, DMA_InitChannel
@@ -55,9 +55,9 @@ section .text
 		; Output: none.
 proc DMA_Reset
 		cmp	al,1
-		jne	short .DMA2
+		jne	.DMA2
 		out	PORT_DMA1_MastClr,al
-		jmp	short .Exit
+		jmp	.Exit
 .DMA2:		out	PORT_DMA2_MastClr,al
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -72,15 +72,15 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc DMA_InitChannel
 		cmp	al,8				; Check channel number
-		jae	short .Err1
+		jae	.Err1
 		cmp	ebx,1000000h			; Check address
-		jae	short .Err2
+		jae	.Err2
 		cmp	al,4				; Slave controller?
-		jae	short .Slave
+		jae	.Slave
 		push	ebx
 		add	bx,cx
 		pop	ebx
-		jc	short .Err3
+		jc	.Err3
 
 		mpush	eax,ebx,edx
 		pushfd
@@ -116,10 +116,10 @@ proc DMA_InitChannel
 
 		popfd
 		mpop	edx,ebx,eax
-		jmp	short .OK
+		jmp	.OK
 
 .Slave:		test	bl,1				; Even address?
-		jnz	short .Err4
+		jnz	.Err4
 		push	ebx				; Test page overflow
 		push	ecx
 		and	ebx,1FFFFh			; Mask page
@@ -129,7 +129,7 @@ proc DMA_InitChannel
 		test	ebx,20000h			; Overflow?
 		pop	ecx
 		pop	ebx
-		jnz	short .Err3
+		jnz	.Err3
 
 		; XXX - finish!
 
@@ -137,11 +137,11 @@ proc DMA_InitChannel
 		ret
 
 .Err1:		mov	ax,ERR_DMA_BadChNum
-		jmp	short .Err
+		jmp	.Err
 .Err2:		mov	ax,ERR_DMA_BadAddr
-		jmp	short .Err
+		jmp	.Err
 .Err3:		mov	ax,ERR_DMA_PageOut
-		jmp	short .Err
+		jmp	.Err
 .Err4:		mov	ax,ERR_DMA_AddrOdd
 .Err:		stc
 		ret

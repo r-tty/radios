@@ -106,21 +106,22 @@ proc PAR_Main
 		mov	[ebx+tPPdevParm.OpenCount],al
 		inc	cl
 		cmp	cl,[NumOfParPorts]
-		je	short .1
+		je	.1
 		add	ebx,tPPdevParm_size
 		inc	edi
 		inc	edi
 		inc	edx
 		jmp	.FillTblLoop
 		
-.1:	jmp $
+.1:		; XXX
+		jmp $
 
 .Exit:		mpop	edi,esi,ecx,ebx
 		ret
 
 .Err:		xor	eax,eax
 		dec	eax
-		jmp	short .Exit
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -167,7 +168,7 @@ endp		;---------------------------------------------------------------
 proc PAR_EPPclearTimeout
 		ParPort_ReadStatus ebx
 		test	al,1
-		jnz	short .More
+		jnz	.More
 .OK:		clc
 		ret
 		
@@ -182,7 +183,7 @@ proc PAR_EPPclearTimeout
 		out	dx,al
 		in	al,dx
 		test	al,1
-		jz	short .OK
+		jz	.OK
 		stc
 		ret
 endp		;---------------------------------------------------------------
@@ -210,7 +211,7 @@ proc PAR_CheckSPP
 		in	al,dx
 		and	al,0Fh
 		cmp	al,ah
-		jne	short .TryDR
+		jne	.TryDR
 		mov	al,0Eh
 		out	dx,al
 		in	al,dx
@@ -219,7 +220,7 @@ proc PAR_CheckSPP
 		out	dx,al
 		and	ah,0Fh
 		cmp	ah,0Eh
-		je	short .RetSPP
+		je	.RetSPP
 
 		; That didn't work, but the user thinks there's a port here..
 
@@ -229,12 +230,12 @@ proc PAR_CheckSPP
 		ParPort_WriteData ebx,ah
 		in	al,dx
 		cmp	al,ah
-		jne	short .TrustUser
+		jne	.TrustUser
 		mov	al,55h
 		out	dx,al
 		in	al,dx
 		cmp	al,55h
-		je	short .RetSPP
+		je	.RetSPP
 
 		; Didn't work with 0xaa, but the user is convinced
 		; this is the place.
@@ -242,7 +243,7 @@ proc PAR_CheckSPP
 		; It's possible that we can't read the control register or
 		; the data register.  In that case just believe the user.
 .TrustUser:	or	cl,cl
-		jz	short .NotDetected
+		jz	.NotDetected
 .RetSPP:	mov	al,PARPORT_MODE_PCSPP
 		clc
 		ret
@@ -275,7 +276,7 @@ proc PAR_CheckECR
 		ParPort_ReadEControl ebx
 		xor	al,ah
 		and	al,3
-		jnz	short .1
+		jnz	.1
 		xor	ah,2
 		ParPort_WriteControl ebx,ah
 		in	al,dx
@@ -283,18 +284,18 @@ proc PAR_CheckECR
 		ParPort_ReadEControl ebx
 		xor	al,ah
 		and	al,2
-		jnz	short .NoReg
+		jnz	.NoReg
 		
 .1:		ParPort_ReadEControl ebx
 		and	al,3
 		cmp	al,1
-		jne	short .NoReg
+		jne	.NoReg
 
 		mov	al,34h
 		out	dx,al
 		in	al,dx
 		cmp	al,35h
-		jne	short .NoReg
+		jne	.NoReg
 		ParPort_WriteControl ebx,0Ch
 
 		; Go to mode 000; SPP, reset FIFO
@@ -316,7 +317,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - ECP not supported.
 proc PAR_CheckECPsupport
 		test	byte [ebx+tPPdevParm.Modes],PARPORT_MODE_PCECR
-		jnz	short .TestFIFO
+		jnz	.TestFIFO
 .NotDetected:	xor	al,al
 		stc
 		ret
@@ -331,13 +332,13 @@ proc PAR_CheckECPsupport
 		mov	ecx,1024
 .Loop:		ParPort_ReadEControl ebx
 		test	al,1
-		jnz	short .1
+		jnz	.1
 		ParPort_WriteFIFO ebx,0AAh
 		loop	.Loop
 
 .1:		ParPort_WriteEControl ebx,ah
 		or	ecx,ecx				; FIFO test passed?
-		jz	short .NotDetected
+		jz	.NotDetected
 		mov	al,PARPORT_MODE_PCECP
 		clc
 		ret
@@ -361,7 +362,7 @@ endp		;---------------------------------------------------------------
 proc PAR_CheckEPPsupport
 		; If EPP timeout bit clear then EPP available
 		call	PAR_EPPclearTimeout
-		jc	short .NoEPP
+		jc	.NoEPP
 
 		ParPort_ReadControl ebx
 		or	al,20h
@@ -377,7 +378,7 @@ proc PAR_CheckEPPsupport
 
 		ParPort_ReadStatus ebx
 		test	al,1
-		jz	short .NoEPP
+		jz	.NoEPP
 		call	PAR_EPPclearTimeout
 		mov	al,PARPORT_MODE_PCEPP
 		ret
@@ -394,7 +395,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - mode not supported.
 proc PAR_CheckECPEPPsupport
 		test	byte [ebx+tPPdevParm.Modes],PARPORT_MODE_PCECR
-		jz	short .NotSupported
+		jz	.NotSupported
 
 		ParPort_ReadEControl ebx
 		mov	ah,al
@@ -410,7 +411,7 @@ proc PAR_CheckECPEPPsupport
 		out	dx,al
 
 		or	ah,ah
-		jz	short .NotSupported
+		jz	.NotSupported
 		mov	al,PARPORT_MODE_PCECPEPP
 		clc
 		ret
@@ -454,19 +455,19 @@ proc PAR_CheckPS2support
 		ParPort_WriteData ebx,55h
 		in	al,dx
 		cmp	al,55h
-		je	short .1
+		je	.1
 		inc	cl
 
 .1:		mov	al,0AAh
 		out	dx,al
 		in	al,dx
 		cmp	al,0AAh
-		je	short .2
+		je	.2
 		inc	cl
 
 .2		ParPort_WriteControl ebx,ch		; Cancel input mode
 		or	cl,cl
-		jz	short .NotDetected
+		jz	.NotDetected
 		mov	al,PARPORT_MODE_PCPS2
 		clc
 		ret
@@ -483,7 +484,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - mode not supported.
 proc PAR_CheckECPPS2support
 		test	byte [ebx+tPPdevParm.Modes],PARPORT_MODE_PCECR
-		jz	short .NotSupported
+		jz	.NotSupported
 
 		ParPort_ReadEControl ebx
 		mov	ah,al
@@ -497,7 +498,7 @@ proc PAR_CheckECPPS2support
 		out	dx,al
 
 		or	ah,ah
-		jz	short .NotSupported
+		jz	.NotSupported
 		mov	al,PARPORT_MODE_PCECPPS2
 		clc
 		ret
@@ -531,7 +532,7 @@ proc PAR_CheckProgIRQsupport
 		xchg	al,ah
 		ParPort_WriteEControl ebx
 		or	ah,ah
-		jz	short .No
+		jz	.No
 		ret
 
 .No:		stc

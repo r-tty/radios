@@ -147,7 +147,7 @@ proc K_DescriptorAddress
 		add	ebx,?GDT		; Find position in GDT
 		call	K_GetDescriptorBase	; Load up the LDT base address
 		mov	ebx,edi
-		jmp	short .GotLDT
+		jmp	.GotLDT
 .GetGDT:	mov	ebx,?GDT		; Otherwise just get the GDT table
 .GotLDT:	and	edx,~SELECTOR_STATUS	; Strip off RPL and TI of descriptor
 		add	ebx,edx			; Add in to table base

@@ -193,7 +193,7 @@ endp		;---------------------------------------------------------------
 proc PG_AllocContBlock
 		locals	blockpages
 		prologue
-		mpush	ecx,edx,esi,edi
+		savereg	ecx,edx,esi,edi
 
 		mAlignOnPage ecx
 		jecxz	.Err1
@@ -202,10 +202,10 @@ proc PG_AllocContBlock
 		mov	esi,[?PgBitmapAddr]
 		sub	esi,byte 4			; We add 4 later
 		or	dl,dl				; Kernel area?
-		jnz	short .ExtMemory
+		jnz	.ExtMemory
 		mov	ecx,[?NumPgsKernPool]
 		shr	ecx,5				; 32 bits in dword
-		jmp	short .FindFirst
+		jmp	.FindFirst
 
 .ExtMemory:	add	esi,UPPERMEMSTART / PAGESIZE / 8
 		mov	ecx,[?UpperMemPages]
@@ -221,7 +221,7 @@ proc PG_AllocContBlock
 		mov	edx,[%$blockpages]
 		mov	edi,eax
 .FindRest:	dec	edx
-		jz	short .GotOK
+		jz	.GotOK
 		inc	eax
 		bt	[esi],eax
 		jc	.FindRest
@@ -243,16 +243,15 @@ proc PG_AllocContBlock
 		shl	ebx,PAGESHIFT			; EBX=first page address
 		clc
 
-.Done:		mpop	edi,esi,edx,ecx
-		epilogue
+.Done:		epilogue
 		ret
 
 .Err1:		mov	ax,ERR_PG_BadBlockSize
 		stc
-		jmp	short .Done
+		jmp	.Done
 .Err2:		mov	ax,ERR_PG_NoFreePage
 		stc
-		jmp	short .Done
+		jmp	.Done
 endp		;---------------------------------------------------------------
 
 
@@ -266,13 +265,13 @@ proc PG_Alloc
 		mov	esi,[?PgBitmapAddr]
 		sub	esi,byte 4			; Will add 4 later
 		or	dl,dl
-		jnz	short .UserPages
+		jnz	.UserPages
 		mov	eax,[?KernPagePool]
 		shr	eax,PAGESHIFT+3			; 8 bits in byte
 		add	esi,eax
 		mov	ecx,[?NumPgsKernPool]
 		shr	ecx,byte 5			; 32 bits in dword
-		jmp	short .Loop
+		jmp	.Loop
 		
 .UserPages:	add	esi,UPPERMEMSTART / PAGESIZE / 8
 		mov	ecx,[?UpperMemPages]
@@ -281,7 +280,7 @@ proc PG_Alloc
 .Loop:		add	esi,byte 4			; Next dword
 		bsf	eax,[esi]			; See if any bits set
 		loopz	.Loop				; Loop while not
-		jz	short .Err			; Quit if no memory
+		jz	.Err				; Quit if no memory
 		btr	[esi],eax			; Else reset the bit
 		sub	esi,[?PgBitmapAddr]		; Find the dword address
 		mov	ebx,esi				; Make it a relative bit #
@@ -324,7 +323,7 @@ proc PG_GetNumFreePages
 		xor	eax,eax
 		xor	edx,edx
 .Loop:		bt	[esi],edx
-		jnc	short .Next
+		jnc	.Next
 		inc	eax
 .Next:		inc	edx
 		cmp	edx,ecx
@@ -347,8 +346,8 @@ endp		;---------------------------------------------------------------
 		; Note: this routine allocates page tables (if they are not
 		;	allocated yet) and initializes PTEs with PG_DISABLE.
 proc PG_AllocAreaTables
+		jecxz	.Ret
 		mpush	ebx,ecx,edx,esi,edi
-		jecxz	.Exit
 		mov	esi,ebx
 		mov	edi,edx
 		shr	ebx,PAGEDIRSHIFT			; EBX=PDE#
@@ -365,7 +364,7 @@ proc PG_AllocAreaTables
 		loop	.Loop
 		clc
 .Exit:		mpop	edi,esi,edx,ecx,ebx
-		ret
+.Ret:		ret
 		
 		; Subroutine: initialize page table attributes
 .InitPTattrs:	push	ecx

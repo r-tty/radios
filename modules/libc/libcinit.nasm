@@ -9,9 +9,6 @@ module $libc
 
 exportdata ModuleInfo
 
-extern libc_init_stdlib
-extern libc_init_string
-
 %define SHLIB_BASE 50000000h
 
 section .data
@@ -30,7 +27,5 @@ iend
 section .text
 
 proc libc_initialize
-		call	libc_init_stdlib
-		call	libc_init_string
 		ret
 endp		;---------------------------------------------------------------

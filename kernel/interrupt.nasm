@@ -23,7 +23,7 @@ publicdata IDTlimAddr
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkAddr, K_PoolChunkNumber
 externproc PG_Alloc, K_SetupExceptions
-externproc DebugKDOutput, K_SysInt, K_ServEntry, K_Ring0
+externproc DebugKDOutput, K_SysInt, K_ServEntry, K_Ring0, K_UnimplSysCall
 externproc MT_ThreadSleep, MT_ThreadWakeup
 externproc PIC_EnableIRQ, PIC_DisableIRQ
 externproc K_SwitchTask, MT_Schedule
@@ -76,7 +76,7 @@ SoftIntFunct	DD	0			; INT 20h
 		DD	0			; INT 2Ah
 		DD	0			; INT 2Bh
 		DD	0			; INT 2Ch
-		DD	0			; INT 2Dh
+		DD	K_UnimplSysCall		; INT 2Dh
 		DD	0			; INT 2Eh
 		DD	K_ServEntry		; INT 2Fh
 
@@ -371,7 +371,12 @@ proc sys_InterruptAttach
 endp		;---------------------------------------------------------------
 
 
+		; int InterruptDetachFunc(int id, void (*func)(void);
 proc sys_InterruptDetachFunc
+		arg	id, func
+		prologue
+		MISSINGSYSCALL
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

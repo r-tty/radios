@@ -211,7 +211,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncDestroy
 		arg	sync
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -221,7 +221,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncMutexLock
 		arg	sync
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -231,7 +231,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncMutexUnlock
 		arg	sync
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -241,7 +241,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncMutexRevive
 		arg	sync
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -251,7 +251,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncCondvarWait
 		arg	sync, mutex
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -261,7 +261,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncCondvarSignal
 		arg	sync, broadcast
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -271,7 +271,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncSemPost
 		arg	sync
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -281,7 +281,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncSemWait
 		arg	sync, try
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -291,7 +291,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncCtl
 		arg	cmd, sync, data
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

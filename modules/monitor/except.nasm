@@ -98,7 +98,7 @@ proc SaveRegisters
 		mov	[rEDI],edi
 		mov	[rEBP],ebp
 		mov	ebp,esp		; Point BP at interrupt data
-		add	ebp,4
+		add	ebp,byte 4
 		mov	ax,[ebp]	; Get the DS
 		mov	[rDS],ax	;
 		mov	ebx,4		; Offset past this routine's return

@@ -94,7 +94,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedGet
 		arg	pid, tid, param
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -105,7 +105,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedSet
 		arg	pid, tid, policy, param
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -115,7 +115,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedInfo
 		arg	pid, policy, info
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -127,5 +127,6 @@ endp		;---------------------------------------------------------------
 		;	 EBX=priority for destruction of multiple threads,
 		;	 EDX=TID.
 proc DestroyThread
+		int3
 		ret
 endp		;---------------------------------------------------------------

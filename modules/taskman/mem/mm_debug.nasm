@@ -92,22 +92,22 @@ proc MM_DebugFreeMem
 		mov	edi,esi
 		call	StrScan
 		or	edi,edi
-		jz	short .GetBlockAddr
+		jz	.GetBlockAddr
 		mov	byte [edi],0
 		inc	edi
 		
 		call	ValDwordDec			
-		jc	short .Exit
+		jc	.Exit
 		mov	edx,eax				; EDX=PID
 		mov	esi,edi
 
 .GetBlockAddr:	call	ValDwordHex		
-		jc	short .Exit
+		jc	.Exit
 		mov	ebx,eax				; EBX=block address
 		
 		mov	eax,edx
 		call	MT_PID2PCB			; ESI=PCB address
-		jc	short .Exit
+		jc	.Exit
 
 		xor	edi,edi
 		call	MM_FreeBlock
@@ -180,9 +180,9 @@ proc MM_DebugFreeMCBs
 		inc	esi
 
 		call    ValDwordDec
-		jc	short .Exit
+		jc	.Exit
 		or	eax,eax
-		jz	short .Exit
+		jz	.Exit
 		mov	edx,eax
 
 		mov	esi,ebx

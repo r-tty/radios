@@ -117,7 +117,7 @@ proc RFS_CreateFile
 		jmp	.Error
 
 .OK:		mov	eax,ebx
-		jmp	short .Exit
+		jmp	.Exit
 
 .Error:		stc
 .Exit:		mpop	edi,esi,edx,ecx,ebx
@@ -141,7 +141,7 @@ proc RFS_OpenFile
 	;	call	MoveNameToStack			; XXX
 	;	jc	.Error
 		call	RFS_GetOCB			; Find a free OCB
-		jc	short .Error
+		jc	.Error
 
 		lea	esi,[%$dirent]			; Search for file
 		push	edi
@@ -345,7 +345,7 @@ proc RFS_ReadLong
 		add	esi,ecx
 		cmp	ecx,RFS_BLOCKSIZE	; See if full read
 		pop	ecx
-		jnz	short .OK		; Get out if not
+		jnz	.OK			; Get out if not
 		sub	ecx,RFS_BLOCKSIZE	; Decrement amount left
 		jmp	.Loop			; Loop again
 
@@ -392,7 +392,7 @@ proc RFS_WriteLong
 
 .Last:		call	WriteShort		; Write last block.  Block routine
 						; Checks for 0 bytes
-		jc	short .Exit		; Error, get out
+		jc	.Exit			; Error, get out
 		add	[%$bytes],ecx		; Add number of bytes Written to rv
 		clc
 
@@ -574,10 +574,10 @@ proc DoTruncate
 		jns	.Singles
 		mov	ecx,RFS_FNIndirEntries-1	; Number of indirect entries to run through
 
-.Doubles:	mpush	ebx,ecx			; Save file page
+.Doubles:	mpush	ebx,ecx				; Save file page
 		mov	ebx,[esi+4*ecx+tFileNode.Doubles] ; Get a double
 		or	ebx,ebx				; If none allocated -
-		jz	short .NoDoubleDeall		; don't deallocate
+		jz	.NoDoubleDeall			; don't deallocate
 		mov	dword [esi+4*ecx+tFileNode.Doubles],0	; Get entry
 
 		mBseek
@@ -586,9 +586,9 @@ proc DoTruncate
 		jc	.Exit
 		mov	ecx,RFS_BLOCKSIZE/4		; Number of items in a block
 
-.DoubleDeall:	mov	eax,[esi+4*ecx]		; Get one
+.DoubleDeall:	mov	eax,[esi+4*ecx]			; Get one
 		or	eax,eax
-		jz	short .TNoDeall		; Don't deallocate if not allocated
+		jz	.TNoDeall		; Don't deallocate if not allocated
 		mov	dword [esi+4*ecx],0	; Else mark deallocated
 		call	RFS_DeallocBlock	; And deallocate it
 		jc	.Exit
@@ -601,7 +601,7 @@ proc DoTruncate
 		dec	ecx			; Next indirect buffer
 		jns	.Doubles
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 
 .Exit:		push	ecx
 		ret
@@ -702,7 +702,7 @@ proc ReadShort
 		ret
 
 .Error2:	pop	ecx
-		jmp	short .Error
+		jmp	.Error
 .Error1:	mov	ax,EINVAL
 .Error:		stc
 		ret
@@ -750,7 +750,7 @@ proc WriteShort
 		jz	.Alloc
 		cmp	dword [edi+tRFSOCB.PosBytes],RFS_BLOCKSIZE
 		cmc
-		jae	short .NoAlloc
+		jae	.NoAlloc
 		inc	dword [edi+tRFSOCB.PosPages]
 
 .Alloc:		call	RFS_ExtendFile			; Allocate the page

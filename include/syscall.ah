@@ -96,6 +96,6 @@ KDEBUG_TRAP		EQU	20h
 KDOUTPUT_TRAP		EQU	21h
 
 ; Trap for terminating the current thread
-THRKILL_TRAP		EQU	27h
+THRKILL_TRAP		EQU	2Eh
 
 %endif

@@ -7,10 +7,11 @@ module libc.posix1b
 %include "tm/memman.ah"
 %include "tm/memmsg.ah"
 
-exportproc _mmap64, _exit
+exportproc _mmap64
 exportproc _sem_init, _sem_destroy, _sem_post, _sem_wait, _sem_trywait
+exportproc _sched_get_priority_max, _sched_get_priority_min
 
-extern _MsgSendnc
+externproc _MsgSendnc, _SchedInfo
 
 section .text
 
@@ -58,11 +59,6 @@ proc _mmap64
 endp		;---------------------------------------------------------------
 
 
-proc _exit
-		jmp	$
-endp		;---------------------------------------------------------------
-
-
 		; int sem_init(sem_t *sem, int pshared, uint value);
 proc _sem_init
 		arg	sem, pshared, value
@@ -104,5 +100,35 @@ proc _sem_trywait
 		arg	sem
 		prologue
 		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sched_get_priority_min(int alg);
+proc _sched_get_priority_min
+		arg	alg
+		locauto	info, tSchedInfo_size
+		prologue
+		lea	eax,[%$info]
+		Ccall	_SchedInfo, 0, dword [%$alg], eax
+		test	eax,eax
+		js	.Exit
+		mov	eax,[%$info+tSchedInfo.PrioMin]
+.Exit:		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sched_get_priority_max(int alg);
+proc _sched_get_priority_max
+		arg	alg
+		locauto	info, tSchedInfo_size
+		prologue
+		lea	eax,[%$info]
+		Ccall	_SchedInfo, 0, dword [%$alg], eax
+		test	eax,eax
+		js	.Exit
+		mov	eax,[%$info+tSchedInfo.PrioMax]
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------

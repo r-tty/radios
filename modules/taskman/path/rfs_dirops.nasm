@@ -64,9 +64,9 @@ proc RFS_CreateDir
 		
 		mov	esi,edi
 		call	RFS_SearchForFileName		; See if name exists
-		jnc	short .Err2			; If exists - error
+		jnc	.Err2				; If exists - error
 		cmp	ax,ENOENT			; Else see if not found
-		jne	short .Error			; No, service other errors
+		jne	.Error				; No, service other errors
 		call	RFS_AllocDirBlock		; Else allocate
 		jc	.Exit				; the directory node
 		mov	ebx,eax
@@ -135,20 +135,20 @@ proc RFS_RemoveDir
 
 		mov	esi,edi
 		call	RFS_SearchForFileName		; See if name exists
-		jc	short .Exit			; Err if doesn't exist
+		jc	.Exit				; Err if doesn't exist
 		mov	ebx,eax
 
 		mBseek
 		test	word [esi+tDirNode.Type],ST_MODE_IFDIR	; Directory?
-		jz	short .Err3
+		jz	.Err3
 		call	RFS_GetNumOfFiles		; Get number of files
-		jc	short .Exit			; in directory
+		jc	.Exit				; in directory
 		or	eax,eax				; Empty?
-		jnz	short .Err2
+		jnz	.Err2
 
                 mov	eax,ebx
 		call	RFS_DeallocBlock
-		jc	short .Exit
+		jc	.Exit
 
 		mov	ebx,[%$headnode]
 		xor	eax,eax
@@ -181,7 +181,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc RFS_ChangeDir
-
+		; XXX
 		ret
 endp		;---------------------------------------------------------------
 

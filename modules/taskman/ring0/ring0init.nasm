@@ -142,7 +142,7 @@ proc Start
 		inc	eax
 		mov	[esi+tProcDesc.Lock+tSemaphore.Count],eax
 
-		; Allocate a page for LDT and activate it
+		; Allocate a page for LDT and register it
 		mov	dl,1
 		call	PG_Alloc
 		jc	near .Err

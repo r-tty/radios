@@ -8,7 +8,7 @@ module libc.stdlib
 %include "locstor.ah"
 %include "lib/stdlib.ah"
 
-exportproc _ldiv, _malloc, _calloc, _free, _atexit
+exportproc _ldiv, _malloc, _calloc, _free
 
 publicproc libc_init_stdlib
 
@@ -24,10 +24,6 @@ endstruc
 tMallocHdr_shift	EQU	3		; log2(tMallocHdr_size)
 
 FixNeg			EQU	-1 / 2		; for _ldiv
-
-section .bss
-
-atexit_list	RESP	1			; Head of atexit() list
 
 section .text
 
@@ -109,21 +105,19 @@ proc _malloc
 		; Exact size
 .Exact:		mov	eax,[edi+tMallocHdr.Addr]
 		mov	[esi+tMallocHdr.Addr],eax
+		mov	[edx+tTLS.HlastPtr],esi
 		jmp	.OK
+
+.Next:		mov	esi,edi
+		mov	edi,[edi+tMallocHdr.Addr]
+		jmp	.Loop
 
 		; If wrapped around the free list - get a new block
 .CheckWrap:	cmp	edi,[edx+tTLS.HlastPtr]
 		jne	.Next
 		call	GetMem
 		js	.Exit
-
-.Next:		mov	esi,edi
-		mov	edi,[edi+tMallocHdr.Addr]
-		jmp	.Loop
-
-.OK:		mov	[edx+tTLS.HlastPtr],esi
-		add	edi,byte tMallocHdr_size
-		mov	eax,edi
+.OK:		lea	eax,[edi+tMallocHdr_size]
 
 .Exit:		epilogue
 		ret
@@ -136,16 +130,18 @@ GetMem:		mpush	ecx,esi
 		mov	eax,ecx
 		add	eax,PAGESIZE/tMallocHdr_size-1
 		and	eax,~(PAGESIZE/tMallocHdr_size-1)
-		mov	ebx,eax
+		mov	ecx,eax
 		shl	eax,tMallocHdr_shift
 		Ccall	_AllocPages, eax
 		test	eax,eax
-		js	.done
-		mov	[eax+tMallocHdr.Size],ebx
+		js	.Done
+		mov	[eax+tMallocHdr.Size],ecx
 		add	eax,byte tMallocHdr_size
+
 		Ccall	_free, eax
-		mov	edi,[edx+tTLS.HlastPtr]
-.done:		mpop	esi,ecx
+		mov	edi,[edx+tTLS.HheadPtr]
+
+.Done:		mpop	esi,ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -177,12 +173,12 @@ endp		;---------------------------------------------------------------
 proc _free
 		arg	addr
 		prologue
-		push	edx
+		savereg	ebx,edx,esi,edi
 
 		mov	edi,[%$addr]
 		or	edi,edi
 		jz	.Exit
-		sub	edi,tMallocHdr_size
+		sub	edi,byte tMallocHdr_size
 		tlsptr(edx)
 		mov	esi,[edx+tTLS.HlastPtr]
 		or	esi,esi
@@ -230,35 +226,6 @@ proc _free
 .OK:		mov	[edx+tTLS.HlastPtr],esi
 		xor	eax,eax
 
-.Exit:		pop	edx
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int atexit(void (*function)(void));
-proc _atexit
-		arg	func
-		prologue
-
-		Ccall _malloc, tAtExitFunc_size
-		test	eax,eax
-		jz	.Failure
-		mov	ebx,[%$func]
-		mov	[eax+tAtExitFunc.Func],ebx
-		mov	ebx,[atexit_list]
-		mov	[eax+tAtExitFunc.Next],ebx
-		mov	[atexit_list],eax
-		xor	eax,eax
-.Done:		epilogue
-		ret
-
-.Failure:	dec	eax
-		jmp	.Done
-endp		;---------------------------------------------------------------
-
-
-		; Initialization
-proc libc_init_stdlib
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------

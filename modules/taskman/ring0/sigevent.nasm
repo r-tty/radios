@@ -116,6 +116,7 @@ endp		;---------------------------------------------------------------
 proc sys_MsgVerifyEvent
 		arg	rcvid, event
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -154,6 +155,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalReturn
 		arg	info
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -163,6 +165,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalFault
 		arg	sigcode, regs, refaddr
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -174,6 +177,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalAction
 		arg	pid, sigstub, signo, act, oact
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -184,6 +188,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalProcmask
 		arg	pid, tid, how, set, oldset
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -193,6 +198,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalSuspend
 		arg	set
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -202,6 +208,7 @@ endp		;---------------------------------------------------------------
 proc sys_SignalWaitinfo
 		arg	set, info
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

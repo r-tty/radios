@@ -16,8 +16,8 @@ extraclean = $(TRAMPOLINE)
 # Definitions
 export TARGET_LIB = kernel.$(L)
 OBJS = startup.$(O) tssgdt.$(O) interrupt.$(O) exception.$(O) pages.$(O) \
-       mem.$(O) misc.$(O) pool.$(O) sync.$(O) setjmp.$(O) time.$(O) \
-       syscall.$(O) tmif.$(O) kcons.$(O) strutil.$(O)
+       mem.$(O) hashtable.$(O) misc.$(O) pool.$(O) sync.$(O) setjmp.$(O) \
+       time.$(O) syscall.$(O) tmif.$(O) kcons.$(O) strutil.$(O)
 LIBS = $(TARGET_LIB)
 TARGET_RDM = kernel.$(M)
 SUBDIRS = mt ipc x86dev

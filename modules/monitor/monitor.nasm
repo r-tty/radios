@@ -142,21 +142,17 @@ endp		;---------------------------------------------------------------
 
 		; Handler of DebugKDBreak trap.
 proc DebugKDBreak
-		push	ebp
-		lea	ebp,[esp+8]
+		lea	ebp,[esp+4]			; EBP=frame address
 		mov	eax,[ebp+tStackFrame.ESDS]
 		mov	[rES],ax
 		ror	eax,16
 		mov	[rDS],ax
-		mov	eax,fs
-		mov	[rFS],ax
-		mov	eax,gs
-		mov	[rGS],ax
+		mov	[rFS],fs
+		mov	[rGS],gs
 		Mov16	rCS,ebp+tStackFrame.ECS
 		Mov32	rEIP,ebp+tStackFrame.EIP
 		Mov16	rSS,ebp+tStackFrame.ESS
 		Mov32	rESP,ebp+tStackFrame.ESP
-		Mov32	rEFLAGS,ebp+tStackFrame.EFLAGS
 		Mov32	rEDI,ebp+tStackFrame.EDI
 		Mov32	rESI,ebp+tStackFrame.ESI
 		Mov32	rEBP,ebp+tStackFrame.EBP
@@ -164,7 +160,11 @@ proc DebugKDBreak
 		Mov32	rEDX,ebp+tStackFrame.EDX
 		Mov32	rECX,ebp+tStackFrame.ECX
 		Mov32	rEAX,ebp+tStackFrame.EAX
+		Mov32	rEFLAGS,ebp+tStackFrame.EFLAGS
 		sldt	[rLDTR]
+		lea	esp,[ebp+tStackFrame_size]
+		mov	[rtoss],esp
+		mov	[sstoss],ss
 		mPrintChar NL
 		call	DisplayRegisters
 		jmp	InputHandler

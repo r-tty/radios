@@ -22,7 +22,7 @@ section .text
 proc _memchr
 		arg	str, char, size
 		prologue
-		push	edi
+		savereg	ecx,edi
 		mov	ecx,[%$size]
 		mov	eax,[%$char]
 		mov	edi,[%$str]
@@ -31,9 +31,8 @@ proc _memchr
 		jne	.Done
 		dec	edi
 		mov	ecx,edi
-.Done:
-		mov	eax,ecx
-	     	pop	edi
+
+.Done:		mov	eax,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -43,7 +42,7 @@ endp		;---------------------------------------------------------------
 proc _memcmp
 		arg	s1, s2, size
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		xor	eax,eax
 		mov	esi,[%$s1]
 		mov	edi,[%$s2]
@@ -53,11 +52,10 @@ proc _memcmp
 		je	.Done
 		jc	.Neg
 		inc	eax
-		jmp	short .Done
+		jmp	.Done
 
 .Neg:		not	eax
-.Done:		mpop	edi,esi
-		epilogue
+.Done:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 		
@@ -66,14 +64,13 @@ endp		;---------------------------------------------------------------
 proc _memcpy
 		arg	to, from, size
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	esi,[%$from]
 		mov	edi,[%$to]
 		mov	eax,edi
 		mov	ecx,[%$size]
 		cld
 		rep	movsb
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -83,7 +80,7 @@ endp		;---------------------------------------------------------------
 proc _memmove
 		arg	to, from, size
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	ecx,[%$size]
 		mov	esi,[%$from]
 		mov	edi,[%$to]
@@ -102,8 +99,7 @@ proc _memmove
 		rep	movsb
 		cld
 
-.Done:		mpop	edi,esi
-		epilogue
+.Done:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -112,14 +108,13 @@ endp		;---------------------------------------------------------------
 proc _memset
 		arg	block, char, size
 		prologue
-		push	edi
+		savereg	ecx,edi
 		mov	ecx,[%$size]
 		mov	eax,[%$char]
 		mov	edi,[%$block]
 		cld
 		rep	stosb
 		mov	eax,[%$block]
-		pop	edi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -129,7 +124,7 @@ endp		;---------------------------------------------------------------
 proc _strcat
 		arg	to, from
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 	
 		mov	edi,[%$to]
 		mov	ecx,-1
@@ -148,7 +143,6 @@ proc _strcat
 		pop	edi
 		rep	movsb
 		mov	eax,[%$to]
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -158,7 +152,7 @@ endp		;---------------------------------------------------------------
 proc _strchr
 		arg	str, char
 		prologue
-		mpush	ecx,edi
+		savereg	ecx,edi
 		mov	edi,[%$str]
 		xor	al,al
 		cld
@@ -174,7 +168,6 @@ proc _strchr
 
 .OK:		mov	eax,edi
 		dec	eax
-		mpop	edi,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -184,7 +177,7 @@ endp		;---------------------------------------------------------------
 proc _strcmp
 		arg	s1, s2
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	edi,[%$s1]
 		mov	esi,edi
 		mov	ecx,-1
@@ -204,8 +197,7 @@ proc _strcmp
 		
 .Neg:		mov	eax,-1
 
-.Done:		mpop	edi,esi
-		epilogue
+.Done:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -214,7 +206,7 @@ endp		;---------------------------------------------------------------
 proc _strcpy
 		arg	to, from
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	esi,[%$from]
 		mov	edi,esi
 		xor	al,al
@@ -225,7 +217,6 @@ proc _strcpy
 		mov	edi,[%$to]
 		mov	eax,edi
 		rep	movsb
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -235,27 +226,26 @@ endp		;---------------------------------------------------------------
 proc _strcspn
 		arg	str, stopset
 		prologue
-		mpush	ecx,edx,esi,edi
+		savereg	ecx,edx,esi,edi
 		mov	esi,[%$str]
 		mov	edx,[%$stopset]
 		sub	eax,eax
-.Loop:
-		inc	eax
+
+.Loop:		inc	eax
 		test	byte [esi],0FFh
 		je	.Done
 		mov	edi,edx
 		mov	cl,[esi]
 		inc	esi
-.Loop1:
-		test	byte [edi],0FFh
+
+.Loop1:		test	byte [edi],0FFh
 		je	.Loop
 		cmp	cl,[edi]
 		je	.Done
 		inc	edi
 		jmp	.Loop1
-.Done:
-		dec	eax
-		mpop	edi,esi,edx,ecx
+
+.Done:		dec	eax
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -265,7 +255,7 @@ endp		;---------------------------------------------------------------
 proc _strlen
 		arg	str
 		prologue
-		mpush	ecx,edi
+		savereg	ecx,edi
 		mov	edi,[%$str]
 		xor	al,al
 		mov	ecx,-1
@@ -274,7 +264,6 @@ proc _strlen
 		not	ecx
 		dec	ecx
 		mov	eax,ecx
-		mpop	edi,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -306,7 +295,7 @@ endp		;---------------------------------------------------------------
 proc _strncat
 		arg	to, from, size
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	edi,[%$to]
 		mov	ecx,-1
 		sub	al,al
@@ -318,7 +307,6 @@ proc _strncat
 		rep	movsb
 		mov	byte [edi],0
 		mov	eax,[%$to]
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -328,7 +316,7 @@ endp		;---------------------------------------------------------------
 proc _strncmp
 		arg	s1, s2, n
 		prologue
-		mpush	ecx,esi,edi
+		savereg	ecx,esi,edi
 		mov	ecx,[%$n]
 		jecxz	.Zero
 		mov	edi,[%$s2]
@@ -345,8 +333,7 @@ proc _strncmp
 		
 .Neg:		mov	eax,-1
 
-.Done:		mpop	edi,esi,ecx
-		epilogue
+.Done:		epilogue
 		ret
 endp		;--------------------------------------------------------------- 
 
@@ -355,7 +342,7 @@ endp		;---------------------------------------------------------------
 proc _strncpy
 		arg	to, from, size
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	edi,[%$from]
 		mov	ecx,-1
 		sub	al,al
@@ -379,7 +366,6 @@ proc _strncpy
 		rep	stosb
 
 .NoPad:		mov	eax,[%$to]
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -389,14 +375,14 @@ endp		;---------------------------------------------------------------
 proc _strpbrk
 		arg	str, stopset
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	esi,[%$str]
 		mov	edx,[%$stopset]
 		sub	eax,eax
 .Loop:
 		inc	eax
 		test	byte [esi],0ffh
-		je	short .ex1
+		je	.ex1
 		mov	edi,edx
 		mov	cl,[esi]
 		inc	esi
@@ -404,18 +390,17 @@ proc _strpbrk
 		test	byte [edi],0ffh
 		je	.Loop
 		cmp	cl,[edi]
-		je	short .ex2
+		je	.ex2
 		inc	edi
 		jmp	.Loop1
 		
 .ex1:		sub	eax,eax
-		jmp	short .Done
+		jmp	.Done
 		
 .ex2:		dec	eax
 		add	eax,[%$str]
 		
-.Done:		mpop	edi,esi
-		epilogue
+.Done:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -424,7 +409,7 @@ endp		;---------------------------------------------------------------
 proc _strrchr
 		arg	str, char
 		prologue
-		push	edi
+		savereg	ecx,edi
 		mov	edi,[%$str]
 		mov	ecx,-1
 		sub	al,al
@@ -444,8 +429,7 @@ proc _strrchr
 		mov	eax,ecx
 		inc	eax
 		
-.Done:		pop	edi
-		epilogue
+.Done:		epilogue
 		ret
 endp		;---------------------------------------------------------------	
 	
@@ -454,7 +438,7 @@ endp		;---------------------------------------------------------------
 proc _strspn
 		arg	str, skipset
 		prologue
-		mpush	ecx,edx,esi,edi
+		savereg	ecx,edx,esi,edi
 		mov	esi,[%$skipset]
 		mov	edx,[%$str]
 		sub	eax,eax
@@ -474,7 +458,6 @@ proc _strspn
 		jmp	.Loop1
 		
 .Done:		dec	eax
-		mpop	edi,esi,edx,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------	
@@ -484,7 +467,7 @@ endp		;---------------------------------------------------------------
 proc _strstr
 		arg	s1, s2
 		prologue
-		mpush	esi,edi
+		savereg	ecx,esi,edi
 		mov	edi,[%$s2]
 		push	edi
 		sub	al,al
@@ -512,7 +495,6 @@ proc _strstr
 .NotFound:	sub	esi,esi
 	
 .Done:		mov	eax,esi
-		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -522,7 +504,7 @@ endp		;---------------------------------------------------------------
 proc _strupr
 		arg	str
 		prologue
-		push	esi
+		savereg	esi
 		mov	esi,[%$str]
 		
 .Loop:		lodsb
@@ -537,7 +519,6 @@ proc _strupr
 		jmp	.Loop
 
 .Done:		mov	eax,[%$str]
-		pop	esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -547,7 +528,7 @@ endp		;---------------------------------------------------------------
 proc _strend
 		arg	str
 		prologue
-		mpush	ecx,edi
+		savereg	ecx,edi
 		mov	edi,[%$str]
 		xor	ecx,ecx
 		dec	ecx
@@ -555,12 +536,6 @@ proc _strend
 		cld
 		repne	scasb
 		mov	eax,edi
-		mpop	edi,ecx
 		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-		; Initialization
-proc libc_init_string
 		ret
 endp		;---------------------------------------------------------------

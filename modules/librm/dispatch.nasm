@@ -147,7 +147,7 @@ endp		;---------------------------------------------------------------
 proc DISP_AllocDesc
 		mpush	ebx,ecx,edi
 		mov	ebx,eax
-int 20h
+
 		Ccall	_malloc, tDispatch_size
 		test	eax,eax
 		stc

@@ -16,13 +16,13 @@ proc IDE_GetInitStatStr
 		mov	esi,edi
 		
 		test	edx,0FF0000h			; Minor present?
-		jz	short .NoMinor
+		jz	.NoMinor
 
 		; Check whether the device is initialized
 		call	IDE_Minor2HDN
 		jc	near .Exit
 		cmp	word [edi+tIDEdev.BasePort],0
-		jne	short .ChkSubMinor
+		jne	.ChkSubMinor
 		stc
 		jmp	.Exit
 
@@ -38,7 +38,7 @@ proc IDE_GetInitStatStr
 .ChkSubMinor:	mov	edi,esi
 		cld
 		or	bl,bl
-		jz	short .DriveModel
+		jz	.DriveModel
 		mov	ebx,edx
 		shr	ebx,16
 		mov	eax,ebx
@@ -87,7 +87,7 @@ proc IDE_GetInitStatStr
 		call	StrAppend
 
 		test	byte [ebx+tIDEdev.LDHpref],LDH_LBA	; LBA?
-		jz	short .CHS
+		jz	.CHS
 		mov	esi,IDE_LBAstr
 		call	StrAppend
 .CHS:		mov	esi,IDE_CHSstr
@@ -109,7 +109,7 @@ proc IDE_GetInitStatStr
 
 		mov	al,[ebx+tIDEdev.SecPerInt]
 		cmp	al,1
-		je	short .Exit
+		je	.Exit
 		mov	esi,IDE_MaxMultStr
 		call	StrAppend
 		call	StrEnd

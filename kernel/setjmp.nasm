@@ -1,19 +1,15 @@
-;*******************************************************************************
-; setjmp.nasm - setjmp/longjmp pair.
-; Copyright (c) 2000 RET & COM Research.
-; This file is based on VSTa Operating System (c) 1998-2000 Andy Valencia
-;*******************************************************************************
+;-------------------------------------------------------------------------------
+; setjmp.nasm - setjmp/longjmp pair, VSTa based.
+;-------------------------------------------------------------------------------
 
 module kernel.setjmp
 
 %include "cpu/setjmp.ah"
 
-; --- Exports ---
-
-global K_SetJmp, K_LongJmp
+publicproc K_SetJmp, K_LongJmp
 
 
-; --- Code ---
+section .text
 
 		; K_SetJmp - save context, returning 0.
 		; Input: EDI=address of tJmpBuf structure.
@@ -52,4 +48,3 @@ proc K_LongJmp
 		sti
 		ret
 endp		;---------------------------------------------------------------
-

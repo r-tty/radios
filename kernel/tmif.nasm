@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; tmif.nasm - Ring0 routines (used by a task manager only).
+; tmif.nasm - privileged kernel entries, used only by a task manager.
 ;-------------------------------------------------------------------------------
 
 module kernel.tmif

@@ -4,6 +4,7 @@
 
 module tm.kern.timers
 
+%include "sys.ah"
 %include "pool.ah"
 %include "time.ah"
 %include "tm/kern.ah"
@@ -63,6 +64,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerCreate
 		arg	id, event
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -72,6 +74,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerDestroy
 		arg	id
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -82,6 +85,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerSettime
 		arg	id, flags, itime, otime
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -92,6 +96,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerInfo
 		arg	pid, id flags, info
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -102,6 +107,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerAlarm
 		arg	id, itime, otime
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -113,6 +119,7 @@ endp		;---------------------------------------------------------------
 proc sys_TimerTimeout
 		arg	id, flags, notify, ntime, otime
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

@@ -47,7 +47,7 @@ section .text
 		;	  CF=1 - error, AX=error code.
 proc HD_Init
 		cmp	al,HD_MaxDrives
-		ja	short .Err
+		ja	.Err
 		mov	[HD_MaxNumDisks],al
 		clc
 		ret
@@ -74,7 +74,7 @@ proc HD_Open
 		prologue 540
 		mpush	ebx,ecx,edx,esi
 		test	edx,0FF000000h			; Subminor present?
-		jz	short .NoMinor			; No, partition drive
+		jz	.NoMinor			; No, partition drive
 		jmp	.Exit
 
 		; Form disk descriptor (address of disk structure)
@@ -117,11 +117,11 @@ proc HD_Open
 		mov	cl,4				; 4 primary partitions
 .LoopFill:	call	HD_MBR2PartDesc			; Fill it
 		cmp	byte [edi+tPartDesc.SysCode],FS_ID_EXTENDED ; Extended partition?
-		je	short .Ext
+		je	.Ext
 		cmp	byte [edi+tPartDesc.SysCode],FS_ID_LINUXEXT
-		je	short .Ext
+		je	.Ext
 		cmp	byte [edi+tPartDesc.SysCode],FS_ID_WINLBAEXT
-		jne	short .1
+		jne	.1
 .Ext:		mov	eax,edi
 .1:		add	esi,tPartitionEntry_size
 		add	edi,tPartDesc_size		; Next partition
@@ -130,7 +130,7 @@ proc HD_Open
 
 		; Extended partition found?
 		or	eax,eax
-		jz	short .OK
+		jz	.OK
 
 		; Search extended MBRs
 .ExtLoop:	mov	ecx,[eax+tPartDesc.BegSec]
@@ -138,29 +138,29 @@ proc HD_Open
 		lea	esi,[.buffer]
 		mov	ah,HD_opREADSEC
 		call	dword [.diskopproc]		; Read one sector
-		jc	short .Exit
+		jc	.Exit
 
 		add	esi,tMBR.MBRdata
 		cmp	word [esi+tMBRdata.Signature],MBR_SIGNATURE
-		jne	short .OK
+		jne	.OK
 
                 mov	cl,4
 .ExtLoop2:	mov	al,[esi+tPartitionEntry.SystemCode]
 		or	al,al
-		jz	short .OK
+		jz	.OK
 		cmp	al,FS_ID_EXTENDED		; Extended?
-		je	short .SubExt
+		je	.SubExt
 		cmp	al,FS_ID_LINUXEXT
-		je	short .SubExt
+		je	.SubExt
 		cmp	al,FS_ID_WINLBAEXT
-		jne	short .NotSubExt
+		jne	.NotSubExt
 		
 .SubExt:	push	edi
 		lea	edi,[.buffer2]
 		call	HD_MBR2PartDesc
 		mov	eax,edi
 		pop	edi
-		jmp	short .ExtLoop
+		jmp	.ExtLoop
 		
 .NotSubExt:	call	HD_MBR2PartDesc
 		add	esi,byte tPartitionEntry_size
@@ -170,7 +170,7 @@ proc HD_Open
 
 .OK:		mov	eax,[.cmnhddesc]		; EAX=disk descriptor
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Err2:		mov	ax,ERR_HD_BadMBRsig
 .Error:		stc
 .Exit:		mpop	esi,edx,ecx,ebx
@@ -207,10 +207,10 @@ proc HD_Read
 
 		shr	edx,16				; DX=full minor number
 		or	dh,dh				; Subminor given?
-		jz	short .Exit
+		jz	.Exit
 		and	ecx,0FFFFh
 		or	ecx,ecx
-		jz	short .Exit
+		jz	.Exit
 		mov	[.count],ecx
 		mov	ecx,ebx				; ECX=relative sector
 		mov	bh,dl
@@ -223,15 +223,15 @@ proc HD_Read
 
 		mov	bl,HD_MaxSecPerOp
 .Loop:		cmp	dword [.count],HD_MaxSecPerOp
-		ja	short .Read
+		ja	.Read
 		mov	bl,[.count]
 .Read:		mov	ah,HD_opREADSEC
 		call	edi
-		jc	short .Exit
+		jc	.Exit
 		xor	eax,eax
 		mov	al,bl
 		sub	[.count],eax			; Decrease counter
-		jz	short .OK
+		jz	.OK
 		add	ecx,eax				; Increase sector number
 		shl	eax,SECTORSHIFT
 		add	esi,eax				; and buffer pointer
@@ -267,7 +267,7 @@ endp		;---------------------------------------------------------------
 proc HD_GetPartParams
 		or	bl,bl
 		stc
-		jz	short .Exit
+		jz	.Exit
 		push	ebx
 		and	ebx,0FFh
 		dec	bl
@@ -291,10 +291,10 @@ endp		;---------------------------------------------------------------
 proc HD_GetPartInfoStr
 		mpush	eax,ecx,esi,edi
 		call	HD_GetPartParams		; Get partition params
-		jc	short .Exit
+		jc	.Exit
 		or	al,al				; Empty partition?
 		stc
-		jz	short .Exit
+		jz	.Exit
 
 		mov	edi,esi
 		mov	esi,HDstr_Type
@@ -332,18 +332,19 @@ proc HD_FindFreeDesc
 		mov	eax,HDtable
 		mov	cl,[HD_MaxNumDisks]
 .Loop:		cmp	dword [eax+tDIHD.DevID],0
-		je	short .OK
+		je	.OK
 		add	eax,tDIHD_size
 		dec	cl
 		jnz	.Loop
-		jmp	short .Err
+		jmp	.Err
 .OK:		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		mov	ax,ERR_HD_NoDescriptors
 		stc
 .Exit:		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
+
 
 		; HD_MBR2PartDesc - convert partition information from MBR to
 		;		    partition descriptor.

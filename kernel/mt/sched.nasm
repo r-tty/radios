@@ -26,7 +26,6 @@ section .bss
 ?CurrThread	RESD	1	; Pointer to the current running thread
 
 ?KernTicks	RESD	1	; Statistics
-?DrvTicks	RESD	1
 ?UserTicks	RESD	1
 ?NestedClocks	RESD	1
 ?CurReturns	RESD	1
@@ -85,11 +84,11 @@ proc MT_ContextSwitch
 		mov	cr3,eax
 		lldt	[esi+tProcDesc.LDTdesc]
 
-		; Always keep FS pointing at thread info page
+		; Always keep FS pointing at thread info page segment
 .UpdateFS:	mov	eax,[ebx+tTCB.TID]
 		shl	eax,3
-		or	ax,SELECTOR_LDT | SELECTOR_RPL3
-		mov	fs,ax
+		or	al,SELECTOR_LDT | SELECTOR_RPL3
+		mov	fs,eax
 
 		; Warp out to a new context
 .NewContext:	mov	[?CurrThread],ebx
@@ -176,18 +175,18 @@ proc MT_Schedule
 
 .Walk:		mov	ebx,[ebx+tTCB.ReadyNext]
 		cmp	ebx,[?ReadyThrList]
-		je	short .ChkQuantum
+		je	.ChkQuantum
 		cmp	[ebx+tTCB.CurrPriority],eax
 		jle	.Walk
 		mov	eax,[ebx+tTCB.CurrPriority]
 		mov	edx,ebx
-		jmp	short .Walk
+		jmp	.Walk
 
 .ChkQuantum:	mov	eax,[?SchedTick]
 		mov	[edx+tTCB.Stamp],eax
 
 		cmp	dword [edx+tTCB.Quant],0
-		jg	short .SaveCtx
+		jg	.SaveCtx
 		; Quantum decreases when the number of
 		; running threads increases treshold is 8 (2^3)
 		mov	eax,THRQUANT_DEFAULT
@@ -229,21 +228,16 @@ proc MT_BumpTime
 		inc	dword [?SchedTimer]
 		add	dword [?SchedMicroSec],10000
 		cmp	dword [?SchedMicroSec],1000000
-		jb	short .1
+		jb	.1
 		sub	dword [?SchedMicroSec],1000000
 		inc	dword [?SchedSeconds]
 
 .1:		mov	eax,[?CurrThread]
 		inc	dword [eax+tTCB.Ticks]
 		mov	al,[ebx+tStackFrame.ECS]
-		and	al,3
-		jz	short .Kernel
-		cmp	al,1
-		je	short .Driver
+		and	al,SELECTOR_RPL3
+		jz	.Kernel
 		inc	dword [?UserTicks]
-		ret
-
-.Driver:	inc	dword [?DrvTicks]
 		ret
 
 .Kernel:	inc	dword [?KernTicks]
@@ -294,9 +288,9 @@ proc K_SwitchTask
 .ChkTimeout:	call	MT_CheckTimeout
 
 		cmp	dword [ebx+tTCB.Quant],0
-		jle	short .Schedule
+		jle	.Schedule
 		dec	dword [?SchedPreempt]
-		jz	short .Done
+		jz	.Done
 .Schedule:	call	MT_Schedule
 
 .Done:		cli
@@ -338,10 +332,10 @@ proc MT_SetTimeout
 		mov	ecx,MAX_TIMEOUTS
 		mov	ebx,?TimeoutPool
 .HuntLoop:	cmp	byte [ebx+tTimeout.State],TM_ST_FREE
-		je	short .Init
+		je	.Init
 		add	ebx,tTimeout_size
 		loop	.HuntLoop
-		jmp	short .NoSpace
+		jmp	.NoSpace
 
 		; Initialize this timeout.
 		; Set its ticks value to current system ticks plus
@@ -364,9 +358,9 @@ proc MT_SetTimeout
 		mov	edx,[?TimeoutQue]
 .SearchLoop:	mov	eax,[ebx+tTimeout.Ticks]
 		cmp	[edx+tTimeout.Ticks],eax
-		ja	short .Insert
+		ja	.Insert
 		mov	edx,[edx+tTimeout.Next]
-		jmp	short .SearchLoop
+		jmp	.SearchLoop
 
 		; Insert this one before the one found above.
 .Insert:	mov	[ebx+tTimeout.Next],edx
@@ -375,7 +369,7 @@ proc MT_SetTimeout
 		mov	[eax+tTimeout.Next],ebx
 		mov	[edx+tTimeout.Prev],ebx
 		cmp	edx,[?TimeoutQue]
-		jne	short .1
+		jne	.1
 		mov	[edx+tTimeout.Prev],ebx
 
 .1:		popfd
@@ -443,7 +437,7 @@ endp		;---------------------------------------------------------------
 
 %ifdef MTDEBUG
 
-global MT_PrintSchedStat
+publicproc MT_PrintSchedStat
 
 section .data
 TxtNested	DB	NL,"Nested clocks: ",0

@@ -110,7 +110,7 @@ proc IND_Init
 		mov	ecx,tInode_size
 		mov	edx,POOLFL_HIMEM+POOLFL_BUCKETALLOC
 		call	K_PoolInit
-		jc	short .Exit
+		jc	.Exit
 
 		mov	ecx,HASH_NUMBER
 		mov	[?NumHash],ecx
@@ -119,7 +119,7 @@ proc IND_Init
 		mov	ecx,eax
 		mov	dl,1
 		call	AllocPhysMem
-		jc	short .Exit
+		jc	.Exit
 		mov	[?HashTblAddr],ebx
 		call	BZero
 		xor	eax,eax
@@ -149,16 +149,16 @@ proc CFS_GetInode
 
 .Repeat:	mov	esi,[edi+tInodeHashEntry.InodePtr]
 .HashSrch:	or	esi,esi
-		jz	short .ChkEmpty
+		jz	.ChkEmpty
 		cmp	edx,[esi+tInode.Dev]
-		jne	short .NextInd
+		jne	.NextInd
 		cmp	ebx,[esi+tInode.Block]
-		je	short .Found
+		je	.Found
 .NextInd:	mov	esi,[esi+tInode.HashNext]
 		jmp	.HashSrch
 
 .ChkEmpty:	or	ecx,ecx
-		jnz	short .FillInode
+		jnz	.FillInode
 		inc	dword [edi+tInodeHashEntry.Updating]
 		push	esi
 		call	IND_GetEmpty
@@ -167,7 +167,7 @@ proc CFS_GetInode
 		jc	.Exit
 		dec	dword [edi+tInodeHashEntry.Updating]
 		cmp	dword [edi+tInodeHashEntry.Updating],0
-		jne	short .NoWakeup
+		jne	.NoWakeup
 		push	ebx
 		lea	ebx,[.updatewait]
 		call	MT_WakeupTQ
@@ -184,25 +184,25 @@ proc CFS_GetInode
 		call	IND_PutLastFree
 		call	IND_InsertHash
 		call	CFS_ReadInode
-		jmp	short .Return
+		jmp	.Return
 
 .Found:		cmp	word [esi+tInode.Count],0
-		jne	short .IncCount
+		jne	.IncCount
 		dec	dword [?NumFreeInodes]
 .IncCount:	inc	word [esi+tInode.Count]
 		mWaitOnInode
 		
 		; Check whether inode changed during wait
 		cmp	[esi+tInode.Dev],edx
-		jne	short .InodeChanged
+		jne	.InodeChanged
 		cmp	[esi+tInode.Block],ebx
-		jne	short .InodeChanged
+		jne	.InodeChanged
 		
 		; Check whether the mount point is crossed
 		cmp	byte [.xmntp],0
-		je	short .UngetEmpty
+		je	.UngetEmpty
 		cmp	dword [esi+tInode.Mount],0
-		je	short .UngetEmpty
+		je	.UngetEmpty
 		mov	eax,[esi+tInode.Mount]
 		inc	word [eax+tInode.Count]
 		push	eax
@@ -212,7 +212,7 @@ proc CFS_GetInode
 		mWaitOnInode
 		
 .UngetEmpty:	or	ecx,ecx
-		jz	short .Return
+		jz	.Return
 		push	esi
 		mov	esi,ecx
 		call	CFS_UngetInode
@@ -220,7 +220,7 @@ proc CFS_GetInode
 
 .Return:	lea	ebx,[.updatewait]
 .Sleep:		cmp	dword [edi+tInodeHashEntry.Updating],0
-		je	short .Exit
+		je	.Exit
 		call	MT_SleepTQ
 		jmp	.Sleep
 		
@@ -260,10 +260,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc CFS_WriteInode
 		test	word [esi+tInode.Flags],IFL_DIRTY
-		jz	short .Exit
+		jz	.Exit
 		mWaitOnInode
 		test	word [esi+tInode.Flags],IFL_DIRTY
-		jz	short .Exit
+		jz	.Exit
                 or	word [esi+tInode.Flags],IFL_LOCKED
 		mCallDriverCtrl dword [esi+tInode.Dev],MOP_ReadInode
 		mUnlockInode
@@ -281,7 +281,7 @@ proc CFS_ClearInode
 		call	IND_RemoveFree
 		push	dword [esi+tInode.WaitQ]
 		cmp	word [esi+tInode.Count],0
-		jz	short .1
+		jz	.1
 		inc	dword [?NumFreeInodes]
 .1:		mov	ebx,esi
 		mov	ecx,tInode_size
@@ -332,17 +332,17 @@ endp		;---------------------------------------------------------------
 proc IND_RemoveFree
 		push	ebx
 		cmp	esi,[?FirstInodePtr]
-		jne	short .1
+		jne	.1
 		mov	eax,[?FirstInodePtr]
 		mov	eax,[eax+tInode.Next]
 		mov	[?FirstInodePtr],eax
 .1:		mov	eax,[esi+tInode.Next]
 		mov	ebx,[esi+tInode.Prev]
 		or	eax,eax
-		jz	short .2
+		jz	.2
 		mov	[eax+tInode.Prev],ebx
 .2:		or	ebx,ebx
-		jz	short .3
+		jz	.3
 		mov	[ebx+tInode.Next],eax
 .3:		xor	eax,eax
 		mov	[esi+tInode.Next],eax
@@ -365,7 +365,7 @@ proc IND_InsertHash
 		mov	[esi+tInode.HashNext],ebx
 		mov	dword [esi+tInode.HashPrev],0
 		or	ebx,ebx
-		jz	short .1
+		jz	.1
 		mov	[ebx+tInode.HashPrev],esi
 .1:		mov	[eax+tInodeHashEntry.InodePtr],esi
 		mpop	edx,ecx,ebx
@@ -384,13 +384,13 @@ proc IND_RemoveHash
 		mov	ebx,[esi+tInode.HashNext]
 		mov	edx,[esi+tInode.HashPrev]
 		cmp	[eax+tInodeHashEntry.InodePtr],esi
-		jne	short .1
+		jne	.1
 		mov	[eax+tInodeHashEntry.InodePtr],ebx
 .1:		or	ebx,ebx
-		jz	short .2
+		jz	.2
 		mov	[ebx+tInode.HashPrev],edx
 .2:		or	edx,edx
-		jz	short .3
+		jz	.3
 		mov	[edx+tInode.HashNext],ebx
 .3:		xor	eax,eax
 		mov	[esi+tInode.HashNext],eax
@@ -428,7 +428,7 @@ proc IND_Grow
 		; Allocate a "bucket" of inodes (as many as fit in one page)
 		mov	ebx,?InodePool
 		call	K_PoolAllocChunk
-		jc	short .Exit
+		jc	.Exit
 
 		; Update counters
 		add	[?NumInodes],ecx
@@ -437,7 +437,7 @@ proc IND_Grow
 		; If it's not first inode bucket - just add them into the
 		; free inodes list.
 		cmp	dword [?FirstInodePtr],0
-		jne	short .InitList
+		jne	.InitList
 
 		; If first one - initialize all pointers
 		mov	[?FirstInodePtr],esi
@@ -466,55 +466,55 @@ proc IND_GetEmpty
 		mov	eax,[?NumInodes]
 		mov	ecx,eax
 		cmp	eax,NR_INODE
-		jae	short .Search
+		jae	.Search
 		shr	eax,2
 		cmp	[?NumFreeInodes],eax
-		jae	short .Loop
+		jae	.Loop
 		call	IND_Grow
-		jc	short .Search
+		jc	.Search
 
 .Search:	mov	esi,[?FirstInodePtr]
 		xor	edi,edi
 
 .Loop:		cmp	word [esi+tInode.Count],0
-		jnz	short .2
+		jnz	.2
 		or	edi,edi
-		jnz	short .1
+		jnz	.1
 		mov	edi,esi
 .1:		test	word [esi+tInode.Flags],IFL_DIRTY
-		jnz	short .2
+		jnz	.2
 		cmp	word [esi+tInode.Flags],IFL_LOCKED
-		jnz	short .2
+		jnz	.2
 		mov	edi,esi
-		jmp	short .CheckBest
+		jmp	.CheckBest
 .2:		mov	esi,[esi+tInode.Next]
 		loop	.Loop
 
 .CheckBest:	or	edi,edi
-		jz	short .ChkGrow
+		jz	.ChkGrow
 		test	word [edi+tInode.Flags],IFL_DIRTY
-		jnz	short .ChkGrow
+		jnz	.ChkGrow
 		test	word [edi+tInode.Flags],IFL_LOCKED
-		jz	short .TakeBest
+		jz	.TakeBest
 .ChkGrow:	cmp	dword [?NumInodes],NR_INODE
-		jae	short .TakeBest
+		jae	.TakeBest
 		call	IND_Grow
 		jmp	.Search
 
 .TakeBest:	mov	esi,edi
 		or	esi,esi
-		jnz	short .GoodInode
+		jnz	.GoodInode
 		mov	ebx,?InodeWaitQ
 		call	MT_SleepTQ
 		jmp	.Search
 
 .GoodInode:	test	word [edi+tInode.Flags],IFL_LOCKED
-		jz	short .ChkDirt
+		jz	.ChkDirt
 		mWaitOnInode
 		jmp	.Search
 
 .ChkDirt:	test	word [edi+tInode.Flags],IFL_DIRTY
-		jz	short .ChkCount
+		jz	.ChkCount
 		call	CFS_WriteInode
 
 .ChkCount:	cmp	word [esi+tInode.Count],0
@@ -539,17 +539,17 @@ proc IND_Invalidate
 		inc	ecx
 		
 .Loop:		dec	ecx
-		jz	short .Exit
+		jz	.Exit
 		mov	esi,edi
 		mov	edi,[esi+tInode.Next]
 		cmp	[esi+tInode.Dev],edx
 		jne	.Loop
 		cmp	word [esi+tInode.Count],0
-		jne	short .Busy
+		jne	.Busy
 		test	word [esi+tInode.Flags],IFL_DIRTY
-		jnz	short .Busy
+		jnz	.Busy
 		test	word [esi+tInode.Flags],IFL_LOCKED
-		jnz	short .Busy
+		jnz	.Busy
 		call	CFS_ClearInode
 		jmp	.Loop
 
@@ -577,7 +577,7 @@ proc IND_Wait
 		mAddToWaitQ dword [esi+tInode.WaitQ],edx
 .Loop:		mov	dword [ebx+tTCB.State],THRST_UNINTERRUPTIBLE
 		test	word [esi+tInode.Flags],IFL_LOCKED
-		jz	short .Restore
+		jz	.Restore
 		call	MT_Schedule
 		jmp	.Loop
 		

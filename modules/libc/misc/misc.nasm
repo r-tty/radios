@@ -58,7 +58,7 @@ proc _AllocPages
 		arg	size
 		locauto	msgbuf, tMsg_MemAllocPages_size
 		prologue
-		savereg	edx
+		savereg	edi
 
 		lea	edi,[%$msgbuf]
 		mov	word [edi+tMemAllocPagesRequest.Type],MEM_ALLOCPAGES
@@ -83,7 +83,7 @@ proc _FreePages
 		arg	addr
 		locauto	msgbuf, tMsg_MemFreePages
 		prologue
-		savereg	edx
+		savereg	edi
 
 		lea	edi,[%$msgbuf]
 		mov	word [edi+tMsg_MemFreePages.Type],MEM_FREEPAGES

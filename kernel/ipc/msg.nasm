@@ -473,7 +473,7 @@ endp		;---------------------------------------------------------------
 proc sys_MsgReadIOV
 		arg	rcvid, iov, parts, offset, flags
 		prologue
-		
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -559,7 +559,7 @@ endp		;---------------------------------------------------------------
 proc sys_MsgKeyData
 		arg	rcvid, oper, key, newkey, iov, parts
 		prologue
-		
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

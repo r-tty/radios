@@ -147,7 +147,7 @@ endp		;---------------------------------------------------------------
 proc RFS_DeallocBlock
 		push	esi
 		call	RFS_GetBAM		; Read the BAM table
-		jc	short .Exit
+		jc	.Exit
 		bts	[esi],eax		; Set the bit
 .Exit:		pop	esi
 		ret
@@ -164,13 +164,13 @@ proc RFS_ScanForBlock
 		mov	ecx,RFS_BLOCKSIZE / 4	; Number of dwords to scan
 
 .BitSect:	bsf	eax,[esi]		; Scan a dword
-		jnz	short .GotBit		; Got a bit, go calc block number
+		jnz	.GotBit			; Got a bit, go calc block number
 		add	esi,4			; Next dword
 		dec	ecx
 		jnz	.BitSect		; Continue
 		mov	ax,ENOSPC		; Error: disk full
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 
 .GotBit:	btr	[esi],eax		; Clear the block bit
 		sub	esi,ebx			; Get total bytes scanned

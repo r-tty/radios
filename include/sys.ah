@@ -68,6 +68,9 @@
 ; Number of software interrupts which can be used
 %define NUMSOFTINTS	16
 
+; This is used as a stub for not yet implemented syscalls
+%define MISSINGSYSCALL	int	2Dh
+
 ; Structure of ID bitmap descriptor
 struc tIDbmapDesc
 .MaxIDs		RESD	1

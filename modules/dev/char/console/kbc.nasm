@@ -51,15 +51,15 @@ proc KBC_WaitKBcode
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
 		loopz	.Loop1
-		jnz	short .OK
+		jnz	.OK
 		mov	ecx,1000000h
 .Loop2:		PORTDELAY
 		in	al,PORT_KBC_4
 		test	al,KBC_P4S_OutBFull
 		loopz	.Loop2
-		jnz	short .OK
+		jnz	.OK
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 .OK:		clc
 .Exit:		mpop	ecx,eax
 		ret
@@ -72,7 +72,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_DisableKB
 		call	KBC_WaitReady
-		jc	short .Exit
+		jc	.Exit
 		push	eax
 		mov	al,KBC_P4W_KBDisable
 		out	PORT_KBC_4,al
@@ -88,7 +88,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc KBC_EnableKB
 		call	KBC_WaitReady
-		jc	short .Exit
+		jc	.Exit
 		push	eax
 		mov	al,KBC_P4W_KBEnable
 		out	PORT_KBC_4,al
@@ -109,17 +109,17 @@ proc KBC_SendKBCmd
 		push	eax
 		lahf					; Keep flags
 		call	KBC_WaitReady
-		jc	short .Error
+		jc	.Error
 		out	PORT_KBC_0,al
 		test	ah,1				; Send data byte?
-		jz	short .OK
+		jz	.OK
 		call	KBC_WaitReady
 		jc	.Error
 		mov	al,[esp+1]			; Data byte
 		out	PORT_KBC_0,al
 .OK:		pop	eax
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Error:		pop	eax
 		xor	eax,eax
 		dec	eax
@@ -143,7 +143,7 @@ proc KBC_ClrOutBuf
 		push	eax
 .Loop:		in	al,PORT_KBC_4
 		test	al,1
-		jz	short .Exit
+		jz	.Exit
 		in	al,PORT_KBC_0
 		PORTDELAY
 		PORTDELAY
@@ -222,28 +222,28 @@ proc KBC_A20Control
 		mpush	eax,ecx
 		mov	ah,KBC_P4W_EnA20
 		or	al,al
-		jnz	short .Enable
+		jnz	.Enable
 		mov	ah,KBC_P4W_DisA20
 
 .Enable:	call	KBC_WaitReady
-		jc	short .Error
+		jc	.Error
 
 		mov	al,KBC_P4W_Wr8042out
 		out	PORT_KBC_4,al
 		call	KBC_WaitReady
-		jc	short .Error
+		jc	.Error
 
 		mov	al,ah
 		out	PORT_KBC_0,al
 		call	KBC_WaitReady
-		jc	short .Error
+		jc	.Error
 
 		mov	al,KBC_P4W_Pulse
 		out	PORT_KBC_4,al
 		call	KBC_WaitReady
 
 .OK:		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Error:		stc
 .Exit:		mpop	ecx,eax
 		ret

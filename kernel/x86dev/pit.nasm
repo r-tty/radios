@@ -23,7 +23,7 @@ section .text
 		;	  CF=1 - error, AX=error code.
 proc TMR_InitCounter
 		cmp	al,0C0h			; Counter number is okay?
-		jae	short .Err
+		jae	.Err
 		mpush	eax,edx
 		out	PORT_TIMER_CTL,al
 		mov	ah,al
@@ -32,11 +32,11 @@ proc TMR_InitCounter
 		add	dl,al
 		xor	dh,dh			; DX=counter port
 		test	ah,PITCW_LB		; Write low byte?
-		jz	short .WrHiByte
+		jz	.WrHiByte
 		mov	al,cl
 		out	dx,al
 		test	ah,PITCW_HB		; Write high byte?
-		jz	short .OK
+		jz	.OK
 .WrHiByte:	mov	al,ch
 		out	dx,al
 .OK:		mpop	edx,eax
@@ -57,7 +57,7 @@ endp		;---------------------------------------------------------------
 proc TMR_ReadOnFly
 		pushfd
 		cmp	al,3
-		jae	short .Error
+		jae	.Error
 		push	edx
 		mov	dx,PORT_TIMER_C0
 		add	dl,al
@@ -66,7 +66,7 @@ proc TMR_ReadOnFly
 		PORTDELAY
 		in	al,dx
 		test	byte [esp+4],1		; Read one byte?
-		jz	short .OK
+		jz	.OK
 		xchg	al,ah
                 in	al,dx
 		xchg	al,ah
@@ -98,7 +98,7 @@ proc TMR_Delay
 		stc
 		call	TMR_ReadOnFly
 		cmp	ax,cx
-		jbe	short .Exit
+		jbe	.Exit
 		jmp	.Loop
 
 .Exit:		mpop	ecx,eax

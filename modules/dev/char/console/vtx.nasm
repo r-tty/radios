@@ -210,11 +210,11 @@ endp		;---------------------------------------------------------------
 		;	 physically sets cursor only if it is visible.
 proc VTX_MoveCursor
 		cmp	bh,VGATXTPAGES
-		jae	short .Err2
+		jae	.Err2
 		cmp	dl,MODE3TXTCOLS
-		jae	short .Err1
+		jae	.Err1
 		cmp	dh,MODE3TXTROWS
-		jae	short .Err1
+		jae	.Err1
 		mpush	eax,ebx,ecx,edx
 
 		movzx	ebx,bh			; Count offset in video
@@ -237,7 +237,7 @@ proc VTX_MoveCursor
 		inc	dx
 		in	al,dx
 		test	al,40h
-		jnz	short .Hidden
+		jnz	.Hidden
 		dec	dx
 		mov	al,CRTC(14)
 		out	dx,ax
@@ -344,7 +344,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc VTX_SetActPage
 		cmp	bh,VGATXTPAGES
-		jae	short .Err
+		jae	.Err
 		mov	[?CurrVidPg],bh
 		mpush	eax,edx
 		movzx	eax,bh			; Count offset in video
@@ -423,7 +423,7 @@ proc VTX_Scroll
 
 .OK:		mpop	edi,esi,edx,ecx
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		mov	ax,ERR_VTX_BadVPage
 		stc
 .Exit:		ret
@@ -475,7 +475,7 @@ proc VTX_WrCharXY
 		ret
 
 .Err1:		mov	ax,ERR_VTX_BadCurPos
-		jmp	short .Err
+		jmp	.Err
 .Err2:		mov	ax,ERR_VTX_BadVPage
 .Err:		popfd
 		stc
@@ -531,14 +531,14 @@ proc VTX_MoveCurNext
 		je	.NL
 		inc	dl
 		call	VTX_MoveCursor
-		jmp	short .Exit
+		jmp	.Exit
 
 .NL:		xor	dl,dl
 		cmp	dh,MODE3TXTROWS-1
 		je	.Scrl
 		inc	dh
 		call	VTX_MoveCursor
-		jmp	short .Exit
+		jmp	.Exit
 
 .Scrl:		call	VTX_MoveCursor
 		mov	dl,1

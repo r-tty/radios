@@ -174,7 +174,7 @@ proc KB_DetectDev
 		mov	al,KB_CmdReadID			; Get KB ID
 		clc
 		call	KBC_SendKBCmd
-		jc	short .Exit
+		jc	.Exit
 		and	byte [?AnswFlags],~KB_FlagACK
 		sti
 
@@ -184,7 +184,7 @@ proc KB_DetectDev
 		Ccall	_usleep, dword 100*100
 		dec	edx
 		jnz	.WaitID
-		jmp	short .Err
+		jmp	.Err
 
 .ReadID:	call	KB_ReadKeyNoSched
 		mov	byte [?InternalID],al
@@ -242,7 +242,7 @@ endp		;---------------------------------------------------------------
 		;	  ZF=0 - key pressed, AX=key code.
 proc KB_GetKeyNoWait
 		call	KB_KeyPressed
-		jz	short .Exit
+		jz	.Exit
 		mpush	ebx,edx
 		xor	ebx,ebx
 		mov	bl,[?BufHead]
@@ -334,9 +334,9 @@ proc KB_AnalyseKCode
 		jnz	near .Release
 
 .Common:	test	word [?PrsFlags],KB_Prs_Shift
-		jnz	short .xLatShift
+		jnz	.xLatShift
 		test	word [?PrsFlags],KB_Prs_Ctrl
-		jnz	short .xLatCtrl
+		jnz	.xLatCtrl
 
 		mov	ebx,KBLayoutNorm
 		xlatb
@@ -351,7 +351,7 @@ proc KB_AnalyseKCode
 		jmp	.Valid
 
 .xLatCtrl:	test	word [?PrsFlags],KB_Prs_Alt
-		jnz	short .QCtrlAltDel
+		jnz	.QCtrlAltDel
 		mov	ebx,KBLayoutCtrl
 		xlatb
 		or	al,al
@@ -395,11 +395,11 @@ proc KB_AnalyseKCode
 		cmp	al,KB_KeypadSlash
 		je	near .Common
 		cmp	al,KB_EA_Left
-		je	short .QChVirtCon
+		je	.QChVirtCon
 		cmp	al,KB_EA_Right
-		je	short .QChVirtCon
+		je	.QChVirtCon
 		cmp	al,KB_KeypadDel
-		jne	short .NoDel
+		jne	.NoDel
 		test	word [?PrsFlags],KB_Prs_Ctrl+KB_Prs_Alt
 		jnz	near .QCtrlAltDel
 .ExtASCII:	mov	ah,al
@@ -413,7 +413,7 @@ proc KB_AnalyseKCode
 		jz	near .Exit
 		mov	ah,[?CurrVirtCon]
 		cmp	al,KB_EA_Left
-		je	short .DecVirtCon
+		je	.DecVirtCon
 		inc	ah
 		cmp	ah,8
 		jb	.SetVirtCon
@@ -449,17 +449,17 @@ proc KB_AnalyseKCode
 		jmp	.Exit
 
 .RelLShift:	and	word[?PrsFlags],~KB_Prs_LShift
-		jmp	short .RelShift
+		jmp	.RelShift
 .RelLCtrl:	and	word [?PrsFlags],~KB_Prs_LCtrl
-		jmp	short .RelCtrl
+		jmp	.RelCtrl
 .RelLAlt:	and	word [?PrsFlags],~KB_Prs_LAlt
-		jmp	short .RelAlt
+		jmp	.RelAlt
 .RelRShift:	and	word [?PrsFlags],~KB_Prs_RShift
-		jmp	short .RelShift
+		jmp	.RelShift
 .RelRCtrl:	and	word [?PrsFlags],~KB_Prs_RCtrl
-		jmp	short .RelCtrl
+		jmp	.RelCtrl
 .RelRAlt:	and	word [?PrsFlags],~KB_Prs_RAlt
-		jmp	short .RelAlt
+		jmp	.RelAlt
 
 .RelShift:	test	word [?PrsFlags],KB_Prs_LShift+KB_Prs_RShift
 		jnz	near .Exit
@@ -490,9 +490,9 @@ proc KB_AnalyseKCode
 		test	byte [?SwStatus],KB_swNumLock
 		jz	.NumON
 		and	byte [?SwStatus],~KB_swNumLock
-		jmp	short .SetInd
+		jmp	.SetInd
 .NumON:		or	byte [?SwStatus],KB_swNumLock
-		jmp	short .SetInd
+		jmp	.SetInd
 
 .NowScrLock:	test	word [?PrsFlags],KB_Prs_ScrollLock
 		jnz	near .Exit
@@ -500,19 +500,19 @@ proc KB_AnalyseKCode
 		test	byte [?SwStatus],KB_swScrollLock
 		jz	.ScrollON
 		and	byte [?SwStatus],~KB_swScrollLock
-		jmp	short .SetInd
+		jmp	.SetInd
 .ScrollON:	or	byte [?SwStatus],KB_swScrollLock
-		jmp	short .SetInd
+		jmp	.SetInd
 
 .SetInd:	call	KB_SetIndicators
-		jmp	short .Exit
+		jmp	.Exit
 
 .RelCapsLock:	and	word [?PrsFlags],~KB_Prs_CapsLock
-		jmp	short .Exit
+		jmp	.Exit
 .RelNumLock:	and	word [?PrsFlags],~KB_Prs_NumLock
-		jmp	short .Exit
+		jmp	.Exit
 .RelScrLock:	and	word [?PrsFlags],~KB_Prs_ScrollLock
-		jmp	short .Exit
+		jmp	.Exit
 
 .Exit:		xor	ax,ax
 .Valid:		mpop	edx,ebx
@@ -531,7 +531,7 @@ proc KB_PutInBuf
 		mov	bl,[?BufTail]
 		inc	bl
 		cmp	bl,KB_BufSize
-		jb	short .Check
+		jb	.Check
 		xor	bl,bl
 .Check:		cmp	bl,[?BufHead]
 		je	.Overflow
@@ -542,7 +542,7 @@ proc KB_PutInBuf
 		pop	ebx
 		mov	[?BufTail],bl
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 
 .Overflow:	call	SpkClick
 		stc

@@ -45,7 +45,7 @@ proc RFS_FindEntry
 		movzx	ecx,byte [esi+tDirNode.Items]	; Get total items
 		add	esi,RFS_FIRSTDIRENTRY		; Point at first entry
 		or	ecx,ecx				; Quit if no items
-		jz	short .Err
+		jz	.Err
 		mov	edi,esi				; EDI point beyond last entry
 		shl	ecx,RFS_DIRENTRYSHIFT
 		add	edi,ecx
@@ -53,18 +53,18 @@ proc RFS_FindEntry
 .Loop:		mov	eax,edi				; Find out if converged
 		sub	eax,esi
 		cmp	eax,tDirEntry_size		; Quit if no midpoint
-		je	short .GotEntry
+		je	.GotEntry
 		bt	eax,RFS_DIRENTRYSHIFT
 		mov	eax,0
-		jnc	short .IsEven			; Else make sure we are
-		mov	al,tDirEntry_size			; Going to be on an even
+		jnc	.IsEven				; Else make sure we are
+		mov	al,tDirEntry_size		; Going to be on an even
 
 .IsEven:	add	eax,esi				; boundary when divide by 2
 		add	eax,edi				; Find midpoint
 		shr	eax,1
 		call	RFS_CompareName			; Compare
-		jz	short .IsEqual			; If equal, get out
-		jl	short .MoveDown			; Else decide which way to go
+		jz	.IsEqual			; If equal, get out
+		jl	.MoveDown			; Else decide which way to go
 		mov	esi,eax				; Move bottom up
 		jmp	.Loop				; Next test
 
@@ -73,14 +73,14 @@ proc RFS_FindEntry
 
 .IsEqual:	mov	esi,eax				; Found it, get out
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 
 .GotEntry:	mov	eax,esi				; Not in block,
 		call	RFS_CompareName			; See which is bigger
 		clc
-		jle	short .Exit			; Leave ESI
+		jle	.Exit				; Leave ESI
 		mov	esi,edi				; pointing above
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		stc
 .Exit:		pop	edi
 		ret
@@ -94,10 +94,10 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error.
 proc RFS_InsertEntry
-		cmp	byte [edi+tDirNode.Items],RFS_MAXDIRITEMS	; See if full
-		je	short .Err				; Get out if so
+		cmp	byte [edi+tDirNode.Items],RFS_MAXDIRITEMS ; See if full
+		je	 .Err				; Get out if so
 		mpush	ecx,edi,esi
-		add	edi,RFS_BLOCKSIZE			; Find top
+		add	edi,RFS_BLOCKSIZE		; Find top
 		mov	ecx,edi				; Get len to move
 		sub	ecx,esi
 		sub	ecx,tDirEntry_size
@@ -204,7 +204,7 @@ proc RFS_SplitBlock
 		sahf
 		rep	movsd
 		lahf
-		jc	short .InsertInOld		; Branch if it goes in orig dir
+		jc	.InsertInOld			; Branch if it goes in orig dir
 
 .InsertInNew:	mov	dword [%$movelen],tDirEntry_size*(RFS_DIRORDER-1)/4	; Amount to move
 		mov	dword [%$newcount],RFS_DIRORDER-1	; Items in new after copy
@@ -212,7 +212,7 @@ proc RFS_SplitBlock
 		mov	eax,[%$newblocknum]		; Block to insert in
 		mov	esi,[%$oldblockaddr]		; Source block address
 		add	esi,RFS_FIRSTDIRENTRY+tDirEntry_size*RFS_DIRORDER ; Point at what to move up
-		jmp	short .InsertCommon
+		jmp	.InsertCommon
 
 .InsertInOld:	mov	dword [%$movelen],tDirEntry_size*RFS_DIRORDER/4	; Amount to move
 		mov	dword [%$newcount],RFS_DIRORDER	; Items in new after copy
@@ -266,7 +266,7 @@ proc RFS_SplitBlock
 		add	edi,[%$bufferofs]
 		mov	ecx,[%$movelen]			; Amount to wipe
 		test	dword [%$insertblock],-1	; See if promoting new entry
-		jz	short .NoDirAdj			; Yes, don't wipe promoted
+		jz	.NoDirAdj			; Yes, don't wipe promoted
 		sub	edi,tDirEntry_size		; Else wipe promoted entry
 		add	ecx,tDirEntry_size/4
 
@@ -498,7 +498,7 @@ proc RFS_MoveBottomEntry
 		add	eax,RFS_FIRSTDIRENTRY
 		add	esi,eax
 		bt	dword [edi+tDirNode.Flags],RFS_DFL_LEAF	; See if bottom
-		jnc	short .GetLp			; Loop if not
+		jnc	.GetLp				; Loop if not
 		sub	esi,tDirEntry_size		; Point at last entry
 		mov	ecx,esi
 		pop	edi				; Restore block and offset
@@ -566,7 +566,7 @@ proc RFS_InsertFileName
 		jz	.FileExist		; Exists, go proclaim error
 
 		bt	dword [edi+tDirNode.Flags],RFS_DFL_LEAF ; See if bottom
-		jc	short .Insert		; Yes, just insert
+		jc	.Insert			; Yes, just insert
 		mov	eax,[esi-4]		; Else recurse on less
 		push	dword [%$newdir]
 		call	.Entry2
@@ -574,7 +574,7 @@ proc RFS_InsertFileName
 
 		mov	edi,[%$newdir]		; See if to recurse
 		test	byte [edi],-1
-		jz	short .Exit		; No, get out
+		jz	.Exit			; No, get out
 		mov	ebx,[%$block]		; Else reread block
 		mBseek
 		mov	edi,esi			; Find the entry
@@ -645,13 +645,13 @@ proc RFS_DeleteFileName
 		jnz	.NotFound		; No match, possibly recurse
 
 		bt	dword [edi+tDirNode.Flags],RFS_DFL_LEAF	; If this is not a leaf
-		jnc	short .MoveToMiddle		; Move to middle
+		jnc	.MoveToMiddle			; Move to middle
 		call	RFS_DeleteEntry			; Delete leaf entry
 		jz	near .ClearDir			; Killed head, exit
 
-		cmp	byte [edi+tDirNode.Items],RFS_DIRORDER	; See if underflow
-		jnc	short .NoUnderflow			; No, get out
-		mov	edi,[%$shift]				; See if top level
+		cmp	byte [edi+tDirNode.Items],RFS_DIRORDER ; See if underflow
+		jnc	.NoUnderflow			; No, get out
+		mov	edi,[%$shift]			; See if top level
 		or	edi,edi
 		jz	.NoUnderflow			; Allowed to underflow root
 		inc	byte [edi]			; Else there will be a higher-level
@@ -722,7 +722,7 @@ proc RFS_DeleteFileName
 
 		mov	eax,[%$shift]			; Now if this isn't top level
 		or	eax,eax
-		jz	short .ConcTop
+		jz	.ConcTop
 		inc	dword [eax]			; We have to delete the
 		jmp	.Exit				;  central entry recursively
 
@@ -731,7 +731,7 @@ proc RFS_DeleteFileName
 
 .DelHeadDirEnt:	call	RFS_DeleteEntry			; Else just delete
 		mov	esi,edi				; owning dir entry
-		jmp	short .Exit			; Get out
+		jmp	.Exit				; Get out
 
 .NewHeadDir:	bts	dword [edi+tDirNode.Flags],RFS_DFL_LEAF ; See if it is a leaf
 		jc	.DelHeadDirEnt			; Yes, just delete the last file
@@ -753,7 +753,7 @@ proc RFS_DeleteFileName
 .Roll:		mov	ebx,[esi-4]			; Roll params
 		mov	eax,[esi+tDirEntry.More]
 		cmp	al,RFS_DIRORDER			; See which way to roll
-		jb	short .DoRight
+		jb	.DoRight
 		push	esi
 		call	RFS_RollLeftBlock		; Left roll
 		jmp	.Exit
@@ -832,7 +832,7 @@ proc RFS_SearchForFileName
 		jc	.NoEntry			; Empty root, no entry
 		jz	.GotEntry			; Else got it if match
 		bt	dword [edi+tDirNode.Flags],RFS_DFL_LEAF ; Check for leaf
-		jc	short .NoEntry			; No entry if it is
+		jc	.NoEntry			; No entry if it is
 		mov	ebx,[esi-4]			; Else recurse on the less
 		jmp	.Loop
 
@@ -865,12 +865,12 @@ proc RFS_GetNumOfFiles
 		mov	al,[esi+tDirNode.Items]
 		mov	[%$count],eax
 		bt	dword [esi+tDirNode.Flags],RFS_DFL_LEAF
-		jc	short .OK
+		jc	.OK
 		mov	edi,esi
 		add	esi,RFS_FIRSTDIRENTRY
 		mov	cl,al
 		or	cl,cl
-		jz	short .CheckLess
+		jz	.CheckLess
 
 .Loop:		mov	ebx,[esi+tDirEntry.More]
 		or	ebx,ebx
@@ -884,7 +884,7 @@ proc RFS_GetNumOfFiles
 
 .CheckLess:	mov	ebx,[edi+tDirNode.PageLess]
 		or	ebx,ebx
-		je	short .OK
+		je	.OK
 		call	RFS_GetNumOfFiles
 		add	[%$count],eax
 .OK:		mov	eax,[%$count]

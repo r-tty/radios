@@ -32,12 +32,12 @@ externproc sys_%1
 %define	NRSYSCALLS	64h			; Number of syscalls
 
 
-publicproc K_Sysenter, K_SysInt, K_ServEntry, DebugKDOutput
+publicproc K_UnimplSysCall, K_Sysenter, K_SysInt, K_ServEntry, DebugKDOutput
 exportproc K_InstallSyscallHandler, K_CurrentSyscallHandler
 
 
 externproc K_CopyIn, K_CopyOut
-externproc PrintChar
+externproc PrintChar, PrintString, PrintByteHex
 
 
 section .data
@@ -143,6 +143,8 @@ mSyscallTabEntry 0				; 60 NetInfoscoid
 mSyscallTabEntry 0				; 61 NetSignalKill
 mSyscallTabEntry 0				; 62 (reserved)
 mSyscallTabEntry 0				; 63 __kerbad
+
+Txt~SysCall	DB	"Unimplemented system call ",0
 
 		
 section .text
@@ -262,6 +264,21 @@ proc DebugKDOutput
 		jc	.Exit
 		loop	.Loop
 .Exit:		pop	ebp
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; System calls which are not implemented yet may use special 
+		; trap to display a short message about this.
+proc K_UnimplSysCall
+		mov	esi,Txt~SysCall
+		call	PrintString
+		mov	eax,[esp+4+tStackFrame.EAX]
+		call	PrintByteHex
+		mov	al,'h'
+		call	PrintChar
+		mov	al,10
+		call	PrintChar
 		ret
 endp		;---------------------------------------------------------------
 

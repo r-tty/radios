@@ -100,7 +100,7 @@ endp		;---------------------------------------------------------------
 proc sys_ClockAdjust
 		arg	id, new, old
 		prologue
-
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -111,6 +111,7 @@ endp		;---------------------------------------------------------------
 proc sys_ClockPeriod
 		arg	id, new, old, reserved
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -120,6 +121,7 @@ endp		;---------------------------------------------------------------
 proc sys_ClockId
 		arg	pid, tid
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

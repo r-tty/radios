@@ -113,6 +113,7 @@ endp		;---------------------------------------------------------------
 proc sys_ConnectServerInfo
 		arg	pid, coid, info
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -121,6 +122,7 @@ endp		;---------------------------------------------------------------
 		; int ConnectFlags(pid_t pid, int coid, uint mask, uint bits);
 proc sys_ConnectFlags
 		prologue
+		MISSINGSYSCALL
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

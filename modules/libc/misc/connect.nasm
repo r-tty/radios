@@ -28,6 +28,7 @@ proc ConnectIO
 		locauto	riov, 2*tIOV_size
 		locals	retval, tryagain
 		prologue
+		savereg	ebx,edx
 
 		mov	edi,[%$ctrl]
 		mov	ebx,[edi+tConnectCtrl.Msg]

@@ -1,0 +1,3 @@
+deps_generated = TRUE
+ide.$(O): ide.nasm sys.ah errors.ah hw/ports.ah hd.ah 
+hd.$(O): hd.nasm sys.ah errors.ah hd.ah hw/partids.ah mbr.ah hw/ddb.ah 

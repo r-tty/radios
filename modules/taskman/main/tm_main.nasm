@@ -37,6 +37,8 @@ mMHTabEnt MH_SysLog, SYS_LOG
 mMHTabEnt 0
 
 TxtTaskmanInit	DB	"Task manager initialization:",10,0
+TxtDfltConsMgr	DB	"$console",0
+TxtDfltConsDev	DB	"/dev/console",0
 Txt~CreateChan	DB	"Unable to create channel",0
 TxtFatalErr	DB	"Fatal error (code ",0
 TxtHalt		DB	", halting", 0

@@ -11,7 +11,8 @@ subgroup = _misc
 include ../../../Build/header.mk
 
 # Change variables here
-OBJS = kernsyscall.$(O) misc.$(O) connect.$(O) services.$(O) spawn.$(O)
+OBJS = kernsyscall.$(O) misc.$(O) connect.$(O) services.$(O) spawn.$(O) \
+       devctl.$(O) conio.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

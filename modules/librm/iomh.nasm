@@ -59,6 +59,11 @@ proc IOMH_Connect
 endp		;---------------------------------------------------------------
 
 
+		; Default handler for IOM_READ.
+		; Input: EBX=message address,
+		;	 EDX=OCB address,
+		;	 ESI=address of resmgr context descriptor.
+		; Output: EAX=result.
 proc IOMH_Read
 		ret
 endp		;---------------------------------------------------------------

@@ -5,21 +5,36 @@
 module libc.posix1c
 
 %include "errors.ah"
+%include "thread.ah"
 %include "locstor.ah"
 %include "sync.ah"
+%include "time.ah"
 
 exportproc _pthread_mutex_init, _pthread_mutex_destroy
 exportproc _pthread_mutex_lock, _pthread_mutex_trylock, _pthread_mutex_unlock
 exportproc _pthread_cond_init, _pthread_cond_destroy
 exportproc _pthread_cond_wait, _pthread_cond_timedwait
 exportproc _pthread_cond_signal, _pthread_cond_broadcast
-exportproc _sem_init, _sem_destroy, _sem_post, _sem_wait, _sem_trywait
 
 externproc _SyncTypeCreate_r, _SyncDestroy_r
 externproc _SyncMutexLock_r, _SyncMutexUnlock_r
 externproc _SyncCondvarWait_r, _SyncCondvarSignal_r
+externproc _TimerTimeout_r
 
 section .text
+
+		; Convert time specification into the number of nanoseconds.
+		; Input: EBX=pointer to tTimeSpec structure.
+		; Output: EDX:EAX=number of nanoseconds.
+proc Timespec2nsec
+		mov	eax,[ebx+tTimeSpec.Seconds]
+		mov	edx,1000000000
+		mul	edx
+		add	eax,[ebx+tTimeSpec.Nanoseconds]
+		adc	edx,byte 0
+		ret
+endp		;---------------------------------------------------------------
+
 
 		;int pthread_mutex_init(pthread_mutex_t *mutex, 
 		;			const pthread_mutexattr_t *attr);
@@ -88,8 +103,43 @@ endp		;---------------------------------------------------------------
 proc _pthread_mutex_trylock
 		arg	mutex
 		prologue
-		epilogue
+		savereg	ebx,ecx,edx,esi
+
+		; Is the mutex unlocked?
+		mov	esi,[%$mutex]
+		tlsptr(edx)
+		mov	ebx,[edx+tTLS.Owner]
+		xor	eax,eax
+	lock	cmpxchg	dword [esi+tSync.Owner],ebx
+		jz	.BumpCount
+
+		; Is the mutex recursive and locked by us?
+		mov	edx,eax
+		mov	ecx,[esi+tSync.Count]
+		test	ecx,SYNC_NONRECURSIVE
+		jnz	.ChkStatic
+		and	eax,~SYNC_WAITING
+		cmp	eax,ebx
+		je	.BumpCount
+
+.ChkStatic:	cmp	edx,SYNC_INITIALIZER
+		jne	.ChkDestroy
+		; Statically initialized mutex. Request an immediate timeout.
+		Ccall	_TimerTimeout_r, CLOCK_REALTIME, byte 0, 0, 0, 0
+		Ccall	_SyncMutexLock_r, esi
+		test	eax,eax
+		jnz	.Exit
+.BumpCount:	inc	dword [esi+tSync.Count]
+		xor	eax,eax
+
+.Exit:		epilogue
 		ret
+
+.ChkDestroy:	cmp	dword [esi+tSync.Owner],SYNC_DESTROYED
+		mov	eax,EINVAL
+		je	.Exit
+		mov	eax,EBUSY
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -107,6 +157,8 @@ endp		;---------------------------------------------------------------
 proc _pthread_cond_init
 		arg	cond, attr
 		prologue
+		Ccall	_SyncTypeCreate_r, SYNC_COND, dword [%$cond], \
+			dword [%$attr]
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -114,10 +166,7 @@ endp		;---------------------------------------------------------------
 
 		; int pthread_cond_destroy(pthread_cond_t *cond);
 proc _pthread_cond_destroy
-		arg	cond
-		prologue
-		epilogue
-		ret
+		jmp	_SyncDestroy_r
 endp		;---------------------------------------------------------------
 
 
@@ -126,7 +175,23 @@ endp		;---------------------------------------------------------------
 proc _pthread_cond_wait
 		arg	cond, mutex
 		prologue
-		epilogue
+		savereg	ebx,esi
+
+		mov	esi,[%$mutex]
+		tlsptr(ebx)
+		mov	ebx,[ebx+tTLS.Owner]
+		mov	eax,[esi+tSync.Owner]
+		and	eax,~SYNC_WAITING
+		cmp	eax,ebx
+		mov	eax,EINVAL
+		je	.Exit
+
+		Ccall	_SyncCondvarWait_r, dword [%$cond], esi
+		cmp	eax,EINTR
+		jne	.Exit
+		xor	eax,eax
+
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -136,9 +201,45 @@ endp		;---------------------------------------------------------------
 		;				const struct timespec* abstime);
 proc _pthread_cond_timedwait
 		arg	cond, mutex, abstime
+		locauto	nsec, Qword_size
 		prologue
-		epilogue
+		savereg	ebx,edx,esi,edi
+
+		tlsptr(ebx)
+		mov	ebx,[ebx+tTLS.Owner]
+		mov	esi,[%$mutex]
+		mov	eax,[esi+tSync.Owner]
+		and	eax,~SYNC_WAITING
+		cmp	eax,ebx
+		jne	.Inval
+
+		mov	ebx,[%$abstime]
+		call	Timespec2nsec
+		lea	edi,[%$nsec]
+		mov	[edi],eax
+		mov	[edi+4],edx
+
+		; Passing a NULL for event is the same as notify = SIGEV_UNBLOCK
+		mov	ebx,[%$cond]
+		mov	eax,CLOCK_REALTIME
+		cmp	dword [ebx+tSync.Owner],SYNC_INITIALIZER
+		je	.1
+		mov	eax,[ebx+tSync.Count]
+.1:		Ccall	_TimerTimeout_r, eax, TIMER_ABSTIME | TIMEOUT_CONDVAR, \
+			byte 0, edi, byte 0
+		test	eax,eax
+		jnz	.Exit
+
+		Ccall	_SyncCondvarWait_r, ebx, esi
+		cmp	eax,EINTR
+		jne	.Exit
+		xor	eax,eax
+
+.Exit:		epilogue
 		ret
+
+.Inval:		mov	eax,EINVAL
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -154,51 +255,6 @@ endp		;---------------------------------------------------------------
 		; int pthread_cond_broadcast(pthread_cond_t *cond);
 proc _pthread_cond_broadcast
 		arg	cond
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int sem_init(sem_t *sem, int pshared, uint value);
-proc _sem_init
-		arg	sem, pshared, value
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int sem_destroy(sem_t *sem);
-proc _sem_destroy
-		arg	sem
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int sem_post(sem_t *sem);
-proc _sem_post
-		arg	sem
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int sem_wait(sem_t *sem);
-proc _sem_wait
-		arg	sem
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int sem_trywait(sem_t *sem);
-proc _sem_trywait
-		arg	sem
 		prologue
 		epilogue
 		ret

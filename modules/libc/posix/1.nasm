@@ -20,7 +20,7 @@ externproc _MsgSend, _MsgSendnc, _MsgSendv
 externproc _ConnectAttach, _ConnectDetach_r
 externproc _ConnectServerInfo, _ConnectFlags_r, _ConnectFlags
 externproc _netmgr_remote_nd, _getpid
-externproc Vopen, Devctl
+externproc Vopen, DevControl
 
 
 section .text
@@ -251,7 +251,7 @@ proc vfcntl
 
 		; Get file status / access modes flags
 .GetFl:		lea	eax,[%$arg]
-		Ccall	Devctl, edx, DCMD_ALL_GETFLAGS, eax, Dword_size, 0
+		Ccall	DevControl, edx, DCMD_ALL_GETFLAGS, eax, Dword_size, 0
 		cmp	eax,-1
 		je	near .Exit
 		mov	eax,[%$arg]
@@ -259,12 +259,12 @@ proc vfcntl
 
 		; Set file status / access modes flags
 .SetFl:		mov	eax,[%$ap]
-		Ccall	Devctl, edx, DCMD_ALL_SETFLAGS, eax, Dword_size, 0
+		Ccall	DevControl, edx, DCMD_ALL_SETFLAGS, eax, Dword_size, 0
 		jmp	.Exit
 
 		; DCMD_ALL_GETOWN devctl
 .GetOwn:	lea	eax,[%$arg]
-		Ccall	Devctl, edx, DCMD_ALL_GETOWN, eax, Dword_size, 0
+		Ccall	DevControl, edx, DCMD_ALL_GETOWN, eax, Dword_size, 0
 		cmp	eax,-1
 		je	near .Exit
 		mov	eax,[%$arg]
@@ -272,7 +272,7 @@ proc vfcntl
 
 		; DCMD_ALL_SETOWN devctl
 .SetOwn:	mov	eax,[%$ap]
-		Ccall	Devctl, edx, DCMD_ALL_SETOWN, eax, Dword_size, 0
+		Ccall	DevControl, edx, DCMD_ALL_SETOWN, eax, Dword_size, 0
 		jmp	.Exit
 
 		; Extend or truncate the file

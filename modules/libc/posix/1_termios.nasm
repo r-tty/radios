@@ -5,21 +5,24 @@
 module libc.termios
 
 %include "errors.ah"
+%include "locstor.ah"
+%include "lib/termios.ah"
 %include "rm/devctl.ah"
+%include "rm/devctl_char.ah"
 
 exportproc _tcdrain, _tcdropline, _tcflow, _tcflush, _tcsendbreak
 exportproc _tcgetattr, _tcsetattr, _tcgetprgp, _tcsetpgrp
 exportproc _cfgetispeed, _cfsetispeed, _cfgetospeed, _cfsetospeed
 
-externproc _devctl
+externproc DevControl
 
 section .text
 
-		; int tcdrain(int fd)
+		; int tcdrain(int fd);
 proc _tcdrain
 		arg	fd
 		prologue
-		Ccall	_devctl, dword [%$fd], DCMD_CHR_TCDRAIN, byte 0, \
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCDRAIN, byte 0, \
 			byte 0, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
 		epilogue
 		ret
@@ -28,105 +31,185 @@ endp		;---------------------------------------------------------------
 
 		; int tcdropline(int fd, int duration);
 proc _tcdropline
-	duration = ((duration ? duration : 300) << 16) | _SERCTL_DTR_CHG | 0;
-	return _devctl(fd, DCMD_CHR_SERCTL, &duration, sizeof duration, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+		arg	fd, dur
+		prologue
+		mov	eax,[%$dur]
+		or	eax,eax
+		jz	.1
+		mov	eax,300
+.1:		shl	eax,byte 16
+		or	eax,SERCTL_DTR_CHG
+		mov	[%$dur],eax
+		lea	eax,[%$dur]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_SERCTL, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int tcflow(int fd, int action);
 proc _tcflow
-	return _devctl(fd, DCMD_CHR_TCFLOW, &action, sizeof action, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+		arg	fd, action
+		prologue
+		lea	eax,[%$action]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCFLOW, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int tcflush(int fd, int queue);
 proc _tcflush
-	return _devctl(fd, DCMD_CHR_TCFLUSH, &queue, sizeof queue, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+		arg	fd, queue
+		prologue
+		lea	eax,[%$queue]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCFLUSH, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
-		; int tcgetattr(int fd, struct termios *termios_p);
+		; int tcgetattr(int fd, struct termios *tp);
 proc _tcgetattr
-	return _devctl(fd, DCMD_CHR_TCGETATTR, termios_p, sizeof *termios_p, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+		arg	fd, tp
+		prologue
+		lea	eax,[%$tp]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCGETATTR, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int tcgetpgrp(int fd);
 proc _tcgetpgrp
-	pid_t			pgrp;
-
-	if(_devctl(fd, DCMD_CHR_TCGETPGRP, &pgrp, sizeof pgrp, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY) == -1) {
-		return -1;
-	}
-	return pgrp;
+		arg	fd
+		locals	pgrp
+		prologue
+		lea	eax,[%$pgrp]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCGETPGRP, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		cmp	eax,-1
+		je	.Exit
+		mov	eax,[%$pgrp]
+.Exit:		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int tcsendbreak(int fd, int duration);
 proc _tcsendbreak
-	if(duration > USHRT_MAX) {
-		errno = EINVAL;
-		return -1;
-	}
+		arg	fd, dur
+		prologue
+		mov	eax,[%$dur]
+		cmp	eax,8000h
+		jae	.Err
+		or	eax,eax
+		jz	.1
+		mov	eax,300
+.1:		shl	eax,byte 16
+		or	eax,SERCTL_BRK_CHG | SERCTL_BRK
+		mov	[%$dur],eax
+		lea	eax,[%$dur]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_SERCTL, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+.Exit:		epilogue
+		ret
 
-	duration = ((unsigned)(duration ? duration : 300) << 16) | _SERCTL_BRK_CHG | _SERCTL_BRK;
-	return _devctl(fd, DCMD_CHR_SERCTL, &duration, sizeof duration, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+.Err:		mSetErrno EINVAL, eax
+		xor	eax,eax
+		dec	eax
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; int tcsetattr(int fd, int optact, const struct termios *tp);
 proc _tcsetattr
-	int			dcmd;
+		arg	fd, optact, tp
+		locals	dcmd
+		prologue
+		savereg	edx
 
-	switch(optact) {
-	case TCSANOW:
-		dcmd = DCMD_CHR_TCSETATTR;
-		 break;
+		mov	eax,[%$optact]
+		mov	edx,DCMD_CHR_TCSETATTR
+		cmp	eax,TCSANOW
+		je	.1
+		mov	edx,DCMD_CHR_TCSETATTRD
+		cmp	eax,TCSADRAIN
+		je	.1
+		mov	edx,DCMD_CHR_TCSETATTRF
+		cmp	eax,TCSAFLUSH
+		je	.1
+		mSetErrno EINVAL, eax
+		xor	eax,eax
+		dec	eax
+		jmp	.Exit
 
-	case TCSADRAIN:
-		dcmd = DCMD_CHR_TCSETATTRD;
-		break;
+.1:		lea	eax,[%$dcmd]
+		mov	[eax],edx
+		Ccall	DevControl, dword [%$fd], eax, dword [%$tp], \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
 
-	case TCSAFLUSH:
-		dcmd = DCMD_CHR_TCSETATTRF;
-		break;
-
-	default:
-		errno = EINVAL;
-		return -1;
-	}
-
-	return _devctl(fd, dcmd, (void *)termios_p, sizeof *termios_p, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+.Exit:		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int tcsetpgrp(int fd, pid_t pgrp);
 proc _tcsetpgrp
-	return _devctl(fd, DCMD_CHR_TCSETPGRP, &pgrp, sizeof pgrp, _DEVCTL_FLAG_NORETVAL | _DEVCTL_FLAG_NOTTY);
+		arg	fd, pgrp
+		prologue
+		lea	eax,[%$pgrp]
+		Ccall	DevControl, dword [%$fd], DCMD_CHR_TCSETPGRP, eax, \
+			byte Dword_size, DEVCTL_FLAG_NORETVAL | DEVCTL_FLAG_NOTTY
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; speed_t cfgetispeed(const struct termios *tp);
 proc _cfgetispeed
-	return(termios_p->c_ispeed);
+		mov	eax,[esp+4]
+		mov	eax,[eax+tTermIOs.ISpeed]
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; speed_t cfgetospeed(const struct termios *tp);
 proc _cfgetospeed
-	return(termios_p->c_ospeed);
+		mov	eax,[esp+4]
+		mov	eax,[eax+tTermIOs.OSpeed]
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int cfsetispeed(struct termios *tp, speed_t speed);
-proc _cfsetispeed		
-	termios_p->c_ispeed = (speed == 0) ? termios_p->c_ospeed : speed;
-	return(0);
+proc _cfsetispeed
+		arg	tp, speed
+		prologue
+		savereg	ebx
+		mov	ebx,[%$tp]
+		mov	eax,[%$speed]
+		or	eax,eax
+		jnz	.Set
+		mov	eax,[ebx+tTermIOs.OSpeed]
+.Set:		mov	[ebx+tTermIOs.ISpeed],eax
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; int cfsetospeed(struct termios *tp, speed_t speed);
 proc _cfsetospeed
-	termios_p->c_ospeed = speed;
-	return(0);
+		arg	tp,speed
+		prologue
+		savereg	ebx
+		mov	ebx,[%$tp]
+		Mov32	ebx+tTermIOs.OSpeed,%$speed
+		xor	eax,eax
+		epilogue
+		ret
 endp		;---------------------------------------------------------------

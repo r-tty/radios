@@ -10,7 +10,7 @@ module libc.xopen
 
 ; Exports and publics
 
-exportproc _usleep, _waitid
+exportproc _usleep, _waitid, _poll
 publicdata _environ
 
 ; Imports
@@ -76,6 +76,15 @@ proc _waitid
 		inc	eax
 .1:		Ccall	_MsgSendv, PROCMGR_COID, edx, byte 1, ebx, eax
 
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int poll(struct pollfd *ufds, uint nfds, int timeout);
+proc _poll
+		arg	ufds, nfds, timeout
+		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

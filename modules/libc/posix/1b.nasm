@@ -8,6 +8,7 @@ module libc.posix1b
 %include "tm/memmsg.ah"
 
 exportproc _mmap64, _exit
+exportproc _sem_init, _sem_destroy, _sem_post, _sem_wait, _sem_trywait
 
 extern _MsgSendnc
 
@@ -59,4 +60,49 @@ endp		;---------------------------------------------------------------
 
 proc _exit
 		jmp	$
+endp		;---------------------------------------------------------------
+
+
+		; int sem_init(sem_t *sem, int pshared, uint value);
+proc _sem_init
+		arg	sem, pshared, value
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sem_destroy(sem_t *sem);
+proc _sem_destroy
+		arg	sem
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sem_post(sem_t *sem);
+proc _sem_post
+		arg	sem
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sem_wait(sem_t *sem);
+proc _sem_wait
+		arg	sem
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int sem_trywait(sem_t *sem);
+proc _sem_trywait
+		arg	sem
+		prologue
+		epilogue
+		ret
 endp		;---------------------------------------------------------------

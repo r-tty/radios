@@ -19,7 +19,7 @@ importproc _malloc, _memset
 
 section .text
 
-		; int resmgr_attach(dispatch_t *dpp, resmgr_attr_t *attr,
+		; int RM_AttachName(dispatch_t *dpp, resmgr_attr_t *attr,
 		;		const char *path, enum _file_type file_type,
 		;		uint flags, const resmgr_connect_funcs_t *connect_funcs,
 		;		const resmgr_io_funcs_t *io_funcs, void *handle);

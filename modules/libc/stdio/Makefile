@@ -11,8 +11,7 @@ subgroup = _stdio
 include ../../../Build/header.mk
 
 # Change variables here
-C_SOURCE = 1
-OBJS = fgets.$(O) flock.$(O)
+OBJS = stdio.$(O) vsprintf.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

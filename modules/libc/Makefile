@@ -9,7 +9,7 @@ group = libc
 include ../../Build/header.mk
 
 # Variables
-SUBDIRS = posix misc stdlib string unix xopen
+SUBDIRS = posix misc stdio stdlib string unix xopen
 export TARGET_LIB = libc.$(L)
 TARGET_RDM = libc.$(M)
 OBJS = libcinit.$(O)

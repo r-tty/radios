@@ -70,6 +70,14 @@ PORT_CMOS_Data		EQU	71h
 PORT_Diagnostic		EQU	80h
 
 
+; --- VGA registers ---
+PORT_CGA_CAddr		EQU	3D4h
+PORT_CGA_CData		EQU	3D5h
+PORT_CGA_CTL		EQU	3D8h
+PORT_CGA_ColorSel	EQU	3D9h
+PORT_CGA_Status		EQU	3DAh
+
+
 ; --- Macro ---
 macro	PORTDELAY
 		jmp	short $+2

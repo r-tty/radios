@@ -1,4 +1,0 @@
-asm:	@C:\TASM\BIN\tasm /m2 /ml /iINCLUDE !.! | more
-	@IF Exist !.obj C:\TASM\TD\tlink /m /3 /c !.obj
-	@IF Exist !.obj del !.obj
-	@IF Exist !.map del !.map

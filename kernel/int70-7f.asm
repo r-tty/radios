@@ -3,87 +3,106 @@
 ;-------------------------------------------------------------------------------
 
 		; IRQ0: system timer.
-proc Int70handler	far
+proc Int70handler far
 		push	eax
-		mov	eax,0B8010h
-		mov	[byte eax],'@'
-		mov	al,PIC_OCW2_EOI
-		out	PORT_PIC1_0,al
+		push	ebx
+		push	edx
+		mov	eax,[TimerTicksLo]
+		inc	eax
+		mov	[TimerTicksLo],eax
+		or	eax,eax
+		jz	i70_SetTTHi
+		jmp	i70_SwTask
+i70_SetTTHi:	inc	[TimerTicksHi]
+
+i70_SwTask:	call	KSwitchTask
+
+ IFDEF DEBUG
+	extrn VGATX_WrCharXY:near
+		mov     ax,0E0Fh
+		test	[TimerTicksLo],16
+		jnz	i70_DBG1
+		xor	al,al
+i70_DBG1:	mov	dx,1800h+79
+		xor	bh,bh
+		stc
+		call	VGATX_WrCharXY
+ ENDIF
+		call	PIC_EOI1
+		pop	edx
+		pop	ebx
 		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ1: keyboard.
-proc Int71handler	far
+proc Int71handler far
 		push	eax
-		in	al,PORT_KBC_0
+		call	KBC_ReadKBPort
 		shl	eax,16
-		in	al,PORT_KBC_1
+		call	KBC_ReadPort1
 		mov	ah,al
 		or	al,80h
-		out	PORT_KBC_1,al
-		jmp	short $+2
+		call	KBC_WritePort1
 		mov	al,ah
-		out	PORT_KBC_1,al
-                shr	eax,16
-		call	AnlsKBcode
-		mov	al,PIC_OCW2_EOI
-		out	PORT_PIC1_0,al
+		call	KBC_WritePort1
+		shr	eax,16
+		call	KB_AnalyseKBcode
+		call	PIC_EOI1
 		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int72handler	far
+proc Int72handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 3: serial ports #2 & #4
-proc		Int73handler	far
+proc Int73handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 4: serial ports #1 & #3
-proc		Int74handler	far
+proc Int74handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 5: audio device.
-proc		Int75handler	far
+proc Int75handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 6: FDD.
-proc		Int76handler	far
+proc Int76handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 7: parallel port #1.
-proc		Int77handler	far
+proc Int77handler far
 		iret
 endp		;---------------------------------------------------------------
 
 
 
 		; IRQ 8: CMOS real-time clock.
-proc		Int78handler	far
+proc Int78handler far
 		push	eax
 		mov	eax,0B8030h
-		mov	[byte eax],'@'
-		mov	al,PIC_OCW2_EOI
-		out	PORT_PIC2_0,al
+		mov	[byte eax],'*'
+		call	PIC_EOI2
 		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int79handler	far
+proc Int79handler far
 		iret
 endp		;---------------------------------------------------------------
 

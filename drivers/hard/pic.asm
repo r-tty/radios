@@ -21,12 +21,12 @@ PIC_OCW3		EQU	0Ah
 
 ; --- Routines ---
 
-		; InitPIC - initialize programmable interrupts controller.
+		; PIC_Init - initialize programmable interrupts controller.
 		; Input: AH=0 - PIC #1,
 		;	 AH=1 - PIC #2,
 		;	 AL=base interrupt vector.
 		; Output: none.
-proc InitPIC	near
+proc PIC_Init near
 		push	eax
 		pushfd
 		cli
@@ -72,7 +72,7 @@ InitPIC_End:	popfd
 endp		;---------------------------------------------------------------
 
 
-		; SetIRQmask
+		; PIC_SetIRQmask -set IRQ mask.
 		; Input: AH=0 - PIC #1,
 		;	 AH=1 - PIC #2,
 		;	 AL=interrupts mask.
@@ -89,4 +89,28 @@ SIM1:		out	PORT_PIC1_1,al
 SIM_Exit:	popfd
 		pop	eax
 		ret
-endp
+endp		;---------------------------------------------------------------
+
+
+		; PIC_EOI1 - send OCW2 EOI command to PIC1
+		; Input: none.
+		; Output: none.
+proc PIC_EOI1 near
+		push	eax
+		mov	al,PIC_OCW2_EOI
+		out	PORT_PIC1_0,al
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PIC_EOI2 - send OCW2 EOI command to PIC2
+		; Input: none.
+		; Output: none.
+proc PIC_EOI2 near
+		push	eax
+		mov	al,PIC_OCW2_EOI
+		out	PORT_PIC2_0,al
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------

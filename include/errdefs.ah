@@ -1,0 +1,20 @@
+;-------------------------------------------------------------------------------
+;  errdefs.ah - RadiOS errors definitions.
+;-------------------------------------------------------------------------------
+
+; --- Kernel errors ---
+
+; Drivers control error
+ERR_DRV_NoIDs			EQU	0320h
+ERR_DRV_BadID			EQU	0321h
+
+
+
+; --- Internal drivers errors ---
+
+; Counter/timer and RTC errors
+ERR_TMR_BadCNBR			EQU	0A05h
+
+; VGA errors
+ERR_VID_BadVPage		EQU	1205h
+ERR_VID_BadCurPos		EQU	1206h

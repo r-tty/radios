@@ -1,3 +1,6 @@
 ;-------------------------------------------------------------------------------
-;  timer.asm - Timer and CMOS RTC control routines.
+;  video.asm - video devices module.
 ;-------------------------------------------------------------------------------
+
+include "vgatx.asm"
+include "svgavbe2.asm"

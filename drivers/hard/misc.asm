@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  misc.asm - Miscelaneous hardware routines (speaker, CPU determination, etc.)
+;  misc.asm - Miscellaneous hardware routines (speaker, CPU determination, etc.)
 ;-------------------------------------------------------------------------------
 
 ; --- CPU types ---
@@ -7,6 +7,14 @@ CPU_386SX		EQU	3
 CPU_386DX		EQU	3
 CPU_486			EQU	4
 CPU_586			EQU	5
+
+; --- Miscellaneous defines ---
+SpeakerBeepTone		EQU	1200
+
+; --- External procedures ---
+extrn KDelay: near					; Kernel delay
+
+; --- Routines ---	
 
 		; GetCPUtype - determine type of CPU
 		; Input: none
@@ -53,5 +61,21 @@ Test486:	mov	al,CPU_486		;Until the Pentium appears...
 
 GetCPU_OK:	clc
 		pop	ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; SPK_Beep - "beep" sound signal on PC-speaker
+proc SPK_Beep near
+		push	eax
+		mov	al,TMRCW_Mode3+TMRCW_LH+TMRCW_CT2
+		mov	cx,SpeakerBeepTone
+		call	TMR_InitCounter
+		call	KBC_SpeakerON
+		xor	ecx,ecx
+		mov	cl,3
+		call	KDelay
+		call	KBC_SpeakerOFF
+		pop	eax
 		ret
 endp		;---------------------------------------------------------------

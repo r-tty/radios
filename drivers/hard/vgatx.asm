@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  vga.asm - VGA direct control routines.
+;  vgatx.asm - VGA text mode control module.
 ;  Copyright (c) 1998 RET & COM research. All rights reserved.
 ;*******************************************************************************
 
@@ -29,17 +29,79 @@ TxtNumRows	EQU	25              ; Number of rows
 
 
 ; --- Data ---
-include "HARDCTL\vgafont.asm"			; Default 8x16 font table
+include "vgafont.asm"			; Default 8x16 font table
 
 
 ; --- Variables ---
 VGA_TxtMemAddr	DD	CGA_MemAddr
 VGA_CursorPos	DW	0
+VGAtx_TabSize	DB	8			; Unused
 
 
 ; --- Routines ---
 
-;-------------------------- Text mode routines ---------------------------------
+;---------------------------- Module publics -----------------------------------
+
+		public VGATX_Detect
+		public VGATX_MoveCursor
+		public VGATX_GetCurPos
+		public VGATX_HideCursor
+		public VGATX_ShowCursor
+		public VGATX_SetActPage
+		public VGATX_Scroll
+		public VGATX_WrCharXY
+		public VGATX_WrChar
+		public VGATX_WrCharA
+		public VGATX_MoveCurNext
+		public VGATX_ClrLine
+		public VGATX_ClrVidPage
+
+;----------------------------- Routines bodies ---------------------------------
+
+		; VGATX_Detect - check of presence text-mode VGA.
+		; Input: none
+		; Output: CF=0 - OK, EBX=pointer to VGA information.
+		; 	  CF=1 - checking error.
+		; Note: uses CRTC R15 to detect VGA port;
+		;	moves cursor right on 1 position.
+proc VGATX_Detect near
+		push	eax
+		push	edx
+		mov	dx,PORT_CGA_CAddr		; Checking VGA ports
+		mov	al,CRTC_R15
+		out	dx,al
+		PORTDELAY
+		inc	dx
+		in	al,dx
+		dec	dx
+		mov	ah,al
+		inc	ah
+		mov	al,CRTC_R15
+		out	dx,ax
+		PORTDELAY
+		out	dx,al
+		PORTDELAY
+		inc	dx
+		in	al,dx
+		cmp	al,ah
+		jne	vDETECT_Err
+		mov	eax,0BFFFEh		; Checking VGA memory
+		mov	dl,55h
+		mov	[byte eax],dl
+		mov	dh,[byte eax]
+		cmp	dl,dh
+		jne	vDETECT_Err
+		mov	[byte eax],0
+		clc
+		jmp	short vDETECT_Exit
+vDETECT_Err:	stc
+vDETECT_Exit:	pop	edx
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+
 
 		; VGATX_MoveCursor - move cursor to specified position.
 		; Input: DL=column (0..79),
@@ -64,7 +126,8 @@ proc VGATX_MoveCursor near
 
 		movzx	ebx,bh			; Count offset in video
 		shl	ebx,11			; memory (CRTC format)
-		movzx	eax,dh
+		xor	eax,eax
+		mov	al,dh
 		movzx	edx,dl			; Store column
 		shl	eax,4
 		lea	eax,[eax*4+eax]
@@ -111,7 +174,7 @@ endp		;---------------------------------------------------------------
 		;	  BH=video page (0..7).
 		;	  CF=1 - cursor is hidden,
 		;	  CF=0 - cursor is visible:
-		; Note: destroys high words of EBX and EDX
+		; Note: destroys BL, high words of EBX and EDX.
 		; (Date: 19.11.98)
 proc VGATX_GetCurPos near
 		push	eax
@@ -358,6 +421,7 @@ endp		;---------------------------------------------------------------
 		; Notes: doesn't move cursor;
 		;	 uses existing attributes;
 		;	 doesn't handle CTRL chars.
+		; (Date: 21.11.98)
 proc VGATX_WrChar near
 		push	ebx
 		push	edx
@@ -376,6 +440,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 		; Notes: doesn't move cursor;
 		;	 doesn't handle CTRL chars.
+		; (Date: 21.11.98)
 proc VGATX_WrCharA near
 		push	ebx
 		push	edx
@@ -389,94 +454,137 @@ endp		;---------------------------------------------------------------
 
 
 
-		; VGATX_MoveCurTTY - move cursor to next position.
+		; VGATX_MoveCurNext - move cursor to next position.
 		; Input: none.
 		; Output: none.
 		; Notes: if cursor in last column, moves it to new line;
 		;	 if cursor in right down corner, scroll screen.
-proc VGATX_MoveCurTTY near
+proc VGATX_MoveCurNext near
 		push	ebx
 		push	edx
                 call	VGATX_GetCurPos
+		cmp	dl,TxtNumCols-1
+		je	vMCurN_NL
 		inc	dl
-
 		call	VGATX_MoveCursor
-		pop	edx
-		pop	ebx
-		ret
-endp		;---------------------------------------------------------------
+		jmp	short vMCurN_Exit
 
-
-
-		; VGATX_HandleCTRL - handle ASCII control characters.
-		; Input: AL=character code.
-		; Output: CF=0 - not CTRL code,
-		;	  CF=1 - CTRL code (have been handled).
-proc VGATX_HandleCTRL near
-		push	ebx
-		push	edx
-		cmp	al,ASC_BEL
-		je	vHnCTL_BEL
-		cmp	al,ASC_BS
-		je	vHnCTL_BS
-		cmp	al,ASC_HT
-		je	vHnCTL_HT
-		cmp	al,ASC_VT
-		je	vHnCTL_HT
-		cmp	al,ASC_LF
-		je	vHnCTL_LF
-		cmp	al,ASC_CR
-		je	vHnCTL_CR
-		clc
-		jmp	vHnCTL_Exit
-
-vHnCTL_BEL:	call	SPK_Beep
-		jmp	vHnCTL_Done
-
-vHnCTL_BS:	call	VGATX_GetCurPos
-		jmp	vHnCTL_Done
-
-vHnCTL_HT:	call	VGATX_GetCurPos
-		jmp	vHnCTL_Done
-
-vHnCTL_VT:	call	VGATX_GetCurPos
-		jmp	vHnCTL_Done
-
-vHnCTL_LF:	call	VGATX_GetCurPos
+vMCurN_NL:      xor	dl,dl
 		cmp	dh,TxtNumRows-1
-		jne	vHnCTL_LFS
+		je	vMCurN_Scrl
 		inc	dh
 		call	VGATX_MoveCursor
-		jmp	vHnCTL_Done
-vHnCTL_LFS:	mov	dl,1
+		jmp	short vMCurN_Exit
+
+vMCurN_Scrl:	call	VGATX_MoveCursor
+		mov	dl,1
 		call	VGATX_Scroll
-		jmp	vHnCTL_Done
-
-vHnCTL_CR:	call	VGATX_GetCurPos
-		xor	dl,dl
-		call	VGATX_MoveCursor
-		jmp	vHnCTL_Done
-
-vHnCTL_Done:	stc
-vHnCTL_Exit:	pop	edx
+		mov	bl,al			; Keep AL
+		xor	al,al
+		call	VGATX_ClrLine
+		mov	al,bl			; Restore AL
+vMCurN_Exit:	pop	edx
 		pop	ebx
 		ret
 endp		;---------------------------------------------------------------
 
 
 
-		; VGATX_WrCharTTY - write character in TTY mode.
-		; Input: AL=character code,
-		;	 BH=video page (0..7).
+		; VGATX_ClrLine - clear line
+		; Input: AL=0 - clear entire line,
+		;	 AL<>0 - clear line from cursor to end of line,
+		;	 CF=0 - keep attributes,
+		;	 CF=1 - use new attributes,
+		;	 AH=new attributes (if CF=1).
+		; Output: none.
+		; (Date: 21.11.98)
+proc VGATX_ClrLine near
+		push	eax
+		push	ebx
+		push	edx
+		pushfd
+		call	VGATX_GetCurPos
+		or	al,al			; Clear from cursor?
+		jnz	vClrLine_Do
+		xor	dl,dl
+vClrLine_Do:	mov	bl,ah
+		xor	al,al
+vClrLine_Loop:	mov	ah,[byte esp]		; Restore flags
+		sahf
+		mov	ah,bl
+		call	VGATX_WrCharXY
+		inc	dl
+		cmp	dl,TxtNumCols
+		jae	vClrLine_Exit
+		jmp	short vClrLine_Loop
+
+vClrLine_Exit:	popfd
+		pop	edx
+		pop	ebx
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; VGATX_ClrVidPage - clear video page.
+		; Input: BH=page number,
+		;	 AH=attribute (if CF=1),
+		;	 CF=0 - don't change attributes,
+		;	 CF=1 - change attributes (AH).
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
-		; Notes: Writes at current cursor position, then move cursor.
-		;	 Uses existing attributes.
-		;	 Handle ASCII control codes.
-proc VGATX_WrCharTTY near
-		call	VGATX_HandleCTRL
-		jc	vWCTTY_Exit
-		call	VGATX_WrChar
-		call	VGATX_MoveCurTTY
-vWCTTY_Exit:	ret
+		; (Date: 22.11.98)
+proc VGATX_ClrVidPage near
+		pushfd
+		cmp	bh,TxtNumVPages
+		jae	vClrVP_Err
+		push	eax
+		push	ebx
+		push	ecx
+		push	edi
+
+		movzx	edi,bh			; Set EDI to begin of
+		shl	edi,12			; specified video page
+		add	edi,[VGA_TxtMemAddr]
+		mov	ecx,TxtNumCols*TxtNumRows
+		xor	al,al
+		test	[byte esp+16],1		; Keep attributes?
+		jz	vClrVP_KeepA
+
+		shl	ecx,1			; Number of dwords in page
+		mov	bx,ax
+		shl	eax,16
+		mov	ax,bx			; EAX=filled dword
+		cld
+		rep	stos [dword edi]
+		jmp	short vClrVP_OK
+
+vClrVP_KeepA:   lea	ebx,[edi+ecx*2]
+vClrVP_KAloop:	mov	[byte edi],al
+		inc	edi
+		inc	edi
+		cmp	edi,ebx
+		jae	vClrVP_OK
+		jmp	short vClrVP_KAloop
+
+vClrVP_OK:	pop	edi
+		pop	ecx
+		pop	ebx
+		pop	eax
+		popfd
+		clc
+		jmp	vClrVP_Exit
+
+vClrVP_Err:     popfd
+		mov	ax,ERR_VID_BadVPage
+		stc
+vClrVP_Exit:	ret
 endp		;---------------------------------------------------------------
+
+
+
+		; DrvVideo - video device driver.
+		; Action: calls video function number EAX.
+proc DrvVideo near
+		ret
+endp

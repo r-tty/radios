@@ -6,10 +6,10 @@ module tm.kern.clock
 
 %include "sys.ah"
 %include "errors.ah"
-%include "perm.ah"
 %include "thread.ah"
 %include "time.ah"
 %include "tm/kern.ah"
+%include "tm/process.ah"
 
 publicdata ClockSyscallTable
 
@@ -71,8 +71,9 @@ proc sys_ClockTime
 
 		; Does he have enough privileges?
 .CheckPerm:	mCurrThread ebx
-		mIsRoot [ebx+tTCB.PCB]
-		jc	.Perm
+		mov	eax,[ebx+tTCB.PCB]
+		mIsRoot eax
+		jne	.Perm
 
 		; Set time
 		mov	eax,[esi]

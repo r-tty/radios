@@ -21,14 +21,14 @@ publicproc TM_CopyConnections
 publicdata ?ProcessPool, ?ProcListPtr, ?MaxNumOfProc
 publicdata ProcMsgHandlers
 
+externproc HashAdd
 externproc PoolInit, PoolAllocChunk, PoolFreeChunk
 externproc PoolChunkNumber, PoolChunkAddr
 externproc PageAlloc, NewPageDir
 externproc RegisterLDT, UnregisterLDT
-externdata ?ConnPool
 
-library $libc
-importproc _memset
+library $rmk
+importdata ?ConnPool, ?ConnHash
 
 section .data
 
@@ -65,7 +65,7 @@ proc TM_NewProcess
 		locals	parent
 		prologue
 
-		mpush	ebx,edx,edi
+		mpush	ebx,ecx,edx,edi
 		mov	[%$parent],esi
 		mov	edx,ebx
 
@@ -86,20 +86,34 @@ proc TM_NewProcess
 		or	esi,esi
 		jz	near .NoParent
 		push	edi
-		add	esi,byte tProcDesc.CoIDbmap
-		add	edi,byte tProcDesc.CoIDbmap
+		add	esi,tProcDesc.CoIDbmap
+		add	edi,tProcDesc.CoIDbmap
 		mov	ecx,(tProcDesc_size - tProcDesc.MaxConn) / 4
 		rep	movsd
 		pop	esi
 
 		; Fill in the fields
 		mov	[esi+tProcDesc.Module],edx
-		mov	eax,[%$parent]
-		mov	[esi+tProcDesc.Parent],eax
-		mov	eax,[eax+tProcDesc.MaxConn]
-		mov	[esi+tProcDesc.MaxConn],eax
+		mov	edi,[%$parent]
+		mov	[esi+tProcDesc.Parent],edi
+
+		mov	ecx,[edi+tProcDesc.MaxChan]
+		mov	[esi+tProcDesc.MaxChan],ecx
+		push	edi
+		lea	edi,[esi+tProcDesc.ChanIDbmap]
+		mov	[esi+tProcDesc.ChanIDbmapAddr],edi
+		shr	ecx,1
+		xor	eax,eax
+		dec	eax
+		rep	stosd
+		pop	edi
+		inc	eax
+		btr	[esi+tProcDesc.ChanIDbmap],eax
+
+		Mov32	esi+tProcDesc.MaxConn,edi+tProcDesc.MaxConn
 		lea	eax,[esi+tProcDesc.CoIDbmap]
 		mov	[esi+tProcDesc.CoIDbmapAddr],eax
+
 		call	PoolChunkNumber
 		mov	[esi+tProcDesc.PID],eax
 		xor	eax,eax
@@ -119,7 +133,7 @@ proc TM_NewProcess
 		; Put the process descriptor into a linked list
 		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc, edx
 
-.Exit:		mpop	edi,edx,ebx
+.Exit:		mpop	edi,edx,ecx,ebx
 		epilogue
 		ret
 
@@ -224,7 +238,7 @@ endp		;---------------------------------------------------------------
 
 
 		; TM_CopyConnections - copy connection descriptors from one
-		; 			process to another.
+		;		       process to another (and hash them).
 		; Input: ESI=source PCB address,
 		;	 EDI=destination PCB address.
 		; Output: CF=0 - OK;
@@ -235,6 +249,8 @@ proc TM_CopyConnections
 		mov	edx,[esi+tProcDesc.ConnList]
 		mov	ebx,edi
 		xor	ecx,ecx
+
+		; Allocate a descriptor and copy the data
 .Loop:		or	edx,edx
 		jz	.Exit
 		push	ebx
@@ -248,7 +264,14 @@ proc TM_CopyConnections
 		push	edi
 		rep	movsb
 		pop	edi
+
+		; Put it into the list and hash
 		mEnqueue dword [ebx+tProcDesc.ConnList], Next, Prev, edi, tConnDesc, esi
+		mov	eax,[edi+tConnDesc.ID]
+		mov	esi,?ConnHash
+		call	HashAdd
+		jc	.Exit
+
 		mov	eax,edx
 		mov	edx,[edx+tConnDesc.Next]
 		cmp	edx,eax

@@ -5,11 +5,11 @@
 %ifndef _procmsg_ah
 %define _procmsg_ah
 
-%include "perm.ah"
 %include "resource.ah"
 %include "lib/defs.ah"
 %include "tm/sysmsg.ah"
 %include "tm/spawn.ah"
+%include "tm/perm.ah"
 
 PROCMGR_PID	EQU	SYSMGR_PID
 PROCMGR_CHID	EQU	SYSMGR_CHID

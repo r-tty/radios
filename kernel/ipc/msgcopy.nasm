@@ -455,8 +455,7 @@ proc CopyPulseToAct
 
 		; Fill in the scoid
 		mov	esi,[ebx+tPulseDesc.ConnDesc]
-		call	K_PoolChunkNumber
-		mov	[edi+tPulse.SCoID],eax
+		Mov32	edi+tPulse.SCoID,esi+tConnDesc.ScoID
 
 .Exit:		pop	esi
 		ret

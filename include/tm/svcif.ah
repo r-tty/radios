@@ -7,23 +7,26 @@
 
 %define SVCIFTRAP	29h
 
-R0_PoolInit		EQU	0
-R0_PoolAllocChunk	EQU	1
-R0_PoolFreeChunk	EQU	2
-R0_PoolChunkNumber	EQU	3
-R0_PoolChunkAddr	EQU	4
-R0_PageAlloc		EQU	5
-R0_PageDealloc		EQU	6
-R0_CopyFromAct		EQU	7
-R0_CopyToAct		EQU	8
-R0_RegisterLDT		EQU	9
-R0_UnregisterLDT	EQU	10
+SVCF_HashAdd		EQU	0
+SVCF_HashLookup		EQU	1
+SVCF_HashRelease	EQU	2
+SVCF_PoolInit		EQU	3
+SVCF_PoolAllocChunk	EQU	4
+SVCF_PoolFreeChunk	EQU	5
+SVCF_PoolChunkNumber	EQU	6
+SVCF_PoolChunkAddr	EQU	7
+SVCF_PageAlloc		EQU	8
+SVCF_PageDealloc	EQU	9
+SVCF_CopyFromAct	EQU	0Ah
+SVCF_CopyToAct		EQU	0Bh
+SVCF_RegisterLDT	EQU	0Ch
+SVCF_UnregisterLDT	EQU	0Dh
 
-%define R0_MAX	10
+SVCF_MAX		EQU	0Dh
 
 %macro mRing0call 1
 %ifnum %1
-    %if %1 > R0_MAX
+    %if %1 > SVCF_MAX
 	%error Invalid Ring0 call number
     %endif
 %endif

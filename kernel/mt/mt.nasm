@@ -8,13 +8,13 @@ module kernel.mt
 %include "sys.ah"
 %include "rmk.ah"
 %include "pool.ah"
-%include "perm.ah"
 %include "thread.ah"
 %include "errors.ah"
 %include "cpu/tss.ah"
 %include "cpu/paging.ah"
 %include "cpu/stkframe.ah"
 %include "cpu/setjmp.ah"
+%include "tm/process.ah"
 
 %ifdef DEBUG
 %include "serventry.ah"
@@ -30,6 +30,11 @@ publicproc sys_SchedYield
 externproc K_DescriptorAddress, K_SetDescriptorBase, K_SetGateOffset
 externproc BZero
 externdata KernTSS
+
+
+section .bss
+
+?ProcListLock	RESB	tSemaphore_size
 
 
 section .text
@@ -113,8 +118,9 @@ proc sys_ThreadCtl
 		jne	.Inval
 
 		mCurrThread ebx
-		mIsRoot [ebx+tTCB.PCB]
-		jc	.Perm
+		mov	esi,[ebx+tTCB.PCB]
+		mIsRoot esi
+		jne	.Perm
 
 		or	dword [ebx+tTCB.Flags],TF_IOPRIV
 		or	dword [edx+tStackFrame.EFLAGS],FLAG_IOPL

@@ -22,7 +22,7 @@ externproc TM_RegisterBinFmt, TM_IterateModList, TM_GetModIdByName
 externproc TM_NewProcess, TM_CopyConnections
 externproc MapArea, MM_AllocPagesAt, CopyFromAct, PoolInit
 externdata ProcMsgHandlers
-externdata ?BootModsArr, ?ProcListPtr, ?ConnPool
+externdata ?BootModsArr, ?ProcListPtr
 externdata BinFmtRDOFF
 
 library $libc
@@ -58,7 +58,6 @@ TxtPulseVal	DB	", value=",0
 section .bss
 
 ?ConsModDesc	RESD	1			; Console module descriptor addr
-?SpareChannel	RESD	1			; ID of spare channel
 ?MsgHandlers	RESD	SYSMSG_MAX+1
 
 
@@ -104,28 +103,15 @@ proc TM_Main
 		; Install procmgr message handlers as well
 		mov	esi,ProcMsgHandlers
 		call	TM_SetMHfromTable
-
-		; Our channel must have chid==1, so create a spare one
-		Ccall	_ChannelCreate_r, 0
-		test	eax,eax
-		js	near HaltFatal
-		mov	[?SpareChannel],eax		; just in case
-
+int 20h
 		; Create the IPC channel that we will use for communications
 		Ccall	_ChannelCreate_r, 0
 		test	eax,eax
 		js	near HaltFatal
 		
-		; Initialize connection pool
-		mov	ebx,?ConnPool
-		xor	ecx,ecx
-		mov	cl,tConnDesc_size
-		mov	dl,POOLFL_HIMEM
-		call	PoolInit
-
 		; Create a connection to our channel. It will be inherited
 		; by all child processes.
-		Ccall	_ConnectAttach_r, 0, SYSMGR_PID, SYSMGR_CHID, SYSMGR_COID, 0
+		Ccall	_ConnectAttach_r, 0, SYSMGR_PID, eax, SYSMGR_COID, 0
 		test	eax,eax
 		js	near HaltFatal
 

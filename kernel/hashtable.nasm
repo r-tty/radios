@@ -97,21 +97,22 @@ proc K_HashAdd
 endp		;---------------------------------------------------------------
 
 
-		; K_HashRemove - remove the element from the table.
+		; K_HashRelease - remove the element from the table and free it.
 		; Input: EDX=table slot address,
 		;	 EDI=element address.
 		; Output: CF=0 - OK, EAX=0;
 		;	  CF=1 - error.
 proc K_HashRelease
-		push	ebx
+		push	esi
 		mov	eax,[?HashElemCount]
 		or	eax,eax
 		stc
 		jz	.Exit
 		dec	dword [?HashElemCount]
-		mDequeue dword [edx], Next, Prev, esi, tHashElem, ebx
+		mDequeue dword [edx], Next, Prev, edi, tHashElem, esi
+		mov	esi,edi
 		call	K_PoolFreeChunk
-.Exit:		pop	ebx
+.Exit:		pop	esi
 		ret
 endp		;---------------------------------------------------------------
 

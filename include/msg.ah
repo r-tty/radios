@@ -24,7 +24,9 @@ endstruc
 ; Connection descriptor
 struc tConnDesc
 .ID		RESD	1			; Connection ID
-.ChanDesc	RESD	1			; Channel descriptor
+.ScoID		RESD	1			; Server connection ID
+.ClientPCB	RESD	1			; Client's PCB address
+.ChanDesc	RESD	1			; Channel descriptor address
 .Prio		RESD	1			; Priority
 .Status		RESD	1			; Connection status
 .Flags		RESD	1			; COF_* flags
@@ -35,6 +37,7 @@ endstruc
 
 ; Channel descriptor
 struc tChanDesc
+.ID		RESD	1			; Channel ID
 .PCB		RESD	1			; Process descriptor address
 .Flags		RESD	1			; CHF_* flags
 .NumConn	RESD	1			; Number of connections

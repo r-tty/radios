@@ -13,7 +13,7 @@
 %define MAXMCBS		8192		; Max number of memory ctrl blocks
 %define MAXOCBS		4096		; Max number of open control blocks
 %define MAXTIMERS	128		; Max number of timers
-%define MAXCHANNELS	1024		; Max number of channels
+%define MAXCHANNELS	64		; Max number of channels per process
 %define MAXCONNECTIONS	1024		; Max number of connections per process
 %define MAXPULSES	8192		; Max number of pulse descriptors
 %define	MAXSYNCOBJECTS	8192		; Max number of synchronization objects
@@ -27,6 +27,6 @@
 
 %define	HZ		100		; Timer ticks per second
 
-%define	RADIOS_VERSION	"0.0.1-mk7"	; System version
+%define	RADIOS_VERSION	"0.0.1.7"	; System version
 
 %endif

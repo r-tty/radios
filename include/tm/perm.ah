@@ -1,0 +1,23 @@
+;-------------------------------------------------------------------------------
+; perm.ah - definitions of permission/protection structures.
+;-------------------------------------------------------------------------------
+
+%ifndef _perm_ah
+%define _perm_ah
+
+; Number of groups that user may belong to
+NGROUPS_MAX	EQU	8
+
+; POSIX credentials structure
+struc tCredInfo
+.RUID		RESD	1
+.EUID		RESD	1
+.SUID		RESD	1
+.RGID		RESD	1
+.EGID		RESD	1
+.SGID		RESD	1
+.Ngroups	RESD	1
+.Grouplist	RESD	NGROUPS_MAX
+endstruc
+
+%endif

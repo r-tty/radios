@@ -116,7 +116,6 @@ struc tTCB
 .StackAddr	RESD	1			; Stack address
 .KStack		RESD	1			; Kernel stack pointer
 .TLS		RESD	1			; User address of TLS
-.LastErrno	RESD	1			; Last error number (signed)
 
 .Flags		RESD	1			; TF_* flags
 .SemWait	RESD	1			; Semaphore wait count

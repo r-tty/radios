@@ -143,11 +143,9 @@ proc FillMessageInfo
 		mov	eax,[eax+tProcDesc.PID]
 		mov	[edi+tMsgInfo.PID],eax
 		mov	esi,[ebx+tTCB.ConnDesc]
-		mov	eax,[esi+tConnDesc.ID]
-		mov	[edi+tMsgInfo.CoID],eax
-		call	K_PoolChunkNumber
-		jc	.NotFound
-		mov	[edi+tMsgInfo.ScoID],eax
+		Mov32	edi+tMsgInfo.CoID,esi+tConnDesc.ID
+		Mov32	edi+tMsgInfo.ScoID,esi+tConnDesc.ScoID
+		xor	eax,eax
 .Exit:		ret
 
 .Fault:		mov	eax,-EFAULT
@@ -280,6 +278,8 @@ proc sys_MsgReceivev
 		prologue
 
 		; Get an address of channel descriptor
+		mCurrThread
+		mov	esi,[eax+tTCB.PCB]
 		mov	eax,[%$chid]
 		call	IPC_ChanDescAddr
 		jc	near .Exit
@@ -408,9 +408,7 @@ proc sys_MsgError
 		; the channel's reply wait queue
 		mov	edi,[ebx+tTCB.ConnDesc]
 		mov	esi,[edi+tConnDesc.ChanDesc]
-		mov	dword [ebx+tTCB.MsgStatus],-1
-		mov	eax,[%$errno]
-		mov	[ebx+tTCB.LastErrno],eax
+		Mov32	ebx+tTCB.MsgStatus,%$errno
 		mLockCB ebx, tTCB
 		mDequeue dword [esi+tChanDesc.ReplyWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, edi
 		mUnlockCB ebx, tTCB
@@ -514,6 +512,8 @@ proc sys_MsgReceivePulsev
 		prologue
 
 		; Get an address of channel descriptor
+		mCurrThread
+		mov	esi,[eax+tTCB.PCB]
 		mov	eax,[%$chid]
 		call	IPC_ChanDescAddr
 		jc	near .MkErrno

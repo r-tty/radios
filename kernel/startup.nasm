@@ -188,21 +188,19 @@ proc Start
 		call	PG_StartPaging
 		jc	near ExitKernel
 
+		; Initialize hash elements pool
+		mov	eax,MAXHASHELEMS
+		call	K_InitHashPool
+		jc	near ExitKernel
 
 		; Initialize RTC
 		call	K_InitTime
 
 		; Initialize IPC structures
-		mov	eax,MAXCHANNELS
 		call	IPC_ChanInit
 		jc	near ExitKernel
 		mov	eax,MAXPULSES
 		call	IPC_PulseInit
-		jc	near ExitKernel
-
-		; Initialize hash elements pool
-		mov	eax,MAXHASHELEMS
-		call	K_InitHashPool
 		jc	near ExitKernel
 
 		; Initialize synchronization object pool

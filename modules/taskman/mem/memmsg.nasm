@@ -15,7 +15,7 @@ publicdata MemMsgHandlers
 
 externproc PoolChunkAddr, MapArea
 externproc MM_FindRegion, MM_AllocBlock, MM_FreeBlock
-externdata ?ConnPool, ?ProcessPool
+externdata ?ProcessPool
 
 library $libc
 importproc _MsgRead, _MsgReply, _MsgError

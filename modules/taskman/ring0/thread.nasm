@@ -7,7 +7,6 @@ module tm.kern.thread
 %include "sys.ah"
 %include "errors.ah"
 %include "thread.ah"
-%include "perm.ah"
 %include "tm/kern.ah"
 %include "tm/process.ah"
 
@@ -48,7 +47,7 @@ proc sys_ThreadCreate
 		or	eax,eax
 		jz	.Create
 		mIsRoot esi
-		jc	.Perm
+		jne	.Perm
 		call	R0_Pid2PCBaddr
 		jc	.Exit
 

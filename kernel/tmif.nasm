@@ -10,27 +10,31 @@ module kernel.tmif
 
 publicproc K_Ring0
 
+externproc K_HashAdd, K_HashLookup, K_HashRelease
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkNumber, K_PoolChunkAddr
 externproc PG_Alloc, PG_Dealloc
 externproc K_CopyFromAct, K_CopyToAct
 externproc K_RegisterLDT, K_UnregisterLDT
 
-%define R0_NUMFUNC	11
+%define R0_NUMFUNC	14
 
 section .data
 
-Ring0functions	DD	K_PoolInit		; 0
-		DD	K_PoolAllocChunk	; 1
-		DD	K_PoolFreeChunk		; 2
-		DD	K_PoolChunkNumber	; 3
-		DD	K_PoolChunkAddr		; 4
-		DD	PG_Alloc		; 5
-		DD	PG_Dealloc		; 6
-		DD	K_CopyFromAct		; 7
-		DD	K_CopyToAct		; 8
-		DD	K_RegisterLDT		; 9
-		DD	K_UnregisterLDT		; 10
+Ring0functions	DD	K_HashAdd		; 0
+		DD	K_HashLookup		; 1
+		DD	K_HashRelease		; 2
+		DD	K_PoolInit		; 3
+		DD	K_PoolAllocChunk	; 4
+		DD	K_PoolFreeChunk		; 5
+		DD	K_PoolChunkNumber	; 6
+		DD	K_PoolChunkAddr		; 7
+		DD	PG_Alloc		; 8
+		DD	PG_Dealloc		; 9
+		DD	K_CopyFromAct		; 0Ah
+		DD	K_CopyToAct		; 0Bh
+		DD	K_RegisterLDT		; 0Ch
+		DD	K_UnregisterLDT		; 0Dh
 
 section .text
 

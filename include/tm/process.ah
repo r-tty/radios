@@ -7,15 +7,18 @@
 
 %include "parameters.ah"
 %include "pool.ah"
+%include "tm/perm.ah"
 
 ; Process descriptor structure
 struc tProcDesc
 .PID		RESD	1			; PID
 .Parent		RESD	1			; Parent PCB
+.PgrpLeader	RESD	1			; Process group leader's PCB
 .Module		RESD	1			; Module descriptor
 .PageDir	RESD	1			; Page directory address
 .LDTaddr	RESD	1			; LDT address
 .LDTdesc	RESD	1			; LDT descriptor in GDT
+.ThrListLock	RESB	tSemaphore_size		; Thread list lock
 .ThreadList	RESD	1			; Thread list head
 .MCBlist	RESD	1			; MCB list head
 .SigIgnoreMask	RESQ	1			; Signal ignore mask
@@ -26,10 +29,18 @@ struc tProcDesc
 .PgrpPrev	RESD	1			; Previous in process group
 .Flags		RESD	1			; PF_* flags
 .Lock		RESB	tSemaphore_size		; Descriptor lock semaphore
+.Cred		RESB	tCredInfo_size		; Credentials
+.TimerCount	RESD	1			; Number of timers created
 .TimerList	RESD	1			; Head of timer list
+.SyncCount	RESD	1			; Number of sync objects created
 .SyncList	RESD	1			; Head of sync object list
+.ChanCount	RESD	1			; Number of channels created
 .ChanList	RESD	1			; Head of channel list
+.ConnCount	RESD	1			; Number of connections created
 .ConnList	RESD	1			; Head of connection list
+.MaxChan	RESD	1			; Maximum number of channels
+.ChanIDbmapAddr	RESD	1			; Channel ID bitmap address
+.ChanIDbmap	RESB	MAXCHANNELS / 8		; Channel ID bitmap itself
 .MaxConn	RESD	1			; Maximum number of connections
 .CoIDbmapAddr	RESD	1			; Address of CoID bitmap
 .CoIDbmap	RESB	MAXCONNECTIONS / 8	; CoID bitmap itself
@@ -59,5 +70,11 @@ PF_DESTROYALL		EQU	80000h
 PF_NOCOREDUMP		EQU	100000h
 PF_NOCTTY		EQU	200000h
 PF_THREADWATCH		EQU	80000000h
+
+; This macro sets zero flag if the process has "root" capabilities.
+; Parameters: %1 = process descriptor address.
+%macro mIsRoot 1
+	cmp	dword [%1+tProcDesc.Cred+tCredInfo.EUID],0
+%endmacro
 
 %endif

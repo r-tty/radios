@@ -125,3 +125,10 @@ Jun 15, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
 		delivery functions. Infrastructure for open() is written,
 		but needs to be tested thoroughly. Small parts of stdio
 		and stdlib are added.
+
+Aug 24, 2003	New versioning scheme has been introduced again: now the
+		version is 0.0.1.7. Many condition races have been fixed,
+		appropriate locks added. open() function (and all underlying
+		infrastructure like connect()) seems to be working.
+
+Sep 15, 2003	RadiOS-0.0.1.7 is released and available at SourceForge.

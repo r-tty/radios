@@ -11,14 +11,18 @@ module tm.kern.connection
 %include "tm/process.ah"
 
 publicproc FindConnByNum
-publicdata ConnectSyscallTable, ?ConnPool
+publicdata ConnectSyscallTable
+
+externproc R0_Pid2PCBaddr
 
 library $rmk
 importproc K_PoolAllocChunk, K_PoolChunkAddr
+importproc K_HashAdd
 importproc K_AllocateID
-importproc IPC_ChanDescAddr
+importproc IPC_ChanDescAddr, IPC_ConnDescAddr
 importproc K_SemP, K_SemV
 importproc BZero
+importdata ?ConnPool, ?ConnHash
 
 section .data
 
@@ -28,9 +32,6 @@ mSyscallTabEnt ConnectServerInfo, 3
 mSyscallTabEnt ConnectFlags, 4
 mSyscallTabEnt 0
 
-section .bss
-
-?ConnPool	RESB	tMasterPool_size
 
 section .text
 
@@ -60,7 +61,16 @@ proc sys_ConnectAttach
 		arg	nd, pid, chid, index, flags
 		prologue
 
+		; Attaching to a remote channel is a different story...
+		mov	eax,[%$nd]
+		or	eax,eax
+		jnz	near .Exit
+
 		; Get the address of channel descriptor
+		mov	eax,[%$pid]
+		call	R0_Pid2PCBaddr
+		jc	near .Exit
+		mov	ebx,[esi+tProcDesc.ConnList]
 		mov	eax,[%$chid]
 		call	IPC_ChanDescAddr
 		jc	near .Exit
@@ -73,12 +83,52 @@ proc sys_ConnectAttach
 		; Allocate a new connection descriptor
 		mov	ebx,?ConnPool
 		call	K_PoolAllocChunk
-		jc	.Again
+		jc	near .Again
 		mov	ebx,esi
 		mov	ecx,tConnDesc_size
 		call	BZero
 
-		; Update channel information and put connection to the list
+		; Examine the server's connection list. If there are no
+		; connections from our process - create a new scoid, otherwise
+		; use the existing one.
+.ScoIdLoop:	or	ebx,ebx
+		jz	.NewScoDesc
+		cmp	[ebx+tConnDesc.ClientPCB],edi
+		jne	.Next
+		cmp	[ebx+tConnDesc.ChanDesc],edx
+		je	.ScoDescFound
+.Next:		mov	eax,ebx
+		mov	ebx,[ebx+tConnDesc.Next]
+		cmp	ebx,eax
+		jne	.ScoIdLoop
+
+		; Allocate a new server connection descriptor
+.NewScoDesc:	push	esi
+		mov	ebx,?ConnPool
+		call	K_PoolAllocChunk
+		mov	ebx,esi
+		pop	esi
+		jc	near .Again
+		mov	ecx,tConnDesc_size
+		call	BZero
+		push	ebx
+		mov	eax,[edx+tChanDesc.PCB]
+		lea	ebx,[eax+tProcDesc.MaxConn]
+		call	K_AllocateID
+		pop	ebx
+		jc	near .Again
+		mov	ecx,[%$index]
+		or	ecx,ecx
+		jz	.ScoIndexOK
+		cmp	ecx,SIDE_CHANNEL
+		jne	near .BadIndex
+.ScoIndexOK:	add	eax,ecx
+		mov	[ebx+tConnDesc.ID],eax
+		mov	[ebx+tConnDesc.ClientPCB],edi
+		mov	[esi+tConnDesc.ChanDesc],edx
+
+		; Update channel information and put the connection to the list
+.ScoDescFound:	Mov32	esi+tConnDesc.ScoID,ebx+tConnDesc.ID
 		inc	dword [edx+tChanDesc.NumConn]
 		mov	[esi+tConnDesc.ChanDesc],edx
 		mLockCB edi, tProcDesc
@@ -97,7 +147,15 @@ proc sys_ConnectAttach
 .IndexOK:	add	eax,ecx
 		mov	[esi+tConnDesc.ID],eax
 
-.Exit		epilogue
+		; Use connection ID as identifier and PCB address as hash key
+		mov	ebx,edi
+		mov	edi,esi
+		mov	esi,?ConnHash
+		call	K_HashAdd
+		jc	.Again
+		mov	eax,[edi+tConnDesc.ID]
+
+.Exit:		epilogue
 		ret
 
 .BadIndex:	mov	eax,-EBADF
@@ -113,16 +171,70 @@ endp		;---------------------------------------------------------------
 proc sys_ConnectServerInfo
 		arg	pid, coid, info
 		prologue
-		MISSINGSYSCALL
-		epilogue
+
+		; Zero PID is also okay - it means local process
+		mCurrThread ebx
+		mov	esi,[ebx+tTCB.PCB]
+		mov	eax,[%$pid]
+		or	eax,eax
+		jz	.CheckCoid
+		mov	edi,esi
+		call	R0_Pid2PCBaddr
+		jc	.Exit
+
+.CheckCoid:	mov	eax,[%$coid]
+		call	IPC_ConnDescAddr
+		jc	.Exit
+
+		mov	edx,[%$info]
+		add	edx,USERAREACHECK
+		jc	.Fault
+		cmp	edx,-tMsgInfo_size
+		jg	.Fault
+
+.Exit:		epilogue
 		ret
+
+.Fault:		mov	eax,-EFAULT
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; int ConnectFlags(pid_t pid, int coid, uint mask, uint bits);
 proc sys_ConnectFlags
+		arg	pid, coid, mask, bits
 		prologue
-		MISSINGSYSCALL
-		epilogue
+
+		; If pid is nonzero, check if that process is owned by a user
+		mCurrThread ebx
+		mov	esi,[ebx+tTCB.PCB]
+		mov	eax,[%$pid]
+		or	eax,eax
+		jz	.CheckCoid
+		mov	edi,esi
+		call	R0_Pid2PCBaddr
+		jc	.Exit
+		Cmp32	esi+tProcDesc.Cred+tCredInfo.EUID, \
+			edi+tProcDesc.Cred+tCredInfo.RUID
+		jne	.BadPerm
+
+.CheckCoid:	mov	eax,[%$coid]
+		call	IPC_ConnDescAddr
+		jc	.Exit
+		mov	edx,[edi+tConnDesc.Flags]
+		mov	eax,[%$mask]
+		and	eax,COF_CLOEXEC			; Supported flags
+		mov	ecx,[%$bits]
+		and	ecx,eax
+		or	[edi+tConnDesc.Flags],ecx
+		not	eax
+		or	eax,[%$bits]
+		and	[edi+tConnDesc.Flags],eax
+		mov	eax,edx
+
+.Exit:		epilogue
 		ret
+
+.BadPerm:	mov	eax,-EPERM
+		jmp	.Exit
 endp		;---------------------------------------------------------------

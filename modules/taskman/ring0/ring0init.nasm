@@ -81,10 +81,9 @@ proc Start
 		; Initialize process descriptor pool
 		mov	dword [?MaxNumOfProc],MAXNUMPROCESSES
 		mov	ebx,?ProcessPool
-		xor	ecx,ecx
 		xor	edx,edx
-		mov	cl,tProcDesc_size
 		mov	dl,POOLFL_HIMEM
+		mov	ecx,tProcDesc_size		
 		call	K_PoolInit
 
 		; Pseudo-process with PID 0 is actually the kernel.
@@ -127,6 +126,20 @@ proc Start
 		mov	[esi+tProcDesc.PID],ecx
 		mov	ebx,[%$bmd]
 		mov	[esi+tProcDesc.Module],ebx
+
+		; Prepare the channel ID bitmap
+		mov	ecx,MAXCHANNELS
+		mov	[esi+tProcDesc.MaxChan],ecx
+		lea	ebx,[esi+tProcDesc.ChanIDbmap]
+		mov	dword [esi+tProcDesc.ChanIDbmapAddr],ebx
+		shr	ecx,3
+		xor	eax,eax
+		dec	eax
+		call	MemSet
+		inc	eax
+		btr	[esi+tProcDesc.ChanIDbmap],eax
+
+		; Prepare the connection ID bitmap
 		mov	ecx,MAXCONNECTIONS
 		mov	[esi+tProcDesc.MaxConn],ecx
 		lea	ebx,[esi+tProcDesc.CoIDbmap]

@@ -7,8 +7,8 @@ module kernel.time
 %include "sys.ah"
 %include "errors.ah"
 %include "thread.ah"
-%include "perm.ah"
 %include "time.ah"
+%include "tm/process.ah"
 
 publicproc K_InitTime, K_TTDelay, K_LDelay, K_LDelayMs
 publicproc sys_ClockTime, sys_ClockAdjust, sys_ClockPeriod, sys_ClockId

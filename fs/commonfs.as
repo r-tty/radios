@@ -12,6 +12,14 @@ module kernel.fs
 %include "process.ah"
 %include "commonfs.ah"
 
+%ifdef DEBUG
+%include "kconio.ah"
+
+library kernel.kconio
+extern PrintChar:near, PrintString:near 
+extern PrintByteHex:near, PrintDwordHex:near
+%endif
+
 ; --- Exports ---
 
 global CFS_Init, CFS_LinkFS, CFS_UnlinkFS

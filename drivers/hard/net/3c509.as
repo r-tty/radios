@@ -4,7 +4,7 @@
 ;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
-module 3c509
+module hw.net.3c509
 
 %include "sys.ah"
 %include "driver.ah"

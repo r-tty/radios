@@ -2,12 +2,6 @@
 ;  enter.asm - handle hex data entry.
 ;-------------------------------------------------------------------------------
 
-; --- Imports ---
-
-library kernel.misc
-extern PrintByteHex:extcall
-
-
 ; --- Procedures ---
 
 section .text
@@ -17,7 +11,7 @@ proc InputNumber
 		mpush	edx,ecx,ebx
 		xor	ecx,ecx 			; Number of digits = 0
 		xor	ebx,ebx				; Data = 0
-.Loop:		mCallDriver dword [DrvId_Con], byte DRVF_Read	; Get a char
+.Loop:		call	ReadChar			; Get a char
 		call	CharToUpper			; & make uppercase
 		mov	ah,al				; AH = data
 		cmp	al,13				; ENTER, data is complete
@@ -38,18 +32,18 @@ proc InputNumber
 .GotDigit:	cmp	cl,2			; If got two digits don't accept
 		je	.Loop
 		shl	bl,4			; Add in the digit
-		or	bl,al			;
-		mWrChar ah			; Echo the char
+		or	bl,al
+		mPrintChar ah			; Echo the char
 		inc	ecx			; Inc digit count
 		jmp	.Loop			; Next digit
 
 .BS:		or	ecx,ecx			; Get next digit
 		jz	.Loop			; if nothing in buffer
 		mov	dl,8			; Erase echoed char
-		mWrChar dl
-		mWrChar	' '
+		mPrintChar dl
+		mPrintChar ' '
 		mov	dl,8			; Point at next echo space
-		mWrChar	dl
+		mPrintChar dl
 		dec	ecx			; Dec digit count
 		jmp	.Loop
 
@@ -63,7 +57,7 @@ proc InputNumber
 		sub	al,cl
 		mov	cl,al
 
-.SpLoop:	mWrChar	' '
+.SpLoop:	mPrintChar ' '
 		loop	.SpLoop
 		popfd
 		mov	eax,ebx			; AX = number input
@@ -106,17 +100,17 @@ proc MON_Enter
 		je	near .OK
 		jmp	.ReadLoop		; Else get next value
 .Prompt:
-		mWrChar NL
+		mPrintChar NL
 		mov	eax,edx			; Print segment
 		call	PrintWordHex
-		mWrChar ':'			; Print ':'
+		mPrintChar ':'			; Print ':'
 		mov	eax,ebx
 		call	PrintDwordHex		; Print offset
-.Loop:		mWrChar	' '			; Space over two spaces
-		mWrChar	' '
+.Loop:		mPrintChar ' '			; Space over two spaces
+		mPrintChar
 		mov	al,[gs:edi]		; Print current value
 		call	PrintByteHex
-		mWrChar '.'			; Print '.'
+		mPrintChar '.'			; Print '.'
 		push	ecx
 		call	InputNumber		; Get a number
 		pop	ecx

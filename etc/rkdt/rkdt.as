@@ -10,14 +10,15 @@ module rkdt
 %include "process.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
+%include "kconio.ah"
 %include "asciictl.ah"
 %include "commonfs.ah"
 %include "memman.ah"
 
-global RKDT_CreateRDimage, TEST_ExamineFS
+global RKDT_CreateRDimage, RKDT_ErrorHandler, RKDT_Main
 
 library kernel
-extern DrvId_Con, DrvId_RD, DrvId_RFS
+extern DrvId_RD, DrvId_RFS
 
 library kernel.driver
 extern DRV_CallDriver, DRV_FindName
@@ -26,13 +27,14 @@ library kernel.paging
 extern PG_GetNumFreePages
 
 library kernel.mm
-extern MM_AllocBlock, MM_FreeBlock
-extern MM_FreeMCBarea
+extern MM_AllocBlock:near, MM_FreeBlock:near
+extern MM_FreeMCBarea:near
+extern MM_DebugAllocMem:near, MM_DebugFreeMem:near
+extern MM_PrintStat:near, MM_DebugFreeMCBs:near
 
 library kernel.mt
-;extern MT_Exec:near
 extern ?ProcListPtr
-
+extern MT_DumpReadyThreads:near, MT_PrintSchedStat:near
 
 library kernel.fs
 extern CFS_MakeFS, CFS_LinkFS, CFS_UnlinkFS
@@ -45,30 +47,37 @@ extern BUF_FlushAll
 
 library kernel.misc
 extern StrLComp, StrScan
+extern K_LDelayMs
+
+library kernel.kconio
+extern PrintChar:near, PrintString:near
 extern PrintDwordDec, PrintByteHex, PrintWordHex, PrintDwordHex
 extern ReadString
 extern K_DecD2Str
 extern ValDwordDec, ValDwordHex
-extern K_LDelayMs
 
-library onboard.timer
+library hw.onboard
 extern TMR_CountCPUspeed
 
+library hw.serport
+extern SER_DumbTTY
 
 section .data
 
-msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.0",NL
-		DB "Copyright (c) 1999 RET & COM Research.",NL,0
+msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
+		DB "Copyright (c) 1999,2000 RET & COM Research.",NL,0
+msg_Help	DB NL,"Commands:",NL
+		DB "S    - call monitor (g to back)",NL
+		DB "stat - view scheduler statistics",NL
+		DB "ts   - view thread statistics",NL
+		DB "help - get this message",NL,0
 msg_Debugging	DB NL,"DEBUGGING: ",0
 msg_FScreated	DB "File system created on %ramdisk",NL,0
 msg_CfgCreated	DB "Config file created",NL,0
 msg_DbgPrompt	DB NL,"RKDT>",0
 msg_Err		DB NL,NL,7,"ERROR ",0
-msg_SerHlp	DB NL,NL,"Press Ctrl-Z to exit, Ctrl-V to get stat",NL,0
-msg_MemSt	DB NL,NL,"MCB",9,9,"Addr",9,9,"Len",9,9,"Next MCB",9,"Prev MCB",NL,0
-msg_FreeMem	DB NL,"Physical memory free (KB): ",0
 
-cmdQuit		DB "q"
+cmdQuestion	DB "?"
 cmdMon		DB "S"
 cmdNewTxtFile	DB "cf"
 cmdRmFile	DB "rm"
@@ -93,6 +102,11 @@ cmdFreeMCBs	DB "freemcbs"
 cmdGrabFile	DB "grabfile"
 cmdGetISS	DB "getiss"
 
+cmdSchedStat	DB "stat"
+cmdThreadStat	DB "ts"
+
+cmdHelp		DB "help"
+
 CfgName		DB "radios.config",0
 ConfigFile	DB ";-----------------------------------------------------",NL
 		DB "; radios.config - RadiOS configuration file",NL
@@ -106,8 +120,8 @@ SizeOfCfgFile	EQU	$-ConfigFile
 ends
 
 %macro mPrintMsg 1
- mWrString msg_Debugging
- mWrString %1
+ mPrintString msg_Debugging
+ mPrintString %1
 %endmacro
 
 section .bss
@@ -154,7 +168,7 @@ proc RKDT_CreateRDimage
 		xor	eax,eax
 		call	CFS_CreateFile
 		jnc	short .WrConf
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	.Err
 
 		; Write config file
@@ -163,7 +177,7 @@ proc RKDT_CreateRDimage
 		xor	eax,eax
 		call	CFS_Write
 		jnc	short .CloseCfg
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Err
 
 		; Close config file
@@ -184,11 +198,9 @@ proc RKDT_CreateRDimage
 endp		;---------------------------------------------------------------
 
 
-proc TEST_ExamineFS
-.IDLE: inc byte [0xb8000+40]
-jmp .IDLE
-		mWrString msg_Banner
-.Loop:		mWrString msg_DbgPrompt
+proc RKDT_Main
+		mPrintString msg_Banner
+.Loop:		mPrintString msg_DbgPrompt
 		mov	esi,offset SBuffer
 		mov	cl,48
 		call	ReadString
@@ -196,9 +208,9 @@ jmp .IDLE
 		mov	byte [esi+ecx],0
 
 		mov	cl,1
-		mov	edi,cmdQuit
+		mov	edi,cmdQuestion
 		call	StrLComp
-		jz	near .Exit
+		jz	near .Help
 
 		mov	edi,cmdMon
 		call	StrLComp
@@ -206,12 +218,19 @@ jmp .IDLE
 		int3
 		jmp	.Loop
 
-.NotMon:	mov	cl,2
+.NotMon:	mov	cl,4
+		mov	edi,cmdHelp
+		call	StrLComp
+		push	dword .Loop
+		jz	near .Help
+		add	esp,byte 4
+
+		mov	cl,2
 		mov	edi,cmdNewTxtFile
 		call	StrLComp
 		push	dword .Loop
 		jz	near TEST_CreateTextFile
-		add	esp,4
+		add	esp,byte 4
 
 		mov	edi,cmdView
 		call	StrLComp
@@ -291,33 +310,33 @@ jmp .IDLE
 		mov	edi,cmdFreeMCBs
 		call	StrLComp
 		push	dword .Loop
-		jz	near TEST_FreeMCBs
+		jz	near MM_DebugFreeMCBs
 		add	esp,byte 4
 
 		mov	edi,cmdAllocMem
 		call	StrLComp
 		push	dword .Loop
-		jz	near TEST_AllocMem
+		jz	near MM_DebugAllocMem
 		add	esp,byte 4
 
 		mov	cl,7
 		mov	edi,cmdFreeMem
 		call	StrLComp
 		push	dword .Loop
-		jz	near TEST_FreeMem
+		jz	near MM_DebugFreeMem
 		add	esp,byte 4
 
 		mov	edi,cmdMemStat
 		call	StrLComp
 		push	dword .Loop
-		jz	near TEST_MemStat
+		jz	near MM_PrintStat
 		add	esp,byte 4
 
 		mov	cl,10
 		mov	edi,cmdSerial
 		call	StrLComp
 		push	dword .Loop
-		jz	near TEST_Serial
+		jz	near SER_DumbTTY
 		add	esp,byte 4
 
 		mov	cl,6
@@ -333,10 +352,25 @@ jmp .IDLE
 		push	dword .Loop
 		jz	near TEST_Exec
 		add	esp,byte 4
+		
+		mov	cl,4
+		mov	edi,offset cmdSchedStat
+		call	StrLComp
+		push	dword .Loop
+		jz	near MT_PrintSchedStat
+		add	esp,byte 4
+		
+		mov	cl,2
+		mov	edi,offset cmdThreadStat
+		call	StrLComp
+		push	dword .Loop
+		jz	near MT_DumpReadyThreads
+		add	esp,byte 4
 
 		jmp	.Loop
 
-.Exit:		ret
+.Help:		mPrintString msg_Help
+		jmp	.Loop
 endp		;---------------------------------------------------------------
 
 
@@ -355,7 +389,7 @@ proc TEST_CreateTextFile
 		xor	eax,eax
 		call	CFS_CreateFile
 		jnc	short .Begin
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 .Begin:		mov	[.handle],ebx
@@ -363,7 +397,7 @@ proc TEST_CreateTextFile
 		; Read file from console
 		lea	esi,[.buffer]
 		mov	dword [.size],0
-.Loop:		mWrChar NL
+.Loop:		mPrintChar NL
 		mov	cl,77
 		call	ReadString
 		or	cl,cl
@@ -387,13 +421,13 @@ proc TEST_CreateTextFile
 		xor	eax,eax
 		call	CFS_Write
 		jnc	short .Close
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 		; Close file
 .Close:		xor	eax,eax
 		call	CFS_Close
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		epilogue
@@ -410,14 +444,14 @@ proc TEST_ViewFile
 		add	esi,ecx
 		inc	esi
 
-		mWrChar NL
-		mWrChar NL
+		mPrintChar NL
+		call	PrintChar
 
 		xor	edx,edx
 		xor	eax,eax
 		call	CFS_Open
 		jnc	short .Loop
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 .Loop:		lea	esi,[.buffer]
@@ -431,7 +465,7 @@ proc TEST_ViewFile
 
 		push	ecx
 .Print:		lodsb
-		mCallDriver dword [DrvId_Con], byte DRVF_Write
+		mPrintChar
 		dec	ecx
 		jz	short .EndPrint
 		jmp	.Print
@@ -444,7 +478,7 @@ proc TEST_ViewFile
 .OK:		xor	ax,ax
 		call	CFS_Close
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		epilogue
@@ -459,7 +493,7 @@ proc TEST_RemoveFile
 		xor	eax,eax
 		call	CFS_RemoveFile
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 .Exit:		mpop	esi,ecx
 		ret
 endp		;---------------------------------------------------------------
@@ -480,7 +514,7 @@ proc TEST_MoveFile
 		xor	eax,eax
 		call	CFS_MoveFile
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -506,7 +540,7 @@ proc TEST_MkDir
  		xor	eax,eax
 		call	CFS_CreateDir
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -522,7 +556,7 @@ proc TEST_ChDir
 		xor	eax,eax
 		call	CFS_ChangeDir
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -538,7 +572,7 @@ proc TEST_RmDir
 		xor	eax,eax
 		call	CFS_RemoveDir
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -562,14 +596,14 @@ proc TEST_CreateManyFiles
 		xor	eax,eax
 		call	CFS_CreateFile
 		jnc	short .Close
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 		; Close file
 .Close:		xor	eax,eax
 		call	CFS_Close
 		jnc	short .Cont
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 .Cont:		inc	dword [.count]
@@ -594,7 +628,7 @@ proc TEST_CreateLargeFile
 		xor	eax,eax
 		call	CFS_CreateFile
 		jnc	short .Begin
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 		; Write to file
@@ -603,13 +637,13 @@ proc TEST_CreateLargeFile
 		xor	eax,eax
 		call	CFS_Write
 		jnc	short .Close
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 		; Close file
 .Close:		xor	eax,eax
 		call	CFS_Close
 		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -629,7 +663,7 @@ proc TEST_GrabFile
 		xor	eax,eax
 		call	CFS_CreateFile
 		jnc	short .Write
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 		; Write file
@@ -638,79 +672,14 @@ proc TEST_GrabFile
 		xor	eax,eax
 		call	CFS_Write
 		jnc	short .Close
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 		; Close file
 .Close:		xor	eax,eax
 		call	CFS_Close
 		jnc	short .Exit
-		call	TEST_ErrorHandler
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; TEST_Serial - serial driver test.
-proc TEST_Serial
-		mpush	ecx,esi
-
-		add	esi,ecx
-		inc	esi
-
-		call	DRV_FindName
-		jnc	short .Start
-		call	TEST_ErrorHandler
-		jmp	.Exit
-
-.Start:		test	eax,00FF0000h
-		jz	near .Exit
-		mov	edi,eax
-		mWrString msg_SerHlp
-
-		mCallDriver edi, byte DRVF_Open
-		jnc	short .TTYmode
-		call	TEST_ErrorHandler
-		jmp	.Exit
-
-.TTYmode:	mCallDriverCtrl edi,DRVCTL_SER_GetRXbufStat
-		jc	near .Close
-		or	dx,dx
-		jz	short .CheckKey
-		mCallDriver edi, byte DRVF_Read
-		mCallDriver dword [DrvId_Con], byte DRVF_Write
-		jmp	.TTYmode
-
-.CheckKey:	mCallDriverCtrl byte DRVID_Keyboard,DRVCTL_KB_CheckKeyPress
-		jz	.TTYmode
-		mCallDriver dword [DrvId_Con], byte DRVF_Read
-		cmp	al,ASC_SUB
-		je	near .Close
-		cmp	al,ASC_SYN
-		je	short .PrintStat
-		mCallDriver edi, byte DRVF_Write
-		jnc	.TTYmode
-		call	TEST_ErrorHandler
-		jmp	short .Close
-
-.PrintStat:	mCallDriverCtrl edi,DRVCTL_SER_GetUARTmode
-		jc	short .Close
-		mWrChar NL
-		mov	eax,ecx
-		call	PrintDwordDec
-		mWrChar ','
-		mov	al,bl
-		call	PrintByteHex
-		mWrChar ','
-		mov	al,bh
-		call	PrintByteHex
-		mWrChar NL
-		jmp	.TTYmode
-
-.Close:		mCallDriver edi, byte DRVF_Close
-		jnc	short .Exit
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -725,7 +694,7 @@ proc TEST_Probe
 		inc	esi
 
 		call	TMR_CountCPUspeed
-		mWrChar NL
+		mPrintChar NL
 		mov	eax,ecx
 		call	PrintDwordDec
 
@@ -750,147 +719,7 @@ proc TEST_Exec
 ;		xor	edx,edx				; Sync exec
 ;		call	MT_Exec
 ;		jnc	short .Exit
-;		call	TEST_ErrorHandler
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; TEST_AllocMem - allocate memory block.
-proc TEST_AllocMem
-		mpush	ecx,esi
-
-		add	esi,ecx
-		inc	esi
-
-		call	ValDwordHex
-		jc	short .Exit
-		mov	ecx,eax
-		xor	esi,esi				; Kernel process
-		xor	dl,dl
-		call	MM_AllocBlock
-		jnc	short .PrintAddr
-		call	TEST_ErrorHandler
-		jmp	short .Exit
-
-.PrintAddr:	mWrChar NL
-		mov	eax,ebx
-		call	PrintDwordHex
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; TEST_FreeMem - free memory block.
-proc TEST_FreeMem
-		mpush	ecx,esi
-
-		add	esi,ecx
-		inc	esi
-
-		call	ValDwordHex
-		jc	short .Exit
-		mov	ebx,eax
-		xor	eax,eax
-		xor	dl,dl
-		xor	edi,edi
-		call	MM_FreeBlock
-		jnc	short .Exit
-		call	TEST_ErrorHandler
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; TEST_MemStat - print process memory state.
-proc TEST_MemStat
-		mpush	ecx,esi
-
-		add	esi,ecx
-		inc	esi
-
-		call    ValDwordDec
-		jc	near .Exit
-
-		mIsKernProc ebx
-		mov	edi,ebx
-		mov	ebx,[ebx+tProcDesc.FirstMCB]
-
-		mov	eax,cr3
-		push	eax
-		mov	eax,[edi+tProcDesc.PageDir]
-		mov	cr3,eax
-
-		or	ebx,ebx
-		jz	near .PrintTotal
-		mWrString msg_MemSt
-
-.Loop:		or	ebx,ebx
-		jz	near .PrintTotal
-		mov	eax,ebx
-		call	PrintDwordHex
-		mWrChar 9
-		mov	eax,[ebx+tMCB.Addr]
-		call	PrintDwordHex
-		mWrChar 9
-		mov	eax,[ebx+tMCB.Len]
-		call	PrintDwordHex
-		mWrChar 9
-		mov	eax,[ebx+tMCB.Next]
-		call	PrintDwordHex
-		mWrChar 9
-		mov	eax,[ebx+tMCB.Prev]
-		call	PrintDwordHex
-		mov	ebx,[ebx+tMCB.Next]
-		mWrChar NL
-		jmp	.Loop
-
-.PrintTotal:	mWrString msg_FreeMem
-		call	PG_GetNumFreePages
-		mov	eax,ecx
-		shl	eax,2
-		call	PrintDwordDec
-		mWrChar NL
-
-		pop	eax
-		mov	cr3,eax
-
-.Exit:		mpop	esi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; TEST_FreeMCBs - free process MCBs.
-proc TEST_FreeMCBs
-		mpush	ecx,esi
-
-		add	esi,ecx
-		inc	esi
-
-		call    ValDwordDec
-		jc	short .Exit
-		or	eax,eax
-		jz	short .Exit
-		mov	edx,eax
-
-		mIsKernProc ebx
-		mov	esi,ebx
-
-		mov	eax,cr3
-		push	eax
-		mov	eax,[esi+tProcDesc.PageDir]
-		mov	cr3,eax
-
-		mov	eax,edx
-		call	MM_FreeMCBarea
-		jnc	short .RestorePD
-		call	TEST_ErrorHandler
-
-.RestorePD:	pop	eax
-		mov	cr3,eax
+;		call	RKDT_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -907,25 +736,27 @@ proc TEST_GetISS
 
 		call	DRV_FindName
 		jnc	short .GotDID
-		call	TEST_ErrorHandler
+		call	RKDT_ErrorHandler
 		jmp	short .Exit
 
 .GotDID:	mCallDriverCtrl eax,DRVCTL_GetInitStatStr
 		jnc	short .Print
-                call	TEST_ErrorHandler
+                call	RKDT_ErrorHandler
 		jmp	short .Exit
 
-.Print:		mWrChar NL
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+.Print:		mPrintChar NL
+		mPrintString
 
 .Exit:		mpop	esi,ecx
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; Error handler.
-proc TEST_ErrorHandler
-		mWrString msg_Err
+		; RKDT_ErrorHandler - error handler.
+		; Input: AX=error code.
+		; Output: none.
+proc RKDT_ErrorHandler
+		mPrintString msg_Err
 		call	PrintWordHex
 		cmp	ax,ERR_FS_DiskFull			; Disk full?
 		jne	short .Exit

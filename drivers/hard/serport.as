@@ -4,7 +4,7 @@
 ;  (c) 1999 Yuri Zaporogets.
 ;*******************************************************************************
 
-module serial
+module hw.serport
 
 %define	extcall near
 
@@ -896,8 +896,8 @@ proc SER_Interrupt
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
 		jz	short .Exit
-%ifdef DEBUG
-		mWrChar '!'				; debugging
+%ifdef DEBUG_IRQ
+		mPrintChar '!'				; debugging
 %endif
 
 .Loop:		add	dl,UART_IIR			; Index to IIR
@@ -1129,3 +1129,101 @@ proc SER_Minor2PortNum
 		stc
 		ret
 endp		;---------------------------------------------------------------
+
+
+;--- Debugging stuff -----------------------------------------------------------
+
+%ifdef DEBUG
+
+global SER_DumbTTY
+
+library kernel.driver
+extern DRV_CallDriver:extcall, DRV_FindName:extcall
+
+library kernel.kconio
+extern PrintChar:extcall, PrintString:extcall
+extern PrintByteHex:extcall, PrintDwordDec:extcall
+extern ReadChar:extcall
+
+library rkdt
+extern RKDT_ErrorHandler:extcall
+
+%include "drvctrl.ah"
+%include "kconio.ah"
+%include "asciictl.ah"
+
+
+section .data
+
+MsgTTYHlp	DB	NL,NL,"Press Ctrl-Z to exit, Ctrl-V to get stat",NL,0
+
+section .text
+
+		; SER_DumbTTY - serial driver test (dumb tty).
+		; Input: ESI=address of command line,
+		;	 ECX=length of a command.
+		; Output: none.
+proc SER_DumbTTY
+		mpush	ecx,esi
+
+		add	esi,ecx
+		inc	esi
+
+		call	DRV_FindName
+		jnc	short .Start
+		call	RKDT_ErrorHandler
+		jmp	.Exit
+
+.Start:		test	eax,00FF0000h
+		jz	near .Exit
+		mov	edi,eax
+		mPrintString MsgTTYHlp
+
+		mCallDriver edi, byte DRVF_Open
+		jnc	short .TTYmode
+		call	RKDT_ErrorHandler
+		jmp	.Exit
+
+.TTYmode:	mCallDriverCtrl edi,DRVCTL_SER_GetRXbufStat
+		jc	near .Close
+		or	dx,dx
+		jz	short .CheckKey
+		mCallDriver edi, byte DRVF_Read
+		mPrintChar
+		jmp	.TTYmode
+
+.CheckKey:	mCallDriverCtrl byte DRVID_Keyboard,DRVCTL_KB_CheckKeyPress
+		jz	.TTYmode
+		call	ReadChar
+		cmp	al,ASC_SUB
+		je	near .Close
+		cmp	al,ASC_SYN
+		je	short .PrintStat
+		mCallDriver edi, byte DRVF_Write
+		jnc	.TTYmode
+		call	RKDT_ErrorHandler
+		jmp	short .Close
+
+.PrintStat:	mCallDriverCtrl edi,DRVCTL_SER_GetUARTmode
+		jc	short .Close
+		mPrintChar NL
+		mov	eax,ecx
+		call	PrintDwordDec
+		mPrintChar ','
+		mov	al,bl
+		call	PrintByteHex
+		mPrintChar ','
+		mov	al,bh
+		call	PrintByteHex
+		mPrintChar NL
+		jmp	.TTYmode
+
+.Close:		mCallDriver edi, byte DRVF_Close
+		jnc	short .Exit
+		call	RKDT_ErrorHandler
+
+.Exit:		mpop	esi,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+%endif

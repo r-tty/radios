@@ -170,27 +170,27 @@ proc ExceptionHandler
 		call	DisableBreaks		; Disable breakpoints if not
 .Tracing:	call	AdjustEIP		; Adjust EIP to point to breakpoint
 		mov	byte [Tracing],0	; Clear tracing flag
-		mWrChar NL
+		mPrintChar NL
 		cmp	byte [ExcNum],3		; No stats if it is int 3
 		je	near .DispRegs
 		cmp	byte [ExcNum],1		; or int 1
 		je	near .DispRegs
 
-		mWrString MsgException		; Else tell it's a exception
+		mPrintString MsgException	; Else tell it's a exception
 		mov	al,[ExcNum]
 		call	PrintByteDec
-		mWrChar ' '
-		mWrChar '('
+		mPrintChar ' '
+		mPrintChar '('
 		movzx	eax,byte [ExcNum]
 		mov	esi,[ExcStrings+eax*4]
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
-		mWrChar ')'
+		mPrintString
+		mPrintChar ')'
 		btr	dword [HasErr],0	; If has error
 		jnc	short .DispRegs
-		mWrString MsgErrorCode		; Say there's an error
+		mPrintString MsgErrorCode	; Say there's an error
 		mov	ax,[ErrNum]		; Say which one
 		call	PrintDwordHex
-		mWrChar NL
+		mPrintChar NL
 .DispRegs:	call	DisplayRegisters	; Display registers
 		jmp	InputHandler		; Go do input
 endp		;---------------------------------------------------------------

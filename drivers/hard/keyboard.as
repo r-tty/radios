@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM research.
 ;*******************************************************************************
 
-module keyboard
+module hw.keyboard
 
 %define extcall near
 
@@ -166,6 +166,7 @@ KB_Buffer	RESW	KB_BufSize		; Keyboard FIFO buffer
 KB_BufHead	RESB	1			; Buffer head pointer
 KB_BufTail	RESB	1			; Buffer tail pointer
 
+KB_CurrVirtCon	RESB	1			; Current virtual console
 
 ; --- Procedures ---
 
@@ -476,7 +477,7 @@ proc KB_AnalyseKCode
 		xor	edx,edx				; PID=0 (kernel)
 		call	K_HandleEvent
 		jmp	.Exit
-
+		
 .Release:	cmp	al,KB_LShift+80h
 		je	near .RelLShift
 		cmp	al,KB_RShift+80h
@@ -507,6 +508,10 @@ proc KB_AnalyseKCode
 		je	near .Common
 		cmp	al,KB_KeypadSlash
 		je	near .Common
+		cmp	al,KB_EA_Left
+		je	short .QChVirtCon
+		cmp	al,KB_EA_Right
+		je	short .QChVirtCon
 		cmp	al,KB_KeypadDel
 		jne	short .NoDel
 		test	word [KB_PrsFlags],KB_Prs_Ctrl+KB_Prs_Alt
@@ -517,6 +522,23 @@ proc KB_AnalyseKCode
 
 .NoDel:
 		jmp	.Exit
+		
+.QChVirtCon:	test	word [KB_PrsFlags],KB_Prs_LAlt
+		jz	.Exit
+		mov	ah,[KB_CurrVirtCon]
+		cmp	al,KB_EA_Left
+		je	short .DecVirtCon
+		inc	ah
+		cmp	ah,8
+		jb	.SetVirtCon
+		xor	ah,ah
+.SetVirtCon: mov [0xb8000+100],ah
+		jmp	.Exit
+		
+.DecVirtCon:	dec	ah
+		jge	.SetVirtCon
+		mov	ah,7
+		jmp	.SetVirtCon
 
 .LastE1:	and	byte [KB_MiscFlags],~KB_flPrefE1
 		jmp	.Exit

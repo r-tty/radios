@@ -547,3 +547,7 @@ proc MM_FindMCB
 		ret
 endp		;---------------------------------------------------------------
 
+
+%ifdef DEBUG
+%include "mm_debug.as"
+%endif

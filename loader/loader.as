@@ -10,11 +10,14 @@
 %define	UserAPIsTableAddr	704h
 %define	KernelHeapBegin		708h
 %define	KernelHeapEnd		70Ch
+%define BootModulesListAddr	710h
 
 %define	KIMGADDR		110000h
 %define	BUFADDR			800h
 %define	KERNELCODEADDR		1000h
 
+%define MODLIST			600h			; Module list begin addr
+%define MAXMODULES		16			; Max. number of modules
 
 section .text
 bits 32
@@ -306,10 +309,31 @@ proc Start
 		xor	eax,eax
 		mov	[MBinfoAddr],eax
 		cmp	edx,MULTIBOOT_VALID		; Multiboot loader?
-		jne	short .NoMB
+		jne	short .CopySCfg
 		mov	[MBinfoAddr],ebx		; Store address of MB info
 		
-.NoMB:		mov	esi,StartupCfg			; Move startup config
+		; Check whether bootable modules are loaded
+		test	dword [ebx+tMBinfo.Flags],MB_INFO_MODS
+		jz	short .NoModules
+		mov	al,[ebx+tMBinfo.ModsCount]
+		cmp	al,MAXMODULES			; No more than 16 mods
+		jbe	.NumModsOK
+		mov	al,MAXMODULES
+.NumModsOK:	mov	[sNumMods],al
+		or	al,al
+		jz	.NoModules
+		
+		; Copy module list to new location
+		shl	al,2				; Assumes tModList_size
+		movzx	ecx,al
+		mov	esi,[ebx+tMBinfo.ModsAddr]
+		mov	edi,MODLIST
+		cld
+		rep	movsd
+		
+.NoModules:
+		
+.CopySCfg:	mov	esi,StartupCfg			; Move startup config
 		mov	edi,500h			; table to 500h
 		xor	ecx,ecx
 		mov	cl,40h

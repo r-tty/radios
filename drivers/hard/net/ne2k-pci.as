@@ -3,7 +3,7 @@
 ;  (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
-module ne2k-pci
+module hw.net.ne2k-pci
 
 %include "sys.ah"
 %include "driver.ah"

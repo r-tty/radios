@@ -15,26 +15,3 @@
 	push	dword DRVF_Control+10000h*%2
 	call	DRV_CallDriver
 %endmacro
-
-; Write character
-%macro mWrChar 1
-	mov	al,%1
-	push	dword [DrvId_Con]
-	push	byte DRVF_Write
-	call	DRV_CallDriver
-%endmacro
-
-; Write string
-%macro mWrString 1
-	mov	esi,%1
-	push	dword [DrvId_Con]
-	push	dword DRVF_Control + (DRVCTL_CON_WrString << 16)
-	call	DRV_CallDriver
-%endmacro
-
-; Read a character from console
-%macro mReadKey 0
-	push	dword [DrvId_Con]
-	push	byte DRVF_Read
-	call	DRV_CallDriver
-%endmacro

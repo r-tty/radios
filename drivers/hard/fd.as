@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
-module fd
+module hw.floppy
 
 %define extcall near
 

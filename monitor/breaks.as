@@ -68,11 +68,11 @@ proc DisplayBreak
 		bt	[BreakEnum],ax
 		jnc	.Exit		; Quit with no disp if no breakpoint set
 		push	eax		; CR/LF
-		mWrChar NL
+		mPrintChar NL
 		pop	eax
 		push	eax
 		call	PrintByteDec		; Print breakpoint #
-		mWrChar	'-'			; Print '-'
+		mPrintChar '-'			; Print '-'
 		pop	eax
 		mov	ebx,eax			; Get offset into
 		add	ebx,ebx			; breakpoint address list
@@ -81,7 +81,7 @@ proc DisplayBreak
 		add	ebx,offset BreakList
 		movzx	eax,word [ebx+4]	; Print segment
 		call	PrintWordHex
-		mWrChar ':'			; Print ':'
+		mPrintChar ':'			; Print ':'
 		mov	eax,[ebx]		; Print offset
 		call	PrintDwordHex
 .Exit:		ret

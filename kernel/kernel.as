@@ -632,10 +632,7 @@ proc KernelEventHandler
 		je	short .Reboot
 		ret
 
-.Reboot:	push	esi
-		mWrString Msg_Reboot
-		pop	esi
-		mPICACK 0
+.Reboot:	mPICACK 0
 		sti
 		jmp	SysReset
 endp		;---------------------------------------------------------------

@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM research.
 ;*******************************************************************************
 
-module bios32
+module hw.bios32
 
 %define extcall near
 

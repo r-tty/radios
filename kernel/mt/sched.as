@@ -85,6 +85,7 @@ section .text
 		; Input: EBX=address of new TCB.
 		; Output: none.
 proc MT_ContextSwitch
+inc byte [0xb8000+158]
 		cmp	ebx,[?CurrThread]
 		jne	short .Switch
 	%ifdef KPOPUPS
@@ -98,7 +99,6 @@ proc MT_ContextSwitch
 .Switch:	mov	[?CurrThread],ebx		; New thread pointer
 		mov	eax,[ebx+tTCB.KStack]		; Set new kernel stack
 		mov	[KernTSS+tTSS.ESP0],eax
-inc byte [0xb8000+158]
 		inc	dword [ebx+tTCB.Preempt]
 		lea	edi,[ebx+tTCB.Context]
 		xor	eax,eax
@@ -120,36 +120,36 @@ proc MT_SchedAging
 
 		; Go through the list of ready threads.
 		; Age current CPU usage and recalculate new priority.
-		push	ebx
+		mpush	ebx,ecx
 		mov	ebx,[?ReadyThrList]
 		pushfd
 		cli
 
 .Walk:		mov	ebx,[ebx+tTCB.Next]
 		cmp	ebx,[?ReadyThrList]
-		je	.Done
-		shr	byte [ebx+tTCB.Count],CNT_SHIFT
+		je	short .Done
+		shr	dword [ebx+tTCB.Count],CNT_SHIFT
 
 		; Calculate new priority if thread priority class is NORMAL
 		cmp	byte [ebx+tTCB.PrioClass],THRPRCL_NORMAL
 		jne	.Walk
-		mov	al,[ebx+tTCB.Priority]
-		mov	ah,[ebx+tTCB.Count]
-		shr	ah,1
-		sub	al,ah
+		mov	eax,[ebx+tTCB.Priority]
+		mov	ecx,[ebx+tTCB.Count]
+		shr	ecx,1
+		sub	eax,ecx
 		jge	short .SetPrio
-		xor	al,al
-.SetPrio:	mov	[ebx+tTCB.CurrPriority],al
+		xor	eax,eax
+.SetPrio:	mov	[ebx+tTCB.CurrPriority],eax
 		jmp	short .Walk
 
 		; Periodically, we should check for starving threads.
-		; tTCB.Stamp gets updated with current ?SchedTick every
+		; tTCB.Stamp gets updated with current ?SchTicksCnt every
 		; time scheduler chooses this TCB to run. It's easy to
  		; check then whether the thread is almost dead - its stamp
- 		; differs substantially from current ?SchedTick.
+ 		; differs substantially from current ?SchTicksCnt.
 
 .Done:		popfd
-		pop	ebx
+		mpop	ecx,ebx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -158,7 +158,7 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc MT_Schedule
-		mpush	edx,edi
+		mpush	ecx,edx,edi
 		pushfd
 		cli
 
@@ -167,25 +167,25 @@ proc MT_Schedule
 		; Calculate new priority if thread priority class is NORMAL
 		cmp	byte [ebx+tTCB.PrioClass],THRPRCL_NORMAL
 		jne	.Sched
-		mov	al,[ebx+tTCB.Priority]
-		mov	ah,[ebx+tTCB.Count]
-		shr	ah,1
-		sub	al,ah
-		jge	.SetPrio
-		xor	al,al
-.SetPrio:	mov	[ebx+tTCB.CurrPriority],al
+		mov	eax,[ebx+tTCB.Priority]
+		mov	ecx,[ebx+tTCB.Count]
+		shr	ecx,1
+		sub	eax,ecx
+		jge	short .SetPrio
+		xor	eax,eax
+.SetPrio:	mov	[ebx+tTCB.CurrPriority],eax
 
-.Sched:		xor	al,al
-		not	al
+.Sched:		xor	eax,eax
+		not	eax
 		mov	ebx,[?ReadyThrList]
 		mov	edx,ebx
 
-.Walk:		mov	ebx,[ebx+tTCB.Next]
+.Walk:		mov	ebx,[ebx+tTCB.ReadyNext]
 		cmp	ebx,[?ReadyThrList]
-		je	.ChkQuantum
-		cmp	[ebx+tTCB.CurrPriority],al
-		jbe	.Walk
-		mov	al,[ebx+tTCB.CurrPriority]
+		je	short .ChkQuantum
+		cmp	[ebx+tTCB.CurrPriority],eax
+		jle	.Walk
+		mov	eax,[ebx+tTCB.CurrPriority]
 		mov	edx,ebx
 		jmp	short .Walk
 
@@ -193,17 +193,16 @@ proc MT_Schedule
 		mov	[edx+tTCB.Stamp],eax
 
 		cmp	dword [edx+tTCB.Quant],0
-		ja	.SaveCtx
+		jg	short .SaveCtx
 		; Quantum decreases when the number of
 		; running threads increases treshold is 8 (2^3)
-		mov	eax,[?ReadyThrCnt]
-		shr	eax,3
-		mov	ebx,eax
 		mov	eax,THRQUANT_DEFAULT
-		sub	eax,ebx
+		mov	ecx,[?ReadyThrCnt]
+		shr	ecx,3
+		sub	eax,ecx
 		add	[edx+tTCB.Quant],eax
 		cmp	dword [edx+tTCB.Quant],THRQUANT_MIN
-		jae	.SaveCtx
+		jge	.SaveCtx
 		mov	dword [edx+tTCB.Quant],THRQUANT_MIN
 
 .SaveCtx:	cmp	edx,[?CurrThread]
@@ -212,10 +211,11 @@ proc MT_Schedule
 		
 		; Save context of current thread
 		mov	ebx,[?CurrThread]
-		push	dword [ebx+tTCB.Context]
+		add	ebx,byte tTCB.Context
+		push	ebx
 		call	K_SetJmp
-		or	al,al
-		jnz	.Done
+		or	eax,eax
+		jnz	short .Done
 
 		; Switch to next
 		mov	ebx,edx
@@ -224,7 +224,7 @@ proc MT_Schedule
 .IncReturns:	inc	dword [?CurReturns]
 
 .Done:		popfd
-		mpop	edi,edx
+		mpop	edi,edx,ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -277,7 +277,7 @@ proc K_SwitchTask
 
 		; Count the ticks
 .CntTicks:	inc	dword [?SchedTicksCnt]
-		mov	byte [?SchedInClock],1
+		mov	dword [?SchedInClock],1
 		sti
 		lea	ebx,[.frame]			; EBX=address of frame
 		call	MT_BumpTime
@@ -422,4 +422,48 @@ proc MT_CheckTimeout
 		mpop	edx,ebx
 		ret
 endp		;---------------------------------------------------------------
+
+
+;--- Debugging stuff -----------------------------------------------------------
+
+%ifdef DEBUG
+
+global MT_PrintSchedStat
+
+section .data
+MsgNested	DB	10,"Nested clocks: ",0
+MsgAdjusts	DB	10,"Sched adjusts: ",0
+MsgRecalcs	DB	10,"Sched recalcs: ",0
+MsgCurrRets	DB	10,"Current returns: ",0
+MsgKernTicks	DB	10,"Kernel ticks: ",0
+MsgTicksCnt	DB	10,"Ticks counter: ",0
+
+section .text
+
+		; MT_PrintSchedStat - print scheduler statistics.
+		; Input: none.
+		; Output: none.
+proc MT_PrintSchedStat
+		mPrintString MsgNested
+		mov	eax,[?NestedClocks]
+		call	PrintDwordDec
+		mPrintString MsgAdjusts
+		mov	eax,[?SchedAdjusts]
+		call	PrintDwordDec
+		mPrintString MsgRecalcs
+		mov	eax,[?SchedRecalcs]
+		call	PrintDwordDec
+		mPrintString MsgCurrRets
+		mov	eax,[?CurReturns]
+		call	PrintDwordDec
+		mPrintString MsgKernTicks
+		mov	eax,[?KernTicks]
+		call	PrintDwordDec
+		mPrintString MsgTicksCnt
+		mov	eax,[?SchedTicksCnt]
+		call	PrintDwordDec
+		ret
+endp		;---------------------------------------------------------------
+
+%endif
 

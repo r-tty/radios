@@ -2,7 +2,7 @@
 ;  hd.as - device independend part of any hard disk driver.
 ;-------------------------------------------------------------------------------
 
-module hd
+module hw.genhd
 
 %include "sys.ah"
 %include "errors.ah"

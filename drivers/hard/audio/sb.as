@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
-module sb
+module hw.audio.sb
 
 %define	extcall near
 

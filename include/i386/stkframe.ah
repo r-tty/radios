@@ -7,7 +7,7 @@
 struc tStackFrame
 .ESDS		RESD	1		; These we put lastly 
 
-.EDI		RESD	1		; These are our pushl's 
+.EDI		RESD	1		; These are our pushs 
 .ESI		RESD	1
 .EBP		RESD	1 
 .EBX		RESD	1

@@ -252,7 +252,7 @@ proc BUF_FindFree
 		mpush	eax,edx				; Debugging, print buffer
 		mov	eax,esi
 		call	PrintDwordHex
-		mWrChar ' '
+		mPrintChar ' '
 		mpop	edx,eax
 %endif
 		call	BUF_Flush			; Make sure it is flushed
@@ -273,7 +273,7 @@ endp		;---------------------------------------------------------------
 proc BUF_Match
 %ifdef DEBUG
 		mpush	eax,edx				; Debugging, print a star
-		mWrChar '*'
+		mPrintChar '*'
 		mpop	edx,eax
 %endif
 		bt	dword [edi+tBuffer.Flags],BF_EMPTY	; See if empty
@@ -285,7 +285,7 @@ proc BUF_Match
 %ifdef DEBUG
 		mpush	eax,edx      			; Debugging, just put output
 		call	PrintByteHex
-		mWrChar ' '
+		mPrintChar ' '
 		mpop	edx,eax
 %endif
 		stc					; Mark we found a match

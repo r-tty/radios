@@ -5,7 +5,7 @@
 include etc/header.mk
 
 # Some boolean definitions
-DEBUG = 1
+export DEBUG = 1
 MULTIBOOT = 1
 
 # Subdirs

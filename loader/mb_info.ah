@@ -31,7 +31,7 @@ endstruc
 ;  MultiBoot Info description.
 ;  This is the struct passed to the boot image.  This is done by placing
 ;  its address in the EAX register.
-struc tMultibootInfo
+struc tMBinfo
 .Flags		RESD	1			; MultiBoot info version number
 
 .MemLower	RESD	1			; Available memory from BIOS

@@ -1,11 +1,10 @@
 ;*******************************************************************************
 ;  rfs.asm - RadiOS File System driver.
-;  Written by Yuri Zaporogets from David Lindauer's OS-32 file system.
-;  (c) 1995 David Lindauer.
-;  (c) 1999 Yuri Zaporogets.
+;  Based upon David Lindauer's OS-32 file system (c) 1995 David Lindauer.
+;  RadiOS version (c) 1999,2000 Yuri Zaporogets.
 ;*******************************************************************************
 
-module rfs
+module fs.rfs
 
 %define extcall near
 
@@ -271,22 +270,24 @@ proc RFS_LookFSysOnDev
 endp		;---------------------------------------------------------------
 
 
-;--- Debugging routine ---------------------------------------------------------
+;--- Debugging stuff -----------------------------------------------------------
+
+%ifdef DEBUG
+
+%include "kconio.ah"
+%include "asciictl.ah"
+
+library kernel.kconio
+extern PrintChar:extcall, PrintString:extcall, PrintDwordDec:extcall
 
 library kernel
-extern DrvId_Con,DrvId_RD
-
-library kernel.misc
-extern PrintDwordDec
+extern DrvId_RD
 
 global rfs_ls
 
-library kernel.driver
-extern DRV_CallDriver:extcall
-
 proc do_ls
  pushad
- mWrChar NL
+ mPrintChar NL
  mov edx,[DrvId_RD]					; Driver ID
  call BUF_ReadBlock
  jc short .exit
@@ -302,7 +303,7 @@ proc do_ls
  lodsb
  cmp al,32
  je .endprint
- mCallDriver dword [DrvId_Con], byte DRVF_Write
+ mPrintChar
  dec dl
  jnz .print
 
@@ -314,7 +315,7 @@ proc do_ls
  call do_ls
 
 .nextde:
- mWrChar 9
+ mPrintChar HTAB
  add esi,DIRENTRYSIZE
  cmp dword [esi+tDirEntry.Entry],-1
  je .less
@@ -334,7 +335,7 @@ proc do_ls
 endp
 
 proc rfs_ls
- mWrString _MSG_total
+ mPrintString _MSG_total
  mov dl,5
  call RFS_LoadRootDir
  jc short .exit
@@ -343,7 +344,7 @@ proc rfs_ls
  call RFS_GetNumOfFiles
  jc short .exit
  call PrintDwordDec
- mWrChar NL
+ mPrintChar NL
  call do_ls
 
 .exit:
@@ -352,3 +353,5 @@ endp
 
 section .data
 _MSG_total	DB NL,NL,"total ",0
+
+%endif

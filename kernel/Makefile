@@ -9,7 +9,7 @@ include ../etc/header.mk
 # Change variables here
 export TARGET_LIB = kernel.rdl
 OBJS = kernel.rdm kheap.rdm driver.rdm module.rdm paging.rdm \
-       pool.rdm sema.rdm misc.rdm setjmp.rdm
+       pool.rdm sema.rdm setjmp.rdm misc.rdm kconio.rdm
 modnamesfile = $(OUTPATH)/.kernel-modules
 SUBDIRS = mm mt syscall ipc
 

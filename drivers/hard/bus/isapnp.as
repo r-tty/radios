@@ -3,7 +3,7 @@
 ;  (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
-module pnp
+module hw.pnp
 
 %include "hw/ports.ah"
 

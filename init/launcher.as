@@ -6,6 +6,8 @@
 		; Input:
 		; Output:
 proc INIT_Launcher
+;extern MT_Schedule:near
+;call MT_Schedule
 .IDLE:	inc byte [0B8000h]
 		jmp	.IDLE
 endp		;---------------------------------------------------------------

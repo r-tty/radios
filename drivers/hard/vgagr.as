@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
-module vgagr
+module hw.vgagr
 
 %define extcall near
 

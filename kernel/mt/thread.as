@@ -25,7 +25,7 @@ extern MM_AllocBlock:near
 
 section .data
 
-MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread is already sleep",0
+MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread is already sleeps",0
 MsgThrRunning	DB	":THREAD:MT_ThreadSleep: warning: this thread is already running",0
 
 ; --- Variables ---
@@ -241,6 +241,9 @@ proc MT_CreateThread
 		mov	byte [edi+tTCB.PrioClass],THRPRCL_NORMAL
 		mov	byte [edi+tTCB.Priority],THRPRVAL_DEFAULT
 		mov	byte [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
+		mov	byte [edi+tTCB.Count],0
+		mov	eax,[?SchedTicksCnt]
+		mov	dword [edi+tTCB.Stamp],eax
 
 		; Initialize 'PCB' field and check stack size
 		mov	[edi+tTCB.PCB],esi
@@ -402,4 +405,77 @@ proc K_GoRing13
 		pop	ds
 		iret
 endp		;---------------------------------------------------------------
+
+
+;--- Debugging stuff -----------------------------------------------------------
+
+%ifdef DEBUG
+
+global MT_DumpReadyThreads
+
+section .data
+
+MsgNoReady	DB	10,"no ready threads.",10,0
+MsgDumpHdr	DB	10,"TCB       S  Ticks     Cnt       Prio      BPrio     Preempt   Sem       Stamp",10,0
+  
+section .text
+
+		; MT_DumpReadyThreads - dump state of all ready threads.
+		; Input: none.
+		; Output: none.
+proc MT_DumpReadyThreads
+		push	esi
+		mov	ebx,[?ReadyThrList]
+		or	ebx,ebx
+		jne	short .WrHdr
+		mPrintString MsgNoReady
+		ret
+		
+.WrHdr:		mPrintString MsgDumpHdr
+.Walk:		mov	dl,[ebx+tTCB.State]
+		mov	dh,'R'
+		cmp	dl,THRST_READY
+		je	short .Print
+		mov	dh,'W'
+		cmp	dl,THRST_WAITING
+		je	short .Print
+		mov	dh,'?'
+
+.Print:		mov	eax,ebx				; TCB
+		call	PrintDwordHex
+		mPrintChar ' '
+		call	PrintChar
+		mPrintChar dh				; State
+		mPrintChar ' '
+		call	PrintChar
+		mov	eax,[ebx+tTCB.Ticks]
+		call	PrintDwordDec			; Ticks
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.Count]
+		call	PrintDwordDec			; Count
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.CurrPriority]
+		call	PrintDwordDec			; Current priority
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.Priority]
+		call	PrintDwordDec			; Base priority
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.Preempt]
+		call	PrintDwordDec			; Preemptive counter
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.SemWait]
+		call	PrintDwordDec			; Semaphore wait count
+		mPrintChar HTAB
+		mov	eax,[ebx+tTCB.Stamp]
+		call	PrintDwordDec			; Stamp
+		mPrintChar NL
+
+		mov	ebx,[ebx+tTCB.ReadyNext]
+		cmp	ebx,[?ReadyThrList]
+		jne	.Walk
+		pop	esi
+		ret
+endp		;---------------------------------------------------------------
+
+%endif
 

@@ -34,3 +34,4 @@
 %define	ASC_US	31
 
 %define	NL	ASC_LF			; New line character
+%define HTAB	ASC_HT			; Tabulation

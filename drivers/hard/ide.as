@@ -4,7 +4,7 @@
 ;  RadiOS version 1.0 by Yuri Zaporogets.
 ;*******************************************************************************
 
-module ide
+module hw.ide
 
 %define	extcall near
 

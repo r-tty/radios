@@ -129,7 +129,7 @@ proc DisplayRegisters
 		call	PrintAFew		; Print them
 		mov	esi,pEFLAGS		; Put the flags
 		call	PutDword
-		mWrChar ' '
+		mPrintChar ' '
 		mov	ebx,[rEFLAGS]		; Print flags in char. form
 		shl	bx,4
 		mov	esi,offset FlagChars
@@ -139,7 +139,7 @@ proc DisplayRegisters
 		mov	al,[esi]
 		jmp	short .Print
 .Space:		mov	al,'-'
-.Print:		call	WriteChar
+.Print:		call	PrintChar
 		inc	esi
 		dec	cl
 		jnz	.Loop
@@ -184,7 +184,7 @@ proc ReadReg
 		cmp	al,13			; Don't prompt if input is here
 		jne	.GotInput
 		push	ecx
-		mWrString RegPrompt
+		mPrintString RegPrompt
 		mov	esi,offset InputBuffer
 		mov	cl,8
 		call	ReadString		; Get input line
@@ -217,11 +217,11 @@ endp		;---------------------------------------------------------------
 proc PutDword
 		lodsd			; Get pointer to val
 		mov	eax,[eax]	; Get val
-		push	eax		;
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
+		push	eax
+		mPrintString
 		pop	eax
 		call	PrintDwordHex	; Print value
-		mWrChar ' '
+		mPrintChar ' '
 		ret
 endp		;---------------------------------------------------------------
 
@@ -230,11 +230,11 @@ endp		;---------------------------------------------------------------
 proc PutWord
 		lodsd			; Get pointer to value
 		mov	ax,[eax]	; Get value
-		push	eax		;
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
-		pop	eax		;
+		push	eax
+		mPrintString
+		pop	eax
 		call	PrintWordHex	; Print value
-		mWrChar ' '
+		mPrintChar ' '
 		ret
 endp		;---------------------------------------------------------------
 

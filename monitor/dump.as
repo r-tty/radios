@@ -7,13 +7,6 @@
 library kernel
 extern DrvId_Con
 
-library kernel.driver
-extern DRV_CallDriver:extcall
-
-library kernel.misc
-extern WriteChar:extcall
-extern K_WrHexB:extcall, K_WrHexW:extcall, K_WrHexD:extcall
-
 
 ; --- Definitions ---
 %define	DumpDefaultLen	80h			; Default length of dump block
@@ -65,11 +58,11 @@ proc MON_Dump
 		mov	gs,eax			; Calculate absolute
 		call	BaseAndLimit		; address and count
 
-		mov	edi,offset WriteChar
-.DumpLoop:	mWrChar NL
+		mov	edi,PrintChar
+.DumpLoop:	mPrintChar NL
 		mov	eax,edx			; Print the selector
 		call	K_WrHexW
-		mWrChar	':'
+		mPrintChar ':'
 		mov	eax,ebx
 		and	eax,0FFFFFFF0h		; Address low nibble = 0
 		call	K_WrHexD		; Print address
@@ -117,19 +110,19 @@ proc DumpLine
 		mov	ecx,eax
 		add	ecx,ecx
 		add	ecx,eax
-.BlankLoop1:	mWrChar ' '		; Dump spaces
+.BlankLoop1:	mPrintChar ' '		; Dump spaces
 		loop	.BlankLoop1
 		pop	ecx
 
 .PutHex:	push	ecx		; Save count and address for ASCII dump
 		push	esi
-		mov	edi,offset WriteChar
+		mov	edi,PrintChar
 
 .HexLoop:	cmp	cl,8
 		je	.PrintMinus
-		mWrChar	' '
+		mPrintChar ' '
 		jmp	short .GetByte
-.PrintMinus:	mWrChar '-'			; Print a space
+.PrintMinus:	mPrintChar '-'			; Print a space
 .GetByte:	mov	al,[gs:esi]		; Get the byte
 		inc	esi			; Increment address pointer
 		call	K_WrHexB		; Print byte in hex
@@ -137,8 +130,8 @@ proc DumpLine
 		pop	esi
 		pop	ecx
 
-		mWrChar ' '			; Print two spaces
-		mWrChar ' '			; to seperate ASCII dump
+		mPrintChar ' '			; Print two spaces
+		mPrintChar			; to separate ASCII dump
 
 		sub	eax,eax			; Calculate amount
 		mov	al,16			; to space over
@@ -146,7 +139,7 @@ proc DumpLine
 		jz	.PutASCII		; None to space over, put ASCII
 		push	ecx			; ECX = space value
 		mov	ecx,eax
-.BlankLoop2:	mWrChar ' '			; Space over
+.BlankLoop2:	mPrintChar ' '			; Space over
 		loop	.BlankLoop2
 		pop	ecx
 

@@ -14,6 +14,7 @@ module init
 %include "i386/descript.ah"
 %include "process.ah"
 %include "commonfs.ah"
+%include "kconio.ah"
 %include "asciictl.ah"
 %include "hw/partids.ah"
 
@@ -81,27 +82,27 @@ extern CFS_LinkFS:near
 extern CFS_GetLPbyName:near, CFS_SetCurrentLP:near
 
 library kernel.misc
-extern PrintByteDec:near, PrintDwordDec:near, PrintWordHex:near, WriteChar:near
 extern StrLComp:near
 
-library onboard.pic
+library kernel.kconio
+extern PrintChar:near, PrintString:near
+extern PrintByteDec:near, PrintDwordDec:near, PrintWordHex:near
+extern ReadChar:near
+
+library hw.onboard
 extern PIC_Init:near, PIC_SetIRQmask:near, PIC_EnbIRQ:near
-
-library onboard.timer
 extern TMR_InitCounter:near
-
-library onboard.kbc
 extern KBC_A20Control:near, KBC_HardReset:near
-
-library onboard.cmosrtc
 extern CMOS_EnableInt:near
 
-library hardware.hd
+library hardware.genhd
 extern HD_Init:near
 
 library monitor
 extern MonitorInit:near
 
+library rkdt
+extern RKDT_Main:near
 
 ; --- Data ---
 
@@ -206,14 +207,14 @@ endp		;---------------------------------------------------------------
 proc INIT_ShowCPUFPU
 		mov	esi,InitStringBuf
 		call	K_GetCPUtypeStr
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+		mPrintChar ' '
+		mPrintString
+		mPrintChar NL
 
 		call	K_GetFPUtypeStr
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+		mPrintChar ' '
+		mPrintString
+		mPrintChar NL
 		ret
 endp		;---------------------------------------------------------------
 
@@ -221,8 +222,8 @@ endp		;---------------------------------------------------------------
 		; INIT_InitDiskDrvs - initialize disk drivers.
 proc INIT_InitDiskDrvs
 		; Print message
-		mWrString Msg_InitDskDr
-		mov	esi,offset InitStringBuf
+		mPrintString Msg_InitDskDr
+		mov	esi,InitStringBuf
 
 		; Initialize DIHD structures
 		mov	al,16				; 16 hard disks
@@ -235,8 +236,8 @@ proc INIT_InitDiskDrvs
 		call	DrvInitErr
 		jmp	near .InitIDE
 
-.FDinitOK:	mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+.FDinitOK:	mPrintChar ' '
+		mPrintString
 		or	dl,dl
 		jz	short .InitIDE
 
@@ -250,9 +251,9 @@ proc INIT_InitDiskDrvs
 		or	[esp+2],cl
 		push	edi
 		call	DRV_CallDriver
-		mWrChar NL
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintChar NL
+		mPrintChar ' '
+		mPrintString
 		inc	cl
 		cmp	cl,dl
 		jbe	.Loop
@@ -266,9 +267,9 @@ proc INIT_InitDiskDrvs
 		call	DrvInitErr
 		jmp	.Exit
 
-.IDEinitOK:	mWrChar NL
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+.IDEinitOK:	mPrintChar NL
+		mPrintChar ' '
+		mPrintString
 		or	dl,dl
 		jz	short .Exit
 
@@ -282,9 +283,9 @@ proc INIT_InitDiskDrvs
 		or	[esp+2],cl
 		push	edi
 		call	DRV_CallDriver
-		mWrChar NL
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintChar NL
+		mPrintChar ' '
+		mPrintString
 		inc	cl
 		cmp	cl,dl
 		jbe	.Loop1
@@ -295,8 +296,8 @@ endp		;---------------------------------------------------------------
 
 		; INIT_InitChDrv - initialize character device drivers.
 proc INIT_InitChDrv
-		mWrString Msg_InitChDr
-		mov	esi,offset InitStringBuf
+		mPrintString Msg_InitChDr
+		mov	esi,InitStringBuf
 		xor	al,al
 		mCallDriver byte DRVID_Parallel, byte DRVF_Init
 		jnc	short .PrintParSt
@@ -304,9 +305,9 @@ proc INIT_InitChDrv
 		call	DrvInitErr
 		jmp	short .InitSerial
 
-.PrintParSt:	mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+.PrintParSt:	mPrintChar ' '
+		mPrintString
+		mPrintChar NL
 
 .InitSerial:	xor	al,al
 		mov	cx,Init_SerOutBufSize
@@ -318,9 +319,9 @@ proc INIT_InitChDrv
 		call	DrvInitErr
 		jmp	short .Continue
 
-.PrintSerSt:	mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+.PrintSerSt:	mPrintChar ' '
+		mPrintString
+		mPrintChar NL
 
 .Continue:	ret
 endp		;---------------------------------------------------------------
@@ -355,14 +356,14 @@ proc INIT_InitRAMdisk
 		mov	al,SCFG_RAMdiskSz		; Read config item
 		call	INIT_GetStCfgItem		; (disk size in KB)
 		xor	ecx,ecx
-		mov	cx,[ebx]			; ECX=buffers memory
+		mov	cx,[ebx]
 		or	ecx,ecx				; Initialize?
 		jz	near .OK
 		cmp	cx,8192				; Check disk size
 		cmc
 		jb	short .Exit
 
-		mov	ebx,offset DrvRD		; Install driver
+		mov	ebx,DrvRD			; Install driver
 		xor	edx,edx
 		call	DRV_InstallNew
 		jc	short .Exit
@@ -371,10 +372,10 @@ proc INIT_InitRAMdisk
 		mov	esi,offset InitStringBuf
 		mCallDriver dword [DrvId_RD], byte DRVF_Init
 		jc	short .Exit
-		mWrChar NL
-		mWrChar NL
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintChar NL
+		call	PrintChar
+		mPrintChar ' '
+		mPrintString
 .OK:		clc
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -401,10 +402,10 @@ proc INIT_InitDiskBuffers
 		jb	short .Exit
 		call	BUF_InitMem
 		jc	short .Exit
-		mWrChar NL
+		mPrintChar NL
 		mov	eax,ecx				; Print message
 		call	PrintDwordDec
-		mWrString Msg_DiskBuf
+		mPrintString Msg_DiskBuf
 		clc
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -423,11 +424,11 @@ proc INIT_InitFileSystems
 
 		mov	al,26				; Max. number of LPs
 		mov	cl,48				; Max. number of FCBs
-		mov	esi,offset InitStringBuf	; Buffer for status string
+		mov	esi,InitStringBuf		; Buffer for status string
 		mCallDriver dword [DrvId_RFS], byte DRVF_Init
 		jc	short .Exit
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintChar ' '
+		mPrintString
 
 		; MDOSFS driver
 
@@ -467,16 +468,16 @@ proc INIT_PrintPartTbl
 		call	DRV_CallDriver			; "Open" device
 		jc	near .Exit
 
-		mWrString Msg_SearchPart		; Print message
+		mPrintString Msg_SearchPart		; Print message
 		mov	eax,ebx				; Restore device ID
 		and	eax,0000FFFFh
 		call	DRV_GetName
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintString
 		mov	eax,ebx
 		shr	eax,16
 		add	al,30h
-		call	WriteChar
-		mWrString Msg_Dots
+		call	PrintChar
+		mPrintString Msg_Dots
 
 		mov	dl,1
 		mov	edi,DRVF_Control+256*DRVCTL_GetInitStatStr
@@ -489,9 +490,9 @@ proc INIT_PrintPartTbl
 		cmp	dl,4
 		ja	short .OK
 		jmp	short .IncCnt
-.Print:		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+.Print:		mPrintChar ' '
+		mPrintString
+		mPrintChar NL
 .IncCnt:	inc	dl
 		jmp	.Loop
 .OK:		clc
@@ -532,7 +533,7 @@ proc INIT_LinkPrimFS
 %define	.fslpstr	ebp-12
 
 		prologue 12				; Save space
-		mWrString Msg_LinkPrimFS
+		mPrintString Msg_LinkPrimFS
 
 		mov	al,SCFG_BootDev			; Get config item
 		call	INIT_GetStCfgItem		; (boot device string)
@@ -546,10 +547,10 @@ proc INIT_LinkPrimFS
 		mCallDriverCtrl edi,DRVCTL_GetParams	; Get partition type
 		or	al,al				; Known file system?
 		jnz	short .KnownFS			; Yes, continue
-		mWrString Msg_UnknFS			; Else print error msg
+		mPrintString Msg_UnknFS			; Else print error msg
 		mov	esi,ebx
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrString Msg_TryCrFS
+		mPrintString
+		mPrintString Msg_TryCrFS
 		stc					; and exit with error
 		jmp	.Exit
 
@@ -575,14 +576,14 @@ proc INIT_LinkPrimFS
 		call	CFS_SetCurrentLP		; Set current FSLP
 
 		mov	esi,[.devicestr]		; Print linking status
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrString Msg_Arrow
+		mPrintString
+		mPrintString Msg_Arrow
 		mov	esi,[.fsdrvstr]
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrString Msg_At
+		mPrintString
+		mPrintString Msg_At
 		mov	esi,[.fslpstr]
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
+		mPrintString
+		mPrintChar NL
 		clc
 
 .Exit:		epilogue
@@ -653,39 +654,39 @@ proc INIT_PrepUserSeg
 		call	K_SetDescriptorLimit
 
 		; Print memory information
-		mWrString Msg_TotMem
+		mPrintString Msg_TotMem
 		mov	eax,[TotalMemPages]
 		shl	eax,2
 		add	eax,[BaseMemSz]
 		call	PrintDwordDec
-		mWrString Msg_KB
-		mWrString Msg_MemKrnl
+		mPrintString Msg_KB
+		mPrintString Msg_MemKrnl
 		mov	eax,[BaseMemSz]
 		call	PrintDwordDec
-		mWrString Msg_KB
-		mWrString Msg_MemDrv
+		mPrintString Msg_KB
+		mPrintString Msg_MemDrv
 		mov	eax,[HeapBegin]
 		sub	eax,StartOfExtMem
 		shr	eax,10
 		call	PrintDwordDec
-		mWrString Msg_KB
-		mWrString Msg_MemFree
+		mPrintString Msg_KB
+		mPrintString Msg_MemFree
 		mov	eax,[ExtMemSz]
 		mov	ebx,[HeapBegin]
 		sub	ebx,StartOfExtMem
 		shr	ebx,10
 		sub	eax,ebx
 		call	PrintDwordDec
-		mWrString Msg_KB
+		mPrintString Msg_KB
 		mov	eax,[VirtMemPages]
 		shl	eax,2
 		or	eax,eax
 		jz	short .OK
 		push	eax
-		mWrString Msg_MemVirt
+		mPrintString Msg_MemVirt
 		pop	eax
 		call	PrintDwordDec
-		mWrString Msg_KB
+		mPrintString Msg_KB
 
 .OK:		clc
 		ret
@@ -723,12 +724,12 @@ proc DrvInitErr
 		xchg	eax,ebx
 		call	DRV_GetName
 		jc	short .Exit
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar ASC_BEL
-		mWrString Msg_InitErr
+		mPrintString
+		mPrintChar ASC_BEL
+		mPrintString Msg_InitErr
 		xchg	eax,ebx
 		call	PrintWordHex
-		mWrChar NL
+		mPrintChar NL
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
@@ -818,28 +819,27 @@ proc Start
 		jc	short .InitMon
 		mov	esi,InitStringBuf
 		mCallDriverCtrl dword [DrvId_Con],DRVCTL_GetInitStatStr
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
-		mWrChar NL
-		mWrChar NL
+		mPrintString
+		mPrintString NLNL
 
 		; Initialize monitor
 .InitMon:	call	MonitorInit
 
 		; Show CPU & FPU type
 		call	INIT_ShowCPUFPU
-mReadKey
+call ReadChar
 		; Enable A20
 		mov	al,1
 		call	KBC_A20Control
 		jnc	short .InitMem
-		mWrString Msg_A20Fail
+		mPrintString Msg_A20Fail
 
 		; Initialize memory
 .InitMem:	mov	esi,InitStringBuf
 		call	K_InitMem
-		mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
-		mWrString NLNL
+		mPrintChar ' '
+		mPrintString
+		mPrintString NLNL
 
 		; Install and initialize BIOS32 driver
 		mov	ebx,DrvBIOS32
@@ -852,8 +852,8 @@ mReadKey
 		call	DrvInitErr
 		jmp	short .InitProc
 
-.BIOSinitOK:	mWrChar ' '
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
+.BIOSinitOK:	mPrintChar ' '
+		mPrintString
 
 		; Initialize process management
 .InitProc:	mov	eax,Init_MaxNumOfProcesses
@@ -899,7 +899,7 @@ mReadKey
 		jc	near .Monitor
 
 		; Install and initialize file system drivers
-;		mWrString Msg_InitFSDRV
+;		mPrintString Msg_InitFSDRV
 ;		call	INIT_InitFileSystems
 ;		jc	near .Monitor
 
@@ -915,14 +915,14 @@ mReadKey
 		call	INIT_InitChDrv
 
 		; Initialize audio device
-		mWrString Msg_InitAudio
+		mPrintString Msg_InitAudio
 		mov	esi,offset InitStringBuf
 		mCallDriver byte DRVID_Audio, byte DRVF_Init
 		jc	short .ShowVer
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
+		mPrintString
 
 		; Show kernel version message
-.ShowVer:	mWrString Msg_RadiOS
+.ShowVer:	mPrintString Msg_RadiOS
 
 
 		; Load RAM-disk image
@@ -964,7 +964,7 @@ mReadKey
 		jc	FatalError
 
 		; Create two initial kernel threads
-		; (launcher and system console).
+		; (launcher and RKDT).
 		mov	ebx,INIT_Launcher
 		xor	ecx,ecx
 		xor	esi,esi
@@ -972,9 +972,8 @@ mReadKey
 		jc	.Monitor
 		mov	edi,ebx				; Save launcher TCB
 
-extern TEST_ExamineFS:near
-		mov	ebx,TEST_ExamineFS
-		mov	ecx,16384
+		mov	ebx,RKDT_Main
+		mov	ecx,16384			; 16KB stack
 		call	MT_CreateThread
 		jc	.Monitor
 
@@ -988,20 +987,20 @@ extern TEST_ExamineFS:near
 .Monitor:	int3
 
 		; Reset system
-		mWrString Msg_SysReset1
+		mPrintString Msg_SysReset1
 		call	PrintByteDec
-		mWrString Msg_SysReset2
-		mCallDriver dword [DrvId_Con], byte DRVF_Read
+		mPrintString Msg_SysReset2
+		call	ReadChar
 
 SysReset:	call	KBC_HardReset
 
 		; Fatal error: print error message, error number
 		; and halt the system
 FatalError:	push	eax
-		mWrString Msg_Fatal
+		mPrintString Msg_Fatal
 		pop	eax
 		call	PrintWordHex
-		mWrString Msg_SysHlt
+		mPrintString Msg_SysHlt
 
 .Halt:		jmp	.Halt
 endp		;---------------------------------------------------------------

@@ -11,6 +11,7 @@ module monitor
 %include "errors.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
+%include "kconio.ah"
 %include "asciictl.ah"
 
 ; --- Exports ---
@@ -25,13 +26,19 @@ extern K_GetExceptionVec:extcall, K_SetExceptionVec:extcall
 extern K_GetDescriptorBase:extcall, K_GetDescriptorAR:extcall
 
 library kernel.driver
-extern DRV_FindName:extcall
+extern DRV_FindName:extcall, DRV_CallDriver:extcall
 
 library kernel.init
 extern SysReset:extcall
 
 library kenel.misc
 extern StrScan:extcall, BCDW2Dec:extcall
+
+library kernel.kconio
+extern PrintChar:extcall, PrintString:extcall
+extern PrintByteHex:extcall
+extern ReadChar:extcall
+extern K_WrHexB:extcall, K_WrHexW:extcall, K_WrHexD:extcall
 
 
 ; --- Definitions ---
@@ -102,7 +109,7 @@ endp		;---------------------------------------------------------------
                 ; InputHandler - monitor input handler.
 proc InputHandler
 		sti					; Enable ints
-.WaitCmd:	mWrString MonPrompt
+.WaitCmd:	mPrintString MonPrompt
 		mov	esi,InputBuffer
 		mov	cl,InputBufSize-1
 		call	ReadString			; Read command line
@@ -239,7 +246,7 @@ proc PageTrapped
 		mov	ss,[sstoss]		; Get top of stack
 		mov	esp,[rtoss]		;
 		call	PageTrapUnerr		; Turn page trap off
-		mWrString MsgPageFault		; Print 'trapped' message
+		mPrintString MsgPageFault	; Print 'trapped' message
 		jmp	InputHandler		; Go do more input
 endp		;---------------------------------------------------------------
 
@@ -377,15 +384,15 @@ endp		;---------------------------------------------------------------
 
 		; DisplayErr - display error position if input is wrong.
 proc DisplayErr
-		mWrChar NL				; Next line
+		mPrintChar NL				; Next line
 		sub	esi,InputBuffer-2		; Calculate error pos
 		mov	ecx,esi
 		jcxz	.Start
 		dec	ecx
 		jcxz	.Start
-.Loop:		mWrChar ' '
+.Loop:		mPrintChar ' '
 		loop	.Loop
-.Start:		mWrChar '^'				; Display error
+.Start:		mPrintChar '^'				; Display error
 		stc					; Did an error
 		ret
 endp		;---------------------------------------------------------------
@@ -393,7 +400,7 @@ endp		;---------------------------------------------------------------
 
 		; MON_Help - display short monitor help.
 proc MON_Help
-		mWrString MsgHelp
+		mPrintString MsgHelp
 		ret
 endp		;---------------------------------------------------------------
 

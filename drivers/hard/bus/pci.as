@@ -3,7 +3,7 @@
 ;  (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
-module pci
+module hw.pci
 
 %include "hw/ports.ah"
 

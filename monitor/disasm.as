@@ -200,15 +200,15 @@ proc MON_Disassembly
 		push	gs
 		mov	gs,edx			; GS = the seg
 		mov	[TheSeg],gs
-		mWrChar NL
+		mPrintChar NL
 
 .Loop:		lea	edi,[ebp-256]		; Get the buffer
 		call	GetCodeLine		; Get a line of text
 		push	esi
 		lea	esi,[ebp-256]		; Print out the text
-		mCallDriverCtrl dword [DrvId_Con],DRVCTL_CON_WrString
+		mPrintString
 		pop	esi
-		mWrChar NL			; Print a CR/LF
+		mPrintChar NL			; Print a CR/LF
 		mov	eax,esi			; See if done
 		cmp	eax,[dEnd]
 		jb	.Loop			; Loop if not
@@ -236,7 +236,7 @@ proc DisOneLine
 		prologue 256				; Space for buffer
 ;		call	K_MapStackToSystem		; Map stack to system
 		call	PageTrapErr			; Enable page traps
-		mWrChar NL
+		mPrintChar NL
 		mov	eax,1
 		add	eax,ebx				; 1 byte to disassemble
 		mov	[dEnd],eax			; (will disassemble
@@ -249,9 +249,9 @@ proc DisOneLine
 		call	GetCodeLine			; Get a line of code
 		push	esi
 		lea	esi,[ebp-256]			; Display the line
-		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
+		mPrintString
 		pop	esi
-		mWrChar NL				; CR/LF
+		mPrintChar NL				; CR/LF
 		test	dword [ExtraBytes],-1		; See if more to dump
 		jnz	.Loop				; Loop if so
 		mov	[DisStart],esi			; Save new index

@@ -87,6 +87,7 @@ CON_Control	DD	CON_GetInitStatStr	; Control routines
 		DD	NULL
 		DD	NULL
 		DD	CON_WrString
+		DD	CON_SetActive
 
 ; Initialization string
 CON_InitString	DB	NL,"Console devices initialized:",NL," ",0
@@ -162,17 +163,17 @@ proc CON_Close
 endp		;---------------------------------------------------------------
 
 
-; --- Implementation routines ---
-
 		; CON_SetActive - set active console.
 		; Input: AL=console number.
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
 proc CON_SetActive
-
+		mCallDriverCtrl byte DRVID_VideoTx, DRVCTL_VTX_SetActPage
 		ret
 endp		;---------------------------------------------------------------
 
+
+; --- Implementation routines ---
 
 		; CON_HandleCTRL - handle ASCII control characters.
 		; Input: AL=character code.

@@ -4,7 +4,7 @@
 ;  Font mapping procedures (c) 1995 by David Lindauer.
 ;*******************************************************************************
 
-module vtx
+module hw.vtx
 
 %define extcall near
 

@@ -3,7 +3,7 @@
 ;  Based upon Linux code of parport_pc.c.
 ;*******************************************************************************
 
-module parport
+module hw.parport
 
 %define extcall near
 

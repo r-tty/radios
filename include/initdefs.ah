@@ -46,9 +46,10 @@ endstruc
 %define	SCFG_SwapSize		5
 
 
-; --- External variables (initialized by system loader)
+; --- External variables (initialized by system loader) ---
 
 %define DrvAPIsTableAddr	700h
 %define UserAPIsTableAddr	704h
 %define	KHeapBeginAddr		708h
 %define KHeapTopAddr		70Ch
+%define BootModulesInfoAddr	710h

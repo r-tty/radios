@@ -62,6 +62,7 @@
 
 ; Console
 %define	DRVCTL_CON_WrString		8
+%define	DRVCTL_CON_ChActive		9
 
 ; Binary formats
 %define	DRVCTL_BINFMT_CheckSignature	8

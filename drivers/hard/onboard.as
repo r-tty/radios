@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
-module kernel.onboard
+module hw.onboard
 
 %include "sys.ah"
 %include "errors.ah"

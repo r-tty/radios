@@ -16,6 +16,15 @@ module kernel.mt
 %include "pool.ah"
 %include "process.ah"
 
+%ifdef DEBUG
+%include "kconio.ah"
+%include "asciictl.ah"
+
+library kernel.kconio
+extern PrintChar: near, PrintString:near
+extern PrintDwordDec:near, PrintDwordHex:near
+%endif
+
 ; --- Exports ---
 
 global MT_Init

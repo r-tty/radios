@@ -14,7 +14,6 @@ module init
 %include "drvctrl.ah"
 %include "i386/descript.ah"
 %include "i386/paging.ah"
-%include "process.ah"
 %include "commonfs.ah"
 %include "kconio.ah"
 %include "asciictl.ah"
@@ -60,7 +59,6 @@ extern K_SetDescriptorBase:near, K_SetDescriptorLimit:near
 library kernel.driver
 extern DRV_InitTable:near, DRV_InstallNew:near
 extern DRV_CallDriver:near, DRV_GetName:near, DRV_FindName:near
-extern EDRV_FixDrvSegLimit:near, EDRV_InitCodeAlloc:near
 
 library kernel.mm
 extern MM_Init:near
@@ -150,7 +148,7 @@ InternalDriversTable	DD	0
 			DD	DrvIDE
 
 BinFmtDrivers		DD	DrvRDM
-			DD	DrvCOFF
+			DD	0
 
 
 ; --- Variables ---
@@ -314,20 +312,6 @@ proc INIT_InitChDrv
 endp		;---------------------------------------------------------------
 
 
-		; INIT_CreateKernelProcess - initialize kernel process.
-proc INIT_CreateKernelProcess
-%define	.procinfo	ebp-tProcInit_size
-		prologue tProcInit_size
-		lea	ebx,[.procinfo]
-		mov	byte [ebx+tProcInit.MaxFHandles],Init_NumKernFHandles
-		mov	word [ebx+tProcInit.EnvSize],Init_KernEnvSize
-		mov	dword [ebx+tProcInit.EventHandler],KernelEventHandler
-		call	MT_InitKernelProc
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; INIT_ChkSwapDev - check swap device.
 		; Input: none.
 		; Output: CF=0 - OK, ECX=size of virtual memory;
@@ -444,7 +428,7 @@ endp		;---------------------------------------------------------------
 		;			 code segment.
 proc INIT_PrepEDRVcodeSeg
 		xor	al,al
-		call	EDRV_FixDrvSegLimit		; Fix limit of data seg.
+	;	call	EDRV_FixDrvSegLimit		; Fix limit of data seg.
 		mov	dx,DRVDATA
 		call	K_DescriptorAddress
 		call	K_GetDescriptorBase		; Get its base
@@ -459,7 +443,7 @@ proc INIT_PrepEDRVcodeSeg
 .NoAlign:	mov	dx,DRVCODE
 		call	K_DescriptorAddress
 		call	K_SetDescriptorBase		; Set base of code seg.
-		call	EDRV_InitCodeAlloc		; Reinit code alloc vars
+	;	call	EDRV_InitCodeAlloc		; Reinit code alloc vars
 		clc
 		ret
 endp		;---------------------------------------------------------------
@@ -468,7 +452,7 @@ endp		;---------------------------------------------------------------
 		; INIT_PrepUserSeg - prepare to use user segment.
 proc INIT_PrepUserSeg
 		mov	al,1
-		call	EDRV_FixDrvSegLimit		; Fix limit of
+	;	call	EDRV_FixDrvSegLimit		; Fix limit of
 		mov	dx,DRVCODE			; drivers code segment
 		call	K_DescriptorAddress
 		call	K_GetDescriptorBase		; Get its base
@@ -544,11 +528,14 @@ endp		;---------------------------------------------------------------
 
 		; INIT_InstallBinFmtDrvs - install and initialize binary
 		;			   format drivers.
+		; Input: none.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
 proc INIT_InstallBinFmtDrvs
 		xor	ecx,ecx
-.Loop:		cmp	cl,Init_BinFormats
-		je	short .Done
-		mov	ebx,[BinFmtDrivers+ecx*4]
+.Loop:		mov	ebx,[BinFmtDrivers+ecx*4]
+		or	ebx,ebx
+		jz	short .Exit
 		xor	edx,edx
 		call	DRV_InstallNew
 		jc	short .Exit
@@ -556,11 +543,6 @@ proc INIT_InstallBinFmtDrvs
 		jc	short .Exit
 		inc	cl
 		jmp	.Loop
-
-.Done:		or	cl,cl
-		jnz	short .Exit
-		mov	ax,ERR_INIT_NoBinFmtDrivers
-		stc
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
@@ -616,6 +598,7 @@ proc Start
 		; Initialize global page pool
 		mov	ebx,[KernelFreeMemStart]	; EBX=begin of 
 		sub	edx,Init_StackSize		; kernel free memory
+		mov	ecx,[UpperMemSizeKB]		; Upper memory size
 		call	PG_Init
 
 		; Build IDT
@@ -727,7 +710,7 @@ proc Start
 		jc	.Monitor
 int3
 		; Create kernel process
-		call	INIT_CreateKernelProcess
+		call	MT_InitKernelProc
 		jc	.Monitor
 
 		; Initialize disk drivers
@@ -777,8 +760,8 @@ int3
 		jc	near .Monitor
 
 		; Install and initialize binary format drivers
-;		call	INIT_InstallBinFmtDrvs
-;		jc	FatalError
+		call	INIT_InstallBinFmtDrvs
+		jc	FatalError
 
 		; Initialize memory management
 		call	MM_Init

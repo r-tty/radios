@@ -17,6 +17,7 @@ module kernel.paging
 global PG_Init, PG_InitPageTables, PG_Alloc, PG_Dealloc
 global PG_AllocContBlock, PG_GetNumFreePages
 global PG_GetPTEaddr, PG_Prepare
+global AllocPhysMem
 global ?KernPagePool, ?KernPgPoolEnd
 
 
@@ -53,7 +54,8 @@ section .text
 
 		; PG_Init - initialize paging.
 		; Input: EBX=begin of kernel free memory,
-		;	 EDX=end of kernel free memory.
+		;	 EDX=end of kernel free memory,
+		;	 ECX=size of extended memory in kilobytes.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc PG_Init
@@ -62,7 +64,9 @@ proc PG_Init
 
 		; Calculate the size of page bitmap
 		; Size := max. memory in kilobytes / 4 KB per page / 8 bits
-		mov	eax,((MAXMEM * 1024) / 4) / 8
+		mov	eax,ecx
+		add	eax,PG_BMAPSPARE * 1000000h
+		shr	eax,PAGESHIFT+3
 		mov	[?PgBitmapSize],eax
 		
 		; Store start and end addresses of kernel page pool
@@ -99,7 +103,8 @@ proc PG_Init
 		loop	.ReservedMem
 		
 		; Mark all memory above 1 MB as used
-		mov	ecx,(MAXMEM * 1024) / 4
+		mov	ecx,[?PgBitmapSize]
+		shl	ecx,3
 		sub	ecx,eax
 .ExtendedMem:	btr	[ebx],eax
 		inc	eax
@@ -164,8 +169,7 @@ proc PG_InitPageTables
 		inc	eax				; +page directory
 		shl	eax,PG_ITEMSPERTBLSHIFT+2	; EAX=bytes in dir & tables
 		
-		mov	ecx,[?MaxPageDirs]		; Take care about system dir
-		inc	ecx				; ECX=total number of dirs
+		mov	ecx,[?MaxPageDirs]		; ECX=total number of dirs
                 mul	ecx				; Get amount of memory
 		mov	ecx,eax				; for all tables
 		mov	dl,1				; Allocate block
@@ -174,15 +178,12 @@ proc PG_InitPageTables
 		mov	[?StartPgTables],ebx
 
 		; Fill in page directories and tables with initial values
-		xor	edx,edx				; Initialize system
-		dec	edx				; page tables
+		xor	edx,edx				; EDX will keep dir #
 		mov	ebx,[?StartPgTables]
-		jmp	short .1
 
 .Fill:		mov	eax,edx				; EAX=directory #
-		call	PG_GetPageDirAddr		; Get its address
-		
-.1:		mov	eax,ebx				; Begin to fill the
+		call	PG_GetDirAddr			; Get its address
+		mov	eax,ebx				; Begin to fill the
 		xor	ecx,ecx				; page directory
 
 .FillPageDir:	add	eax,PAGESIZE
@@ -217,7 +218,7 @@ proc PG_InitPageTables
 
 		; Enable paging
 		xor	eax,eax
-		call	PG_GetPageDirAddr
+		call	PG_GetDirAddr
 		mov	cr3,ebx
 		mPagingOn
 
@@ -308,7 +309,7 @@ endp		;---------------------------------------------------------------
 
 		; PG_Alloc - allocate a page.
 		; Input: DL=0 - in kernel space;
-		;	 DL=1 - out kernel space.
+		;	 DL=1 - out of kernel space.
 		; Output: CF=0 - OK, EAX=page address+control bits;
 		;	  CF=1 - error, AX=error code.
 proc PG_Alloc
@@ -370,25 +371,75 @@ endp		;---------------------------------------------------------------
 proc PG_GetNumFreePages
 		mpush	edx,esi
 		mov	esi,[?PgBitmapAddr]
-		xor	ecx,ecx
+		mov	ecx,[?PgBitmapSize]
+		shr	ecx,3				; 8 bits per byte
+		xor	eax,eax
 		xor	edx,edx
 .Loop:		bt	[esi],edx
 		jnc	short .Next
-		inc	ecx
+		inc	eax
 .Next:		inc	edx
-		cmp	edx,(MAXMEM * 1024) / 4
+		cmp	edx,ecx
 		jb	.Loop
-		clc
+		mov	ecx,eax
+		xor	eax,eax
 		mpop	esi,edx
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; PG_GetPageDirAddr - get page directory address.
+		; PG_AllocDir - find a free page directory.
+		; Input: none.
+		; Output: CF=0 - OK:
+		;		     EAX=directory number,
+		;		     EBX=directory address;
+		;	  CF=1 - error, AX=error code.
+proc PG_AllocDir
+		mpush	ecx,edx
+		
+		; Count size (in bytes) of one page directory and all its
+		; page tables
+		mov	edx,[?PTsPerProc]
+		inc	edx
+		shl	edx,PG_ITEMSPERTBLSHIFT+2
+		
+		; Find a free directory by checking PG_ALLOCATED bit in a
+		; first entry of each page directory.
+		mov	ecx,[?MaxPageDirs]
+		mov	ebx,[?StartPgTables]
+		xor	eax,eax
+		
+.Loop:		test	dword [ebx],PG_ALLOCATED
+		jnz	short .Found
+		add	ebx,edx
+		inc	eax
+		loop	.Loop
+		
+		mov	ax,ERR_PG_NoFreeDir			; Error
+		stc
+		jmp	short .Exit
+		
+.Found:		clc
+		
+.Exit:		mpop	edx,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PG_DeallocDir - free a page directory.
+		; Input: EBX=directory address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc PG_DeallocDir
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PG_GetDirAddr - get page directory address.
 		; Input: EAX=directory number.
 		; Output: CF=0 - OK, EBX=address;
 		;	  CF=1 - error, AX=error code.
-proc PG_GetPageDirAddr
+proc PG_GetDirAddr
 		cmp	eax,[?MaxPageDirs]
 		jb	short .Do
 		mov	ax,ERR_PG_BadDirNum
@@ -396,7 +447,6 @@ proc PG_GetPageDirAddr
 		ret
 
 .Do:		mpush	eax,edx
-		inc	eax				; Omit system tables
 		mov	ebx,[?PTsPerProc]		; Page tables per process
 		inc	ebx				; + page directory
 		shl	ebx,PG_ITEMSPERTBLSHIFT+2
@@ -415,8 +465,8 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc PG_GetPTEaddr
 		mpush	ebx,esi
-		mov	esi,ebx				; Keep linear address
-		call	PG_GetPageDirAddr
+		mov	esi,ebx				; Save linear address
+		call	PG_GetDirAddr
 		jc	short .Exit
 		mov	eax,esi
 		shr	eax,22				; EAX=PDE number
@@ -437,3 +487,7 @@ proc PG_GetPTEaddr
 endp		;---------------------------------------------------------------
 
 
+		; AllocPhysMem - driver helper (simply calls PG_AllocContBlock).
+proc AllocPhysMem
+		jmp	PG_AllocContBlock
+endp		;---------------------------------------------------------------

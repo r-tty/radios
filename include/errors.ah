@@ -43,10 +43,11 @@
 %define	ERR_MEM_BadBlockSize		0349h
 
 %define	ERR_PG_NoFreePage		0358h
-%define	ERR_PG_BadLinearAddr		0359h
-%define	ERR_PG_BadDirNum		035Ah
+%define	ERR_PG_NoFreeDir		0359h
+%define	ERR_PG_BadLinearAddr		035Ah
+%define	ERR_PG_BadDirNum		035Bh
 
-; Task manager errors
+; Task management errors
 %define	ERR_MT_NoPIDs			0360h
 %define	ERR_MT_BadPID			0361h
 %define ERR_MT_NoFreePD			0362h
@@ -57,7 +58,7 @@
 %define	ERR_MT_UnableAttachThread	0367h
 %define	ERR_MT_UnableDetachThread	0367h
 
-; Module errors
+; Module management errors
 %define	ERR_MOD_TooManyBinFmts		0370h
 %define	ERR_MOD_NotBinFmt		0371h
 %define	ERR_MOD_BinFmtNotFound		0372h

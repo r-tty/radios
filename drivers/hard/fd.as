@@ -22,8 +22,8 @@ global DrvFDD
 
 ; --- Imports ---
 
-library kernel.driver
-extern DSF_Yield1ms:extcall
+library kernel.mt
+extern MT_SuspendCurr1ms:extcall
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
@@ -859,7 +859,7 @@ proc FDC_ReadStatus
 		je	short .GotByte
 		cmp	al,FDst_Ready			; All bytes?
 		je	short .OK
-		call	DSF_Yield1ms
+		call	MT_SuspendCurr1ms
 		loop	.Loop
 		or	byte [FDC_Flags],FDCfl_NeedReset
 		jmp	short .Err
@@ -906,7 +906,7 @@ proc FDC_OutPort
 		and	al,FDst_Direct2CPU+FDst_Ready
 		cmp	al,FDst_Ready			; Is controller ready?
 		je	short .OutByte
-		call	DSF_Yield1ms			; Else yield on 1 ms
+		call	MT_SuspendCurr1ms		; Else suspend on 1 ms
 		loop	.Loop
 		or	byte [FDC_Flags],FDCfl_NeedReset
 		jmp	short .Timeout

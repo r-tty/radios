@@ -66,9 +66,6 @@ DRV_NullName	DB	"%null"
 
 section .bss
 
-EDRV_CodeFreeBl	RESD	1
-EDRV_DataFreeBl	RESD	1
-
 ?NumInstDrivers	RESD	1			; Number of installed drivers
 ?MaxDrivers	RESD	1			; Maximum number of drivers
 ?TableAddr	RESD	1			; Table address
@@ -105,14 +102,10 @@ proc DRV_InitTable
 		mov	ecx,[?MaxDrivers]
 
 .Loop:		cmp	eax,ecx
-		jae	short .InitEDRV
+		jae	short .OK
 		call	DRV_Uninstall
 		inc	eax
 		jmp	.Loop
-
-		; Initialize external driver variables
-.InitEDRV:	call	EDRV_InitCodeAlloc
-		call	EDRV_InitDataAlloc
 
 .OK:		clc
 .Exit:		mpop	esi,edx,ecx,ebx

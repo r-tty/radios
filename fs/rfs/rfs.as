@@ -28,8 +28,8 @@ global DrvRFS
 library kernel.kheap
 extern KH_Alloc:extcall, KH_FillWithFF:extcall
 
-library kernel.driver
-extern EDRV_AllocData:extcall
+library kernel.mm
+extern AllocPhysMem:extcall
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
@@ -138,7 +138,7 @@ proc RFS_Init
 		pop	edx
 		mov	ecx,eax
 
-		call	EDRV_AllocData		; Allocate memory
+		call	AllocPhysMem		; Allocate memory
 		jc	short .Exit
 		mov	[FCBstart],ebx		; Store begin address of FCBs
 

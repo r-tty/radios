@@ -10,4 +10,3 @@ module kernel.syscall
 
 %include "drvhlp.as"
 %include "userapi.as"
-

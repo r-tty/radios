@@ -7,6 +7,8 @@ module rkdt
 
 %include "sys.ah"
 %include "errors.ah"
+%include "sema.ah"
+%include "pool.ah"
 %include "process.ah"
 %include "driver.ah"
 %include "drvctrl.ah"

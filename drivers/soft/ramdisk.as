@@ -25,12 +25,14 @@ library kernel
 extern DrvId_RD, DrvId_RFS
 
 library kernel.driver
-extern DRV_CallDriver:extcall, EDRV_AllocData:extcall
+extern DRV_CallDriver:extcall 
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
 extern HexD2Str:extcall, DecD2Str:extcall
 
+library kernel.mm
+extern AllocPhysMem:extcall
 
 ; --- Data ---
 
@@ -85,7 +87,7 @@ proc RD_Init
 		mpush	ebx,ecx,edx,esi
 		mov	edx,ecx
 		shl	ecx,10			; ECX=size in bytes
-		call	EDRV_AllocData		; Allocate memory
+		call	AllocPhysMem		; Allocate memory
 		jc	short .Exit
 		mov	[RDstart],ebx
 

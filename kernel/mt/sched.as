@@ -11,6 +11,7 @@
 global K_SwitchTask
 global MT_Schedule
 global ?CurrThread
+global MT_SuspendCurr, MT_SuspendCurr1ms
 
 
 ; --- Constants ---
@@ -419,6 +420,24 @@ proc MT_CheckTimeout
 		
 .Done:		popfd
 		mpop	edx,ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_SuspendCurr - suspend current thread on given interval.
+		; Input: ECX=interval in ms.
+		; Output:none.
+proc MT_SuspendCurr
+		push	ecx
+		pop	ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_SuspendCurr1ms - suspend current thread on 1 millisecond.
+		; Input: none.
+		; Output:none.
+proc MT_SuspendCurr1ms
 		ret
 endp		;---------------------------------------------------------------
 

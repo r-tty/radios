@@ -23,8 +23,10 @@ global DrvSerial
 ; --- Imports ---
 
 library kernel.driver
-extern DSF_Run:extcall, DSF_Yield1ms:extcall
-extern EDRV_AllocData:extcall
+extern MT_SuspendCurr1ms:extcall
+
+library kernel.mm
+extern AllocPhysMem:extcall
 
 library kernel.misc
 extern StrEnd:extcall, StrCopy:extcall, StrAppend:extcall
@@ -298,7 +300,7 @@ proc SER_HandleEvent
 		mov	ebx,PortParameters+2*tSPdevParm_size	; Service port 3
 		call	SER_Interrupt
 
-.OK:		call	DSF_Run
+.OK:		;call	DSF_Run
 		clc
 		pop	ebx
 		ret
@@ -732,7 +734,7 @@ proc SER_DetectIRQ
 		mov	ecx,1000
 .Loop:		cmp	byte [LastIRQnum],0
 		jne	.1
-		call	DSF_Yield1ms
+		call	MT_SuspendCurr1ms
 		loop	.Loop
 
 .1:		cli
@@ -876,7 +878,7 @@ endp		;---------------------------------------------------------------
 proc SER_AllocBuffer
 		push	ebx
 		and	ecx,0FFFFh
-		call	EDRV_AllocData
+		call	AllocPhysMem
 		jc	short .Exit
 		mov	[esi+tSerialBuf.Size],cx
 		mov	word [esi+tSerialBuf.Used],0

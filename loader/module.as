@@ -76,7 +76,7 @@ endp		;---------------------------------------------------------------
 		; Input: EBP=buffer address.
 		; Output: none.
 proc LinkModules
-		cmp	dword [BootModulesCount],0	; Are there modules?
+		cmp	dword [BootModulesCount],0	; Are there any modules?
 		jnz	short .PrintHdr
 		ret
 		
@@ -129,3 +129,4 @@ proc ProceedModule
 		call	PrintStr
 		jmp	short .Done
 endp		;---------------------------------------------------------------
+

@@ -18,7 +18,7 @@ global BUF_StampAsLatest, GetNumBlocks
 ; --- Imports ---
 
 library kernel.driver
-extern EDRV_AllocData:near, DRV_CallDriver:near, DRV_GetFlags:near
+extern AllocPhysMem:near, DRV_CallDriver:near, DRV_GetFlags:near
 
 
 ; --- Definitions ---
@@ -62,7 +62,7 @@ section .text
 proc BUF_InitMem
 		mpush	ebx,ecx,edx
 		shl	ecx,10
-		call	EDRV_AllocData
+		call	AllocPhysMem
 		jc	short .Exit
 		mov	[BufferStart],ebx
 

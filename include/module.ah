@@ -12,8 +12,9 @@ struc tKModInfo
 .EntryPoint	RESD	1				; Start entry point
 .Type		RESB	1				; Module type
 .Flags		RESB	1				; Misc flags
-.Reserved	RESB	6				; Reserved
-.ModName	RESB	16				; Module name
+.Next		RESD	1
+.Prev		RESD	1
+.ModName	RESB	14
 endstruc
 
 %define	MODTYPE_EXECUTABLE	0

@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ;  module.as - RadiOS module primitives.
-;  Copyright (c) 1999,2000 RET & COM Research.
+;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.module
@@ -8,6 +8,8 @@ module kernel.module
 %include "sys.ah"
 %include "errors.ah"
 %include "module.ah"
+%include "sema.ah"
+%include "pool.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
 
@@ -23,13 +25,14 @@ global MOD_GetType, MOD_GetIDbyName
 ; --- Imports ---
 
 library kernel.misc
-extern StrCopy:near, BZero:near
+extern StrCopy:near
 
 library kernel.driver
 extern DRV_CallDriver:near, DRV_GetFlags:near
 
-library kernel.paging
-extern PG_AllocContBlock:near
+library kernel.pool
+extern K_PoolInit:near
+extern K_PoolAllocChunk:near, K_PoolFreeChunk:near
 
 ; --- Definitions ---
 
@@ -47,34 +50,27 @@ KernelModName	DB	"kernel",0
 
 section .bss
 
-NumLoadedMods	RESD	1			; Number of loaded modules
-MaxNumMods	RESD	1			; Maximum number of loaded mods
-ModTableAddr	RESD	1			; Module table address
+?NumLoadedMods	RESD	1			; Number of loaded modules
+?MaxModules	RESD	1			; Maximum number of loaded mods
+?ModulePool	RESB	tMasterPool_size	; Modules master pool
 
-BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
+?BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
 
 
 ; --- Procedures ---
 
 section .text
 
-		; MOD_InitMem - initialize memory for kernel module information.
+		; MOD_InitMem - initialize modules management.
 		; Input: EAX=maximum number of loaded modules.
-		; Output: CF=0 - OK, EAX=0;
-		;	  CF=1 - error.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
 proc MOD_InitMem
-		mpush	ebx,ecx,esi
-		mov	[MaxNumMods],eax
+		mov	[?MaxModules],eax
+		mov	ebx,?ModulePool
 		mov	ecx,tKModInfo_size
-		mul	ecx
-		mov	ecx,eax
 		xor	dl,dl
-		call	PG_AllocContBlock
-		jc	short .Exit
-		mov	[ModTableAddr],ebx
-		call	BZero
-		xor	eax,eax
-.Exit:		mpop	esi,ecx,ebx
+		call	K_PoolInit
 		ret
 endp		;---------------------------------------------------------------
 
@@ -109,7 +105,7 @@ proc MOD_Register
 		mpush	ecx,edi
 		xor	ecx,ecx
 		mov	cl,MOD_MAXBINFORMATS
-		mov	edi,offset BinFmtDrivers
+		mov	edi,?BinFmtDrivers
 		cld
 		push	eax
 		xor	eax,eax
@@ -145,7 +141,7 @@ proc MOD_Unregister
 		mpush	ecx,edi
 		xor	ecx,ecx
 		mov	cl,MOD_MAXBINFORMATS
-		mov	edi,BinFmtDrivers
+		mov	edi,?BinFmtDrivers
 		cld
 		repne	scasd
 		jnz	short .Err
@@ -239,35 +235,30 @@ endp		;---------------------------------------------------------------
 
 		; MOD_AllocStruc - allocate module information structure.
 		; Input: none.
-		; Output: CF=0 - OK:
-		;		    EAX=module ID,
-		;		    EDI=pointer to allocated structure;
+		; Output: CF=0 - OK, EDI=address of allocated structure;
 		;	  CF=1 - error, AX=error code.
 proc MOD_AllocStruc
-		mov	edi,[ModTableAddr]
-		xor	eax,eax
-.Loop:		cmp	dword [edi],0			; Unused?
-		je	short .OK
-		inc	eax
-		cmp	eax,[MaxNumMods]
-		je	short .Err
-		add	edi,tKModInfo_size
-		jmp	.Loop
-.OK:		clc
-		ret
+		mpush	ebx,edx,esi
+		mov	ebx,?ModulePool
+		xor	dl,dl
+		call	K_PoolAllocChunk
+		jc	short .Exit
+		mov	edi,esi
 
-.Err:		mov	ax,ERR_MOD_TooManyModules
-		stc
+.Exit:		mpop	esi,edx,ebx
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; MOD_FreeStruc - free module information structure.
-		; Input: EDI=pointer to structure.
+		; Input: EDI=address of structure.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_FreeStruc
-		mov	dword [edi],0
+		push	esi
+		mov	esi,edi
+		call	K_PoolFreeChunk
+		pop	esi
 		ret
 endp		;---------------------------------------------------------------
 
@@ -309,7 +300,7 @@ proc MOD_CheckSignature
 		jc	short .Exit
 
 		xor	ecx,ecx
-.Loop:		mov	edx,[offset BinFmtDrivers+ecx*4]
+.Loop:		mov	edx,[?BinFmtDrivers+ecx*4]
 		or	edx,edx
 		jz	short .Next
 		mCallDriverCtrl edx,DRVCTL_BINFMT_CheckSignature

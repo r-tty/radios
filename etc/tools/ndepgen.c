@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
   f = fopen(argv[1],"r");
   if (errno) error ("file opening error",2);
   while(!feof(f)) {
+    Buf[0] = 0;
     fgets(Buf,sizeof(Buf)-1,f);
     if (Buf[0] != ppctl) continue;
     if (strncmp(p=Buf+1,incldir,k=strlen(incldir))) continue;

@@ -23,9 +23,11 @@ global DrvIDE
 
 ; --- Imports ---
 
-library kernel.driver
-extern DSF_Block:extcall, DSF_Run:extcall
-extern DSF_Yield:extcall, DSF_Yield1ms:extcall
+library kernel.mt
+extern MT_Schedule:extcall
+extern MT_ThreadSleep:extcall, MT_ThreadWakeup:extcall
+extern MT_SuspendCurr:extcall, MT_SuspendCurr1ms:extcall
+extern ?CurrThread
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
@@ -237,6 +239,7 @@ IDE_Status	RESB	4		; Status after interrupt
 IDE_NumInstDevs	RESB	1		; Number of found hard disk drives
 IDE_NumCntrlrs	RESB	1		; Number of found IDE interfaces
 
+?WaiterThread	RESD	1
 
 
 ; --- Interface procedures ---
@@ -304,14 +307,18 @@ proc IDE_HandleEvent
 		ror	eax,16
 		and	eax,3				; EAX=interface number
 		mov	ebx,eax
-		add	eax,offset IDE_BasePorts
+		add	eax,IDE_BasePorts
 		mov	dx,[eax]
 		add	dx,REG_STATUS
 		in	al,dx
-		add	ebx,offset IDE_Status
+		add	ebx,IDE_Status
 		mov	[ebx],al
-.OK:		call	DSF_Run
-		mpop	edx,ebx
+.OK:		mov	ebx,[?WaiterThread]
+		or	ebx,ebx
+		jz	short .Exit
+		call	MT_ThreadWakeup
+		mov	dword [?WaiterThread],0
+.Exit:		mpop	edx,ebx
 		clc
 		ret
 endp		;---------------------------------------------------------------
@@ -334,7 +341,7 @@ proc IDE_Open
 		jne	short .Err
 		mov	dx,DRVID_HDIDE			; Major number of driver
 		push	edi
-		mov	edi,offset IDE_Operation
+		mov	edi,IDE_Operation
 		call	HD_Open				; Partition disk
 		pop	edi
 		jc	short .Exit
@@ -396,7 +403,7 @@ proc IDE_Read
 		cmp	byte [edi+tIDEdev.OpenCount],0	; Device opened?
 		je	short .Err
 		mov	eax,[edi+tIDEdev.CommonDesc]
-		mov	edi,offset IDE_Operation
+		mov	edi,IDE_Operation
 		call	HD_Read
 		jmp	short .ExitRel
 .Err:		mov	ax,ERR_DRV_NotOpened
@@ -436,7 +443,7 @@ proc IDE_Write
 		cmp	byte [edi+tIDEdev.OpenCount],0	; Device opened?
 		je	short .Err
 		mov	eax,[edi+tIDEdev.CommonDesc]
-		mov	edi,offset IDE_Operation
+		mov	edi,IDE_Operation
 		call	HD_Read
 		jmp	short .ExitRel
 .Err:		mov	ax,ERR_DRV_NotOpened
@@ -474,7 +481,7 @@ proc IDE_GetInitStatStr
 		test	edx,0FFFF0000h			; Minor present?
 		jnz	short .ChkSubMinor
 
-		mov	esi,offset IDE_InitStatStr
+		mov	esi,IDE_InitStatStr
 		call	StrCopy
 		mov	al,[IDE_NumInstDevs]
 		mov	ah,[IDE_NumCntrlrs]
@@ -531,14 +538,14 @@ proc IDE_GetInitStatStr
 		mov	eax,[ebx+tIDEdev.TotalSectors]
 		shr	eax,11
 		call	DecD2Str
-		mov	esi,offset IDE_MBstr
+		mov	esi,IDE_MBstr
 		call	StrAppend
 
 		test	byte [ebx+tIDEdev.LDHpref],LDH_LBA	; LBA?
 		jz	short .CHS
-		mov	esi,offset IDE_LBAstr
+		mov	esi,IDE_LBAstr
 		call	StrAppend
-.CHS:		mov	esi,offset IDE_CHSstr
+.CHS:		mov	esi,IDE_CHSstr
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
@@ -558,7 +565,7 @@ proc IDE_GetInitStatStr
 		mov	al,[ebx+tIDEdev.SecPerInt]
 		cmp	al,1
 		je	short .Exit
-		mov	esi,offset IDE_MaxMultStr
+		mov	esi,IDE_MaxMultStr
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
@@ -621,8 +628,8 @@ proc IDE_Probe
 		xor	eax,eax
 		mov	al,bh
 		and	al,254
-		mov	dx,[eax+offset IDE_BasePorts]
-		mov	cl,[eax+offset IDE_IRQlines]
+		mov	dx,[eax+IDE_BasePorts]
+		mov	cl,[eax+IDE_IRQlines]
 
 		; Check if the one of the registers exists
 		add	dx,REG_CYL_LO
@@ -847,8 +854,8 @@ proc IDE_OutCommand
 		shr	eax,24
 		cli
 		out	dx,al
-		mov	[ebx+offset IDE_Command],al
-		mov	byte [ebx+offset IDE_Status],STATUS_BSY
+		mov	[ebx+IDE_Command],al
+		mov	byte [ebx+IDE_Status],STATUS_BSY
 		sti
 		pop	ebx
 
@@ -876,7 +883,7 @@ proc IDE_OutCmdSimple
 		xor	eax,eax
 		mov	al,[edi+tIDEdev.DriveNum]	; Get controller number
 		shr	al,1				; in EBX
-		mov	byte [eax+offset IDE_Command],CMD_IDLE
+		mov	byte [eax+IDE_Command],CMD_IDLE
 		pop	eax
 		popfd
 		ret
@@ -899,7 +906,7 @@ proc IDE_WaitFor
 		and	al,bl
 		cmp	al,ah
 		je	short .OK
-		call	DSF_Yield1ms			; Yield on 1 ms
+		call	MT_SuspendCurr1ms		; Suspend on 1 ms
 		dec	ecx
 		jnz	.Loop
 		call	IDE_NeedReset			; Controller gone deaf
@@ -945,13 +952,13 @@ proc IDE_Reset
 
 		; Wait for any internal drive recovery
 		mov	ecx,IDE_RECOVERYTIME
-		call	DSF_Yield
+		call	MT_SuspendCurr
 
 		; Strobe reset bit
 		mov	dx,[edi+tIDEdev.BasePort]
 		mov	al,CTL_RESET
 		out	dx,al
-		call	DSF_Yield1ms
+		call	MT_SuspendCurr1ms
 		xor	al,al
 		out	dx,al
 
@@ -1010,8 +1017,15 @@ proc IDE_WaitIntr
 		xor	ebx,ebx
 		mov	bl,[edi+tIDEdev.DriveNum]
 		shr	bl,1
-.Loop:		call	DSF_Block			; Block current thread
-		mov	al,[ebx+offset IDE_Status]
+.Loop:		push	ebx
+		pushfd
+		cli
+		mov	edx,[?CurrThread]
+		call	MT_ThreadSleep			; Sleep current thread
+		popfd
+		pop	ebx
+		call	MT_Schedule
+		mov	al,[ebx+IDE_Status]
 		test	al,STATUS_BSY
 		jnz	.Loop
 
@@ -1030,7 +1044,7 @@ proc IDE_WaitIntr
 		mov	ax,ERR_IDE_BadSector		; BadSector  error
 		jmp	short .Err
 
-.OK:		or	byte [ebx+offset IDE_Status],STATUS_BSY
+.OK:		or	byte [ebx+IDE_Status],STATUS_BSY
 		xor	ax,ax
 		jmp	short .Exit
 .GeneralErr:	mov	ax,ERR_IDE_General		; General error
@@ -1049,7 +1063,7 @@ proc IDE_Timeout
 		xor	ebx,ebx
 		mov	bl,[edi+tIDEdev.DriveNum]
 		shr	bl,1
-		mov	al,[ebx+offset IDE_Command]	; Last command
+		mov	al,[ebx+IDE_Command]		; Last command
 		cmp	al,CMD_IDLE
 		je	short .Exit
 		cmp	al,CMD_READ
@@ -1059,7 +1073,7 @@ proc IDE_Timeout
 
 		jmp	short .Exit
 .Other:		call	IDE_NeedReset
-		mov	byte [ebx+offset IDE_Status],0
+		mov	byte [ebx+IDE_Status],0
 .Exit:		mpop	ebx,eax
 		ret
 endp		;---------------------------------------------------------------

@@ -25,6 +25,8 @@ section .bss
 ?ProcListPtr	RESD	1			; Address of process list
 ?MaxNumOfProc	RESD	1			; Max. number of processes
 ?ProcessPool	RESB	tMasterPool_size	; Process master pool
+?ResCount	RESD	1			; Resource count
+
 
 ; --- Code ---
 
@@ -65,6 +67,19 @@ proc MT_NewProcess
 		mov	[esi+tProcDesc.PID],eax
 
 		mov	[esi+tProcDesc.Parent],edx
+		
+		; Initialize process resource master pool
+		lea	ebx,[esi+tProcDesc.ResMP]
+		mov	ecx,tProcResource_size
+		xor	dl,dl
+		call	K_PoolInit
+		jc	short .Exit
+		
+		; Allocate each registered resource descriptor
+		mov	ecx,[?ResCount]
+.AllocRes:	call	K_PoolAllocChunk
+		jc	short .Exit
+		loop	.AllocRes
 
 		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
 
@@ -89,8 +104,8 @@ endp		;---------------------------------------------------------------
 proc MT_ProcAttachThread
 		mov	esi,[ebx+tTCB.PCB]
 		or	esi,esi
-		jz	.Error
-		mEnqueue  dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB
+		jz	short .Error
+		mEnqueue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB
 		clc
 		ret
 
@@ -107,8 +122,8 @@ endp		;---------------------------------------------------------------
 proc MT_ProcDetachThread
 		mov	esi,[ebx+tTCB.PCB]
 		or	esi,esi
-		jz	.Error
-		mDequeue  dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB
+		jz	short .Error
+		mDequeue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB
 		clc
 		ret
 		
@@ -118,30 +133,22 @@ proc MT_ProcDetachThread
 endp		;---------------------------------------------------------------
 
 
+		; MT_RegisterProcResource - register a process resource.
+		; Input: EAX=resource class.
+		; Output: CF=0 - OK, EAX=resource ID;
+		;	  CF=1 - error, AX=error code.
+proc MT_RegisterProcResource
+		inc	dword [?ResCount]
+		mov	eax,[?ResCount]
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; MT_InitKernelProc - initialize process 0 (kernel).
-		; Input: ESI=address of process init structure.
+		; Input: none.
 		; Output: none.
 proc MT_InitKernelProc
-int3
-		mov	esi,ebx				; ESI=init structure addr.
-		mov	edi,[?ProcListPtr]		; EDI=process descriptor addr.
-		xor	eax,eax
-		mov	al,[esi+tProcInit.MaxFHandles]
-		mov	dl,al
-
-;		movzx	ecx,word [esi+tProcInit.EnvSize] 
-;		xor	dl,dl				; Allocate memory
-;		call	PG_AllocContBlock		; for environment
-;		jc	short .Exit
-;		call	BZero				; Clear it
-;		mov	[edi+tProcDesc.EnvAddr],ebx
-;		mov	[edi+tProcDesc.EnvSize],cx
-
-		mov	dword [edi+tProcDesc.EventHandler],KernelEventHandler
-		xor	eax,eax
-		mov	[edi+tProcDesc.Flags],al
-		mov	[edi+tProcDesc.Module],ax
-.Exit:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 

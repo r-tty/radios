@@ -293,7 +293,12 @@ proc Start
 		jne	short .CopySCfg
 		mov	[MBinfoAddr],ebx		; Store address of MB info
 		
-		call	ModPrepare			; Prepare modules
+		test	dword [ebx+tMBinfo.Flags],MB_INFO_MEMORY
+		jz	short .PrepMods
+		mov	eax,[ebx+tMBinfo.MemUpper]
+		mov	[UpperMemSizeKB],eax
+		
+.PrepMods:	call	ModPrepare			; Prepare modules
 		call	CopyMMap			; Copy BIOS MMap
 		
 .CopySCfg:	mov	esi,StartupCfg			; Move startup config

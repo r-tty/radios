@@ -7,9 +7,6 @@
 
 ; --- Imports ---
 
-library kernel.kheap
-extern KH_Alloc:near, KH_Free:near
-
 library kernel.misc
 extern BZero:near
 
@@ -79,7 +76,7 @@ proc IND_Grow
                 mul	ecx
 		mov	edx,ecx
                 mov	ecx,eax
-		call	EDRV_AllocData			; Allocate memory
+		call	AllocPhysMem			; Allocate memory
 		jc	short .Exit
 		mov	[CFS_IndTblAddr],ebx
 		call	BZero				; Clear indexes table

@@ -19,7 +19,6 @@
 %define	Init_MaxVirtMem		0		; Virtual memory size in KB
 %define	Init_NumIndexes		100		; Number of indexes
 %define	Init_MaxNumLoadedMods	10		; Maximum number of loaded mods
-%define	Init_BinFormats		2		; Number of binary format drivers
 
 %define	Init_NumKernFHandles	10		; Number of kernel file handles
 %define	Init_KernEnvSize	512		; Kernel environment size

@@ -347,8 +347,6 @@ endp		;---------------------------------------------------------------
 proc HandleControlChar
 		mpush	ebx,edx
 		mov	bh,[BDA(VidPageActive)]
-		cmp	al,ASC_BEL
-		je	.BEL
 		cmp	al,ASC_BS
 		je	.BS
 		cmp	al,ASC_HT
@@ -361,9 +359,6 @@ proc HandleControlChar
 		je	near .CR
 		clc
 		jmp	.Exit
-
-.BEL:		call	SpeakerBeep
-		jmp	.Done
 
 .BS:		call	GetCursorPos
 		or	dl,dl
@@ -420,12 +415,6 @@ proc HandleControlChar
 
 .Done:		stc
 .Exit:		mpop	edx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; SpeakerBeep - produce a short buzz.
-proc SpeakerBeep
 		ret
 endp		;---------------------------------------------------------------
 
@@ -523,10 +512,10 @@ endp		;---------------------------------------------------------------
 		; PrintNumDec - print 32-bit number in decimal form.
 		; Input: EAX=number.
 proc PrintNumDec
-%define	.numbuf	ebp-20
-		prologue 20
+		locauto	buf, 20
+		prologue
 		mpush	ebx,ecx,edx,esi
-		lea	esi,[.numbuf]
+		lea	esi,[%$buf]
 		mov	ebx,10
 		xor	ecx,ecx
 .DivLoop:	xor	edx,edx
@@ -542,7 +531,7 @@ proc PrintNumDec
 		mov	al,[esi]
 		call	PrintChar
 		loop	.PrintLoop
-		mpop	esi,edx,ecx,ebx
+		mpop	esi,edx,ecx,ebx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

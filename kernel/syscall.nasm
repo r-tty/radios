@@ -50,8 +50,8 @@ mSyscallTabEntry 0				; 03 (reserved)
 mSyscallTabEntry 0				; 04 (reserved)
 mSyscallTabEntry 0				; 05 (reserved)
 mSyscallTabEntry 0				; 06 (reserved)
-mSyscallTabEntry 0				; 07 __SysCpupageGet
-mSyscallTabEntry 0				; 08 __SysCpupageSet
+mSyscallTabEntry CPUpageGet			; 07 __SysCpupageGet
+mSyscallTabEntry CPUpageSet			; 08 __SysCpupageSet
 mSyscallTabEntry 0				; 09 (reserved)
 mSyscallTabEntry 0				; 0A (reserved)
 mSyscallTabEntry MsgSendv, 5			; 0B

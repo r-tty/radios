@@ -21,7 +21,7 @@ publicproc R0_Pid2PCBaddr, R0_IteratePgrp
 publicdata ?BootModsArr, ?KernPCB
 
 
-externproc TM_Main, TM_InitTimerPool, MapArea, DestroyThread
+externproc TM_Main, TM_InitTimers, MapArea, DestroyThread
 externdata ClockSyscallTable, TimerSyscallTable
 externdata SignalSyscallTable, ThreadSyscallTable, ConnectSyscallTable
 externdata ?ProcListPtr, ?MaxNumOfProc, ?ProcessPool
@@ -207,9 +207,9 @@ proc Start
 		mov	ebx,[%$bmd]
 		mov	[ebx+tModule.Size],ecx
 
-		; Initialize timer pool
+		; Initialize timer pool and hash table
 		mov	eax,MAXTIMERS
-		call	TM_InitTimerPool
+		call	TM_InitTimers
 		jc	.Err
 
 .Exit		mpop	esi,ebx

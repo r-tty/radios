@@ -26,6 +26,7 @@ struc tProcDesc
 .PgrpPrev	RESD	1			; Previous in process group
 .Flags		RESD	1			; PF_* flags
 .Lock		RESB	tSemaphore_size		; Descriptor lock semaphore
+.TimerList	RESD	1			; Head of timer list
 .SyncList	RESD	1			; Head of sync object list
 .ChanList	RESD	1			; Head of channel list
 .ConnList	RESD	1			; Head of connection list

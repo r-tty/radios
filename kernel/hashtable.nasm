@@ -11,8 +11,8 @@ module kernel.hashtable
 externproc PG_AllocContBlock
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 
-publicproc K_InitHashPool, K_CreateHashTab
-publicproc K_HashAdd, K_HashRelease, K_HashLookup
+exportproc K_InitHashPool, K_CreateHashTab
+exportproc K_HashAdd, K_HashRelease, K_HashLookup
 
 
 section .bss

@@ -5,17 +5,25 @@
 module tm.kern.timers
 
 %include "sys.ah"
+%include "errors.ah"
 %include "pool.ah"
+%include "hash.ah"
+%include "thread.ah"
 %include "time.ah"
 %include "tm/kern.ah"
+%include "tm/process.ah"
 
-publicproc TM_InitTimerPool
+publicproc TM_InitTimers
 publicdata TimerSyscallTable
 
-importproc K_PoolInit, K_SemV, K_SemP
+importproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk, K_PoolChunkNumber
+importproc K_CreateHashTab, K_FreeHashTab
+importproc K_HashLookup, K_HashAdd, K_HashRelease
+importproc K_SemV, K_SemP, BZero
 importdata ?TicksCounter
 
-struc tTimeout
+struc tTimerDesc
+.PCB		RESD	1
 .State		RESD	1
 .Ticks		RESD	1
 .Sem		RESB	tSemaphore
@@ -43,22 +51,24 @@ mSyscallTabEnt 0
 
 section .bss
 
+?TimerCount	RESD	1
 ?MaxTimers	RESD	1
 ?TimerPool	RESB	tMasterPool_size
 ?TimerListHead	RESD	1
+?TimerHashPtr	RESD	1
 
 ?TimeoutQue	RESD	1	; Address of timeout queue
-?TimeoutTrailer	RESB	tTimeout_size
-?TimeoutPool	RESB	tTimeout_size*MAX_TIMEOUTS
+?TimeoutTrailer	RESB	tTimerDesc_size
+?TimeoutPool	RESB	tTimerDesc_size*MAX_TIMEOUTS
 
 
 section .text
 
-		; Initialize timer pool.
+		; Initialize timer pool and hash table.
 		; Input: EAX=maximum number of timers.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc TM_InitTimerPool
+proc TM_InitTimers
 		mpush	ebx,ecx,edx
 		mov	[?MaxTimers],eax
 		xor	edx,edx
@@ -66,6 +76,10 @@ proc TM_InitTimerPool
 		mov	ebx,?TimerPool
 		mov	ecx,tITimer_size
 		call	K_PoolInit
+		jc	.Done
+		call	K_CreateHashTab
+		jc	.Done
+		mov	[?TimerHashPtr],esi
 .Done:		mpop	edx,ecx,ebx
 		ret
 endp		;---------------------------------------------------------------
@@ -78,9 +92,39 @@ endp		;---------------------------------------------------------------
 proc sys_TimerCreate
 		arg	id, event
 		prologue
-		MISSINGSYSCALL
-		epilogue
+
+		Cmp32	?TimerCount,?MaxTimers
+		jae	.Again
+
+		; Allocate a timer descriptor and zero it
+.AllocDesc:	mov	ebx,?TimerPool
+		call	K_PoolAllocChunk
+		jc	.Again
+		mov	ebx,esi
+		mov	ecx,tTimerDesc_size
+		call	BZero
+		inc	dword [?TimerCount]
+
+		; Timer is considered to be owned by a calling process
+		mCurrThread
+		mov	ebx,[eax+tTCB.PCB]
+		mov	[esi+tTimerDesc.PCB],ebx
+		mEnqueue dword [eax+tProcDesc.TimerList], Next, Prev, esi, tTimerDesc, ecx
+
+		; We use the chunk number as the identifier and PCB address
+		; as the key for hashing.
+		call	K_PoolChunkNumber
+		mov	ecx,eax
+		mov	edi,esi
+		mov	esi,[?TimerHashPtr]
+		call	K_HashAdd
+		mov	eax,ecx
+
+.Exit:		epilogue
 		ret
+
+.Again:		mov	eax,-EAGAIN
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -88,9 +132,23 @@ endp		;---------------------------------------------------------------
 proc sys_TimerDestroy
 		arg	id
 		prologue
-		MISSINGSYSCALL
-		epilogue
+
+		mCurrThread
+		mov	ebx,[eax+tTCB.PCB]
+		mov	eax,[%$id]
+		call	K_HashLookup
+		jc	.Invalid
+
+		mov	esi,[edi+tHashElem.Data]
+		call	K_PoolFreeChunk
+		dec	dword [?TimerCount]
+		call	K_HashRelease
+
+.Exit:		epilogue
 		ret
+
+.Invalid:	mov	eax,-EAGAIN
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -141,30 +199,30 @@ endp		;---------------------------------------------------------------
 
 ;------ Old timeout stuff-------------------------------------------------------
 
-		; MT_InitTimeout - initialize timeout pool.
+		; MT_InitTimerDesc - initialize timeout pool.
 		; Input: none.
 		; Output: none.
-proc MT_InitTimeout
+proc MT_InitTimerDesc
 		mov	ecx,MAX_TIMEOUTS
 		mov	ebx,?TimeoutPool
-.InitQLoop:	mov	byte [ebx+tTimeout.State],TM_ST_FREE
-		add	ebx,tTimeout_size
+.InitQLoop:	mov	byte [ebx+tTimerDesc.State],TM_ST_FREE
+		add	ebx,tTimerDesc_size
 		loop	.InitQLoop
 
 		mov	ebx,?TimeoutTrailer
-		mov	dword [ebx+tTimeout.Ticks],-1
-		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
+		mov	dword [ebx+tTimerDesc.Ticks],-1
+		mov	byte [ebx+tTimerDesc.State],TM_ST_ALLOC
 
 		; Enqueue trailer
-		mEnqueue dword [?TimeoutQue], Next, Prev, ebx, tTimeout, ecx
+		mEnqueue dword [?TimeoutQue], Next, Prev, ebx, tTimerDesc, ecx
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; MT_SetTimeout - set timeout.
+		; MT_SetTimerDesc - set timeout.
 		; Input: ECX=number of ticks.
 		; Output: none.
-proc MT_SetTimeout
+proc MT_SetTimerDesc
 		; We just hunt for free timeout slot.
 		; Goin' do it when interrupts are disabled.
 		pushfd
@@ -172,9 +230,9 @@ proc MT_SetTimeout
 		mov	eax,ecx
 		mov	ecx,MAX_TIMEOUTS
 		mov	ebx,?TimeoutPool
-.HuntLoop:	cmp	byte [ebx+tTimeout.State],TM_ST_FREE
+.HuntLoop:	cmp	byte [ebx+tTimerDesc.State],TM_ST_FREE
 		je	.Init
-		add	ebx,tTimeout_size
+		add	ebx,tTimerDesc_size
 		loop	.HuntLoop
 		jmp	.NoSpace
 
@@ -182,11 +240,11 @@ proc MT_SetTimeout
 		; Set its ticks value to current system ticks plus
 		; the amount of ticks it wants to wait; makes searching
 		; the timeout queue easier.
-.Init:		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
+.Init:		mov	byte [ebx+tTimerDesc.State],TM_ST_ALLOC
 		add	eax,[?TicksCounter]
-		mov	[ebx+tTimeout.Ticks],eax
+		mov	[ebx+tTimerDesc.Ticks],eax
 		push	ebx
-		lea	ebx,[ebx+tTimeout.Sem]
+		lea	ebx,[ebx+tTimerDesc.Sem]
 		mSemInit ebx
 		xor	eax,eax
 		mSemSetVal ebx
@@ -197,27 +255,27 @@ proc MT_SetTimeout
 		; This results in having timeout queue sorted
 		; by timeout ticks in ascending order.
 		mov	edx,[?TimeoutQue]
-.SearchLoop:	mov	eax,[ebx+tTimeout.Ticks]
-		cmp	[edx+tTimeout.Ticks],eax
+.SearchLoop:	mov	eax,[ebx+tTimerDesc.Ticks]
+		cmp	[edx+tTimerDesc.Ticks],eax
 		ja	.Insert
-		mov	edx,[edx+tTimeout.Next]
+		mov	edx,[edx+tTimerDesc.Next]
 		jmp	.SearchLoop
 
 		; Insert this one before the one found above.
-.Insert:	mov	[ebx+tTimeout.Next],edx
-		mov	eax,[edx+tTimeout.Prev]
-		mov	[ebx+tTimeout.Prev],eax
-		mov	[eax+tTimeout.Next],ebx
-		mov	[edx+tTimeout.Prev],ebx
+.Insert:	mov	[ebx+tTimerDesc.Next],edx
+		mov	eax,[edx+tTimerDesc.Prev]
+		mov	[ebx+tTimerDesc.Prev],eax
+		mov	[eax+tTimerDesc.Next],ebx
+		mov	[edx+tTimerDesc.Prev],ebx
 		cmp	edx,[?TimeoutQue]
 		jne	.1
-		mov	[edx+tTimeout.Prev],ebx
+		mov	[edx+tTimerDesc.Prev],ebx
 
 .1:		popfd
 		; Now actually wait for the timeout to elapse
 		; we have previously initialized the semaphore
 		; to non-singnaled state, so we block here
-		lea	eax,[ebx+tTimeout.Sem]
+		lea	eax,[ebx+tTimerDesc.Sem]
 		call	K_SemP
 		ret
 
@@ -237,12 +295,12 @@ proc MT_CheckTimeout
 		
 		mov	edx,[?TimeoutQue]
 .ChkLoop:	mov	eax,[?TicksCounter]
-		cmp	eax,[edx+tTimeout.Ticks]
+		cmp	eax,[edx+tTimerDesc.Ticks]
 		jb	.Done
-		lea	eax,[edx+tTimeout.Sem]
+		lea	eax,[edx+tTimerDesc.Sem]
 		call	K_SemV
-		mDequeue dword [?TimeoutQue], Next, Prev, edx, tTimeout, ebx
-		mov	edx,[edx+tTimeout.Next]
+		mDequeue dword [?TimeoutQue], Next, Prev, edx, tTimerDesc, ebx
+		mov	edx,[edx+tTimerDesc.Next]
 		jmp	.ChkLoop
 		
 .Done:		popfd

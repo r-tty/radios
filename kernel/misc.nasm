@@ -10,6 +10,7 @@ module kernel.misc
 %include "pool.ah"
 %include "cpu/paging.ah"
 
+publicproc sys_CPUpageGet, sys_CPUpageSet
 exportproc K_AllocateID, K_ReleaseID, K_InitIDbmap
 
 externproc MemSet, PG_AllocContBlock
@@ -115,5 +116,17 @@ proc K_ReleaseID
 		
 .Err:		mov	ax,ERR_BadID
 		stc
+		ret
+endp		;--------------------------------------------------------------
+
+
+		; Get the information from CPU page
+proc sys_CPUpageGet
+		ret
+endp		;--------------------------------------------------------------
+
+
+		; Set the information in the CPU page
+proc sys_CPUpageSet
 		ret
 endp		;--------------------------------------------------------------

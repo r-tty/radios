@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  rkdt.as - RadiOS Kernel Debugging Tool.
-;  Copyright (c) 1999,2000 RET & COM Research.
+;  x-ray.nasm - a simple kernel debugging tool.
+;  Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
 module rkdt
@@ -16,13 +16,7 @@ module rkdt
 %include "fs/cfs.ah"
 %include "memman.ah"
 
-global RKDT_CreateRDimage, RKDT_ErrorHandler, RKDT_Main
-
-library kernel
-extern DrvId_RD, DrvId_RFS
-
-library kernel.driver
-extern DRV_CallDriver:near, DRV_FindName:near
+global XR_ErrorHandler, XR_Main
 
 library kernel.paging
 extern PG_GetNumFreePages:near
@@ -37,8 +31,10 @@ library kernel.mt
 extern ?ProcListPtr
 extern MT_DumpReadyThreads:near, MT_PrintSchedStat:near
 
-library kernel.misc
+library kernel.strutil
 extern StrLComp:near, StrScan:near
+
+library kernel.time
 extern K_LDelayMs:near
 
 library kernel.kconio
@@ -54,9 +50,6 @@ extern SysReboot:near
 library hw.onboard
 extern TMR_CountCPUspeed:near
 
-library hw.serport
-extern SER_DumbTTY:near
-
 
 ; --- Macros ---
 
@@ -70,12 +63,8 @@ extern SER_DumbTTY:near
 
 section .data
 
-msg_Warranty	DB NL,"RadiOS is free software, covered by the GNU General Public License,",NL
-		DB "and you are welcome to change it and/or distribute copies of it",NL
-		DB "under certain conditions.",NL,0
-
-msg_Banner	DB NL,"RadiOS Kernel Debugging Tool, version 1.1",NL
-		DB "Copyright (C) 1999-2001 RET & COM Research.",NL,0
+msg_Banner	DB NL,"x-ray - RadiOS kernel debugging tool",NL
+		DB "Copyright (c) 2002 RET & COM Research.",NL,0
 
 msg_Help	DB NL,"Commands:",NL
 		DB "S                    - call monitor (g to go back)",NL
@@ -86,48 +75,19 @@ msg_Help	DB NL,"Commands:",NL
 		DB "memstat [pid]        - print memory allocation info",NL
 		DB "reboot               - reboot machine",NL,0
 		
-msg_DbgPrompt	DB NL,"RKDT>",0
+msg_DbgPrompt	DB NL,"x-ray>",0
 msg_Err		DB NL,NL,7,"ERROR ",0
 msg_Debugging	DB NL,"DEBUGGING: ",0
 msg_Rebooting	DB NL,"...rebooting...",0
 
 CommandTable	DB 1,"?"
-		DD	RKDT_Help
+		DD	XR_Help
 		DB 4,"help"
-		DD	RKDT_Help
+		DD	XR_Help
 		DB 1,"S"
-		DD	RKDT_CallMonitor
-		DB 2,"cf"
-		DD	0
-		DB 2,"rm"
-		DD	0
-		DB 2,"ls"
-		DD	0
-		DB 2,"vw"
-		DD	0
-		DB 2,"rm"
-		DD	0
-		DB 2,"mv"
-		DD	0
-		DB 2,"CM"
-		DD	0
-		DB 2,"CL"
-		DD	0
-		DB 2,"md"
-		DD	0
-		DB 2,"cd"
-		DD	0
-		DB 2,"rd"
-		DD	0
-
-		DB 5,"flush"
-		DD	0
-		DB 10,"testserial"
-		DD	SER_DumbTTY
+		DD	XR_CallMonitor
 		DB 7,"cpuinfo"
-		DD	RKDT_CPUinfo
-		DB 4,"exec"
-		DD	0
+		DD	XR_CPUinfo
 		DB 8,"allocmem"
 		DD	MM_DebugAllocMem
 		DB 7,"freemem"
@@ -136,15 +96,13 @@ CommandTable	DB 1,"?"
 		DD	MM_PrintStat
 		DB 8,"freemcbs"
 		DD	MM_DebugFreeMCBs
-		DB 6,"getiss"
-		DD	RKDT_GetISS
 
 		DB	4,"stat"
 		DD	MT_PrintSchedStat
 		DB	2,"ts"
 		DD	MT_DumpReadyThreads
 		DB	6,"reboot"
-		DD	RKDT_Reboot
+		DD	XR_Reboot
 		DB	0
 
 
@@ -159,10 +117,10 @@ SBuffer		RESB	80
 
 section .text
 
-		; RKDT_DispatchCmd - dispatch entered command.
+		; XR_DispatchCmd - dispatch entered command.
 		; Input: ESI=address of command line.
 		; Output: none.
-proc RKDT_DispatchCmd
+proc XR_DispatchCmd
 		push	edi
 		xor	ecx,ecx
 		mov	edi,CommandTable
@@ -186,10 +144,10 @@ proc RKDT_DispatchCmd
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_Main - entry point of RKDT.
+		; XR_Main - entry point of RKDT.
 		; Input: none.
 		; Output: never.
-proc RKDT_Main
+proc XR_Main
 		mPrintString msg_Banner
 .Loop:		mPrintString msg_DbgPrompt
 		mov	esi,SBuffer
@@ -198,35 +156,35 @@ proc RKDT_Main
 		and	ecx,0FFh
 		mov	byte [esi+ecx],0
 
-		call	RKDT_DispatchCmd
+		call	XR_DispatchCmd
 		jmp	.Loop
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_Help - print a short help message.
-proc RKDT_Help
+		; XR_Help - print a short help message.
+proc XR_Help
 		mPrintString msg_Help
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_CallMonitor - just int3.
-proc RKDT_CallMonitor
+		; XR_CallMonitor - just int3.
+proc XR_CallMonitor
 		int3
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_Reboot - reboot machine.
-proc RKDT_Reboot
+		; XR_Reboot - reboot machine.
+proc XR_Reboot
 		mPrintString msg_Rebooting
 		call	SysReboot
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_CPUinfo - print CPU information.
-proc RKDT_CPUinfo
+		; XR_CPUinfo - print CPU information.
+proc XR_CPUinfo
 		mpush	ecx,esi
 
 		add	esi,ecx
@@ -248,9 +206,9 @@ proc RKDT_CPUinfo
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_GetISS - get and print driver initialization status
+		; XR_GetISS - get and print driver initialization status
 		;		string.
-proc RKDT_GetISS
+proc XR_GetISS
 		mpush	ecx,esi
 
 		add	esi,ecx
@@ -260,12 +218,12 @@ proc RKDT_GetISS
 
 		call	DRV_FindName
 		jnc	short .GotDID
-		call	RKDT_ErrorHandler
+		call	XR_ErrorHandler
 		jmp	short .Exit
 
 .GotDID:	mCallDriverCtrl eax,DRVCTL_GetInitStatStr
 		jnc	short .Print
-                call	RKDT_ErrorHandler
+                call	XR_ErrorHandler
 		jmp	short .Exit
 
 .Print:		mPrintChar NL
@@ -276,10 +234,10 @@ proc RKDT_GetISS
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_ErrorHandler - error handler.
+		; XR_ErrorHandler - error handler.
 		; Input: AX=error code.
 		; Output: none.
-proc RKDT_ErrorHandler
+proc XR_ErrorHandler
 		mPrintString msg_Err
 		call	PrintWordHex
 		xor	eax,eax

@@ -21,6 +21,7 @@ BinFmtRDOFF: instance tBinFmtFunctions
 	member(GetModSize)
 	member(Relocate)
 	member(GetArchMember)
+	member(GetSectInfo)
 iend
 
 string RDOFFsignature,	{"RDOFF2"}
@@ -61,6 +62,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc CheckSig
 		mpush	ecx,esi,edi
+		xor	al,al
 		mov	edi,ebx
 		mov	esi,RDOFFsignature
 		mov	ecx,RDOFFsignature_size
@@ -93,7 +95,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, ECX=size;
 		;	  CF=1 - error, AX=error code.
 proc GetModSize
-		cmp	byte [ebx+tRDMmaster.AVersion],2	; RDOFF version
+		cmp	byte [ebx+tRDMmaster.AVersion],'2'	; RDOFF version
 		jne	.Err
 		mov	ecx,[ebx+tRDMmaster.ModLen]
 		add	ecx,tRDMmaster.HdrLen
@@ -144,3 +146,22 @@ proc GetArchMember
 		stc
 		jmp	.Done
 endp		;---------------------------------------------------------------
+
+
+		; GetSectInfo - get addresses of the module sections.
+		; Input: EBX=module address.
+		; Output: CF=0 - OK:
+		;		EBX=code section address,
+		;		EDX=data section address,
+		;		EDI=BSS section address,
+		;		ECX=module image size (i.e. all sections);
+		;	  CF=1 - error, AX=error code.
+proc GetSectInfo
+		push	esi
+		mov	esi,ebx
+		mov	ebx,[esi+tRDMmaster.HdrLen]
+		mov	ecx,[esi+tRDMmaster.ModLen]
+		sub	ecx,ebx
+		pop	esi
+		ret
+endp		;--------------------------------------------------------------

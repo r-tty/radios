@@ -8,6 +8,7 @@ module $init
 %include "sys.ah"
 %include "errors.ah"
 %include "initdefs.ah"
+%include "module.ah"
 %include "boot/bootdefs.ah"
 %include "boot/mb_info.ah"
 %include "asciictl.ah"
@@ -51,6 +52,7 @@ extern MT_CreateThread, MT_ThreadExec
 
 library kernel.module
 extern MOD_InitMem, MOD_RegisterFormat, MOD_InitKernelMod, MOD_Insert
+extern ?ModListHead
 
 library kernel.x86.basedev
 extern PIC_Init, PIC_SetIRQmask, PIC_EnbIRQ
@@ -76,8 +78,9 @@ MsgFatalErr	DB	NL,"Fatal error. System will be halted.",0
 MsgDetected	DB	"Detected ",0
 MsgKBRAM	DB	" KB RAM",NL,0
 MsgX86family	DB	"86 family CPU, speed index=",0
-MsgInitBootMods	DB	"Linking system modules:",NL,0
-MsgProgress	DB	"System startup in progress..."
+MsgInitBootMods	DB	"Linking system modules:",NL
+		DB	"Module                  Type    Size    .text      .data      .bss",NL,0
+MsgProgress	DB	"System startup in progress...",NL,0
 
 ; --- Variables ---
 
@@ -93,6 +96,10 @@ InitStringBuf	RESB	256
 section .text
 
 %include "buildxdt.nasm"
+
+%ifdef VERBOSE
+%include "verbose.nasm"
+%endif
 
 
 ; --- Initialization procedures ---
@@ -120,17 +127,25 @@ proc INIT_BootModules
 	%endif
 		mov	edi,[BootModulesListAddr]
 		xor	esi,esi
-.Loop:		mov	ebx,[edi+tModList.Start]
+.LoadLoop:	mov	ebx,[edi+tModList.Start]
 		mov	edx,[edi+tModList.End]
 		mov	esi,[edi+tModList.CmdLine]
 		push	edi
 		call	MOD_Insert
-		jc	.1
-	%ifdef VERBOSE
-	%endif
-.1:		pop	edi
+		pop	edi
 		add	edi,byte tModList_size
-		loop	.Loop
+		loop	.LoadLoop
+		
+		; Now we have a module list. Walk through it and create
+		; processes/shared libraries.
+		mov	edi,[?ModListHead]
+.ModInitLoop:	or	edi,edi
+		jz	.Exit
+	%ifdef VERBOSE
+		call	INIT_PrintModInfo
+	%endif
+		mov	edi,[edi+tModuleDesc.Next]
+		jmp	.ModInitLoop
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
@@ -272,6 +287,9 @@ proc Start
 		jc	near .Monitor
 
 		; Initialize kernel module
+		mov	ebx,[KernelCodeSect]
+		mov	edx,[KernelDataSect]
+		mov	edi,[KernelBSSsect]
 		call	MOD_InitKernelMod
 		jc	near .Monitor
 		
@@ -282,7 +300,7 @@ proc Start
 		; Initialize memory management
 		call	MM_Init
 		jc	near FatalError
-
+		
 		; Initialize boot-time modules
 		call	INIT_BootModules
 		jc	near FatalError

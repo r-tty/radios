@@ -7,9 +7,9 @@
 include ../build/header.mk
 
 # Change variables here
-TARGET_LIB = monitor.rdl
 OBJS = monitor.rdm opcodes.rdm operands.rdm
-modnamesfile = $(OUTPATH)/.monitor-modules
+staticlib = monitor.rdl
+modnamesfile = .monitor-modules
 
 # This part shouldn't be changed
 include ../build/common.mk

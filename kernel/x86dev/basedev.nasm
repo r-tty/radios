@@ -9,6 +9,7 @@ module kernel.x86.basedev
 %include "errors.ah"
 %include "biosdata.ah"
 %include "hw/ports.ah"
+%include "x86/tss.ah"
 
 %include "8042.nasm"
 %include "cmosrtc.nasm"
@@ -25,6 +26,12 @@ publicdata ?CPUinfo
 
 
 ; --- Imports ---
+
+library kernel
+extern KernTSS
+
+library kernel.syscall
+extern K_Sysenter
 
 library kernel.misc
 extern K_TTDelay, K_LDelayMs
@@ -115,17 +122,39 @@ proc CPU_Init
 		; Get family/model/stepping/features
 .CheckFeat:	mov	eax,1
 		cpuid                                          
-		mov	[?CPUinfo+tCPUinfo.Features],ebx
-		mov	[?CPUinfo+tCPUinfo.Features+4],edx
-		mov	[?CPUinfo+tCPUinfo.Features+8],ecx
+		mov	[?CPUinfo+tCPUinfo.Features],edx
 
 		shr	eax,8			; isolate family
 		and	eax,0Fh
 		mov	[?CPUinfo+tCPUinfo.Family],al
 		
+		call	CPU_InitMSR
+		
 .OK:		clc
 		epilogue
 		ret
+endp		;---------------------------------------------------------------
+
+
+		; CPU_InitMSR - init MSRs on processors that support them.
+		; Input: none.
+		; Output: none.
+proc CPU_InitMSR
+		test	dword [?CPUinfo+tCPUinfo.Features],CPUCAP_MSR
+		jz	.Exit
+		test	dword [?CPUinfo+tCPUinfo.Features],CPUCAP_SEP
+		jz	.Exit
+		mov	eax,KERNELCODE
+		xor	edx,edx
+		mov	ecx,CPU_MSR_SYSENTER_CS
+		wrmsr
+		mov	eax,K_Sysenter
+		mov	ecx,CPU_MSR_SYSENTER_EIP
+		wrmsr
+		mov	eax,[KernTSS+tTSS.ESP0]
+		mov	ecx,CPU_MSR_SYSENTER_ESP
+		wrmsr
+.Exit:		ret
 endp		;---------------------------------------------------------------
 
 

@@ -4,18 +4,18 @@
 
 module $syscall.drvhlp
 
-global DHlp_Suspend:export proc
-global DHlp_Resume:export proc
+exportproc dhr_Suspend
+exportproc dhr_Resume
 
 section .text
 
-		; DHlp_Suspend - suspend driver thread.
-proc DHlp_Suspend
+		; dhr_Suspend - suspend driver thread.
+proc dhr_Suspend
 		retf
 endp		;---------------------------------------------------------------
 
 
-		; DHlp_Resume - resume driver thread.
-proc DHlp_Resume
+		; dhr_Resume - resume driver thread.
+proc dhr_Resume
 		retf
 endp		;---------------------------------------------------------------

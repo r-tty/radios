@@ -6,25 +6,27 @@
 SUFFIXES = .nasm .rdm .rdx .bin
 
 # Rule to make RDM from NASM source
-%.rdm : %.nasm
+%.rdm : %.nasm macros/sugar.ah
 	@echo Assembling $<
-	@$(AS) $(ASFLAGS) $(OUTPATH)/$@ $<
+	@$(AS) $(ASFLAGS) -o $(OBJPATH)/$@ $<
 	
 # Rule to compile C source
 %.rdm : %.c
 	@echo Compiling $<
-	@$(CC) -o $(OUPATH)/$@ $<
+	@$(CC) -o $(OBJPATH)/$@ $<
 	
 # Paths
 RADIOSPATH = @@RADIOSPATH@@
 INCLPATH = @@INCLPATH@@
-OUTPATH = @@OBJPATH@@
+OBJPATH = @@OBJPATH@@
+LIBPATH = @@LIBPATH@@
 INSTALLPATH = @@INSTALLPATH@@
 
 vpath %.ah $(INCLPATH)
-vpath %.rdm $(OUTPATH)
-vpath %.rdl $(OUTPATH)
-vpath %.bin $(OUTPATH)
+vpath %.bin $(OBJPATH)
+vpath %.rdm $(OBJPATH)
+vpath %.rdl $(LIBPATH)
+vpath %.rdo $(LIBPATH)
 
 # Commands
 AS = nasm -w+orphan-labels -f rdf
@@ -34,13 +36,13 @@ AR = rdflib
 
 # Command flags
 ifdef DEBUG
- ASFLAGS = -DDEBUG -I$(INCLPATH)/ -Pmacros/sugar.ah -s -o
+ ASFLAGS = -DDEBUG -I$(INCLPATH)/ -Pmacros/sugar.ah -s
  CFLAGS = -N -I$(INCLPATH)/c -c -DDEBUG -g
 else
- ASFLAGS = -I$(INCLPATH)/ -Pmacros/sugar.ah -s -o
+ ASFLAGS = -I$(INCLPATH)/ -Pmacros/sugar.ah -s
  CFLAGS = -N -I$(INCLPATH)/c -c
 endif
-LDFLAGS = -2 -xe -s -j $(OUTPATH)/ -L $(OUTPATH)/
+LDFLAGS = -2 -xe -s -j $(OBJPATH)/ -L $(LIBPATH)/
 
 # Command to generate dependencies file
-GENDEPS = ndepgen -M -pmacros/sugar.ah
+GENDEPS = ndepgen -M

@@ -2,7 +2,7 @@
 ;  module.ah - common module definitions.
 ;-------------------------------------------------------------------------------
 
-%define MODNAMEMAXLEN 38
+%define MODNAMEMAXLEN 22
 
 ; This optional header may be present in the module file. It gives the
 ; kernel information about module type, CPU type, required OS version etc.
@@ -24,11 +24,15 @@ struc tModuleDesc
 .Type		RESB	1			; Module type
 .Flags		RESB	1			; Misc flags
 .BinFmt		RESD	1			; BinFmt dispatch table addr.
-.Sections	RESD	1			; MCB of first section
+.Size		RESD	1			; Size of module image
+.CodeSect	RESD	1			; Code section address
+.DataSect	RESD	1			; Data section address
+.BSS_Sect	RESD	1			; BSS section address
 .StackSize	RESD	1			; Stack size
 .EntryPoint	RESD	1			; Start entry point
 .Next		RESD	1
 .Prev		RESD	1
+.Pad		RESD	1
 endstruc
 
 %define	MODTYPE_EXECUTABLE	0
@@ -43,6 +47,7 @@ struc tBinFmtFunctions
 .GetModSize	RESD	1
 .Relocate	RESD	1
 .GetArchMember	RESD	1
+.GetSectInfo	RESD	1
 endstruc
 
 ; The macro for calling these functions safely

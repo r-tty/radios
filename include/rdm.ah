@@ -8,10 +8,10 @@
 
 ; --- "Master" header ---
 struc tRDMmaster
-.Signature	RESB	5
-.AVersion	RESB	1
-.ModLen		RESD	1
-.HdrLen		RESD	1
+.Signature	RESB	5			; "RDOFF"
+.AVersion	RESB	1			; '2' (or 2 for big-endian)
+.ModLen		RESD	1			; Module length
+.HdrLen		RESD	1			; Header length
 endstruc
 
 ; --- Record types ---

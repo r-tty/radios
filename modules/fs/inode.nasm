@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  inode.as - inode routines.
+;  inode.nasm - inode routines.
 ;  Copyright (c) 1999-2001 RET & COM Research.
 ;  This file is based on the Linux Kernel (c) 1991-2001 Linus Torvalds.
 ;*******************************************************************************
@@ -8,8 +8,6 @@ module cfs.inode
 
 %include "sys.ah"
 %include "errors.ah"
-%include "driver.ah"
-%include "drvctrl.ah"
 %include "pool.ah"
 %include "wait.ah"
 %include "thread.ah"

@@ -1,8 +1,8 @@
 ;-------------------------------------------------------------------------------
-;  master.as -  basic file system functionality:
-;		creating master disk block (boot sector and config sector);
-;		creating directory blocks (empty);
-;		creating block allocation maps (BAMs);
+;  master.nasm - basic file system functionality:
+;		  creating master disk block (boot sector and config sector);
+;		  creating directory blocks (empty);
+;		  creating block allocation maps (BAMs);
 ;
 ;  Warning: error handling not implemented;
 ;	    not tested with huge BAMs.

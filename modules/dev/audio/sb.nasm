@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  sb.as - Sound Blaster compatible DSP driver.
+;  sb.nasm - Sound Blaster compatible DSP driver.
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 

@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  rfs.asm - RadiOS File System driver.
+;  rfs.nasm - RadiOS File System driver.
 ;  Based upon David Lindauer's OS-32 file system (c) 1995 David Lindauer.
 ;  RadiOS version (c) 1999,2000 Yuri Zaporogets.
 ;*******************************************************************************
@@ -108,11 +108,11 @@ NumBAMsTblAddr	RESD	1		; Address of "number of BAMs" table
 
 section .text
 
-%include "master.as"
-%include "files.as"
-%include "dirs.as"
-%include "dirops.as"
-%include "index.as"
+%include "master.nasm"
+%include "files.nasm"
+%include "dirs.nasm"
+%include "dirops.nasm"
+%include "index.nasm"
 
 
 		; RFS_Init - initialize RFS driver.

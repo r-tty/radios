@@ -5,7 +5,7 @@
 ; --- Kernel errors ---
 
 ; Common errors
-%define	ERR_BadFunNum			0100h
+%define	ERR_BadSyscall			0100h
 %define	ERR_UnknEv			0101h
 %define	ERR_NoGlobDesc			0102h
 %define	ERR_InvGlobDesc			0103h

@@ -8,7 +8,11 @@ include ../../build/header.mk
 
 # Change variables here
 OBJS = mt.rdm
-modnamesfile = $(OUTPATH)/.mt-modules
+modnamesfile = .mt-modules
 
 # This part shouldn't be changed
 include ../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

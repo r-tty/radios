@@ -10,5 +10,5 @@ section .data
 
 Msg_RVersion	DB	"RadiOS ", 0xE6, "kernel, version ",0
 Msg_RCopyright	DB	" (C) 1998-2002 RET & COM Research.",10,10,0
-RadiOS_Version	DB	"0.0.1-mk2"
+RadiOS_Version	DB	"0.0.1-mk3"
 		DB	0

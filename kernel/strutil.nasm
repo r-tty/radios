@@ -1,13 +1,17 @@
-;-------------------------------------------------------------------------------
-; string.nasm - ASCIIZ string manipulation routines.
-;-------------------------------------------------------------------------------
+;
+; strutil.nasm - ASCIIZ string routines.
+;
+
+module kernel.strutil
 
 ; --- Exports ---
 
-global StrLen, StrEnd, StrMove, StrCopy, StrAppend
-global StrComp, StrLComp, StrLIComp
-global StrScan, StrRScan, StrPos
-global StrLower, StrUpper
+publicproc StrLen, StrEnd, StrMove, StrCopy, StrAppend
+publicproc StrComp, StrLComp, StrLIComp
+publicproc StrScan, StrRScan, StrPos
+publicproc StrLower, StrUpper
+
+; --- Code ---
 
 section .text
 

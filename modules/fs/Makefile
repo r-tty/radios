@@ -9,7 +9,7 @@ include ../etc/header.mk
 # Change variables here
 export TARGET_LIB = fs.rdl
 OBJS = buffer.rdm inode.rdm open.rdm rw.rdm path.rdm cfs_init.rdm
-modnamesfile = $(OUTPATH)/.fs-modules
+modnamesfile = .fs-modules
 SUBDIRS = vstafs tarfs
 
 # Make in subdirs

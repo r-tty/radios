@@ -4,6 +4,7 @@
 RADIOSPATH=`pwd`
 INCLPATH=$RADIOSPATH/include
 OBJPATH=$RADIOSPATH/build/obj
+LIBPATH=$RADIOSPATH/build/obj
 INSTALLPATH=/boot/RadiOS
 
 # Prompt and read string from the console
@@ -24,15 +25,18 @@ CheckTools() {
 ReadData RADIOSPATH $RADIOSPATH "Source root directory"
 ReadData INCLPATH $INCLPATH "RadiOS headers directory"
 ReadData OBJPATH $OBJPATH "Object directory"
+ReadData LIBPATH $LIBPATH "Library directory"
 ReadData INSTALLPATH $INSTALLPATH "Install directory"
 
 awk -v RADIOSPATH=$RADIOSPATH \
     -v INCLPATH=$INCLPATH \
     -v OBJPATH=$OBJPATH \
+    -v LIBPATH=$LIBPATH \
     -v INSTALLPATH=$INSTALLPATH '
 /@@RADIOSPATH@@/	{ print $1,$2,RADIOSPATH; next }
 /@@INCLPATH@@/		{ print $1,$2,INCLPATH; next }
 /@@OBJPATH@@/		{ print $1,$2,OBJPATH; next }
+/@@LIBPATH@@/		{ print $1,$2,LIBPATH; next }
 /@@INSTALLPATH@@/	{ print $1,$2,INSTALLPATH; next }
 			{ print $0 }
 ' build/header.mk.in > build/header.mk

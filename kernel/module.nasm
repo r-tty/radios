@@ -18,6 +18,7 @@ publicproc MOD_InitMem, MOD_InitKernelMod
 publicproc MOD_RegisterFormat, MOD_UnregisterFormat
 publicproc MOD_Insert, MOD_Remove
 publicproc MOD_GetType, MOD_GetIDbyName
+publicdata ?ModListHead
 
 
 ; --- Imports ---
@@ -25,6 +26,9 @@ publicproc MOD_GetType, MOD_GetIDbyName
 library kernel.pool
 extern K_PoolInit
 extern K_PoolAllocChunk, K_PoolFreeChunk
+
+library kernel.strutil
+extern StrCopy, StrScan, StrEnd
 
 ; --- Definitions ---
 
@@ -69,16 +73,21 @@ endp		;---------------------------------------------------------------
 
 
 		; MOD_InitKernelMod - initialize kernel module (module 0).
-		; Input: none.
+		; Input: EBX=kernel .text section address,
+		;	 EDX=kernel .data section address,
+		;	 EDI=kernel .bss section address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_InitKernelMod
 		mpush	esi,edi
+		push	ebx
 		mov	ebx,?ModulePool
 		call	K_PoolAllocChunk
+		pop	ebx
 		jc	short .Exit
-		mov	eax,100000h
-		mov	[esi+tModuleDesc.Sections],eax
+		mov	[esi+tModuleDesc.CodeSect],ebx
+		mov	[esi+tModuleDesc.DataSect],edx
+		mov	[esi+tModuleDesc.BSS_Sect],edi
 		mov	dword [esi+tModuleDesc.StackSize],8000h
 		mov	byte [esi+tModuleDesc.Type],MODTYPE_LIBRARY
 		lea	edi,[esi+tModuleDesc.ModName]
@@ -149,26 +158,78 @@ proc MOD_Insert
 		mpush	ebx,ecx,edx
 		
 		mov	[%$imgstart],ebx
-		mov	[%$imgend],ebx
+		mov	[%$imgend],edx
 		mov	[%$cmdline],esi
 		call	MOD_CheckSignature
-		jc	.Exit
+		jc	near .Exit
 		or	al,al					; Single module?
 		jz	.Single
 
 		; Otherwise, it should be an archive. EBX now addresses a
 		; header of the first member.
-		callsafe dword [edx+tBinFmtFunctions.GetArchMember]
-		jc	.Exit
+.LibLoop: 	callsafe dword [edx+tBinFmtFunctions.GetArchMember]
+		jc	near .Exit
 		callsafe dword [edx+tBinFmtFunctions.GetModSize]
-		jc	.Exit
+		jc	near .Exit
+		lea	eax,[ebx+ecx]
+		cmp	eax,[%$imgend]
+		ja	near .Exit
+		push	edx
+		mov	edx,eax
+		call	MOD_Insert
+		pop	edx
+		jc	near .Exit
+		add	ebx,ecx
+		jmp	.LibLoop
 		
 .Single:	mov	ebx,?ModulePool
 		call	K_PoolAllocChunk
-		jc	short .Exit
-		mov	edi,esi
+		jc	near .Exit
 
-		mov	[edi+tModuleDesc.BinFmt],edx		; Binary format 
+		; Trim absolute path off module name
+		mov	edi,[%$cmdline]
+		cmp	byte [edi],'/'
+		jne	.CopyModName
+		mov	al,' '
+		call	StrScan
+		or	edi,edi
+		jz	.NoArgs
+		mov	byte [edi],0
+		jmp	.TrimPathLoop
+.NoArgs:	mov	edi,[%$cmdline]
+		call	StrEnd
+.TrimPathLoop:	dec	edi
+		cmp	byte [edi],'/'
+		jne	.TrimPathLoop
+		inc	edi
+		mov	[%$cmdline],edi
+		
+		; Copy module name (argv[0])
+.CopyModName:	push	esi
+		lea	esi,[esi+tModuleDesc.ModName]
+		xchg	esi,edi
+		call	StrCopy
+		pop	esi
+		
+		; Fill in section information
+		mov	ecx,edx
+		mov	ebx,[%$imgstart]
+		call	dword [edx+tBinFmtFunctions.GetSectInfo]
+		jc	.Exit
+		mov	[esi+tModuleDesc.Size],ecx
+		mov	[esi+tModuleDesc.CodeSect],ebx
+		mov	[esi+tModuleDesc.DataSect],edx
+		mov	[esi+tModuleDesc.BSS_Sect],edi
+		mov	edx,ecx
+		
+		; Fill in some other fields of module descriptor
+		mov	[esi+tModuleDesc.BinFmt],edx		; Binary format
+		
+		; Put module descriptor into a linked list
+		mEnqueue dword [?ModListHead], Next, Prev, esi, tModuleDesc
+		
+		mov	edi,esi
+		clc
 
 .Exit:		mpop	edx,ecx,ebx
 		epilogue
@@ -183,9 +244,10 @@ endp		;---------------------------------------------------------------
 proc MOD_Remove
 		mpush	ebx,edx,esi
 		mov	edx,[edi+tModuleDesc.BinFmt]
-		;callsafe dword [edx+tBinFmtFunctions.FreeSections]	; Unload module
-		jc	.Exit					; and free its
-		mov	esi,edi					; structure
+		;callsafe dword [edx+tBinFmtFunctions.FreeSections]
+		;jc	.Exit
+		mDequeue dword [?ModListHead], Next, Prev, edi, tModuleDesc
+		mov	esi,edi
 		call	K_PoolFreeChunk
 .Exit:		mpop	esi,edx,ebx
 		ret

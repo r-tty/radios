@@ -10,12 +10,12 @@
 ; --- Global descriptors ---
 %define	KERNELCODE	8
 %define	KERNELDATA	0x10
-%define	ABSDS		0x18
-%define	HMADATA		0x20
+%define	USERCODE	0x18
+%define	USERDATA	0x20
 %define	DRVCODE		0x28
 %define	DRVDATA		0x30
-%define	USERCODE	0x38
-%define	USERDATA	0x40
+%define	ABSDS		0x38
+%define	HMADATA		0x40
 %define	KTSS		0x48
 %define	DTSS		0x50
 %define	KLDT		0x58

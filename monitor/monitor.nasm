@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  monitor.as - RadiOS kernel monitor/debugger.
+;  monitor.nasm - RadiOS kernel monitor/debugger.
 ;  Ported from David Lindauer's OS-32 by Yuri Zaporogets.
 ;*******************************************************************************
 
@@ -63,7 +63,6 @@ OldPgExc	RESD	1
 
 section .text
 
-%include "string.nasm"
 %include "util.nasm"
 %include "cons.nasm"
 %include "dump.nasm"

@@ -1,7 +1,7 @@
 ;*******************************************************************************
-;  ext2fs.as - ext2 file system driver.
-;  Based upon Linux and TINOS ext2fs stuff.
-;  RadiOS version (c) 2000 Yuri Zaporogets.
+;  ext2fs.nasm - ext2 file system driver.
+;  Copyright (c) 2002 RET & COM Research.
+;  This file is based upon Linux and TINOS ext2fs stuff.
 ;*******************************************************************************
 
 module fs.ext2

@@ -70,6 +70,11 @@
 %define CPUCAP_FXSR	1000000h
 
 
+; --- MSRs (Model Specific Registers) ---
+%define	CPU_MSR_SYSENTER_CS	0174h
+%define	CPU_MSR_SYSENTER_ESP	0175h
+%define	CPU_MSR_SYSENTER_EIP	0176h
+
 ; --- CPU vendors ---
 %define CPU_VENDOR_INTEL	0
 %define CPU_VENDOR_CYRIX	1

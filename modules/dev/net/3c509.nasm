@@ -1,6 +1,5 @@
 ;*******************************************************************************
-;  3c509.as - 3Com Etherlink III (3c509) driver.
-;  Copyright (c) 1992 Crynwr Software.
+;  3c509.nasm - 3Com Etherlink III (3c509) driver.
 ;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 

@@ -34,7 +34,7 @@ extraoperand	RESB	tOperand_size
 source		RESB	tOperand_size
 dest		RESB	tOperand_size
 mnemonic	RESB	10
-strict		RESB	1
+strictop	RESB	1
 
 
 ; --- Data ---
@@ -212,14 +212,14 @@ endp
 
 
 proc SetSeg
-		mov	byte [strict],FALSE
+		mov	byte [strictop],FALSE
 		mov	byte [edi+tOperand.CODE],OM_SEGMENT
 		mov	[edi+tOperand.THEREG],al
 		ret
 endp		;---------------------------------------------------------------
 
 proc SetReg
-		mov	byte [strict],FALSE
+		mov	byte [strictop],FALSE
 		mov	byte [edi+tOperand.CODE],OM_REG
 		mov	[edi+tOperand.THEREG],al
 		ret
@@ -236,7 +236,7 @@ proc ReadRM
 		cmp	ch,MOD_REG
 		jnz	short notregreg
 		mov	byte [edi + tOperand.CODE],OM_REG
-		mov	byte [strict],FALSE
+		mov	byte [strictop],FALSE
 		sub	eax,eax
 		pop	ecx
 		ret
@@ -473,7 +473,7 @@ endp
 
 ;/* op 9 - interrupts */
 proc op9
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	sub	eax,eax
 	mov	al,3
 	bt	dword [gs:esi],0
@@ -487,7 +487,7 @@ op9int3:
 endp
 ;/* op 10, short relative branch */
 proc op10
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	byte [edi + tOperand.CODE],OM_SHORTBRANCH
 	movsx	eax,byte [gs:esi+1]
 	inc	eax
@@ -620,7 +620,7 @@ noswap:
 endp
 ;/* op 17, far return */
 proc op17
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	byte [edi + tOperand.CODE],OM_RETURN
 	btr	word [edi + tOperand.FLAGS],OMF_ADR32
 	btr	word [edi + tOperand.FLAGS],OMF_OP32
@@ -633,7 +633,7 @@ endp
 ;/* op 18, far branch/call */
 proc op18
 	sub	ecx,ecx
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	byte [edi + tOperand.CODE],OM_FARBRANCH
 	btr	word [edi + tOperand.FLAGS],OMF_BYTE
 	bt	word [edi + tOperand.FLAGS],OMF_OP32
@@ -671,7 +671,7 @@ proc op19
 endp
 ;/* op 20 - long branch */
 proc op20
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	sub	ecx,ecx
 	mov	byte [edi + tOperand.CODE],OM_LONGBRANCH
 	bt	word [edi + tOperand.FLAGS],OMF_OP32
@@ -756,7 +756,7 @@ op24done:
 endp
 ;/* op 25 - immediate byte or word */
 proc op25
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	bts	word [edi + tOperand.FLAGS],OMF_BYTE
 	bt	dword [gs:esi],1
 	jc	short op25fin
@@ -770,7 +770,7 @@ op25fin:
 endp
 ;/* op 26, immediate 2byte,byte */
 proc op26
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	btr	word [edi + tOperand.FLAGS],OMF_BYTE
 	btr	word [edi + tOperand.FLAGS],OMF_OP32
 	push	esi
@@ -922,7 +922,7 @@ proc op34
 	jnz	short op34twobyte
 	test	dword [segs],SG_OPSIZ
 	jnz	short op34fin
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 op34fin:
 	call	ReadRM
 	ret
@@ -933,7 +933,7 @@ op34twobyte:
 endp
 ;/* op 35 -floating RM */
 proc op35
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	ax,[gs:esi]
 	and	ax,0d0deh
 	cmp	ax,0d0deh
@@ -959,7 +959,7 @@ endp
 ;/* op 36 - sized floating RM */
 proc op36
 	mov	cx,SZ_QWORD
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	ax,[gs:esi]
 	and	ax,2807h
 	cmp	ax,2807h
@@ -975,7 +975,7 @@ endp
 ;/* OP 37 - floating MATH */
 proc op37
 	sub	edx,edx
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	mov	ax,[gs:esi]
 	and	ax,0c0deh
 	cmp	ax,0c0deh
@@ -1020,7 +1020,7 @@ op37done:
 	ret
 endp
 proc op38
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	bts	word [edi + tOperand.FLAGS],OMF_FSTTAB
 	call	ReadRM
 	ret
@@ -1054,17 +1054,19 @@ proc op41
 	mov	eax,ecx
 	ret
 endp
-;/* op 42 mixed regrm with reg dest & strictness enforced */
+
+; op 42: mixed regrm with reg dest & strictness enforced
 proc op42
 	mov	[dest2],edi
 	mov	[source2],ebx
 	btr	word [edi + tOperand.FLAGS],OMF_BYTE
 	btr	word [ebx + tOperand.FLAGS],OMF_OP32
-	mov	byte [strict],FALSE
+	mov	byte [strictop],FALSE
 	call	RegRM
 	ret
 endp
-; op 43 CWDE
+
+; op 43: CWDE
 proc op43
 		bt	word [edi + tOperand.FLAGS],OMF_OP32
 		jnc	short .NoChange
@@ -1120,7 +1122,7 @@ proc DispatchOperands
 		mov	esi,[ebx + tOpCode.MNEMONIC]
 		call	strcpy
 		pop	esi
-		mov	byte [strict],TRUE
+		mov	byte [strictop],TRUE
 		movzx	eax,byte [ebx + tOpCode.OPERANDS]
 		push	eax
 		mov	edi,dest
@@ -1168,45 +1170,43 @@ nodispatch:	pop	ebx
 endp		;---------------------------------------------------------------
 
 proc DoStrict
-	push	edi
-	push	esi
-	test	byte [strict],-1
-	jz	short floatstrict
-	bt	word [edi + tOperand.FLAGS],OMF_BYTE
-	jnc	chkdwptr
-	mov	edi,esi
-	mov	esi,byptr
-	jmp	short strictend
-chkdwptr:
-	bt	word [edi + tOperand.FLAGS],OMF_OP32
-	mov	edi,esi
-	jnc	mkwordptr
-	mov	esi,dwptr
-	jmp	short strictend
-mkwordptr:
-	mov	esi,woptr
-  	jmp	short strictend
-floatstrict:
-	bt	word [edi + tOperand.FLAGS],OMF_FSTTAB
-	jnc	strictdone
-	movzx	eax,word [edi + tOperand.FLAGS]
-	shr	eax,OM_FTAB
-	and	eax,7
-	mov	edi,esi
-	push	edi
-	mov	esi,sts
-	mov	esi,[esi + eax * 4]
-	call	strcat
-	pop	edi
-		jmp	short strictdone
-strictend:
-	call	strcat
-strictdone:
-	pop	esi
-	call	strlen
-	add	esi,eax
-	pop	edi
-	ret
+		mpush	edi,esi
+		test	byte [strictop],-1
+		jz	short .Float
+		bt	word [edi + tOperand.FLAGS],OMF_BYTE
+		jnc	.chkdwptr
+		mov	edi,esi
+		mov	esi,byptr
+		jmp	short .end
+		
+.chkdwptr:	bt	word [edi + tOperand.FLAGS],OMF_OP32
+		mov	edi,esi
+		jnc	.mkwordptr
+		mov	esi,dwptr
+		jmp	short .end
+
+.mkwordptr:	mov	esi,woptr
+  		jmp	short .end
+		
+.Float:		bt	word [edi + tOperand.FLAGS],OMF_FSTTAB
+		jnc	.Done
+		movzx	eax,word [edi + tOperand.FLAGS]
+		shr	eax,OM_FTAB
+		and	eax,7
+		mov	edi,esi
+		push	edi
+		mov	esi,sts
+		mov	esi,[esi + eax * 4]
+		call	strcat
+		pop	edi
+		jmp	short .Done
+		
+.end:		call	strcat
+.Done:		pop	esi
+		call	strlen
+		add	esi,eax
+		pop	edi
+		ret
 endp
 
 proc TabTo

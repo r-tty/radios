@@ -130,24 +130,24 @@ proc DoRelocation
 		jae	.Loop
 		or	al,al
 		je	.RelocInCode
-		mov	ebx,[DataSectAddr]
+		mov	ebx,[KernelDataSect]
 		jmp	.1
-.RelocInCode:	mov	ebx,[CodeSectAddr]
+.RelocInCode:	mov	ebx,[KernelCodeSect]
 .1:		add	ebx,[ebp+tRDMreloc.Ofs]
-		mov	eax,[CodeSectAddr]
+		mov	eax,[KernelCodeSect]
 		mov	cx,[ebp+tRDMreloc.RefSeg]
 		or	cx,cx
 		jz	.DoReloc
-		mov	eax,[DataSectAddr]
+		mov	eax,[KernelDataSect]
 		dec	cx
 		jz	.DoReloc
-		mov	eax,[BSSsectAddr]
+		mov	eax,[KernelBSSsect]
 .DoReloc:       add	[ebx],eax
 		jmp	.Loop
 
 .AllocBSS:	mov	eax,[ebp+tRDM_BSS.Amount]		; Clear BSS area
 		mov	ecx,eax
-		mov	ebx,[BSSsectAddr]
+		mov	ebx,[KernelBSSsect]
 		add	eax,ebx
 		mov	[DrvHlpTableAddr],eax
 		mov	edi,ebx
@@ -197,24 +197,24 @@ proc BuildSysCallTable
 		repe	cmpsb
 		jnz	.Loop				; No, continue
 		mov	eax,[ebp+tRDMexport.Ofs]	; Else count physical
-		add	eax,[CodeSectAddr]		; address of kernel
+		add	eax,[KernelCodeSect]		; address of kernel
 		mov	[KernelEntryPoint],eax		; entry point
 		jmp	.Loop
 
 .IsSysCall:	cmp	byte [ebp+tRDMexport.Seg],0	; Only code section
 		jne	.Loop				; entries can be syscalls
-		mov	eax,[CodeSectAddr]		; Add address of
+		mov	eax,[KernelCodeSect]		; Add address of
 		add	[ebp+tRDMexport.Ofs],eax	; code section
 
-		sub	byte [ebp+tRDMexport.RecLen],5	; Adjust record length
-		sub	ecx,byte 11			; because function name
+		sub	byte [ebp+tRDMexport.RecLen],4	; Adjust record length
+		sub	ecx,byte 10			; because function name
 		mov	esi,ebp				; will be cut
-		mov	edi,[SysCallRecAddr]		; (5 bytes is a length
-		push	ecx				; of 'xxxx_' and 6 bytes
+		mov	edi,[SysCallRecAddr]		; (4 bytes is a length
+		push	ecx				; of 'xxx_' and 6 bytes
 		movsd					; flags+seg+offset occupy)
 		movsd					; Copy type,reclen,flags, and offset
-		add	esi,byte 5			; Copy function name
-		rep	movsb				; without 'xxxx_'
+		add	esi,byte 4			; Copy function name
+		rep	movsb				; without 'xxx_'
 		mov	byte [edi],0
 		pop	ecx
 		add	ecx,byte 8			; +type, reclen, flags, seg
@@ -333,8 +333,7 @@ proc Start
 		mov	edi,eax
 		call	PrintDwordHex
 
-		mov	[CodeSectAddr],edi
-		mov	[KernelCodeStart],edi
+		mov	[KernelCodeSect],edi
 		mov	ecx,[ebp+tRDMsegHeader.Length]	; Load code section
 		call	ImgRead
 
@@ -352,12 +351,12 @@ proc Start
 		mov	eax,edi				; and data address
 		call	PrintDwordHex
 
-		mov	[DataSectAddr],edi
+		mov	[KernelDataSect],edi
 		mov	ecx,[ebp+tRDMsegHeader.Length]	; Load data section
 		call	ImgRead
 
 		add	edi,ecx				; Count BSS address
-		mov	[BSSsectAddr],edi
+		mov	[KernelBSSsect],edi
 		mov	esi,MsgBSS
 		call	PrintStr
 		mov	eax,edi
@@ -429,10 +428,6 @@ RImgStart		RESD	1	; Address of loaded RDM image
 RImgSize		RESD	1	; RDM image size
 RImgCurrPos		RESD	1	; Current read position in RDM image
 RImgHeaderLen		RESD	1	; Length of RDM image header
-
-CodeSectAddr		RESD	1	; Code section address
-DataSectAddr		RESD	1	; Data section address
-BSSsectAddr		RESD	1	; BSS section address
 
 KernelEntryPoint	RESD	1	; Start entry
 

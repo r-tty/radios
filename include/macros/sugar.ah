@@ -69,6 +69,7 @@
 		pop	ebp
 %endmacro
 
+
 ; *** For declaring many GLOBAL procedures at the same time ***
 %macro publicproc 1-*
 %rep %0
@@ -84,6 +85,24 @@
 %rotate 1
 %endrep
 %endmacro
+
+
+; *** For exporting many GLOBAL procedures at the same time ***
+%macro exportproc 1-*
+%rep %0
+    [GLOBAL %1 %+ :export proc]
+    %rotate 1
+%endrep
+%endmacro
+
+; *** For exporting many GLOBAL data at the same time ***
+%macro exportdata 1-*
+%rep %0
+[GLOBAL %1 %+ :export data]
+%rotate 1
+%endrep
+%endmacro
+
 
 ; *** This macro simplifies using automatic 4-byte variables ***
 %macro locals 1-*

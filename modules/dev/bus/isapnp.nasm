@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  isapnp.as - ISA Plug and Play devices control routines.
+;  isapnp.nasm - ISA Plug and Play devices control routines.
 ;  (c) 2000 RET & COM Research.
 ;*******************************************************************************
 

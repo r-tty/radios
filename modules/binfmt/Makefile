@@ -8,7 +8,11 @@ include ../../build/header.mk
 
 # Change variables here
 OBJS = coff.rdm elf.rdm
-modnamesfile = $(OUTPATH)/.binfmt-modules
+modnamesfile = .binfmt-modules
 
 # This part shouldn't be changed
 include ../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

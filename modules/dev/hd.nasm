@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  hd.as - device independend part of any hard disk driver.
+;  hd.nasm - device independend part of any hard disk driver.
 ;-------------------------------------------------------------------------------
 
 module hw.genhd

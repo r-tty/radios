@@ -10,13 +10,12 @@ include ../build/header.mk
 CONV = rdf2bin -o 0x100000 -b 4096 -p 1
 
 # Change variables here
-LOADER_BIN = $(OUTPATH)/loader.bin
+LOADER_BIN = $(OBJPATH)/loader.bin
 OBJS = loader.rdm
-modnamesfile = $(OUTPATH)/.loader-modules
 
 # Additional rule
 loader.bin: .depend $(OBJS)
-	@$(CONV) $(OUTPATH)/$(OBJS) $(LOADER_BIN)
+	@$(CONV) $(OBJPATH)/$(OBJS) $(LOADER_BIN)
 
 # This part shouldn't be changed
 include ../build/common.mk

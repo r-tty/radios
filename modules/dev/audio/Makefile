@@ -8,7 +8,7 @@ include ../../../etc/header.mk
 
 # Change variables here
 OBJS = sb.rdm
-modnamesfile = $(OUTPATH)/.audio-modules
+modnamesfile = .audio-modules
 
 # This part shouldn't be changed
 include ../../../etc/common.mk

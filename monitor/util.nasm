@@ -10,6 +10,11 @@ global ValByteDec, ValDwordDec, ValDwordHex
 global CharToUpper, CharToLower
 
 
+; --- Imports ---
+extern StrLen
+
+
+
 ; --- Procedures ---
 
 section .text

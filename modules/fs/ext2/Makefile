@@ -9,7 +9,7 @@ include ../../etc/header.mk
 # Change variables here
 TARGET_LIBS=NONE
 OBJS = ext2fs.rdm
-modnamesfile = $(OUTPATH)/.ext2fs-modules
+modnamesfile = .ext2fs-modules
 
 # This part shouldn't be changed
 include ../../etc/common.mk

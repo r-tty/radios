@@ -8,7 +8,7 @@ include ../../etc/header.mk
 
 # Change variables here
 OBJS = rfs.rdm
-modnamesfile = $(OUTPATH)/.rfs-modules
+modnamesfile = .rfs-modules
 
 # This part shouldn't be changed
 include ../../etc/common.mk

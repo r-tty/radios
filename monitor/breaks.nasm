@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  breaks.asm - handle breakpoint setting, resetting, enabling commands.
+;  breaks.nasm - handle breakpoint setting, resetting, enabling commands.
 ;-------------------------------------------------------------------------------
 
 

@@ -9,7 +9,11 @@ include ../../build/header.mk
 # Change variables here
 TARGET_LIB = NONE
 OBJS = syscall.rdm
-modnamesfile = $(OUTPATH)/.syscall-modules
+modnamesfile = .syscall-modules
 
 # This part shouldn't be changed
 include ../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  ide.as - IDE driver.
+;  ide.nasm - IDE driver.
 ;  Ported from Adri Koppes's Minix AT HD driver.
 ;  RadiOS version 1.0 by Yuri Zaporogets.
 ;*******************************************************************************

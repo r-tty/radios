@@ -11,7 +11,7 @@ export TARGET_LIB = hardware.rdl
 OBJS = vtx.rdm keyboard.rdm \
        hd.rdm ide.rdm fd.rdm \
        serport.rdm parport.rdm bios32.rdm vgagr.rdm mouse.rdm
-modnamesfile = $(OUTPATH)/.hardware-modules
+modnamesfile = .hardware-modules
 SUBDIRS = bus net audio
 
 # Make in subdirs

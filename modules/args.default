@@ -1,0 +1,2 @@
+ramdisk: image=rdimage
+rfs: root=hd1.10

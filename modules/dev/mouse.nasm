@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  mouse.as - RadiOS serial mouse driver.
-;  Copyright (c) 2000 RET & COM Research.
+;  mouse.nasm - PS/2 mouse driver.
+;  Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
 module hw.mouse

@@ -1,8 +1,12 @@
 
 #--- Common part of all makefiles ----------------------------------------------
 
+ifndef staticlib
+staticlib = NONE
+endif
+
 ifndef TARGET_LIB
-TARGET_LIB = NONE
+TARGET_LIB = $(staticlib)
 endif
 
 srcfiles = $(patsubst %.rdm,%.nasm,$(OBJS))
@@ -21,19 +25,21 @@ all: $(depfile) $(TARGET_LIB)
 ifdef deps_generated
 
 ifneq ($(TARGET_LIB), NONE)
+ifdef modnamesfile
 
-$(TARGET_LIB): $(OBJS) $(modnamesfile) $(LIB_UPDATE)
-	@if [ -f $(OUTPATH)/$(TARGET_LIB) ] ; then \
+$(TARGET_LIB): $(OBJS) $(OBJPATH)/$(modnamesfile) $(LIB_UPDATE)
+	@if [ -f $(LIBPATH)/$(TARGET_LIB) ] ; then \
 	  echo "Updating library $(TARGET_LIB)" ; \
 	 else \
 	  echo "Creating library $(TARGET_LIB)" ; \
-	  $(AR) c $(OUTPATH)/$(TARGET_LIB) ; fi
-	@cd $(OUTPATH); awk '/^[^#]/ { printf("$(AR) r $(TARGET_LIB) %s %s\n", $$2, $$1) }' $(modnamesfile) | sh
+	  $(AR) c $(LIBPATH)/$(TARGET_LIB) ; fi
+	@cd $(OBJPATH); awk '/^[^#]/ { printf("$(AR) r $(LIBPATH)/$(TARGET_LIB) %s %s\n", $$2, $$1) }' $(modnamesfile) | sh
 
-$(modnamesfile): $(srcfiles)
-	@echo "# Each line is just a pair of filename and module name" >$(modnamesfile)
-	@grep -H '^module' $(srcfiles) | sed 's/\.nasm:module/\.rdm/' >>$(modnamesfile)
+$(OBJPATH)/$(modnamesfile): $(srcfiles)
+	@echo "# Each line is just a pair of filename and module name" >$(OBJPATH)/$(modnamesfile)
+	@grep -H '^module' $(srcfiles) | sed 's/\.nasm:module/\.rdm/' >>$(OBJPATH)/$(modnamesfile)
 
+endif
 else
 $(TARGET_LIB): $(OBJS)
 endif
@@ -54,5 +60,6 @@ dep:
 
 clean:
 	@echo "Cleaning up..."
-	@cd $(OUTPATH) && rm -f $(OBJS) $(TARGET_LIB) $(modnamesfile)
+	@cd $(OBJPATH) && rm -f $(OBJS) $(modnamesfile)
+	@cd $(LIBPATH) && rm -f $(TARGET_LIB)
 	@rm -f $(depfile) 

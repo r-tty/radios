@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  files.asm - RFS file operations.
+;  files.nasm - RFS file operations.
 ;  WARNING: Not tested for LARGE files.
 ;           Limits files to about 24 MB.
 ;-------------------------------------------------------------------------------

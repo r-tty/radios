@@ -7,10 +7,10 @@
 include ../build/header.mk
 
 # Change variables here
-export TARGET_LIB = kernel.rdl
 OBJS = kernel.rdm module.rdm rdoff.rdm initmem.rdm pages.rdm \
-       pool.rdm sema.rdm setjmp.rdm time.rdm version.rdm
-modnamesfile = $(OUTPATH)/.kernel-modules
+       pool.rdm sema.rdm setjmp.rdm time.rdm strutil.rdm version.rdm
+modnamesfile = .kernel-modules
+staticlib = kernel.rdl
 SUBDIRS = mm mt syscall ipc x86dev
 
 # Make in subdirs

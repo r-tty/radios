@@ -370,9 +370,8 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 		; Note: assumes that interrupts are disabled.
 proc MT_ThreadKillCurrent
-
 		; This should never happen
-		
+		ret
 endp		;---------------------------------------------------------------
 
 

@@ -8,7 +8,11 @@ include ../../build/header.mk
 
 # Change variables here
 OBJS = basedev.rdm
-modnamesfile = $(OUTPATH)/.x86dev-modules
+modnamesfile = .x86dev-modules
 
 # This part shouldn't be changed
 include ../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

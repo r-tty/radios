@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  path.as - path to inode conversion routines, etc.
+;  path.nasm - path to inode conversion routines, etc.
 ;-------------------------------------------------------------------------------
 
 module cfs.path

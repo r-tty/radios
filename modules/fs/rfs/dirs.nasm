@@ -1,7 +1,7 @@
 ;*******************************************************************************
-;  dirs.asm - RFS directory manipulations;
-;	      the B-TREE directory structure handling;
-;	      handles inserts, deletes, balancing.
+;  dirs.nasm - RFS directory manipulations;
+;		the B-TREE directory structure handling;
+;		handles inserts, deletes, balancing.
 ;*******************************************************************************
 
 

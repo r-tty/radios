@@ -6,14 +6,33 @@
 # Standard header
 include ../build/header.mk
 
-# Change variables here
-export TARGET_LIB = startup.rdl
-OBJS = ramdisk.rdm
-modnamesfile = $(OUTPATH)/.startup-modules
-SUBDIRS = binfmt
+# File that contains command line arguments for boot modules
+ARGSFILE = args.default
 
-# Make in subdirs
+# Change variables here
+staticlib = startup.rdl
+SUBDIRS = libc taskman binfmt
+
+# Common rules
 include ../build/subdirs.mk
 
-# This part shouldn't be changed
-include ../build/common.mk
+# Individual rules
+all: $(staticlib)
+
+$(staticlib): $(ARGSFILE)
+	@rm -f $(LIBPATH)/$(staticlib)
+	@echo "Creating boot-time modules library..."
+	$(AR) c $(LIBPATH)/$(staticlib)
+#	$(AR) a $(LIBPATH)/$(staticlib) $(ARGSFILE) .args
+
+clean:
+	@echo "Cleaning up..."
+	@cd $(LIBPATH) && rm -f $(staticlib)
+
+dep:
+
+# Install modules
+install: $(staticlib)
+	@echo -n "Installing modules... "
+	@gzip -c $(LIBPATH)/$(staticlib) >$(INSTALLPATH)/$(staticlib).gz
+	@echo "done."

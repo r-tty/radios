@@ -19,7 +19,7 @@ L4-KA RC2	Uwe Dannowski <uwe.dannowski@ira.uka.de> and others
 C stuff is compiled with LCC 4.1, NASM module was provided by
 John Coffman <johninsd@san.rr.com>. Thanks John and all LCC authors.
 
-Finally, warm greetings to Jussi Callioniemi <jukal@cyberian.org>.
+Finally, warm greetings to Jussi Kallioniemi <jukal@cyberian.org>.
 Without his kind help I definitely wouldn't compose these bits in N years.
 
 -- 

@@ -8,7 +8,11 @@ include ../../build/header.mk
 
 # Change variables here
 OBJS = memman.rdm mm_debug.rdm
-modnamesfile = $(OUTPATH)/.memman-modules
+modnamesfile = .memman-modules
 
 # This part shouldn't be changed
 include ../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

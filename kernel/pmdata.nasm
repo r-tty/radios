@@ -72,22 +72,22 @@ GDT	istruc tDesc					; NULL descriptor
 	 at tDesc.BaseHHB,	DB	0
 	iend
 
-	istruc tDesc					; Absolute data
+	istruc tDesc					; User code
 	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
 	 at tDesc.BaseHLB,	DB	0
-	 at tDesc.AR,		DB	ARsegment+ARpresent+AR_DS_RW+AR_DPL0
-	 at tDesc.LimHiMode,	DB	0Fh+AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.AR,		DB	ARsegment+AR_CS_X+AR_DPL3
+	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	80h		; 80000000h (2G)
 	iend
 
-	istruc tDesc					; HMA
+	istruc tDesc					; User data
 	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
-	 at tDesc.BaseHLB,	DB	10h
-	 at tDesc.AR,		DB	ARsegment+ARpresent+AR_DS_RW+AR_DPL0
-	 at tDesc.LimHiMode,	DB	0
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.BaseHLB,	DB	0
+	 at tDesc.AR,		DB	ARsegment+AR_DS_RW+AR_DPL3
+	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	80h
 	iend
 
 	istruc tDesc					; Drivers code
@@ -108,22 +108,22 @@ GDT	istruc tDesc					; NULL descriptor
 	 at tDesc.BaseHHB,	DB	1
 	iend
 
-	istruc tDesc					; User code
+	istruc tDesc					; Absolute data
 	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
 	 at tDesc.BaseHLB,	DB	0
-	 at tDesc.AR,		DB	ARsegment+AR_CS_X+AR_DPL3
-	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	80h		; 80000000h (2G)
+	 at tDesc.AR,		DB	ARsegment+ARpresent+AR_DS_RW+AR_DPL0
+	 at tDesc.LimHiMode,	DB	0Fh+AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	0
 	iend
 
-	istruc tDesc					; User data
+	istruc tDesc					; HMA
 	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
-	 at tDesc.BaseHLB,	DB	0
-	 at tDesc.AR,		DB	ARsegment+AR_DS_RW+AR_DPL3
-	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	80h
+	 at tDesc.BaseHLB,	DB	10h
+	 at tDesc.AR,		DB	ARsegment+ARpresent+AR_DS_RW+AR_DPL0
+	 at tDesc.LimHiMode,	DB	0
+	 at tDesc.BaseHHB,	DB	0
 	iend
 
 	istruc tDesc					; Kernel TSS

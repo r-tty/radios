@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  parport.as - parallel port driver.
+;  parport.nasm - parallel port driver.
 ;  Based upon Linux code of parport_pc.c.
 ;*******************************************************************************
 

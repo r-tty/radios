@@ -4,11 +4,15 @@
 ################################################################################
 
 # Standard header
-include ../../etc/header.mk
+include ../../../build/header.mk
 
 # Change variables here
-OBJS = tarfs.rdm
-modnamesfile = $(OUTPATH)/.tarfs-modules
+OBJS = stdio.rdm
+modnamesfile = .libc_stdio-modules
 
 # This part shouldn't be changed
-include ../../etc/common.mk
+include ../../../build/common.mk
+
+# Individual dependencies
+all-dep: dep
+all-clean: clean

@@ -8,7 +8,7 @@ include ../../../etc/header.mk
 
 # Change variables here
 OBJS = 3c509.rdm ne2k-pci.rdm
-modnamesfile = $(OUTPATH)/.network-modules
+modnamesfile = .network-modules
 
 # This part shouldn't be changed
 include ../../../etc/common.mk

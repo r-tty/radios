@@ -1,7 +1,6 @@
 ;*******************************************************************************
-;  rw.as - read/write routines.
+;  rw.nasm - read/write routines.
 ;  Copyright (c) 1999-2001 RET & COM Research.
-;  This file is based on the Linux Kernel (c) 1991-2001 Linus Torvalds.
 ;*******************************************************************************
 
 module cfs.rw

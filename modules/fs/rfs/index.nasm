@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  index.asm - disk index read/write routines.
+;  index.nasm - disk index read/write routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Interface procedures ---

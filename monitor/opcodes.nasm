@@ -236,6 +236,18 @@ opn_fisub	DB	"fisub",0
 opn_fidiv	DB	"fidiv",0
 opn_fist	DB	"fist",0
 
+opn_invlpg	DB	"invlpg",0
+opn_invd	DB	"invd",0
+opn_wbinvd	DB	"wbinvd",0
+opn_rdtsc	DB	"rdtsc",0
+opn_rdmsr	DB	"rdmsr",0
+opn_wrmsr	DB	"wrmsr",0
+opn_cpuid	DB	"cpuid",0
+opn_sysenter	DB	"sysenter",0
+opn_sysexit	DB	"sysexit",0
+opn_syscall	DB	"syscall",0
+opn_sysret	DB	"sysret",0
+
 
 ; Table of opcodes.  Each entry consists of a mask value,
 ; a comparison value, a pointer to the name, the addressing mode to be
@@ -1698,14 +1710,77 @@ base386		DW	0feh
 		DD	opn_verw
 		DB	 OP_NOSTRICTRM
 		DB	2
+		
+		; Some Pentium (and better) instructions
+		DW	0FFh
+		DW	30h
+		DD	opn_wrmsr
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	32h
+		DD	opn_rdmsr
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	31h
+		DD	opn_rdtsc
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	0A2h
+		DD	opn_cpuid
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	01h
+		DD	opn_invlpg
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	08h
+		DD	opn_invd
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	09h
+		DD	opn_wbinvd
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	34h
+		DD	opn_sysenter
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	36h
+		DD	opn_sysexit
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	05h
+		DD	opn_syscall
+		DB	 OP_CODEONLY
+		DB	1
+		
+		DW	0FFh
+		DW	07h
+		DD	opn_sysret
+		DB	 OP_CODEONLY
+		DB	1
 
-		DW	0
-		DW	0
-		DD	0
-		DW	0
-		DW	0
+		DD	0,0,0				; Table end marker
 
-;/* single byte commands */
+;--- single byte commands ---
 floats		DW	0ffffh
 		DW	0d0d9h
 		DD	opn_fnop
@@ -1917,7 +1992,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 1, RM 3 */
+;  --- Group 1, RM 3 ---
 		DW	0f8ffh
 		DW	0c0d9h
 		DD	opn_fld
@@ -1943,7 +2018,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 1, RM0-2 */
+;  --- Group 1, RM0-2 ---
 		DW	038ffh
 		DW	020d9h
 		DD	opn_fldenv
@@ -1969,7 +2044,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 5, RM3 */
+;  --- Group 5, RM3 ---
 		DW	0f8ffh
 		DW	0c0ddh
 		DD	opn_ffree
@@ -2002,7 +2077,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 5, RM0-2 */
+;  --- Group 5, RM0-2 ---
 		DW	038ffh
 		DW	020ddh
 		DD	opn_frstor
@@ -2022,7 +2097,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 3 & 7*/
+;  --- Group 3 & 7---
 		DW	0c0fbh
 		DW	0c0dbh
 		DD	opn_esc
@@ -2042,7 +2117,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Group 7 */
+;  --- Group 7 ---
 		DW	038ffh
 		DW	020dfh
 		DD	opn_fbld
@@ -2068,7 +2143,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Math, group 0,2,4,6 special RM 3*/
+;  --- Math, group 0,2,4,6 special RM 3---
 		DW	0c0ffh
 		DW	0c0dah
 		DD	opn_esc
@@ -2112,7 +2187,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Math, other */
+;  --- Math, other ---
 		DW	038fbh
 		DW	0d8h
 		DD	opn_fadd
@@ -2186,8 +2261,8 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* groups 1, 3, 5, 7 */
-;  /* keep the follwing from going into error, RM3 */
+;  --- groups 1, 3, 5, 7 ---
+;  --- keep the follwing from going into error, RM3 ---
 		DW	0e0f9h
 		DW	0c0d9h
 		DD	opn_esc
@@ -2231,7 +2306,7 @@ floats		DW	0ffffh
 		DB	2
 
 
-;  /* Catch-all */
+;  --- Catch-all ---
 		DW	0f8h
 		DW	0d8h
 		DD	opn_esc

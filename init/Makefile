@@ -6,10 +6,12 @@
 # Standard header
 include ../build/header.mk
 
+# Verbose initialization
+ASFLAGS += -DVERBOSE
+
 # Change variables here
-TARGET_LIB=NONE
 OBJS = init.rdm
-modnamesfile = $(OUTPATH)/.init-modules
+modnamesfile = .init-modules
 
 # This part shouldn't be changed
 include ../build/common.mk

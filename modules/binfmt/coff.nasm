@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  coff.as - COFF binary format support.
+;  coff.nasm - COFF binary format support.
 ;  Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 

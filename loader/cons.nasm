@@ -39,16 +39,17 @@ KBlayoutShift	DB	0,27,"!@#$%^&*()_+",8,9			; 00h - 0Fh
 
 ; Service entries
 
-%define	NUMSERVENTRIES	8
+%define	NUMSERVENTRIES	9
 
 FunctionTable	DD	PrintCharRawTTY		; 0
 		DD	PrintChar		; 1
 		DD	PrintStr		; 2
-		DD	PrintDwordHex		; 3
-		DD	PrintWordHex		; 4
-		DD	PrintByteHex		; 5
-		DD	PrintNumDec		; 6
-		DD	GetChar			; 7
+		DD	PrintStrPad		; 3
+		DD	PrintDwordHex		; 4
+		DD	PrintWordHex		; 5
+		DD	PrintByteHex		; 6
+		DD	PrintNumDec		; 7
+		DD	GetChar			; 8
 		
 
 ; --- Variables ---
@@ -438,17 +439,44 @@ proc PrintChar
 endp		;---------------------------------------------------------------
 
 
-		; PrintStr - print ASCIIZ string.
+		; PrintStr - print an ASCIIZ string.
 		; Input: ESI=pointer to string.
 proc PrintStr
 		push	esi
 		cld
-.Loop:		lodsb
+.LoopStr:	lodsb
 		or	al,al
 		jz	.Done
 		call	PrintChar
-		jmp	.Loop
+		jmp	.LoopStr
+		
 .Done:		pop	esi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PrintStrPad - print ASCIIZ string with optional padding.
+		; Input: ESI=pointer to string,
+		;	 CL=number of spaces to pad (or 0).
+proc PrintStrPad
+		mpush	ecx,esi
+		xor	ch,ch
+		cld
+.LoopStr:	lodsb
+		or	al,al
+		jz	.LoopPad
+		call	PrintChar
+		inc	ch
+		jmp	.LoopStr
+		
+.LoopPad:	cmp	ch,cl
+		jae	.Done
+		mov	al,' '
+		call	PrintChar
+		inc	ch
+		jmp	.LoopPad
+		
+.Done:		mpop	esi,ecx
 		ret
 endp		;---------------------------------------------------------------
 

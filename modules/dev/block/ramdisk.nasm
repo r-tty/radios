@@ -8,6 +8,16 @@ module ramdisk
 %include "sys.ah"
 %include "errors.ah"
 
+%macro mSysenter 0-1
+%if %0 != 0
+	mov	eax,%1			; Syscall number
+%endif
+	mov	ecx,esp			; Our stack pointer
+	mov	edx,%1			; Return address
+	sysenter
+%%1:
+%endmacro
+
 library kernel
 extern AllocPhysMem
 

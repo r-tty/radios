@@ -1,0 +1,27 @@
+;-------------------------------------------------------------------------------
+;  initdefs.ah - initializer definitions and macros.
+;-------------------------------------------------------------------------------
+
+; --- General equates ---
+
+BIOSDAsize		EQU	1000h		; Size of BIOS data area
+InitESP			EQU	7FFF0h		; Initial stack pointer value
+
+
+
+; --- Macro definitions ---
+
+	; Far jump from 32-bit segment
+macro	PMJF32	SegDescName,FarAddr32
+	DB	0EAh
+	DD	offset large FarAddr32
+	DW	(tZGDT).SegDescName
+endm
+
+	; Far jump from 16-bit segment
+macro	PMJF16	SegDescName,FarAddr16
+	DB	0EAh
+	DW	offset small FarAddr16
+	DW	(tZGDT).SegDescName
+endm
+

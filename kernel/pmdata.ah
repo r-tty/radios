@@ -1,0 +1,81 @@
+;-------------------------------------------------------------------------------
+;  pmdata.ah - definitions for protected mode.
+;-------------------------------------------------------------------------------
+
+; --- Flags masks ---
+FLAG_CF		EQU	1
+FLAG_PF		EQU	4
+FLAG_AF		EQU	10h
+FLAG_ZF		EQU	40h
+FLAG_SF		EQU	80h
+FLAG_TF		EQU	100h
+FLAG_IF		EQU	200h
+FLAG_DF		EQU	400h
+FLAG_OF		EQU	800h
+FLAG_IOPL	EQU	3000h
+FLAG_NT		EQU	4000h
+FLAG_RF		EQU	10000h
+FLAG_VM		EQU	20000h
+FLAG_AC		EQU	40000h
+
+
+; --- Common system definitions ---
+KrnlMemSz	EQU	100000h			; Size of kernel segment
+P32MemSz	EQU	4096*100000h		; Size of all linear memory
+
+
+; --- Descriptor structure  and size ---
+struc	tDescriptor
+ Limit15	DW	0
+ Base15		DW	0
+ Base23		DB	0
+ AR		DB	0
+ Lim19GDXU	DB	0
+ Base31		DB	0
+ends	tDescriptor
+
+DescSz		EQU	size tDescriptor
+
+
+; --- Access rights ---
+
+; Single-bit ARs
+ARaccessed	EQU	1
+ARsegment	EQU	10h
+ARpresent	EQU	80h
+
+; DPLs
+AR_DPL0		EQU	0
+AR_DPL1		EQU	20h
+AR_DPL2		EQU	40h
+AR_DPL3		EQU	60h
+
+; Segment types
+AR_DS_R		EQU	0
+AR_DS_RW	EQU	2
+AR_SS_R		EQU	4
+AR_SS_RW	EQU	6
+AR_CS_X		EQU	8
+AR_CS_XR	EQU	0Ah
+AR_CCS_X	EQU	0Ch
+AR_CCS_XR	EQU	0Eh
+
+; Special system objects types
+AR_AvlTSS286	EQU	1
+AR_LDTdesc	EQU	2
+AR_BusyTSS286	EQU	3
+AR_CallGate286	EQU	4
+AR_TaskGate	EQU	5
+AR_IntGate286	EQU	6
+AR_TrapGate286	EQU	7
+AR_AvlTSS	EQU	9
+AR_BusyTSS	EQU	0Bh
+AR_CallGate	EQU	0Ch
+AR_IntGate	EQU	0Eh
+AR_TrapGate	EQU	0Fh
+
+; Additionals ARs (GDXU)
+AR_User		EQU	10h
+AR_Reserved	EQU	20h
+AR_DfltSz	EQU	40h
+AR_Granlr	EQU	80h

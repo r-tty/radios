@@ -1,0 +1,77 @@
+;-------------------------------------------------------------------------------
+;  portsdef.ah - Hardware ports addresses and PORTDELAY macro.
+;-------------------------------------------------------------------------------
+
+; --- DMA controller ports ---
+
+; DMA controller #1
+PORT_DMA1_A0		EQU	0	; Channel 0 address register
+PORT_DMA1_A1		EQU	2
+PORT_DMA1_A2		EQU	4
+PORT_DMA1_A3		EQU	6
+
+PORT_DMA1_C0		EQU	1	; Channel 0 counter register
+PORT_DMA1_C1		EQU	3
+PORT_DMA1_C2		EQU	5
+PORT_DMA1_C2		EQU	7
+
+PORT_DMA1_P0		EQU	87h	; Channel 0 pages register
+PORT_DMA1_P1		EQU	83h
+PORT_DMA1_P2		EQU	81h
+PORT_DMA1_P3		EQU	82h
+
+; DMA controller #2
+PORT_DMA2_A4		EQU	0C0h	; Channel 4 address register
+PORT_DMA2_A5		EQU	0C4h
+PORT_DMA2_A6		EQU	0C8h
+PORT_DMA2_A7		EQU	0CCh
+
+PORT_DMA2_C4		EQU	0C2h	; Channel 4 counter register
+PORT_DMA2_C5		EQU	0C6h
+PORT_DMA2_C6		EQU	0CAh
+PORT_DMA2_C7		EQU	0CEh
+
+PORT_DMA2_P4		EQU	8Fh	; Channel 4 pages register
+PORT_DMA2_P5		EQU	8Bh
+PORT_DMA2_P6		EQU	89h
+PORT_DMA2_P7		EQU	87h
+
+
+; --- Interrupts controller addresses ---
+
+; PIC #1
+PORT_PIC1_0		EQU	20h
+PORT_PIC1_1		EQU	21h
+
+; PIC #2
+PORT_PIC2_0		EQU	0A0h
+PORT_PIC2_1		EQU	0A1h
+
+
+; --- Timer ports ---
+PORT_TIMER_C0		EQU	40h
+PORT_TIMER_C1		EQU	41h
+PORT_TIMER_C2		EQU	42h
+PORT_TIMER_CTL		EQU	43h
+
+
+; --- Keyboard controller ports ---
+PORT_KBC_0		EQU	60h
+PORT_KBC_1		EQU	61h
+PORT_KBC_4		EQU	64h
+
+
+; --- CMOS and RTC ports ---
+PORT_CMOS_Addr		EQU	70h
+PORT_CMOS_Data		EQU	71h
+
+
+; --- Diagnostic register ---
+PORT_Diagnostic		EQU	80h
+
+
+; --- Macro ---
+macro	PORTDELAY
+		jmp	short $+2
+		jmp	short $+2
+endm

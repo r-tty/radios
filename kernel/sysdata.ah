@@ -1,0 +1,74 @@
+;-------------------------------------------------------------------------------
+;  sysdata.ah - various kernel definitions.
+;-------------------------------------------------------------------------------
+
+; --- ASCII control codes symbolic names ---
+ASC_NUL			EQU 0
+ASC_SOH			EQU 1
+ASC_STX			EQU 2
+ASC_ETX			EQU 3
+ASC_EOT			EQU 4
+ASC_ENQ			EQU 5
+ASC_ACK			EQU 6
+ASC_BEL			EQU 7
+ASC_BS			EQU 8
+ASC_HT			EQU 9
+ASC_LF			EQU 10
+ASC_VT			EQU 11
+ASC_FF			EQU 12
+ASC_CR			EQU 13
+ASC_SO			EQU 14
+ASC_SI			EQU 15
+ASC_DLE			EQU 16
+ASC_DC1			EQU 17
+ASC_DC2			EQU 18
+ASC_DC3			EQU 19
+ASC_DC4			EQU 20
+ASC_NAK			EQU 21
+ASC_SYN			EQU 22
+ASC_ETB			EQU 23
+ASC_CAN			EQU 24
+ASC_EM			EQU 25
+ASC_SUB			EQU 26
+ASC_ESC			EQU 27
+ASC_FS			EQU 28
+ASC_GS			EQU 29
+ASC_RS			EQU 30
+ASC_US			EQU 31
+
+
+; --- Hardware interrupts vectors ---
+IRQ0int			EQU	70h
+IRQ2int			EQU	72h
+IRQ8int			EQU	78h
+
+
+; --- Hard disk parameters ---
+struc	tHDparms
+ Cyl		DW	?
+ Head		DB	?
+ Sec		DB	?
+ends
+
+
+; --- Hardware analysis data structure ---
+struc	tBIOSANLS
+ BaseMem	DW	?
+ ExtMem		DW	?
+ CPUtype	DB	?
+ NPUtype	DB	?
+ FDDparms	DB 4 dup (?)
+ NumHDD		DB	?
+ HDDparms	tHDparms 8 dup (<0,0,0>)
+ NumSerial	DB	?
+ NumParallel	DB	?
+ NetDev		DW	?
+ AudioDev	DW	?
+ends
+
+
+; --- Virtual console settings structure ---
+struc	tVirtCon
+ VidFont	DB	?			; Current video font
+ KBlayout	DB	?			; Current keyboard layout
+ends

@@ -1,0 +1,14 @@
+;-------------------------------------------------------------------------------
+;  biosdata.ah - structure of RM & VM interrupt table and BIOS data area
+;-------------------------------------------------------------------------------
+
+; --- Real and V86 modes interrupts table ---
+struc	tRVINTSTBL
+ INTSTBL	DD	256 dup (?)
+ends
+
+
+; --- Structure of BIOS data area ---
+struc	tBIOSDA
+ BIOSDA		DB	256 dup (?)
+ends

@@ -232,6 +232,15 @@ proc CFS_CreateOrOpen near
 endp		;---------------------------------------------------------------
 
 
+		; CFS_OpenByIndex - open file by index.
+		; Input: EBX=index.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc CFS_OpenByIndex near
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; CFS_ReadOrWrite - read or frite a file.
 		; Input: EBX=file handle,
 		;	 ECX=number of bytes to write,
@@ -253,8 +262,8 @@ proc CFS_ReadOrWrite
 		jc	short @@Exit
 
 		mov	ebx,[edx+tCFS_FHandle.Handle]
-		or	ebx,ebx				; File opened?
-		jz	short @@Err
+		cmp	ebx,-1				; File opened?
+		je	short @@Err
 		mov	dl,[edx+tCFS_FHandle.FSLP]	; DL=FSLP
 		push	ebx
 		call	CFS_GetLPStructAddr
@@ -270,14 +279,15 @@ proc CFS_ReadOrWrite
 		call	DRV_CallDriver
 		jc	short @@Exit
 		mov	eax,ecx				; EAX=number of R/W bytes
-		jmp	short @@Exit
 
-@@Err:		mov	ax,ERR_FS_FileNotOpened
-		stc
 @@Exit:		pop	edi ecx ebx
 		mov	esp,ebp
 		pop	ebp
 		ret
+
+@@Err:		mov	ax,ERR_FS_InvFileHandle
+		stc
+		jmp	@@Exit
 endp		;---------------------------------------------------------------
 
 
@@ -302,8 +312,8 @@ proc CFS_SetGetPos near
 		jc	short @@Exit
 
 		mov	ebx,[edx+tCFS_FHandle.Handle]
-		or	ebx,ebx				; File opened?
-		jz	short @@Err
+		cmp	ebx,-1				; File opened?
+		je	short @@Err
 		mov	dl,[edx+tCFS_FHandle.FSLP]	; DL=FSLP
 		push	ebx
 		call	CFS_GetLPStructAddr
@@ -323,7 +333,7 @@ proc CFS_SetGetPos near
 		pop	ebp
 		ret
 
-@@Err:		mov	ax,ERR_FS_FileNotOpened
+@@Err:		mov	ax,ERR_FS_InvFileHandle
 		stc
 		jmp	@@Exit
 endp		;---------------------------------------------------------------

@@ -6,10 +6,16 @@
 struc tKModInfo
  Driver		DD	?				; Module driver ID
  PID		DD	?				; PID
- CodeSect	DD	?				; Code section address
- DataSect	DD	?				; Data section address
- VarsSect	DD	?				; Vars section address
- Flags		DD	?				; Misc flags
- RModTables	DD	?				; !=0 only for kernel
+ Index		DD	?				; File index
+ Sections	DD	?				; MCB of first section
+ StackSize	DD	?				; Stack size
+ EntryPoint	DD	?				; Start entry point
+ RModExportTbl	DD	?				; !=0 only for kernel
+ Type		DB	?				; Module type
+ Flags		DB	?				; Misc flags
+ Reserved	DW	?				; Reserved
  ModName	DB	16 dup (?)			; Module name
 ends
+
+MODTYPE_EXECUTABLE	EQU	0
+MODTYPE_LIBRARY		EQU	1

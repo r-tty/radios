@@ -9,6 +9,9 @@
 		global CFS_UnlinkFS:		near
 		global CFS_MakeFS:		near
 
+		global CFS_Path2Index:		near
+		global CFS_OpenByIndex:		near
+
 		global CFS_CreateFile:		near
 		global CFS_Open:		near
 		global CFS_Close:		near
@@ -23,6 +26,11 @@
 		global CFS_CreateDir:		near
 		global CFS_ChangeDir:		near
 		global CFS_RemoveDir:		near
+
+		global CFS_OpenDir:		near
+		global CFS_CloseDir:		near
+		global CFS_ReadDir:		near
+		global CFS_SeekDir:		near
 
 		global CFS_SetCurrentLP:	near
 		global CFS_LPtoDevID:		near

@@ -16,7 +16,7 @@ ends
 ; --- Procedures ---
 
 include "MTASK\process.asm"
-;include "MTASK\thread.asm"
+include "MTASK\thread.asm"
 
 
 		; MT_Init - initialize multitasking memory structures.

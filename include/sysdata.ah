@@ -75,22 +75,24 @@ SECTORSHIFT		EQU	9
 
 
 ; --- Global kernel data ---
-		global DrvId_Con:	dword
-		global DrvId_BIOS32:	dword
-		global DrvId_RD:	dword
-		global DrvId_RFS:	dword
-		global TimerTicksLo:	dword
-		global TimerTicksHi:	dword
+		global DrvId_Con:		dword
+		global DrvId_BIOS32:		dword
+		global DrvId_RD:		dword
+		global DrvId_RFS:		dword
+		global TimerTicksLo:		dword
+		global TimerTicksHi:		dword
 
-		global K_CurrPID:	dword
-		global K_CurrThread:	dword
+		global K_CurrPID:		dword
+		global K_CurrThread:		dword
 
-		global BaseMemSz:	dword
-		global ExtMemSz:	dword
+		global BaseMemSz:		dword
+		global ExtMemSz:		dword
 
-		global VirtMemPages:	dword
-		global TotalMemPages:	dword
+		global VirtMemPages:		dword
+		global TotalMemPages:		dword
 
-		global HeapBegin:	dword
-		global HeapEnd:		dword
+		global HeapBegin:		dword
+		global HeapEnd:			dword
 
+		global UserAPIsTable:		near
+		global DrvAPIsTable:		near

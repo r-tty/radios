@@ -14,6 +14,7 @@ segment KVARS
 PagesPerProc	DD	?				; Pages per process
 ends
 
+include "MEMMAN\region.asm"
 
 ; --- Interface procedures ---
 
@@ -22,14 +23,41 @@ ends
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_Init near
-		push	ebx edx edi
+		push	ebx ecx edx edi
 		mov	dx,USERCODE
 		call	K_DescriptorAddress
 		call	K_GetDescriptorBase
 		mov	ebx,edi
 		call	PG_Prepare
+
+		; Initialize kernel MCB area
+		call	MM_PrepareMCBarea
+		mov	ebx,MM_MCBAREABEG
+		mov	ecx,MM_MCBAREASIZE/PageSize
+
+@@Loop:		call	PG_GetPTEaddr
+		jc	short @@Exit
+		or	[dword edi],PG_ALLOCATED
+		add	ebx,PageSize
+		loop	@@Loop
+
+		; Initialize kernel process region
+		xor	eax,eax
+		mov	esi,[MT_ProcTblAddr]
+		call	MM_GetMCB
+		jc	short @@Exit
+		mov	[ebx+tMCB.Signature],MCBSIG_SHARED
+		mov	[ebx+tMCB.Flags],MCBFL_LOCKED
+		mov	[ebx+tMCB.Type],REGTYPE_KERNEL
+		mov	[ebx+tMCB.Count],1
+		mov	eax,1000h
+		mov	[ebx+tMCB.Addr],eax
+		mov	ecx,[KH_Top]
+		sub	ecx,eax
+		mov	[ebx+tMCB.Len],ecx
+
 		clc
-		pop	edi edx ebx
+@@Exit:		pop	edi edx ecx ebx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -37,14 +65,17 @@ endp		;---------------------------------------------------------------
 		; MM_AllocBlock - allocate memory block.
 		; Input: EAX=PID,
 		;	 ECX=block size,
-		;	 DL=0 - load CR3 with process page directory;
-		;	 DL=1 - don't load CR3.
-		; Output: CF=0 - OK, EBX=block physical address;
+		;	 DL=0 - load CR3 with process page directory,
+		;	 DL=1 - don't load CR3;
+		;	 DH=block attributes (PG_USERMODE or/and PG_WRITEABLE).
+		; Output: CF=0 - OK:
+		;		     EAX=address of MCB,
+		;		     EBX=block physical address;
 		;	  CF=1 - error, AX=error code.
 proc MM_AllocBlock near
 @@pid		EQU	ebp-4
 @@mcbaddr	EQU	ebp-8
-@@loadcr3	EQU	ebp-12
+@@flags		EQU	ebp-12
 
 		push	ebp
 		mov	ebp,esp
@@ -52,9 +83,9 @@ proc MM_AllocBlock near
 		push	ecx edx esi edi
 
 		mov	[@@pid],eax			; Keep PID
-		mov	[@@loadcr3],dl
+		mov	[@@flags],edx			; and attributes
 		call	K_GetProcDescAddr
-		jc	short @@Exit2
+		jc	@@Exit2
 
 		mov	esi,ebx
 		or	dl,dl
@@ -75,13 +106,15 @@ proc MM_AllocBlock near
 		add	ecx,PageSize-1			; Calculate number of
 		and	ecx,not ADDR_OFSMASK		; pages to hold the data
 
-@@FindHole:	mov	eax,[@@pid]			; Search memory "hole"
-		call	MM_FindHole			; If OK - EBX=linear
-		jc	short @@FreeMCB			; address of hole
+		mov	eax,[@@pid]			; Search a region
+		call	MM_FindRegion			; If OK - EBX=linear
+		jc	short @@FreeMCB			; address of region
 
 		mov	[edi+tMCB.Addr],ebx		; Fill MCB 'Addr' field
 		shr	ecx,PAGESHIFT			; ECX=number of pages
 							; to allocate
+		mov	eax,ERR_MEM_BadBlockSize
+		jecxz	@@FreeMCB
 @@Loop:		mov	dl,1				; Allocate one page
 		call	PG_Alloc			; of physical or virtual
 		jc	short @@FreePages		; memory
@@ -89,18 +122,19 @@ proc MM_AllocBlock near
 		mov	eax,[@@pid]
 		call	PG_GetPTEaddr			; Store physical address
 		jc	short @@FreePages		; in PTE
-		or	edx,PG_ALLOCATED+PG_USERMODE+PG_WRITEABLE
+		or	edx,PG_ALLOCATED
+		or	dl,[@@flags+1]
 		mov	[edi],edx
 		add	ebx,PageSize
 		loop	@@Loop
 
-		mov	ebx,[@@mcbaddr]
-		mov	ebx,[ebx+tMCB.Addr]
+		mov	eax,[@@mcbaddr]
+		mov	ebx,[eax+tMCB.Addr]
 		clc
 
 @@Exit:		mov	edx,eax
 		lahf
-		cmp	[byte @@loadcr3],0
+		cmp	[byte @@flags],0
 		jne	short @@Exit1
 		pop	ecx				; Restore CR3
 		mov	cr3,ecx
@@ -144,9 +178,11 @@ endp		;---------------------------------------------------------------
 
 		; MM_FreeBlock - free memory block.
 		; Input: EAX=PID,
-		;	 EBX=block address,
-		;	 DL=0 - load CR3 with process page directory;
-		;	 DL=1 - don't load CR3.
+		;	 EBX=block address (if EDI=0),
+		;	 DL=0 - load CR3 with process page directory,
+		;	 DL=1 - don't load CR3;
+		;	 EDI=0 - use block address in EBX,
+		;	 EDI!=0 - EDI=MCB address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_FreeBlock near
@@ -161,7 +197,7 @@ proc MM_FreeBlock near
 
 		mov	[@@pid],eax
 		mov	[@@loadcr3],dl
-		mov	edi,ebx
+		xchg	edi,ebx
 		call	K_GetProcDescAddr		; Get process descriptor
 		jc	short @@Exit1			; address and keep it
 		mov	esi,ebx				; in ESI
@@ -174,14 +210,19 @@ proc MM_FreeBlock near
 		mov	cr3,eax
 		jmp	short $+2
 
-@@CR3Loaded:	mov	ebx,edi				; Find the MCB by addr
+@@CR3Loaded:	or	ebx,ebx				; Got MCB address?
+		jz	short @@GotMCBaddr
+		mov	ebx,edi				; Find the MCB by addr
 		call	MM_FindMCB
 		jc	short @@Exit
+
+@@GotMCBaddr:	test	[ebx+tMCB.Flags],MCBFL_LOCKED	; Locked region?
+		jnz	short @@Err
 		mov	[@@mcbaddr],ebx
 		mov	ecx,[ebx+tMCB.Len]
 		add	ecx,PageSize-1
 		shr	ecx,PAGESHIFT
-		mov	ebx,[ebx+tMCB.Addr]
+		mov	ebx,edi
 
 @@Loop:		mov	eax,[@@pid]
 		call	PG_GetPTEaddr
@@ -195,15 +236,24 @@ proc MM_FreeBlock near
 		mov	ebx,[@@mcbaddr]
 		call	MM_FreeMCB
 
-@@Exit:		cmp	[byte @@loadcr3],0
+@@Exit:		mov	edx,eax				; Save error code
+		lahf
+		cmp	[byte @@loadcr3],0
 		jne	short @@Exit1
 		pop	ecx				; Restore CR3
 		mov	cr3,ecx
 		jmp	short $+2
-@@Exit1:	pop	edi esi edx ebx
+
+@@Exit1:	sahf					; Restore error code
+		mov	eax,edx
+		pop	edi esi edx ebx
 		mov	esp,ebp
 		pop	ebp
 		ret
+
+@@Err:		mov	ax,ERR_MEM_RegionLocked
+		stc
+		jmp	@@Exit
 endp		;---------------------------------------------------------------
 
 
@@ -262,14 +312,14 @@ proc MM_AllocEnoughPages near
 endp		;---------------------------------------------------------------
 
 
-		; MM_FindHole - find "hole" of enough size.
+		; MM_FindRegion - find a linear memory region.
 		; Input: EAX=PID,
 		;	 ECX=required size.
-		; Output: CF=0 - OK, EBX=hole address;
+		; Output: CF=0 - OK, EBX=region address;
 		;	  CF=1 - error, AX=error code.
-proc MM_FindHole near
+proc MM_FindRegion near
 @@pid		EQU	ebp-4
-@@holesize	EQU	ebp-8
+@@regionsize	EQU	ebp-8
 
 		push	ebp
 		mov	ebp,esp
@@ -277,7 +327,7 @@ proc MM_FindHole near
 		push	edx edi
 
 		mov	[@@pid],eax
-		mov	[dword @@holesize],0
+		mov	[dword @@regionsize],0
 
 		mov	ebx,[HeapBegin]
 		or	ebx,ebx
@@ -296,15 +346,15 @@ proc MM_FindHole near
 		je	short @@Err
 		test	[dword edi],PG_ALLOCATED
 		jnz	short @@Used
-		add	[dword @@holesize],PageSize
-		cmp	[@@holesize],ecx
+		add	[dword @@regionsize],PageSize
+		cmp	[@@regionsize],ecx
 		jae	short @@Found
 		add	ebx,PageSize
 		jmp	@@Loop
 
 @@Used:		add	ebx,PageSize
 		mov	edx,ebx
-		mov	[dword @@holesize],0
+		mov	[dword @@regionsize],0
 		jmp	@@Loop
 
 @@Found:	mov	ebx,edx
@@ -351,16 +401,18 @@ proc MM_GetMCB near
 		jc	short @@Exit
 		or	eax,PG_ALLOCATED		; Store address of page
 		mov	[edi],eax			; in PTE
-		mov	[ebx+tMCB.Addr],0
+		mov	[ebx+tMCB.Signature],0
 
-@@CheckMCB:	cmp	[ebx+tMCB.Addr],0
+@@CheckMCB:	cmp	[ebx+tMCB.Signature],0
 		je	short @@Found
 
 		add	ebx,MCBSIZE
 		add	ecx,MCBSIZE
 		jmp	@@Scan
 
-@@Found:	cmp	[esi+tProcDesc.FirstMCB],0	; 'First' field initialized?
+@@Found:	mov	[ebx+tMCB.Signature],MCBSIG_PRIVATE
+		mov	[ebx+tMCB.Type],REGTYPE_DATA
+		cmp	[esi+tProcDesc.FirstMCB],0	; 'First' field initialized?
 		jne	short @@ChkLast
 		mov	[esi+tProcDesc.FirstMCB],ebx
 
@@ -391,7 +443,7 @@ endp		;---------------------------------------------------------------
 		; Note: CR3 must be set on the process page directory.
 proc MM_FreeMCB near
 		push	edx
-		mov	[ebx+tMCB.Addr],0
+		mov	[ebx+tMCB.Signature],0
 		mov	eax,[ebx+tMCB.Prev]		; Pointer manipulations..
 		or	eax,eax
 		mov	edx,[ebx+tMCB.Next]
@@ -414,14 +466,28 @@ proc MM_FreeMCB near
 endp		;---------------------------------------------------------------
 
 
+		; MM_PrepareMCBarea - prepare MCB area to use.
+		; Input: none.
+		; Output: none.
+proc MM_PrepareMCBarea near
+		push	ecx edi
+		mov	edi,MM_MCBAREABEG
+		mov	ecx,MM_MCBAREASIZE/4
+		xor	eax,eax
+		cld
+		rep	stosd
+		pop	edi ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; MM_FreeMCBarea - free MCB area of process.
-		; Input: EAX=PID,
-		;	 ESI=pointer to process descriptor.
+		; Input: EAX=PID.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 		; Note: CR3 must be set on the process page directory.
 proc MM_FreeMCBarea near
-		push	ebx ecx edx esi
+		push	ebx ecx edx edi
 		mov	edx,eax
 		mov	ebx,MM_MCBAREABEG
 		mov	ecx,MM_MCBAREASIZE/PageSize
@@ -439,7 +505,7 @@ proc MM_FreeMCBarea near
 		loop	@@Loop
 
 @@OK:		clc
-@@Exit:		pop	esi edx ecx ebx
+@@Exit:		pop	edi edx ecx ebx
 		ret
 endp		;---------------------------------------------------------------
 

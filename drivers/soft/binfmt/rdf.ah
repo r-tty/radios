@@ -38,8 +38,9 @@ struc tRDFreloc
 						; only linkage)
  Ofs		DD	?			; From start of segment in which
 						; reference is located
- Length		DB	?			; 1, 2 or 4 bytes
- RefSeg		DW	?			; Segment to which reference refers to
+ Len		DB	?			; 1, 2 or 4 bytes
+ RefSeg		DW	?			; Segment to which reference
+						; refers to
 ends
 
 

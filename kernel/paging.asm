@@ -157,8 +157,9 @@ proc PG_Init near
 		jne	@@Fill
 
 		; Enable paging
-		mov	eax,[PgTablesBeg]		; Load CR3
-		mov	cr3,eax				; with system directory
+		xor	eax,eax
+		call	PG_GetPageDirAddr
+		mov	cr3,ebx
 		mPagingOn
 
 @@Exit:		pop	edi edx ecx ebx
@@ -317,7 +318,6 @@ proc PG_GetPTEaddr near
 		ret
 
 @@Err:		mov	eax,ERR_PG_BadLinearAddr
-int 3
 		stc
 		jmp	@@Exit
 endp		;---------------------------------------------------------------

@@ -6,7 +6,7 @@ include "sysdata.ah"
 include "descript.ah"
 include "tss.ah"
 
-struc	tRGDT
+struc tRGDT
  NullDesc	tDescriptor <>
  KernelCode	tDescriptor <0FFFFh,0,0,ARsegment+ARpresent+AR_CS_XR+AR_DPL0,\
  			     0Fh+AR_DfltSz,0>
@@ -24,20 +24,15 @@ struc	tRGDT
  UserData	tDescriptor <0FFFFh,0,11h,ARsegment+AR_DS_RW+AR_DPL3,\
 			     0Fh+AR_Granlr+AR_DfltSz,0>
 
- MainTSS	tDescriptor <size tTSS-1,0,0,AR_AvlTSS+ARpresent+AR_DPL0,\
-			     AR_DfltSz,0>
- MainLDT	tDescriptor <size tKernelLDT-1,0,0,AR_LDTdesc+ARpresent+AR_DPL0,\
-			     AR_DfltSz,0>
+ KernelTSS	tDescriptor <size tTSS-1,0,0,AR_AvlTSS+ARpresent+AR_DPL0,0,0>
+ DriversTSS	tDescriptor <size tTSS-1,0,0,AR_AvlTSS+ARpresent+AR_DPL0,0,0>
+ UserTSS	tDescriptor <size tTSS-1,0,0,AR_AvlTSS+ARpresent+AR_DPL0,0,0>
 
- LDTdescs	tDescriptor MaxNumProcesses dup (<>)
- TSSdescs	tDescriptor MaxNumThreads dup (<>)
+ KernelLDT	tDescriptor <0,0,0,AR_LDTdesc+ARpresent+AR_DPL0,0,0>
+ DriversLDT	tDescriptor <0,0,0,AR_LDTdesc+ARpresent+AR_DPL0,0,0>
+ UserLDT	tDescriptor <0,0,0,AR_LDTdesc+ARpresent+AR_DPL0,0,0>
 ends
 
-; Kernel LDT structure
-struc	tKernelLDT
- KHeap		tDescriptor <0,0,0,ARsegment+ARpresent+AR_DS_RW+AR_DPL0,\
-			     AR_DfltSz,0>
-ends
 
 ; GDT selectors symbolic names
 KERNELCODE	EQU	offset (tRGDT).KernelCode
@@ -48,8 +43,12 @@ USERCODE	EQU	offset (tRGDT).UserCode
 USERDATA	EQU	offset (tRGDT).UserData
 HMADATA		EQU	offset (tRGDT).HMAdata
 ABSDS		EQU	offset (tRGDT).AbsSeg
-KTSS		EQU	offset (tRGDT).MainTSS
-KLDT		EQU	offset (tRGDT).MainLDT
+KTSS		EQU	offset (tRGDT).KernelTSS
+DTSS		EQU	offset (tRGDT).DriversTSS
+UTSS		EQU	offset (tRGDT).UserTSS
+KLDT		EQU	offset (tRGDT).KernelLDT
+DLDT		EQU	offset (tRGDT).DriversLDT
+ULDT		EQU	offset (tRGDT).UserLDT
 
 ; Common definitions
 MaxGlobDescQuan = 11+MaxNumProcesses+MaxNumThreads
@@ -57,4 +56,3 @@ MaxGlobDescQuan = 11+MaxNumProcesses+MaxNumThreads
 ; Globals
 		global GDT:		tRGDT
 		global IDT:		tDescriptor
-

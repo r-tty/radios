@@ -4,7 +4,7 @@
 ;*******************************************************************************
 
 .386p
-ideal
+Ideal
 
 include "initdefs.ah"
 include "segments.ah"
@@ -92,7 +92,7 @@ InternalDriversTable	DD	DrvCPU
 			DD	DrvHDIDE
 
 BinFmtDrivers		DD	DrvRDF
-;			DD	DrvRMod
+			DD	DrvRMod
 ;			DD	DrvCOFF
 ends
 
@@ -100,7 +100,7 @@ segment KVARS
 InitStringBuf	DB 256 dup (?)
 ends
 
-
+include "buildldt.asm"
 include "parsecfg.asm"
 
 segment	KCODE
@@ -109,7 +109,7 @@ segment	KCODE
 
 		; INIT_GetStCfgItem - get startup configuration item address.
 		; Input: AL=item number.
-		; Output: CF=0 - OK,EBX=address;
+		; Output: CF=0 - OK, EBX=address;
 		;	  CF=1 - error.
 proc INIT_GetStCfgItem near
 		push	eax
@@ -670,6 +670,9 @@ proc PMinit far
 		sub	edx,BaseMemReservedSz
 		call	KH_Init
 
+		; Initialize LDTs
+		call	INIT_InitLDTs
+
 		; Install internal device drivers
 		mov	eax,Init_MaxNumDrivers
 		call	DRV_InitTable
@@ -827,6 +830,10 @@ call TEST_CreateRDimage
 		call	MOD_InitMem
 		jc	@@Monitor
 
+		; Initialize kernel module
+		call	MOD_InitKernelMod
+		jc	@@Monitor
+
 		; Install and initialize binary format drivers
 		call	INIT_InstallBinFmtDrvs
 		jc	FatalError
@@ -851,9 +858,6 @@ SysReset:	mWrString Msg_SysReset1
 		mWrString Msg_SysReset2
 		mCallDriver [DrvId_Con],DRVF_Read
 
-		call	CFS_Done			; Release kernel
-		call	DRV_ReleaseTable		; memory blocks
-
 		call	KBC_HardReset
 
 		; Fatal error: print error message, error number
@@ -865,7 +869,6 @@ FatalError:	push	eax
 		mWrString Msg_SysHlt
 
 @@Halt:		jmp	@@Halt
-
 endp		;---------------------------------------------------------------
 
 ends
@@ -886,7 +889,7 @@ RMstart:	cli
 
 		xor	ax,ax
 		mov	es,ax
-		mov	dx,[es:BIOSData.BaseMemSize]	; DX=segment address
+		movzx	edx,[es:BIOSData.BaseMemSize]	; DX=segment address
 		shl	dx,6				; of base memory top
 
 		mov	ax,cs

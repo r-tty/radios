@@ -1,19 +1,41 @@
-;-------------------------------------------------------------------------------
-;  _test_.asm - testing and debugging routines.
-;-------------------------------------------------------------------------------
+;*******************************************************************************
+;  rkdt.asm - RadiOS Kernel Debugging Tool.
+;  (c) 1999 RET & COM Research.
+;*******************************************************************************
+
+.386p
+Ideal
+
+include "segments.ah"
+include "gdt.ah"
+include "kernel.ah"
+include "memman.ah"
+include "process.ah"
+include "hardware.ah"
+include "drivers.ah"
+include "drvctrl.ah"
+
+include "macros.ah"
+include "errdefs.ah"
+include "misc.ah"
+include "strings.ah"
+include "asciictl.ah"
 
 include "diskbuf.ah"
 include "commonfs.ah"
+include "cfs_func.ah"
 
 		public TEST_CreateRDimage
 		public TEST_ExamineFS
 
 segment KDATA
+msg_Banner	DB NL,NL,"RadiOS Kernel Debugging Tool, version 1.0",NL
+		DB "Copyright (c) 1999 RET & COM Research.",NL,0
 msg_Debugging	DB NL,"DEBUGGING: ",0
 msg_FScreated	DB "File system created on %ramdisk",NL,0
 msg_CfgCreated	DB "Config file created",NL,0
 msg_HelloSaved	DB "`Hello, world!' created",NL,0
-msg_DbgPrompt	DB NL,"DEBUGFS>",0
+msg_DbgPrompt	DB NL,"RKDT>",0
 msg_Err		DB NL,NL,7,"ERROR ",0
 msg_SerHlp	DB NL,NL,"Press '.' to exit, '?' to get stat",NL,0
 msg_MemSt	DB NL,NL,"MCB",9,9,"Addr",9,9,"Len",9,9,"Next MCB",9,"Prev MCB",NL,0
@@ -29,6 +51,7 @@ cmdMv		DB "mv"
 cmdMon		DB "S"
 cmdCM		DB "CM"
 cmdCL		DB "CL"
+cmdGrabFile	DB "grabfile"
 cmdMd		DB "md"
 cmdCd		DB "cd"
 cmdRd		DB "rd"
@@ -39,7 +62,7 @@ cmdExec		DB "exec"
 cmdAllocMem	DB "allocmem"
 cmdFreeMem	DB "freemem"
 cmdMemStat	DB "memstat"
-cmdFreeMCBs	DB "freemcbs",0
+cmdFreeMCBs	DB "freemcbs"
 cmdGetISS	DB "getiss"
 
 SBuffer		DB 80 dup (?)
@@ -55,29 +78,15 @@ ConfigFile	DB ";-----------------------------------------------------",NL
 		DB "MaxProcesses=8",NL
 		DB 0
 SizeOfCfgFile	=	$-cfgf_lb
-
-HelloName	DB "hello",0
-hellof_lbl	=	$
-HelloFile  	DB 82,68,79,70,70,50,189,0,0,0,119,0,0,0,2,10
-		DB 3,0,63,75,69,82,78,69,76,0,2,7,4,0,69,120
-		DB 105,116,0,2,15,5,0,63,75,69,82,78,69,76,46,77
-		DB 73,83,67,0,2,11,6,0,87,114,83,116,114,105,110,103
-		DB 0,3,10,0,0,0,0,0,109,97,105,110,0,1,8,0
-		DB 1,0,0,0,4,1,0,1,8,0,6,0,0,0,4,6
-		DB 0,6,8,0,10,0,0,0,2,6,0,1,8,0,15,0
-		DB 0,0,4,4,0,6,8,0,19,0,0,0,2,4,0,5
-		DB 4,128,0,0,0,1,0,0,0,0,0,21,0,0,0,190
-		DB 0,0,0,0,154,0,0,0,0,0,0,49,192,154,0,0
-		DB 0,0,0,0,2,0,1,0,0,0,15,0,0,0,72,101
-		DB 108,108,111,44,32,87,111,114,108,100,33,10,0,0,0,0
-		DB 0,0,0,0,0,0,0
-SizeOfHello	= $-hellof_lbl
 ends
 
 macro mPrintMsg What
  mWrString msg_Debugging
  mWrString What
 endm
+
+
+segment KCODE
 
 proc TEST_CreateRDimage near
 
@@ -120,28 +129,6 @@ proc TEST_CreateRDimage near
 		call	CFS_Close
 		jc	short @@Err
 
-		; Create 'Hello, world!'
-		mov	esi,offset HelloName
-		xor	edx,edx
-		xor	eax,eax
-		call	CFS_CreateFile
-		jc	short @@Err
-
-		; Write 'Hello, world!'
-		mov	esi,offset HelloFile
-		mov	ecx,SizeOfHello
-		xor	eax,eax
-		call	CFS_Write
-		jnc	short @@CloseHello
-		call	TEST_ErrorHandler
-		jmp	short @@Err
-
-		; Close file
-@@CloseHello:	xor	eax,eax
-		call	CFS_Close
-		jc	short @@Err
-
-
 		; Unlink filesystem from %ramdisk
 		mov	dl,5
 		call	CFS_UnlinkFS
@@ -156,6 +143,7 @@ endp		;---------------------------------------------------------------
 
 
 proc TEST_ExamineFS near
+		mWrString msg_Banner
 @@Loop:		mWrString msg_DbgPrompt
 		mov	esi,offset SBuffer
 		mov	cl,48
@@ -245,6 +233,13 @@ proc TEST_ExamineFS near
 		jz	TEST_CreateLargeFile
 		add	esp,4
 
+		mov	cl,size cmdGrabFile
+		mov	edi,offset cmdGrabFile
+		call	StrLComp
+		push	offset @@Loop
+		jz	TEST_GrabFile
+		add	esp,4
+
 		mov	cl,size cmdSerial
 		mov	edi,offset cmdSerial
 		call	StrLComp
@@ -292,6 +287,13 @@ proc TEST_ExamineFS near
 		call	StrLComp
 		push	offset @@Loop
 		jz	TEST_GetISS
+		add	esp,4
+
+		mov	cl,size cmdExec
+		mov	edi,offset cmdExec
+		call	StrLComp
+		push	offset @@Loop
+		jz	TEST_Exec
 		add	esp,4
 
 		mov	cl,size cmdMon
@@ -581,7 +583,41 @@ proc TEST_CreateLargeFile
 		call	TEST_ErrorHandler
 
 @@Exit:		pop	esi ecx
+		ret
+endp		;---------------------------------------------------------------
 
+
+		; TEST_GrabFile - grab file from 80002h.
+proc TEST_GrabFile near
+		push	ecx esi
+		or	ecx,ecx
+		jz	short @@Exit
+		add	esi,ecx
+		inc	esi
+
+		xor	edx,edx
+		xor	eax,eax
+		call	CFS_CreateFile
+		jnc	short @@Write
+		call	TEST_ErrorHandler
+		jmp	short @@Exit
+
+		; Write config file
+@@Write:	mov	esi,80002h
+		movzx	ecx,[word 80000h]
+		xor	eax,eax
+		call	CFS_Write
+		jnc	short @@Close
+		call	TEST_ErrorHandler
+		jmp	short @@Exit
+
+		; Close config file
+@@Close:	xor	eax,eax
+		call	CFS_Close
+		jnc	short @@Exit
+		call	TEST_ErrorHandler
+
+@@Exit:		pop	esi ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -673,7 +709,7 @@ proc TEST_Probe near
 endp		;---------------------------------------------------------------
 
 
-		; TEST_Exec - load and run executable module.
+		; TEST_Exec - execute a program.
 proc TEST_Exec near
 		push	ecx esi
 
@@ -681,7 +717,8 @@ proc TEST_Exec near
 		inc	esi
 
 		xor	eax,eax
-		call	MOD_Load
+		xor	edx,edx				; Sync exec
+		call	MT_Exec
 		jnc	short @@Exit
 		call	TEST_ErrorHandler
 
@@ -728,6 +765,7 @@ proc TEST_FreeMem near
 		mov	ebx,eax
 		xor	eax,eax
 		xor	dl,dl
+		xor	edi,edi
 		call	MM_FreeBlock
 		jnc	short @@Exit
 		call	TEST_ErrorHandler
@@ -806,12 +844,13 @@ proc TEST_FreeMCBs near
 
 		call    ValDwordDec
 		jc	short @@Exit
+		or	eax,eax
+		jz	short @@Exit
 		mov	edx,eax
 
 		call	K_GetProcDescAddr
 		jc	short @@Exit
 		mov	esi,ebx
-		mov	ebx,[ebx+tProcDesc.FirstMCB]
 
 		mov	eax,cr3
 		push	eax
@@ -867,3 +906,7 @@ proc TEST_ErrorHandler near
 		call	CFS_Truncate
 @@Exit:		ret
 endp		;---------------------------------------------------------------
+
+ends
+
+end

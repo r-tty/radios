@@ -15,7 +15,7 @@ struc	tDescriptor
 ends
 
 ; Structure of gate descriptor
-struc	tGateDescriptor
+struc	tGateDesc
  OffsetLo	DW	?
  Selector	DW	?
  Count		DB	?				; Five bits only
@@ -78,4 +78,3 @@ SELECTOR_RPL3	EQU	3
 SELECTOR_LDT	EQU	4
 SELECTOR_STATUS	EQU	7				; All status fields
 SELECTOR_RPL	EQU	3				; RPL fields mask
-

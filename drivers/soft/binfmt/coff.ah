@@ -1,3 +1,27 @@
+;-------------------------------------------------------------------------------
+;  coff.ah - Common Object Format definitions.
+;-------------------------------------------------------------------------------
+
 
 struc tCOFFhdr
+ Machine	DW	?			; 14Ch for i386
+ NumSects	DW	?			; Number of sections
+ TimeStamp	DD	?			; Time stamp
+ SymPos		DD	?			; Symbol tables addr
+ NSE		DD	?			; Number of symbol table entries
+ OptHeader	DW	?			; Size of optional header
+ Flags		DW	?			; Flags
 ends
+
+COFFL_RELFLG		EQU	0001h		; No relocation info
+COFFL_EXEC		EQU	0002h		; File is executable
+COFFL_LNNO		EQU	0004h		; No line numbers
+COFFL_LSYMS		EQU	0010h		; No local symbols
+COFFL_MINIMAL		EQU	0020h		; Minimal object file (.m)
+COFFL_UPDATE		EQU	0040h		; Fully bound update file
+COFFL_SWABD		EQU	0100h		; Bytes swabbed (in names)
+COFFL_AR16WR		EQU	0200h		; AR16WR byte ordering (e.g. 11/70)
+COFFL_AR32WR		EQU	0400h		; AR32WR byte ordering (e.g. VAX)
+COFFL_AR32W		EQU	1000h		; AR32W byte ordering
+COFFL_PATCH		EQU	2000h		; Contains "patch" list in opthdr
+COFFL_NODF		EQU	2000h

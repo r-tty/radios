@@ -6,25 +6,32 @@
 .SILENT
 
 # --- Paths --- #
-RADIOSPATH = C:\USR\RADIOS
+RADIOSPATH = C:\temp\RADIOS
 INCLUDEPATH = $(RADIOSPATH)\INCLUDE
 OBJPATH = $(RADIOSPATH)\ETC\OBJECT
 LIBPATH = $(OBJPATH)\LIB
-RCPATH = $(RADIOSPATH)\RC
 
 .PATH.obj=$(OBJPATH)
 .PATH.lib=$(LIBPATH)
 
 # --- Commands --- #
 TASM = C:\USR\BIN\tasm.exe /m2 /ml /q /zn /i$(INCLUDEPATH)
-LINK = C:\USR\BIN\link.exe /BATCH /MAP /NOIGNORECASE
+LINK = C:\USR\BIN\tlink.exe /3 /c /m /yx /j$(OBJPATH) /L$(LIBPATH)
 TLIB = C:\USR\BIN\tlib.exe
 BCC = C:\USR\BIN\bcc32.exe
 
 # --- Dependencies --- #
 main.exe: kernel.obj drvhard.lib drvsoft.lib fs.lib monitor.lib init.obj rkdt.obj
  $(LINK) @&&!
-$(OBJPATH)\kernel.obj $(OBJPATH)\init.obj $(OBJPATH)\rkdt.obj ,main.exe ,,$(LIBPATH)\drvhard.lib $(LIBPATH)\drvsoft.lib $(LIBPATH)\fs.lib $(LIBPATH)\monitor.lib ,,,
+kernel.obj+
+init.obj+
+rkdt.obj
+main.exe
+main.map
+drvhard.lib+
+drvsoft.lib+
+fs.lib+
+monitor.lib
 !
 
 
@@ -91,7 +98,7 @@ rfs.obj: FS\RFS\*.a?? INCLUDE\*.ah
  $(TASM) rfs.asm ,$(OBJPATH)\rfs.obj
  cd ..\..
 
-commonfs.obj: FS\*.asm INCLUDE\commonfs.ah
+commonfs.obj: FS\*.asm INCLUDE\*.ah
  cd FS
  $(TASM) commonfs.asm ,$(OBJPATH)\commonfs.obj
  cd ..

@@ -6,6 +6,10 @@
 MaxModNameLen		EQU		15	; Max. module name length
 MaxSymNameLen		EQU		255	; Max. symbolic name length
 
+RMODSIG_EXECUTABLE	EQU		"MXR"
+RMODSIG_LIBRARY		EQU		"MLR"
+RMODSIG_DATA		EQU		"MDR"
+
 ; --- Module header structure ---
 struc tModuleHdr
  Signature	DD	?		; Signature
@@ -30,7 +34,7 @@ ends
 ; --- Structure of names table element ---
 struc tNamesTblElem
  Ofs		DD	?				; Offset to object
- Section	DB	?				; Section of object
+ Section	DW	?				; Section of object
  TypeTag	DB	?				; Type of object
  Len		DB	?				; Name length
  SymName	DB	MaxSymNameLen dup (?)		; Pascal-type string

@@ -4,11 +4,36 @@
 
 ; Memory control block structure
 struc tMCB
- Addr		DD	?				; Linear address
- Len		DD	?				; Block length
+ Signature	DW	?				; Signature
+ Flags		DW	?				; Flags
+ Addr		DD	?				; Region address
+ Len		DD	?				; Region length
+ Count		DW	?				; References count
+ Type		DB	?				; Region type
+ Reserved	DB	?
  Next		DD	?				; Next MCB
  Prev		DD	?				; Previous MCB
+ Reserved2	DD	?,?
 ends
 
-MCBSIZE		EQU	16
-MCBSHIFT	EQU	4
+MCBSIZE			EQU	32
+MCBSHIFT		EQU	5
+
+; MCB signatures
+MCBSIG_PRIVATE		EQU	"RP"
+MCBSIG_SHARED		EQU	"RS"
+MSBSIG_SUBBLOCK		EQU	"BS"
+
+; MCB flags
+MCBFL_LOCKED		EQU	1
+MCBFL_REQUESTED		EQU	2
+MCBFL_LOADING		EQU	4
+MCBFL_READY		EQU	8
+
+; Region types
+REGTYPE_KERNEL		EQU	0			; Only for kernel
+REGTYPE_CODE		EQU	1			; Code (read-only)
+REGTYPE_DATA		EQU	2			; Constant data
+REGTYPE_VARS		EQU	3			; Variable data
+REGTYPE_STACK		EQU	4			; Stack
+REGTYPE_OTHER		EQU	5			; Other read-only data

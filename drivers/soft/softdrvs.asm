@@ -5,14 +5,15 @@
 .386
 ideal
 
-include "macros.ah"
-include "sysdata.ah"
-include "errdefs.ah"
 include "segments.ah"
-include "drvctrl.ah"
 include "kernel.ah"
-include "strings.ah"
+include "memman.ah"
 include "drivers.ah"
+include "drvctrl.ah"
+include "strings.ah"
+include "sysdata.ah"
+include "macros.ah"
+include "errdefs.ah"
 
 IFDEF DEBUG
 include "misc.ah"

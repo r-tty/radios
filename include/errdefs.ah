@@ -42,6 +42,8 @@ ERR_MEM_NoMCBs			EQU	0344h
 ERR_MEM_NoMemory		EQU	0345h
 ERR_MEM_BadMCB			EQU	0346h
 ERR_MEM_MCBnotFound		EQU	0347h
+ERR_MEM_RegionLocked		EQU	0348h
+ERR_MEM_BadBlockSize		EQU	0349h
 
 ERR_PG_NoFreePage		EQU	0358h
 ERR_PG_BadLinearAddr		EQU	0359h
@@ -158,6 +160,15 @@ ERR_SER_OutBufFull		EQU	11C3h
 
 ; --- Consoles driver error ---
 ERR_CON_BadConNum		EQU	1800h
+
+
+; --- RDF binary format driver errors ---
+ERR_RDF_BadSection		EQU	1820h
+ERR_RDF_TooManySections		EQU	1821h
+ERR_RDF_StackNotInBSS		EQU	1822h
+ERR_RDF_InvLibName		EQU	1823h
+ERR_RDF_NoSection		EQU	1824h
+ERR_RDF_16bitReloc		EQU	1825h
 
 
 ; === File system drivers errors ===

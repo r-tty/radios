@@ -2,7 +2,7 @@
 ;  embr.ah - definitions for Disk Description Block (DDB)
 ;-------------------------------------------------------------------------------
 
-DDB_SIGNATURE	EQU	"ddb"			; EMBR signature
+DDB_SIGNATURE	EQU	"bdd"			; EMBR signature
 DDB_MAXPARTS	EQU	8			; Maximum number of partitions
 
 ; DDB partition descriptor structure

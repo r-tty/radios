@@ -51,6 +51,21 @@ proc MT_CreateKernelProcess near
 endp		;---------------------------------------------------------------
 
 
+		; MT_Exec - execute a program.
+		; Input: EAX=parent PID,
+		;	 ESI=pointer to program name.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MT_Exec near
+int 3
+		call	CFS_Path2Index
+		jc	short @@Exit
+
+@@Exit:		ret
+endp		;---------------------------------------------------------------
+
+
+
 ; --- Additional routines ---
 
 		; K_GetProcDescAddr - get process descriptor address.

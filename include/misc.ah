@@ -13,3 +13,5 @@
 		global BCDW2Dec:	near
 
 		global ValByteDec:	near
+		global ValDwordDec:	near
+		global ValDwordHex:	near

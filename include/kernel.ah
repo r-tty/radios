@@ -11,11 +11,22 @@
 		global KH_FillZero:		near
 
 		global PG_Init:			near
+		global PG_GetNumFreePages:	near
+
 		global MM_Init:			near
+		global MM_AllocBlock:		near
+		global MM_FreeBlock:		near
+		global MM_FreeMCBarea:		near
+		global MM_AllocRegion:		near
+		global MM_FreeRegion:		near
+		global MM_AttachRegion:		near
+		global MM_DetachRegion:		near
 
 		global MT_Init:			near
 		global MT_Done:			near
 		global MT_CreateKernelProcess:	near
+		global MT_Exec:			near
+		global MT_Exit:			near
 
 		global K_GetProcDescAddr:	near
 
@@ -43,6 +54,7 @@
 		global DSF_Yield1ms:		near
 
 		global MOD_InitMem:		near
+		global MOD_InitKernelMod:	near
 		global MOD_Register:		near
 		global MOD_Unregister:		near
 		global MOD_Load:		near

@@ -9,6 +9,11 @@ include "module.ah"
 ; --- Definitions ---
 MOD_MAXBINFORMATS	EQU	16		; Max. number of binfmt drivers
 
+; --- Data ---
+segment KDATA
+KernelModName	DB "KERNEL",0
+ends
+
 ; --- Variables ---
 segment KVARS
 NumLoadedMods	DD	?			; Number of loaded modules
@@ -40,6 +45,29 @@ proc MOD_InitMem near
 		xor	eax,eax
 @@Exit:		pop	esi ecx ebx
 		ret
+endp		;---------------------------------------------------------------
+
+
+		; MOD_InitKernelMod - initialize kernel module (module 0).
+		; Input: none.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MOD_InitKernelMod near
+		push	esi edi
+		call	MOD_AllocStruc
+		jc	short @@Exit
+		mov	[edi+tKModInfo.Driver],0
+		mov	[edi+tKModInfo.PID],0
+		mov	eax,100000h
+		mov	[edi+tKModInfo.Sections],eax
+		mov	[edi+tKModInfo.StackSize],16384
+		mov	[edi+tKModInfo.RModExportTbl],offset KRModNamesTbl
+		mov	[edi+tKModInfo.Type],MODTYPE_LIBRARY
+		mov	esi,offset KernelModName
+		lea	edi,[edi+tKModInfo.ModName]
+		call	StrCopy
+		pop	edi esi
+@@Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -120,7 +148,7 @@ proc MOD_Load near
 		mov	[@@pid],eax
 		call	MOD_CheckSignature
 		jc	short @@Exit
-int 3
+
 		call	MOD_AllocStruc
 		jc	short @@CloseAndExit
 

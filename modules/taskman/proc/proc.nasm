@@ -83,7 +83,7 @@ proc TM_NewProcess
 		mov	edi,esi
 		mov	esi,[%$parent]
 		or	esi,esi
-		jz	.NoParent
+		jz	near .NoParent
 		push	edi
 		add	esi,byte tProcDesc.CoIDbmap
 		add	edi,byte tProcDesc.CoIDbmap
@@ -101,6 +101,10 @@ proc TM_NewProcess
 		mov	[esi+tProcDesc.CoIDbmapAddr],eax
 		call	PoolChunkNumber
 		mov	[esi+tProcDesc.PID],eax
+		xor	eax,eax
+		mov	[esi+tProcDesc.Lock+tSemaphore.WaitQ],eax
+		inc	eax
+		mov	[esi+tProcDesc.Lock+tSemaphore.Count],eax
 
 		; Allocate a new page directory
 		call	NewPageDir

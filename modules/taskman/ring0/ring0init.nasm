@@ -132,6 +132,12 @@ proc Start
 		dec	eax
 		call	MemSet
 
+		; Initialize process descriptor lock semaphore
+		xor	eax,eax
+		mov	[esi+tProcDesc.Lock+tSemaphore.WaitQ],eax
+		inc	eax
+		mov	[esi+tProcDesc.Lock+tSemaphore.Count],eax
+
 		; Allocate a page for LDT and activate it
 		mov	dl,1
 		call	PG_Alloc

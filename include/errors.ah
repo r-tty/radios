@@ -49,6 +49,8 @@
 %define EFPOS		110	; File position error
 %define ESTALE          122	; Potentially recoverable i/o error
 
+%define ESRVRFAULT	313	; Error accessing message buffers
+
 ;--- These error codes are used within the microkernel only --------------------
 
 ; Kernel initialization errors

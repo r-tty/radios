@@ -23,6 +23,8 @@ struc tProcDesc
 .Next		RESD	1			; Next PCB in list
 .Prev		RESD	1			; Previous PCB in list
 .Flags		RESD	1			; PF_* flags
+.Lock		RESB	tSemaphore_size		; Descriptor lock semaphore
+.SyncList	RESD	1			; Head of sync object list
 .ChanList	RESD	1			; Head of channel list
 .ConnList	RESD	1			; Head of connection list
 .MaxConn	RESD	1			; Maximum number of connections

@@ -11,7 +11,9 @@ module kernel.mem
 %include "bootdefs.ah"
 
 publicproc K_InitMem
-publicproc K_CopyIn, K_CopyOut, K_CopyFromAct, K_CopyToAct
+publicproc K_CopyIn, K_CopyOut
+publicproc SLin2Phys, DLin2Phys
+publicproc K_CopyFromAct, K_CopyToAct
 publicdata ?UpperMemPages, ?ResvdMemPages
 exportproc MemSet, BZero
 exportdata ?LowerMemSize, ?UpperMemSize
@@ -100,6 +102,68 @@ proc K_ProbeMem
 endp		;---------------------------------------------------------------
 
 
+		; Compute a physical address from linear address in EDI.
+		; Input: EDI=address,
+		;	 EDX=page directory address.
+		; Output: CF=0 - OK, EBX=physical address;
+		;	  CF=1 - error
+		; Note: clobbers EBP.
+proc DLin2Phys
+		push	edi
+		mov	ebp,edi
+		and	ebp,ADDR_OFSMASK		; EBP=offset
+		mov	ebx,edi
+		shr	ebx,PAGEDIRSHIFT		; EBX=PDE number
+		mov	ebx,[edx+ebx*4]			; EBX=page table addr.
+		cmp	ebx,PG_DISABLE			; Page table present?
+		stc
+		je	.Quit				; No, bad address
+		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
+		and	edi,ADDR_PTEMASK
+		shr	edi,PAGESHIFT			; EDI=PTE number
+		mov	ebx,[ebx+edi*4]			; EBX=page address
+		cmp	ebx,PG_DISABLE			; Is a page present?
+		stc
+		je	.Quit				; No, bad address
+		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
+		add	ebx,ebp				; EBX=physical address
+		clc
+.Quit:		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Compute a physical address from linear address in ESI.
+		; Input: ESI=address,
+		;	 EDX=page directory address.
+		; Output: CF=0 - OK, EBX=physical address;
+		;	  CF=1 - error
+		; Note: clobbers EBP.
+proc SLin2Phys
+		push	esi
+		mov	ebp,esi
+		and	ebp,ADDR_OFSMASK		; EBP=offset
+		mov	ebx,esi
+		shr	ebx,PAGEDIRSHIFT		; EBX=PDE number
+		mov	ebx,[edx+ebx*4]			; EBX=page table addr.
+		cmp	ebx,PG_DISABLE			; Page table present?
+		stc
+		je	.Quit				; No, bad address
+		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
+		and	esi,ADDR_PTEMASK
+		shr	esi,PAGESHIFT			; ESI=PTE number
+		mov	ebx,[ebx+esi*4]			; EBX=page address
+		cmp	ebx,PG_DISABLE			; Is a page present?
+		stc
+		je	.Quit				; No, bad address
+		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
+		add	ebx,ebp				; EBX=physical address
+		clc
+.Quit:		pop	esi
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; Copy the data from active address space to another.
 		; Input: ESI=source address (user's view),
 		;	 EDI=destination address (user's view),
@@ -140,7 +204,7 @@ proc K_CopyFromAct
 
 		; Subroutine: copy ECX bytes within one page.
 		; Updates ESI, EDI and EAX and sets ZF if EAX==0.
-.CopySmall:	call	.GetPhysAddr
+.CopySmall:	call	DLin2Phys
 		jc	.Ret
 		mov	ebp,edi
 		mov	edi,ebx
@@ -151,31 +215,6 @@ proc K_CopyFromAct
 		sub	eax,edi			; counter -= size
 		mov	edi,ebp			; Restore dest. address
 .Ret:		ret
-
-
-		; Subroutine: for linear address in EDI compute a physical
-		; address and put it in EBX. EDX must contain page dir address.
-.GetPhysAddr:	push	edi
-		mov	ebp,edi
-		and	ebp,ADDR_OFSMASK		; EBP=offset
-		mov	ebx,edi
-		shr	ebx,PAGEDIRSHIFT		; EBX=PDE number
-		mov	ebx,[edx+ebx*4]			; EBX=page table addr.
-		cmp	ebx,PG_DISABLE			; Page table present?
-		stc
-		je	.Quit				; No, bad address
-		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
-		and	edi,ADDR_PTEMASK
-		shr	edi,PAGESHIFT			; EDI=PTE number
-		mov	ebx,[ebx+edi*4]			; EBX=page address
-		cmp	ebx,PG_DISABLE			; Is a page present?
-		stc
-		je	.Quit				; No, bad address
-		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
-		add	ebx,ebp				; EBX=physical address
-		clc
-.Quit:		pop	edi
-		ret
 endp		;---------------------------------------------------------------
 
 
@@ -219,7 +258,7 @@ proc K_CopyToAct
 
 		; Subroutine: copy ECX bytes within one page.
 		; Updates ESI, EDI and EAX and sets ZF if EAX==0.
-.CopySmall:	call	.GetPhysAddr
+.CopySmall:	call	SLin2Phys
 		jc	.Ret
 		mov	ebp,esi
 		mov	esi,ebx
@@ -230,31 +269,6 @@ proc K_CopyToAct
 		sub	eax,esi			; counter -= size
 		mov	esi,ebp			; Restore source address
 .Ret:		ret
-
-
-		; Subroutine: for linear address in ESI compute a physical
-		; address and put it in EBX. EDX must contain page dir address.
-.GetPhysAddr:	push	esi
-		mov	ebp,esi
-		and	ebp,ADDR_OFSMASK		; EBP=offset
-		mov	ebx,esi
-		shr	ebx,PAGEDIRSHIFT		; EBX=PDE number
-		mov	ebx,[edx+ebx*4]			; EBX=page table addr.
-		cmp	ebx,PG_DISABLE			; Page table present?
-		stc
-		je	.Quit				; No, bad address
-		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
-		and	esi,ADDR_PTEMASK
-		shr	esi,PAGESHIFT			; ESI=PTE number
-		mov	ebx,[ebx+esi*4]			; EBX=page address
-		cmp	ebx,PG_DISABLE			; Is a page present?
-		stc
-		je	.Quit				; No, bad address
-		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
-		add	ebx,ebp				; EBX=physical address
-		clc
-.Quit:		pop	esi
-		ret
 endp		;---------------------------------------------------------------
 
 

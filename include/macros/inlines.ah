@@ -30,7 +30,7 @@
 %endmacro
 
 
-; Check if the argument is aligned on page boundary, if not - align
+; Check if the argument is aligned on page boundary, if not - align.
 %macro mAlignOnPage 1
 	add	%1,PAGESIZE-1
 	and	%1,~ADDR_OFSMASK
@@ -39,10 +39,30 @@
 %endif
 
 
-; Check the carry flag, if set - make a negative error code from AX
-%macro mCheckNeg 0
-	jnc	%%1
+; Make a negative 32-bit errno from 16-bit positive error code in AX.
+%macro mErrno 0
 	cwde
 	neg	eax
-%%1:
+%endmacro
+
+
+; Lock some control block (thus provide an exclusive access).
+; Parameters:	%1 - control block address,
+;		%2 - structure name.
+%macro mLockCB 2
+%define @addr %1
+%define @lock %2.Lock
+	lea	eax,[@addr+@lock]
+	call	K_SemP
+%endmacro
+
+
+; Unlock the control block.
+; Parameters:	%1 - control block address,
+;		%2 - structure name.
+%macro mUnlockCB 2
+%define @addr %1
+%define @lock %2.Lock
+	lea	eax,[@addr+@lock]
+	call	K_SemV
 %endmacro

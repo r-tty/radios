@@ -21,6 +21,7 @@ section .data
 
 ThreadSyscallTable:
 mSyscallTabEnt ThreadCreate, 4
+mSyscallTabEnt ThreadDestroy, 3
 mSyscallTabEnt SchedGet, 3
 mSyscallTabEnt SchedSet, 4
 mSyscallTabEnt SchedInfo, 3
@@ -49,49 +50,60 @@ proc sys_ThreadCreate
 		mov	ebx,?ProcessPool
 		call	K_PoolChunkAddr
 		pop	ebx
-		jc	.ChkNeg
+		jc	.MkErrno
 
 		; Fast and lazy.
 .Create:	mov	ebx,[%$func]
 		xor	ecx,ecx
 		call	MT_CreateThread
-		jc	.ChkNeg
+		jc	.MkErrno
 
 		; Return TID
 		mov	eax,[esi+tTCB.TID]
-		jmp	.Exit
 
-.ChkNeg:	mCheckNeg
 .Exit:		epilogue
 		ret
+
+.MkErrno:	mErrno
+		jmp	.Exit
 
 .Perm:		mov	eax,-EPERM
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
+		; int ThreadDestroy(int tid, int priority, void *status);
+proc sys_ThreadDestroy
+		arg	tid, prio, status
+		prologue
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int SchedGet(pid_t pid, int tid, struct sched_param *param);
 proc sys_SchedGet
+		arg	pid, tid, param
 		prologue
-		push	edx
-		pop	edx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int SchedGet(pid_t pid, int tid, int policy, 
+		;		struct sched_param *param);
 proc sys_SchedSet
+		arg	pid, tid, policy, param
 		prologue
-		push	edx
-		pop	edx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int SchedInfo(pid_t pid, int policy, struct _sched_info *info);
 proc sys_SchedInfo
+		arg	pid, policy, info
 		prologue
-		push	edx
-		pop	edx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

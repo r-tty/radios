@@ -17,8 +17,10 @@ publicproc sys_ChannelCreate, sys_ChannelDestroy
 publicproc sys_ConnectDetach
 publicproc sys_ConnectClientInfo
 
-externproc BZero, K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
-externproc K_PoolChunkNumber,K_PoolChunkAddr
+externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+externproc K_PoolChunkNumber, K_PoolChunkAddr
+externproc K_SemP, K_SemV
+externproc BZero
 
 section .data
 
@@ -93,13 +95,13 @@ endp		;---------------------------------------------------------------
 
 		; int ChannelCreate(uint flags);
 proc sys_ChannelCreate
-		arg	fl
+		arg	flags
 		prologue
 
 		; Allocate a channel descriptor and zero it
 		mov	ebx,?ChanPool
 		call	K_PoolAllocChunk
-		jc	.Exit
+		jc	.Again
 		mov	ebx,esi
 		mov	ecx,tChanDesc_size
 		call	BZero
@@ -117,9 +119,11 @@ proc sys_ChannelCreate
 		; Return the channel ID
 		call	K_PoolChunkNumber
 
-.Exit:		mCheckNeg
-		epilogue
+.Exit:		epilogue
 		ret
+
+.Again:		mov	eax,-EAGAIN
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -128,24 +132,36 @@ proc sys_ChannelDestroy
 		arg	chid
 		prologue
 
+		; Get a channel descriptor address
 		mov	eax,[%$chid]
 		call	K_PoolChunkAddr
-		jz	.Exit
+		jc	.Inval
+
+		; Only calling process or taskman can destroy the channel
+		mCurrThread ebx
+		mov	edx,[ebx+tTCB.PCB]
+		cmp	[esi+tChanDesc.PCB],edx
+		je	.Unlink
+		cmp	dword [edx+tProcDesc.PID],1
+		jne	.Inval
 
 		; Remove this channel descriptor from the list
-		mov	eax,[esi+tChanDesc.PCB]
-		mDequeue dword [eax+tProcDesc.ChanList], Next, Prev, esi, tChanDesc, ecx
+.Unlink:	mLockCB edx, tProcDesc
+		mDequeue dword [edx+tProcDesc.ChanList], Next, Prev, esi, tChanDesc, ecx
+		mUnlockCB edx, tProcDesc
 		
-		; Wake up all sleeping thread waiting for the messages in
+		; Wake up all sleeping threads waiting for the messages in
 		; this channel and indicate that channel is being destroyed.
 
 		; Free the channel descriptor
 		call	K_PoolFreeChunk
 		xor	eax,eax
 
-.Exit:		mCheckNeg
-		epilogue
+.Exit:		epilogue
 		ret
+
+.Inval:		mov	eax,-EINVAL
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 

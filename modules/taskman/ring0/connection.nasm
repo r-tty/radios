@@ -16,6 +16,7 @@ library $rmk
 importproc K_PoolAllocChunk
 importproc K_AllocateID
 importproc IPC_ChanDescAddr
+importproc K_SemP, K_SemV
 importproc BZero
 
 section .data
@@ -59,7 +60,9 @@ proc sys_ConnectAttach
 		; Update channel information and put connection to the list
 		inc	dword [edx+tChanDesc.NumConn]
 		mov	[esi+tConnDesc.ChanDesc],edx
+		mLockCB edi, tProcDesc
 		mEnqueue dword [edi+tProcDesc.ConnList], Next, Prev, esi, tConnDesc, ebx
+		mUnlockCB edi, tProcDesc
 
 		; Update connection ID
 		lea	ebx,[edi+tProcDesc.MaxConn]
@@ -72,9 +75,7 @@ proc sys_ConnectAttach
 		jne	.BadIndex
 .IndexOK:	add	eax,ecx
 		mov	[esi+tConnDesc.ID],eax
-		jmp	.Exit
 
-.ChkNeg:	mCheckNeg
 .Exit		epilogue
 		ret
 

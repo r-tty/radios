@@ -14,8 +14,8 @@ module kernel.syscall
 ; --- Definitions ---
 
 ; Entry in the system call table.
-; Parameters: %1 = function address,
-;	      %2 = number of parameters.
+; Parameters:	%1 = function address,
+;		%2 = number of parameters.
 %macro mSyscallTabEntry 1-2
 %ifid %1
 externproc sys_%1
@@ -58,20 +58,20 @@ mSyscallTabEntry 0				; 07 __SysCpupageGet
 mSyscallTabEntry 0				; 08 __SysCpupageSet
 mSyscallTabEntry 0				; 09 (reserved)
 mSyscallTabEntry 0				; 0A (reserved)
-mSyscallTabEntry MsgSend, 5			; 0B
-mSyscallTabEntry MsgSendnc, 5			; 0C
+mSyscallTabEntry MsgSendv, 5			; 0B
+mSyscallTabEntry MsgSendvnc, 5			; 0C
 mSyscallTabEntry MsgError, 2			; 0D
-mSyscallTabEntry MsgReceive, 4			; 0E
-mSyscallTabEntry MsgReply, 4			; 0F
-mSyscallTabEntry MsgRead, 4			; 10
-mSyscallTabEntry MsgWrite, 4			; 11
+mSyscallTabEntry MsgReceivev, 4			; 0E
+mSyscallTabEntry MsgReplyv, 4			; 0F
+mSyscallTabEntry MsgReadv, 4			; 10
+mSyscallTabEntry MsgWritev, 4			; 11
 mSyscallTabEntry 0				; 12 (reserved)
 mSyscallTabEntry MsgInfo, 2			; 13
 mSyscallTabEntry MsgSendPulse, 4		; 14
 mSyscallTabEntry MsgDeliverEvent, 2		; 15
 mSyscallTabEntry MsgKeyData, 6			; 16
-mSyscallTabEntry MsgReadiov, 5			; 17
-mSyscallTabEntry MsgReceivePulse, 4		; 18
+mSyscallTabEntry MsgReadIOV, 5			; 17
+mSyscallTabEntry MsgReceivePulsev, 4		; 18
 mSyscallTabEntry MsgVerifyEvent, 2		; 19
 mSyscallTabEntry 0				; 1A SignalKill
 mSyscallTabEntry 0				; 1B SignalReturn
@@ -94,7 +94,7 @@ mSyscallTabEntry 0				; 2B ConnectFlags
 mSyscallTabEntry 0				; 2C (reserved)
 mSyscallTabEntry 0				; 2D (reserved)
 mSyscallTabEntry 0				; 2E ThreadCreate
-mSyscallTabEntry ThreadDestroy, 3		; 2F
+mSyscallTabEntry 0				; 2F ThreadDestroy
 mSyscallTabEntry 0				; 30 (reserved)
 mSyscallTabEntry ThreadDetach, 1		; 31
 mSyscallTabEntry ThreadJoin, 2			; 32

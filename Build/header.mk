@@ -1,0 +1,65 @@
+
+# Cancel all built-in rules
+% : %
+
+# Suffixes
+S = nasm
+I = ah
+C = c
+H = h
+O = rdf
+L = rdl
+X = rdx
+M = rdm
+B = bin
+
+# Control variables
+SUFFIXES =  .$(S) .$(I) .$(C) .$(H) .$(O) .$(L) .$(X) .$(M) .$(B)
+
+# Rule to make RDF from NASM source
+%.$(O) : %.nasm macros/sugar.ah
+	@echo Assembling $<
+	@$(AS) $(ASFLAGS) -o $(OBJPATH)/$@ $<
+	
+# Rule to compile C source
+%.$(O) : %.c
+	@echo Compiling $<
+	@$(CC) $(CFLAGS) -o $(OBJPATH)/$@ $<
+	
+# Paths
+RADIOSPATH = /home/yuriz/radios
+INCLPATH = /home/yuriz/radios/include
+OBJTOP = /home/yuriz/radios/Build/obj
+LIBPATH = /home/yuriz/radios/Build/lib
+INSTALLPATH = /mnt/radios
+
+# Commands
+AS = nasm -w+orphan-labels -f rdf
+CC = ncc
+LD = ldrdf
+AR = rdflib
+
+# Command flags
+ASFLAGS = -s -I$(INCLPATH)/ -Pmacros/sugar.ah
+CFLAGS = -I$(INCLPATH)/c -c
+LDFLAGS = -2 -s -j $(OBJPATH)/ -L $(LIBPATH)/
+ifdef DEBUG
+    ASFLAGS += -DDEBUG
+    CFLAGS += -DDEBUG -g
+endif
+ifdef LINKMONITOR
+    ASFLAGS += -DLINKMONITOR
+endif
+
+# Command to generate dependencies file
+GENDEPS = ndepgen -M
+
+# Variable 'group' allows to specify object directory for the project
+OBJPATH := $(OBJTOP)/$(group)
+
+# VPATH
+vpath %.$(I) $(INCLPATH)
+vpath %.$(H) $(INCLPATH)/c
+vpath %.$(O) $(OBJPATH)
+vpath %.$(L) $(LIBPATH)
+vpath %.$(B) $(OBJPATH)

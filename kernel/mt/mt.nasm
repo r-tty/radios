@@ -22,7 +22,7 @@ module kernel.mt
 
 publicproc MT_Init
 
-publicproc sys_ThreadDestroy, sys_ThreadCancel
+publicproc sys_ThreadCancel
 publicproc sys_ThreadDetach, sys_ThreadJoin
 publicproc sys_ThreadCtl
 publicproc sys_SchedYield
@@ -73,11 +73,6 @@ endp		;---------------------------------------------------------------
 
 
 ; --- System call routines -----------------------------------------------------
-
-
-proc sys_ThreadDestroy
-		ret
-endp		;---------------------------------------------------------------
 
 
 proc sys_ThreadDetach

@@ -28,20 +28,28 @@ proc RM_AttachName
 endp		;---------------------------------------------------------------
 
 
-		; dispatch_t *dispatch_create(void);
+		; RM_AllocDesc - create a dispatch descriptor.
+		; Input: none.
+		; Output: CF=0 - OK, EBX=descriptor address;
+		;	  CF=1 - error.
 proc RM_AllocDesc
 		Ccall	_malloc, tDispatch_size
 		test	eax,eax
+		stc
 		jz	.Exit
 		mov	ebx,eax
 		Ccall	_memset, ebx, 0, tDispatch_size
 		mov	dword [ebx+tDispatch.ChID],-1
 		mov	dword [ebx+tDispatch.Flags],0
-		mov	eax,ebx
+		clc
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
 
+		; RM_FreeDesc - free a dispatch descriptor.
+		; Input: EBX=descriptor address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
 proc RM_FreeDesc
 		ret
 endp		;---------------------------------------------------------------

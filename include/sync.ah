@@ -7,11 +7,11 @@
 
 %include "macros/queue.ah"
 
+; Structure of a semaphore used by kernel
 struc tSemaphore
 .Count		RESD	1		; Semaphore itself
 .WaitQ		RESD	1		; Address of waiting thread queue
 endstruc
-
 
 ; mSemInit - initialize a semaphore
 ; Parameter: address of semaphore structure
@@ -73,16 +73,26 @@ SCTL_SETEVENT		EQU	3	; mutex	struct sigevent *event
 
 ; Synchronization types
 struc tSync
-.Count		RESD	1	; Count for recursive mutexs and semaphores
+.Count		RESD	1	; Count for recursive mutexes and semaphores
 .Owner		RESD	1	; Thread id (valid for mutex only)
 endstruc
 
 struc tSyncAttr
 .Protocol	RESD	1
 .Flags		RESD	1
-.PrioCeiling	RESD	1	; Reserved
-.ClockID	RESD	1	; Condvars only
+.PrioCeiling	RESD	1				; Reserved
+.ClockID	RESD	1				; Condvars only
 .Reserved	RESD	4
+endstruc
+
+; Synchronization object descriptor
+struc tSyncDesc
+.Type		RESD	1
+.Obj		RESB	tSync_size
+.Attr		RESB	tSyncAttr_size
+.PCB		RESD	1				; Owning proces
+.Next		RESD	1
+.Prev		RESD	1
 endstruc
 
 %endif

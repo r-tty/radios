@@ -1,37 +1,45 @@
 ;*******************************************************************************
 ; sync.nasm - synchronization primitives (semaphores, mutexes, condvars, etc).
-; Copyright (c) 2000-2002 RET & COM Research.
+; Copyright (c) 2003 RET & COM Research.
 ; Portions are based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
 module kernel.sync
 
-; --- Exports ---
+%include "errors.ah"
+%include "sync.ah"
+%include "pool.ah"
+%include "thread.ah"
+%include "tm/process.ah"
 
-publicproc K_SemP, K_SemV
-publicproc sys_SyncTypeCreate
-publicproc sys_SyncDestroy
-publicproc sys_SyncMutexLock
-publicproc sys_SyncMutexUnlock
-publicproc sys_SyncCondvarWait
-publicproc sys_SyncCondvarSignal
-publicproc sys_SyncSemPost
-publicproc sys_SyncSemWait
-publicproc sys_SyncCtl
-publicproc sys_SyncMutexRevive
+exportproc K_SemP, K_SemV
+publicproc sys_SyncTypeCreate, sys_SyncDestroy, sys_SyncCtl
+publicproc sys_SyncMutexLock, sys_SyncMutexUnlock, sys_SyncMutexRevive
+publicproc sys_SyncCondvarWait, sys_SyncCondvarSignal
+publicproc sys_SyncSemPost, sys_SyncSemWait
 
-
-; --- Imports ---
-
-library kernel.mt
-externdata ?CurrThread
 externproc MT_ThreadSleep, MT_ThreadWakeup
 externproc MT_Schedule
+externproc K_PoolAllocChunk, K_PoolFreeChunk
+externproc BZero
+externdata ?CurrThread
 
-%include "thread.ah"
-%include "sync.ah"
+
+section .bss
+
+?SyncPool	RESB	tMasterPool_size
+
 
 section .text
+
+		; K_SyncInit - initialize synchronization object pool.
+		; Input: EAX=maximum number of synchronization objects.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc K_SyncInit
+		ret
+endp		;---------------------------------------------------------------
+
 
 		; K_SemP - the "P" operation (decrement and sleep if negative).
 		; Input: EAX=address of semaphore structure.
@@ -88,8 +96,34 @@ endp		;---------------------------------------------------------------
 ; --- Synchronizaton system calls ----------------------------------------------
 
 
+		; int SyncTypeCreate(uint type, sync_t *sync,
+		;			const struct _sync_attr_t *attr);
 proc sys_SyncTypeCreate
+		arg	type, sync, attr
+		prologue
+
+		; Allocate a syncobj descriptor and zero it
+		mov	ebx,?SyncPool
+		call	K_PoolAllocChunk
+		jc	.Again
+		mov	ebx,esi
+		mov	ecx,tSyncDesc_size
+		call	BZero
+
+		; Syncobj is considered to be owned by a calling process
+		mCurrThread
+		mov	eax,[eax+tTCB.PCB]
+		mov	[esi+tSyncDesc.PCB],eax
+		mEnqueue dword [eax+tProcDesc.SyncList], Next, Prev, esi, tSyncDesc, ecx
+
+		; Return success
+		xor	eax,eax
+
+.Exit:		epilogue
 		ret
+
+.Again:		mov	eax,-EAGAIN
+		jmp	.Exit		
 endp		;---------------------------------------------------------------
 
 
@@ -104,6 +138,11 @@ endp		;---------------------------------------------------------------
 
 
 proc sys_SyncMutexUnlock
+		ret
+endp		;---------------------------------------------------------------
+
+
+proc sys_SyncMutexRevive
 		ret
 endp		;---------------------------------------------------------------
 
@@ -129,10 +168,5 @@ endp		;---------------------------------------------------------------
 
 
 proc sys_SyncCtl
-		ret
-endp		;---------------------------------------------------------------
-
-
-proc sys_SyncMutexRevive
 		ret
 endp		;---------------------------------------------------------------

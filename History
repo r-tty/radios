@@ -95,3 +95,6 @@ Dec 30, 2002	Version 0.0.1-mk5: Basic message passing routines. Task
 Jan 20, 2003	Version 0.0.1-mk6: Message passing primitives - the core of
 		RadiOS microkernel - work, as well as synchronization system
 		calls.
+
+Mar 01, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
+		multi-part data (IOVs).

@@ -20,7 +20,7 @@ proc sys_MsgDeliverEvent
 endp		;---------------------------------------------------------------
 
 
-		; int MsgDeliverEvent(int rcvid, const struct sigevent *event);
+		; int MsgVerifyEvent(int rcvid, const struct sigevent *event);
 proc sys_MsgVerifyEvent
 		arg	rcvid, event
 		prologue

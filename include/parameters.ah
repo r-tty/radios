@@ -7,7 +7,7 @@
 
 %include "cpu/paging.ah"
 
-%define	MAXNUMTHREADS	1024		; Max number of threads
+%define	MAXNUMTHREADS	512		; Max number of threads
 %define	MAXNUMPROCESSES	512		; Max number of processes
 %define MAXMODULES	1024		; Max number of modules
 %define MAXMCBS		8192		; Max number of memory ctrl blocks
@@ -16,6 +16,7 @@
 %define MAXCHANNELS	1024		; Max number of channels
 %define MAXCONNECTIONS	1024		; Max number of connections per process
 %define MAXMESSAGES	8192		; Max number of message descriptors
+%define	MAXSYNCOBJECTS	8192		; Max number of synchronization objects
 
 %define MAXHEAPSIZE	10000000h	; Max user heap size (256M)
 %define INITRDSIZE	1440		; Size of new RAM-disk (in kilobytes)

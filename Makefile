@@ -90,8 +90,7 @@ diff: distclean
 release: distclean
 	@rm -f Build/header.mk
 	@echo -n "Release file: "
-	@relf=radios-`grep ^RadiOS_Version kernel/version.nasm | awk \
-	  '{ print $$3 }' | sed 's/\"//g'`.tar.gz ; \
+	@relf=radios-`awk '/RADIOS_VERSION/ { print $$3 }' include/parameters.ah | sed 's/\"//g'`.tar.gz ; \
 	   echo $$relf; tar czf $$relf *
 
 #-------------------------------------------------------------------------------

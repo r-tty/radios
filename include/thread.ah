@@ -5,6 +5,7 @@
 %ifndef _thread_ah
 %define _thread_ah
 
+%include "sync.ah"
 %include "cpu/fpu.ah"
 %include "cpu/setjmp.ah"
 
@@ -93,11 +94,21 @@ struc tTCB
 .SemNext	RESD	1			; Semaphore link
 .SemPrev	RESD	1
 
-.RcvNext	RESD	1			; Receive link
+.SendReplyNext	RESD	1			; Send/reply queue
+.SendReplyPrev	RESD	1
+
+.RcvNext	RESD	1			; Receive queue
 .RcvPrev	RESD	1
 
 .ProcNext	RESD	1			; Process link
 .ProcPrev	RESD	1
+
+.SendBuf	RESD	1			; Send buffer address
+.SendSize	RESD	1			; Number of bytes to send
+.ReplyBuf	RESD	1			; Reply buffer address
+.ReplySize	RESD	1			; Number of bytes to reply
+.ConnDesc	RESD	1			; Connection descriptor address
+.MsgStatus	RESD	1			; Message send status
 
 .Entry		RESD	1			; Start entry point
 .Stack		RESD	1			; Stack pointer
@@ -116,6 +127,7 @@ struc tTCB
 
 .Preempt	RESD	1			; Preemptive flag
 .Stamp		RESD	1			; Timestamp
+.Lock		RESB	tSemaphore_size 	; To manipulate TCB safely
 
 .DebugRegs	RESD	8			; DR0..DR7 values
 .FPUstate	RESB	tFPUstate_size		; FPU state

@@ -7,6 +7,16 @@ module libc.stdio
 publicproc libc_init_stdio
 
 exportproc _fgets
+exportdata _stdin, _stdout, _stderr
+
+section .bss
+
+_stdin		RESB	64
+_stdout		RESB	64
+_stderr		RESB	64
+
+
+section .text
 
 		; Initialization
 proc libc_init_stdio

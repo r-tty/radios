@@ -2,6 +2,9 @@
  * multiboot.h - multiboot header definitions.
  */
 
+#ifndef _sys_multiboot_h
+#define _sys_multiboot_h
+
 /* The magic number for the Multiboot header */
 #define MULTIBOOT_HEADER_MAGIC		0x1BADB002
 
@@ -109,3 +112,5 @@ typedef struct {
   unsigned long length_high;
   unsigned long type;
 } tBIOSMemoryMap;
+
+#endif

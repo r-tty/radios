@@ -10,15 +10,16 @@ group = xray
 include ../../Build/header.mk
 
 # Variables
-TARGET_RDM = x-ray.$(X)
-OBJS = x-ray.$(O)
+TARGET = x-ray.$(X)
+OBJS = x-ray.$(O) hash.$(O) util.$(O)
+C_SOURCE = 1
 
-# Build module
-include ../../Build/module.mk
+# Build program
+include ../../Build/prog.mk
 
 # Individual rules
 install:
-	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/sys
+	install $(OBJPATH)/$(TARGET) $(INSTALLPATH)/sys
 
 all-dep: dep
 all-clean: clean

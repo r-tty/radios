@@ -9,7 +9,7 @@
 struc tTLS
 .ExitFunction	RESP	1
 .Arg		RESP	1
-.ErrPtr		RESP	1
+.ErrPtr		RESP	1		; Address of errno variable
 .ErrVal		RESD	1		; Not used for main() thread
 .Flags		RESD	1
 .PID		RESD	1
@@ -28,5 +28,19 @@ endstruc
 
 ; Macro to get a pointer to TLS
 %define tlsptr(x) mov x,[fs:0]
+
+; Macro to set an errno
+; Parameters:	%1 - new errno value,
+;		%2 - scratch register
+%macro mSetErrno 2
+	mov	%2,[fs:tTLS.ErrPtr]
+	mov	[%2],%1
+%endmacro
+
+; Macro to get errno value in %1
+%macro mGetErrno 1
+	mov	%1,[fs:tTLS.ErrPtr]
+	mov	%1,[%1]
+%endmacro
 
 %endif

@@ -5,6 +5,7 @@
 module tm.kern.ring0init
 
 %include "sys.ah"
+%include "errors.ah"
 %include "parameters.ah"
 %include "module.ah"
 %include "serventry.ah"
@@ -15,6 +16,7 @@ module tm.kern.ring0init
 ; --- Exports ---
 
 exportproc Start
+publicproc R0_Pid2PCBaddr, R0_IteratePgrp
 
 publicdata ?BootModsArr, ?KernPCB
 
@@ -27,7 +29,7 @@ externdata ?ProcListPtr, ?MaxNumOfProc, ?ProcessPool
 
 library $rmk
 importproc K_InstallSyscallHandler
-importproc K_PoolInit, K_PoolAllocChunk
+importproc K_PoolInit, K_PoolAllocChunk, K_PoolChunkAddr
 importproc PG_Alloc, PG_AllocAreaTables
 importproc K_RegisterLDT
 importproc MT_CreateThread
@@ -72,7 +74,7 @@ proc Start
 		mov	[%$bmd],ebx
 
 		; Install our syscall handlers
-		call	TM_InitSyscalls
+		call	R0_InitSyscalls
 
 		; Initialize process descriptor pool
 		mov	dword [?MaxNumOfProc],MAXNUMPROCESSES
@@ -216,10 +218,10 @@ proc Start
 endp		;---------------------------------------------------------------
 
 
-		; TM_InitSyscalls - install syscall handlers.
+		; R0_InitSyscalls - install syscall handlers.
 		; Input: none.
 		; Output: none.
-proc TM_InitSyscalls
+proc R0_InitSyscalls
 		mov	esi,SyscallTables
 .LoopTables:	mov	edi,[esi]
 		add	esi,byte 4
@@ -234,4 +236,41 @@ proc TM_InitSyscalls
 		add	edi,byte 8
 		jmp	.LoopEntries
 .Exit:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Get the address of PCB by a pid
+		; Input: EAX=PID.
+		; Output: CF=0 - OK, ESI=address of PCB;
+		;	  CF=1 - error, EAX=errno.
+proc R0_Pid2PCBaddr
+		push	ebx
+		mov	ebx,?ProcessPool
+		call	K_PoolChunkAddr
+		pop	ebx
+		jc	.Err
+		ret
+
+.Err:		mov	eax,-ESRCH
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Iterate through a process grup applying the function.
+		; Input: EDX=function address,
+		;	 ESI=address of head's PCB.
+		; Output: CF=0 - OK, all processes have been processed;
+		;	  CF=1 - function error, AX=error code.
+proc R0_IteratePgrp
+		push	esi
+.Loop:		or	esi,esi
+		jz	.Exit
+		call	edx
+		jc	.Exit
+.Next:		mov	eax,esi
+		mov	esi,[esi+tProcDesc.PgrpNext]
+		cmp	esi,eax
+		jne	.Loop
+.Exit:		pop	esi
+		ret
 endp		;---------------------------------------------------------------

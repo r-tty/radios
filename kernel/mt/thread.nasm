@@ -10,11 +10,11 @@
 
 publicproc MT_ThreadSleep, MT_ThreadWakeup, MT_GetNumThreads
 publicproc MT_SleepTQ, MT_WakeupTQ
-exportproc MT_CreateThread, MT_ThreadExec
+exportproc MT_CreateThread, MT_ThreadExec, MT_FindTCBbyNum
 
 
 externproc K_PoolInit
-externproc K_PoolAllocChunk, K_PoolFreeChunk, K_PoolChunkNumber
+externproc K_PoolAllocChunk, K_PoolFreeChunk, K_PoolChunkAddr
 externproc PG_Alloc, PG_AllocContBlock, PG_AllocAreaTables
 
 
@@ -216,13 +216,14 @@ proc MT_CreateThread
 		mov	[%$ustkaddr],edi
 		mov	[%$pcb],esi
 
-		; Allocate a TCB and zero it
+		; Allocate a TCB and zero it, initialize lock semaphore
 		mov	ebx,?ThreadPool
 		call	K_PoolAllocChunk
 		jc	near .NoTCB
 		mov	ebx,esi
 		mov	ecx,tTCB_size
 		call	BZero
+		mSemInit ebx+tTCB.Lock
 
 		; Initialize 'Entry' and 'PCB' fields
 		mov	eax,[%$entry]
@@ -370,6 +371,21 @@ endp		;---------------------------------------------------------------
 		; Output: ECX=number of threads.
 proc MT_GetNumThreads
 		mov	ecx,[?NumThreads]
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_FindTCBbyNum - find a TCB by its chunk ordinal number.
+		; Input: EAX=chunk number.
+		; Output: CF=0 - OK, EBX=TCB address;
+		;	  CF=1 - error, AX=error code.
+proc MT_FindTCBbyNum
+		push	esi
+		mov	ebx,?ThreadPool
+		call	K_PoolChunkAddr
+		jc	.Exit
+		mov	ebx,esi
+.Exit:		pop	esi
 		ret
 endp		;---------------------------------------------------------------
 

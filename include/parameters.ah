@@ -15,7 +15,7 @@
 %define MAXTIMERS	128		; Max number of timers
 %define MAXCHANNELS	1024		; Max number of channels
 %define MAXCONNECTIONS	1024		; Max number of connections per process
-%define MAXMESSAGES	8192		; Max number of message descriptors
+%define MAXPULSES	8192		; Max number of pulse descriptors
 %define	MAXSYNCOBJECTS	8192		; Max number of synchronization objects
 
 %define MAXHEAPSIZE	10000000h	; Max user heap size (256M)
@@ -25,5 +25,7 @@
 %define UMINSTACK	PAGESIZE*16	; Initial user stack size
 
 %define	HZ		100		; Timer ticks per second
+
+%define	RADIOS_VERSION	"0.0.1-mk7"	; System version
 
 %endif

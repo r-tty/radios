@@ -18,7 +18,7 @@ exportdata ModuleInfo
 library $libc
 importproc _fgets, _exit
 importproc _strncmp, _strlen
-importproc _MsgSend, _MsgSendPulse
+importproc _MsgSend, _MsgSendv, _MsgSendPulse
 importproc _ClockTime
 importproc _AllocPages, _FreePages
 
@@ -49,6 +49,7 @@ TxtBanner	DB	NL,"x-ray - RadiOS system debugging tool",NL
 
 TxtHelp		DB	NL,"Commands:",NL
 		DB     "pulse		- send a pulse to task manager",NL
+		DB     "sendiov		- send an IOV to task manager",NL
 		DB     "schedstat	- view scheduler statistics",NL
 		DB     "ts		- view thread statistics",NL
 		DB     "tls		- print current TLS information",NL
@@ -65,6 +66,7 @@ TxtOpenPar	DB	" (-",0
 TxtTID		DB	NL,"My TID is ",0
 TxtPID		DB	", and PID is ",0
 TxtBlockAddr	DB	NL,"Block address: ",0
+TxtFoobar	DB	"foobarbazqux"
 
 CommandTable:
 mDispTabEnt "?",	XR_Help
@@ -72,12 +74,13 @@ mDispTabEnt "help",	XR_Help
 mDispTabEnt "*",	XR_Breakpoint
 mDispTabEnt "smsg",	XR_SendMsg
 mDispTabEnt "pulse",	XR_SendPulse
+mDispTabEnt "sendiov",	XR_SendIOV
 mDispTabEnt "tls",	XR_PrintTLS
 mDispTabEnt "rt",	XR_Time
 mDispTabEnt "reboot",	XR_Reboot
 mDispTabEnt "allocpgs",	XR_AllocPages
 mDispTabEnt "freepgs",	XR_FreePages
-;mDispTabEnt "memstat",	MM_PrintStat
+
 ;mDispTabEnt "freemcbs",MM_DebugFreeMCBs
 ;mDispTabEnt "schedstat", MT_PrintSchedStat
 ;mDispTabEnt "ts",	MT_DumpReadyThreads
@@ -191,6 +194,35 @@ proc XR_SendPulse
 		call	XR_ErrorHandler
 
 .Exit:		mpop	esi,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Send a 4-part IOV to task manager.
+proc XR_SendIOV
+		locauto	iov, 4*tIOV_size
+		prologue
+		mpush	ecx,esi
+
+		xor	eax,eax
+		mov	al,3
+		mov	dword [%$iov+tIOV.Base],TxtFoobar
+		mov	[%$iov+tIOV.Len],eax
+		mov	dword [%$iov+8+tIOV.Base],TxtFoobar+3
+		mov	[%$iov+8+tIOV.Len],eax
+		mov	dword [%$iov+16+tIOV.Base],TxtFoobar+6
+		mov	[%$iov+16+tIOV.Len],eax
+		mov	dword [%$iov+24+tIOV.Base],TxtFoobar+9
+		mov	[%$iov+24+tIOV.Len],eax
+
+		lea	ebx,[%$iov]
+		Ccall	_MsgSendv, SYSMGR_COID, ebx, 4, ebx, 4
+		test	eax,eax
+		jz	.Exit
+		call	XR_ErrorHandler
+
+.Exit:		mpop	esi,ecx
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

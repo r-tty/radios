@@ -21,9 +21,9 @@ endstruc
 
 struc tSigEvent
 .SigEvNotify	RESD	1
-.Union1		RESD	1
+.SigNo		RESD	1
 .SigEvVal	RESD	1
-.Union2		RESD	1
+.SigEvCode	RESD	1
 endstruc
 
 ; SIGILL codes (si_addr == address of faulting instruction)

@@ -15,5 +15,5 @@ grep -q "$HDIMG" /etc/fstab || exit
 MNTDIR=`grep "$HDIMG" /etc/fstab | awk '{ print $2 }'`
 
 (cd $EMUDIR && mount $HDIMG)
-(cd $RDIR && tar -cf - * | tar -C $MNTDIR/radios/ -xf - )
+(cd $RDIR && tar --exclude lost+found -cf - * | tar -C $MNTDIR/radios/ -xf - )
 (cd $EMUDIR && umount $HDIMG)

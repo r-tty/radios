@@ -41,7 +41,7 @@ AR = rdflib
 
 # Command flags
 ASFLAGS = -s -I$(INCLPATH)/ -Pmacros/sugar.ah
-CFLAGS = -I$(INCLPATH)/c -c
+CFLAGS = -I$(INCLPATH)/c_std -I$(INCLPATH)/c_ext -c
 LDFLAGS = -2 -s -j $(OBJPATH)/ -L $(LIBPATH)/
 ifdef DEBUG
     ASFLAGS += -DDEBUG

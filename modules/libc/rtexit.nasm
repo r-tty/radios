@@ -1,8 +1,8 @@
-;
+;-------------------------------------------------------------------------------
 ; rtexit.nasm - must be linked last.
-;
+;-------------------------------------------------------------------------------
 
-module rtexit
+module libc.rtexit
 
 global text_end, data_end, bss_end
 publicproc _fini

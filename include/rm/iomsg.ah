@@ -74,23 +74,23 @@ endstruc
 
 ; --- Message of IOM_CONNECT ---
 struc tIOMconnect
-.type		RESW	1
-.subtype	RESW	1	; IOM_CONNECT_*
+.Type		RESW	1
+.Subtype	RESW	1	; IOM_CONNECT_*
 .FileType	RESD	1	; FTYPE_* in ftype.ah
 .ReplyMax	RESW	1
 .EntryMax	RESW	1
-.key		RESD	1
-.handle		RESD	1
-.ioflag		RESD	1	; IOM_FLAG_*
-.mode		RESD	1	; ST_MODE_* in stat.ah
-.sflag		RESW	1	; SH_* in share.ah
-.access		RESW	1	; ST_ACC_* in stat.ah
-.zero		RESW	1
+.Key		RESD	1
+.Handle		RESD	1
+.IOflag		RESD	1	; IOM_FLAG_*
+.Mode		RESD	1	; ST_MODE_* in stat.ah
+.Sflag		RESW	1	; SH_* in share.ah
+.Access		RESW	1	; ST_ACC_* in stat.ah
+.Zero		RESW	1
 .PathLen	RESW	1
-.eflag		RESB	1	; IOM_CONNECT_EFLAG_*
+.Eflag		RESB	1	; IOM_CONNECT_EFLAG_*
 .ExtraType	RESB	1	; IOM_EXTRA_*
 .ExtraLen	RESW	1
-.path		RESB	1	; path_len, null, extra_len
+.Path		RESB	1	; path_len, null, extra_len
 endstruc
 
 ; subtype
@@ -160,59 +160,59 @@ IOM_CONNECT_RET_FLAG		EQU	80000000h ; Must be set to signify connect is returing
 
 ; IOM_CONNECT reply redirecting resolution to other entries
 struc tIOMconnectLinkReply
-.reserved1	RESD	1
+.Reserved1	RESD	1
 .FileType	RESD	1	; FTYPE_* in ftype.ah
-.eflag		RESB	1	; IOM_CONNECT_EFLAG_*
-.reserved2	RESB	1
+.Eflag		RESB	1	; IOM_CONNECT_EFLAG_*
+.Reserved2	RESB	1
 .ChrootLen	RESW	1	; Length of chroot in returned path
-.umask		RESD	1	; ST_MODE_* in stat.ah 
+.Umask		RESD	1	; ST_MODE_* in stat.ah 
 .nentries	RESW	1	; If zero, path is a symbolic link
 .PathLen	RESW	1	; Length including null. If zero, path is null terminated
 endstruc
 
 ; IOM_CONNECT reply indicating a change/reply of a certain ftype and errno
-struc IOMconnectFtypeReply
-.status		RESW	1	; Typically an errno
-.reserved	RESW	1
+struc tIOMconnectFtypeReply
+.Status		RESW	1	; Typically an errno
+.Reserved	RESW	1
 .FileType	RESD	1	; FTYPE_* in ftype.ah
 endstruc
 
 ; used in tIOMconnectLinkReply
 struc tIOMconnectEntry
-.nd		RESD	1
-.pid		RESD	1	    
-.chid		RESD	1
-.handle		RESD	1
-.key		RESD	1
+.ND		RESD	1
+.PID		RESD	1	    
+.ChID		RESD	1
+.Handle		RESD	1
+.Key		RESD	1
 .FileType	RESD	1
 .PrefixLen	RESW	1
-.zero		RESW	3
+.Zero		RESW	3
 endstruc
 
 struc tIOresmgrLinkExtra
-.nd		RESD	1
-.pid		RESD	1	    
-.chid		RESD	1
-.handle		RESD	1
-.flags		RESD	1
+.ND		RESD	1
+.PID		RESD	1	    
+.ChID		RESD	1
+.Handle		RESD	1
+.Flags		RESD	1
 .FileType	RESD	1
-.reserved	RESD	2
+.Reserved	RESD	2
 endstruc
 
 ; Server receives this structure filled in
 struc tIOmountSrv
-.ocb		RESP	1	; OCB to the path (remount) or special (first)
-.data		RESP	1	; Server specific data of len datalen
-.type		RESP	1	; Character string with type information
-.special	RESP	1	; Optional special device info
-.zero		RESP	4	; Padding
+.OCB		RESP	1	; OCB to the path (remount) or special (first)
+.Data		RESP	1	; Server specific data of len datalen
+.Type		RESP	1	; Character string with type information
+.Special	RESP	1	; Optional special device info
+.Zero		RESP	4	; Padding
 endstruc
 
 struc tIOmountExtra
-.flags		RESD	1	; MOUNT_* or CFS_ST_* flags above
-.nbytes		RESD	1	; size of entire structure
-.datalen	RESD	1	; length of the data structure
-.zero		RESD	1
+.Flags		RESD	1	; MOUNT_* or CFS_ST_* flags above
+.Nbytes		RESD	1	; size of entire structure
+.Datalen	RESD	1	; length of the data structure
+.Zero		RESD	1
 				; if EXTRA_MOUNT_PATHNAME these set
 				; Sent from client to resmgr framework
 				; special info on first mount, path info on remount

@@ -12,7 +12,7 @@ module tm.kern.thread
 
 publicdata ThreadSyscallTable
 
-externdata ?ProcessPool
+externproc R0_Pid2PCBaddr
 
 library $rmk
 importproc K_PoolChunkAddr, MT_CreateThread
@@ -46,17 +46,14 @@ proc sys_ThreadCreate
 		jz	.Create
 		mIsRoot esi
 		jc	.Perm
-		push	ebx
-		mov	ebx,?ProcessPool
-		call	K_PoolChunkAddr
-		pop	ebx
-		jc	.MkErrno
+		call	R0_Pid2PCBaddr
+		jc	.Exit
 
 		; Fast and lazy.
 .Create:	mov	ebx,[%$func]
 		xor	ecx,ecx
 		call	MT_CreateThread
-		jc	.MkErrno
+		jc	.Again
 
 		; Return TID
 		mov	eax,[esi+tTCB.TID]
@@ -64,10 +61,9 @@ proc sys_ThreadCreate
 .Exit:		epilogue
 		ret
 
-.MkErrno:	mErrno
-		jmp	.Exit
-
 .Perm:		mov	eax,-EPERM
+		jmp	.Exit
+.Again:		mov	eax,-EAGAIN
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
@@ -76,6 +72,7 @@ endp		;---------------------------------------------------------------
 proc sys_ThreadDestroy
 		arg	tid, prio, status
 		prologue
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -85,6 +82,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedGet
 		arg	pid, tid, param
 		prologue
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -95,6 +93,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedSet
 		arg	pid, tid, policy, param
 		prologue
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -104,6 +103,7 @@ endp		;---------------------------------------------------------------
 proc sys_SchedInfo
 		arg	pid, policy, info
 		prologue
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

@@ -68,11 +68,11 @@ mSyscallTabEntry MsgWritev, 4			; 11
 mSyscallTabEntry 0				; 12 (reserved)
 mSyscallTabEntry MsgInfo, 2			; 13
 mSyscallTabEntry MsgSendPulse, 4		; 14
-mSyscallTabEntry MsgDeliverEvent, 2		; 15
+mSyscallTabEntry 0				; 15 MsgDeliverEvent
 mSyscallTabEntry MsgKeyData, 6			; 16
 mSyscallTabEntry MsgReadIOV, 5			; 17
 mSyscallTabEntry MsgReceivePulsev, 4		; 18
-mSyscallTabEntry MsgVerifyEvent, 2		; 19
+mSyscallTabEntry 0				; 19 MsgVerifyEvent
 mSyscallTabEntry 0				; 1A SignalKill
 mSyscallTabEntry 0				; 1B SignalReturn
 mSyscallTabEntry 0				; 1C SignalFault

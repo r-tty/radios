@@ -164,7 +164,13 @@ int main(int argc, char *argv[])
 
 	/* Open source file */
 	fd = fopen(argv[i], "r");
-	if (!fd) error ("file opening error", errno);
+	if (!fd) {
+	    if (errno == ENOENT)
+	    	fprintf(stderr, "File `%s' not found\n", argv[i]);
+	    else
+	    	perror("fopen");
+	    exit(errno);
+	}
 
 	/* First dependency */
 	strcpy(Buf2, argv[i]);

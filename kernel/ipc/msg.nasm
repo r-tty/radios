@@ -13,11 +13,12 @@ module kernel.ipc.msg
 %include "tm/process.ah"
 %include "cpu/paging.ah"
 
-publicproc IPC_MsgInit
+publicproc IPC_PulseInit
 publicproc sys_MsgSendv, sys_MsgSendvnc, sys_MsgReplyv, sys_MsgReceivev
 publicproc sys_MsgWritev, sys_MsgReadv, sys_MsgReadIOV
 publicproc sys_MsgSendPulse, sys_MsgReceivePulsev
 publicproc sys_MsgInfo, sys_MsgError, sys_MsgKeyData
+exportproc K_DecodeRcvid, K_SendPulse, AllocPulseDesc, FreePulseDesc
 
 
 externproc IPC_ChanDescAddr, IPC_ConnDescAddr
@@ -26,92 +27,106 @@ externproc K_PoolChunkNumber, K_PoolChunkAddr
 externproc K_SemP, K_SemV
 externproc K_CopyFromAct, K_CopyToAct, K_CopyOut, BZero
 externproc SLin2Phys, DLin2Phys
-externproc MT_ThreadSleep, MT_ThreadWakeup, MT_Schedule
+externproc MT_ThreadSleep, MT_ThreadWakeup, MT_Schedule, MT_FindTCBbyNum
 
 
 section .bss
 
-?MaxMessages	RESD	1			; Maximum number of messages
-?MsgCount	RESD	1			; Number of allocated messages
-?MsgPool	RESB	tMasterPool_size
-?SpareMsg	RESD	1
+?MaxPulses	RESD	1			; Maximum number of pulses
+?PulseCount	RESD	1			; Number of allocated pulses
+?PulsePool	RESB	tMasterPool_size
 
 
 section .text
 
-		; IPC_MsgInit - initialize message pool.
-		; Input: EAX=maximum number of messages.
+%include "msgcopy.nasm"
+
+		; IPC_PulseInit - initialize the pulse pool.
+		; Input: EAX=maximum number of pulses.
 		; Output: none.
-proc IPC_MsgInit
-		mov	[?MaxMessages],eax
-		mov	ebx,?MsgPool
+proc IPC_PulseInit
+		mov	[?MaxPulses],eax
+		mov	ebx,?PulsePool
 		xor	ecx,ecx
-		mov	[?MsgCount],ecx
-		mov	cl,tMsgDesc_size
+		mov	[?PulseCount],ecx
+		mov	cl,tPulseDesc_size
 		xor	dl,dl
 		call	K_PoolInit
-
-		; Allocate one spare message descriptor, so we will never have
-		; rcvid 0 (it is reserved for pulses).
-		call	AllocMsgDesc
-		jc	.Exit
-		mov	[?SpareMsg],ebx
-
-.Exit:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 
-		; Allocate a message descriptor.
+		; Allocate a pulse descriptor.
 		; Input: none.
-		; Output: CF=0 - OK, EBX=message descriptor address;
-		;	  CF=1 - error, AX=error code.
-proc AllocMsgDesc
+		; Output: CF=0 - OK, EBX=pulse descriptor address;
+		;	  CF=1 - error, EAX=errno.
+proc AllocPulseDesc
 		mpush	ecx,esi
 
-		mov	eax,[?MsgCount]
-		cmp	eax,[?MaxMessages]
+		mov	eax,[?PulseCount]
+		cmp	eax,[?MaxPulses]
 		jae	.Err
 
-		mov	ebx,?MsgPool
+		mov	ebx,?PulsePool
 		call	K_PoolAllocChunk
 		jc	.Exit
 		mov	ebx,esi
-		mov	ecx,tMsgDesc_size
+		mov	ecx,tPulseDesc_size
 		call	BZero
 
-		mSemInit esi+tMsgDesc.Lock
-		inc	dword [?MsgCount]
+		mSemInit esi+tPulseDesc.Lock
+		inc	dword [?PulseCount]
 		clc
 
 .Exit:		mpop	esi,ecx
 		ret
 
-.Err:		mov	ax,EAGAIN
+.Err:		mov	eax,-EAGAIN
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
-		; Free a message descriptor.
-		; Input: EBX=message descriptor address.
+		; Free a pulse descriptor.
+		; Input: EBX=pulse descriptor address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-proc FreeMsgDesc
+proc FreePulseDesc
 		push	esi
 		mov	esi,ebx
 		call	K_PoolFreeChunk
 		jc	.Exit
-		dec	dword [?MsgCount]
+		dec	dword [?PulseCount]
 .Exit:		pop	esi
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; Find a TCB by a given rcvid.
+		; Input: EAX=rcvid.
+		; Output: CF=0 - OK, EBX=TCB address;
+		;	  CF=1 - error, EAX=errno.
+		; Note: currently rcvid consists of 16-bit TCB chunk number
+		;	(system-wide, low word) and 16-bit ConnDesc chunk
+		;	number (system-wide, high word). This will most
+		;	probably change when the support of native networking
+		;	will be added.
+proc K_DecodeRcvid
+		and	eax,0FFFFh
+		call	MT_FindTCBbyNum
+		jnc	.Ret
+		mov	eax,-ESRCH
+.Ret:		ret
+endp		;---------------------------------------------------------------
+
+
 		; Fill in the message information structure.
-		; Input: EBX=message descriptor address,
+		; Input: EBX=address of sending TCB,
 		;	 EDI=information structure address (user).
-		; Output: CF=0 - OK, EDI=info structure address (kernel);
-		;	  CF=1 - error, AX=error code.
+		; Output: CF=0 - OK:
+		;		     EAX=0,
+		;		     EDI=info structure address (kernel);
+		;	  CF=1 - error, EAX=errno.
 		; Note:	modifies ESI.
 proc FillMessageInfo
 		; Check if a user buffer is OK
@@ -122,269 +137,61 @@ proc FillMessageInfo
 		jc	.Fault
 
 		; Fill in the buffer
-		mov	esi,[ebx+tMsgDesc.TCB]
-		mov	eax,[esi+tTCB.TID]
+		mov	eax,[ebx+tTCB.TID]
 		mov	[edi+tMsgInfo.TID],eax
-		mov	eax,[esi+tTCB.PCB]
+		mov	eax,[ebx+tTCB.PCB]
 		mov	eax,[eax+tProcDesc.PID]
 		mov	[edi+tMsgInfo.PID],eax
-		mov	esi,[ebx+tMsgDesc.ConnDesc]
+		mov	esi,[ebx+tTCB.ConnDesc]
 		mov	eax,[esi+tConnDesc.ID]
 		mov	[edi+tMsgInfo.CoID],eax
 		call	K_PoolChunkNumber
-		jc	.Exit
+		jc	.NotFound
 		mov	[edi+tMsgInfo.ScoID],eax
-
-.Exit		ret
+.Exit:		ret
 
 .Fault:		mov	eax,-EFAULT
 		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; Calculate an offset address in source IOV.
-		; Input: ESI=address of IOV (user),
-		;	 ECX=number of parts in IOV,
-		;	 EDX=page directory address,
-		;	 EAX=offset.
-		; Output: CF=0 - OK:
-		;		     EAX=offset inside IOV (in bytes),
-		;		     EBX=physical address of target IOV,
-		;		     ECX=number of IOVs remaining,
-		;		     ESI=linear address of target IOV;
-		;	  CF=1 - error.
-		; Note: assumes that ECX is always positive.
-proc CalcSIOVoffs
-		jecxz	.Ret
-		push	ebp
-.Loop:		call	SLin2Phys
-		jc	.Exit
-		cmp	eax,[ebx+tIOV.Len]
-		jl	.OK
-		sub	eax,[ebx+tIOV.Len]
-		add	esi,byte tIOV_size
-		cmp	esi,USERAREACHECK
-		cmc
-		jc	.Exit
-		loop	.Loop
-.OK:		clc
-.Exit:		pop	ebp
-.Ret:		ret
-endp		;---------------------------------------------------------------
-
-
-		; Calculate an offset address in destination IOV.
-		; Input: EDI=address of IOV (user),
-		;	 ECX=number of parts in IOV,
-		;	 EDX=page directory address,
-		;	 EAX=offset.
-		; Output: CF=0 - OK:
-		;		     EAX=offset inside IOV (in bytes),
-		;		     EBX=physical address of target IOV,
-		;		     ECX=number of IOVs remaining,
-		;		     EDI=linear address of target IOV;
-		;	  CF=1 - error.
-		; Note: assumes that ECX is always positive.
-proc CalcDIOVoffs
-		jecxz	.Ret
-		push	ebp
-.Loop:		call	DLin2Phys
-		jc	.Exit
-		cmp	eax,[ebx+tIOV.Len]
-		jl	.OK
-		sub	eax,[ebx+tIOV.Len]
-		add	edi,byte tIOV_size
-		cmp	edi,USERAREACHECK
-		cmc
-		jc	.Exit
-		loop	.Loop
-.OK:		clc
-.Exit:		pop	ebp
-.Ret:		ret
-endp		;---------------------------------------------------------------
-
-
-		; Multipart copy from send-source to receive buffers.
-		; Input: EBX=address of message descriptor,
-		;	 ECX=number of parts (or negated size in bytes),
-		;	 EDX=offset in source (in bytes),
-		;	 EDI=address of destination IOV or buffer.
-		; Output: CF=0 - OK, EAX=number of bytes copied;
-		;	  CF=1 - error, EAX=errno.
-proc CopyVtoAct
-		arg	sparts, dparts, sladdr, dladdr, offs
-		arg	sbytes, dbytes
-		prologue
-		push	edi
-
-		; Prepare EDX - set it to source process page directory address
-		mov	[%$offs],edx
-		mov	eax,[ebx+tMsgDesc.TCB]
-		mov	eax,[eax+tTCB.PCB]
-		mov	edx,[eax+tProcDesc.PageDir]
-
-		; Destination or source size/nparts may be zero.
-		; In this case just do nothing.
-		xor	eax,eax
-		test	ecx,ecx
-		jz	near .Exit
-		mov	eax,[ebx+tMsgDesc.SendSize]
-		test	eax,eax
-		jz	near .Exit
-		
-		; If ECX is negative - destination is linear buffer, not IOV
-		mov	esi,[ebx+tMsgDesc.SendBuf]
-		mov	[%$dparts],ecx
-		test	ecx,ecx
-		jns	near .Dvector
-		neg	ecx
-		mov	[%$dbytes],ecx
-		mov	[%$dladdr],edi
-
-		; If the source is also scalar - we have a simplest case
-		test	eax,eax
-		jns	.Vect2scal
-		neg	eax
-		sub	eax,[%$offs]
-		jc	near .BadOffset
-		cmp	eax,ecx
-		jge	.1
-		mov	ecx,eax
-
-		; Copy the data
-.1:		mpush	ebx,ecx,esi,edi
-		add	esi,[%$offs]
-		call	K_CopyToAct
-		mpop	edi,esi,ecx,ebx
-		jc	near .CopyErr
-
-		; Return number of bytes copied
-		mov	eax,ecx
+.NotFound:	mov	eax,-ESRCH
 		jmp	.Exit
+endp		;---------------------------------------------------------------
 
-		; Vector-to-scalar copy. Take care about offset too..
-.Vect2scal:	mov	ecx,eax
-		mov	eax,[%$offs]
-		call	CalcSIOVoffs
-		jc	near .BadOffset
-		
-.V2Sloop:	mpush	ebx,ecx,esi,edi
-		mov	esi,[ebx+tIOV.Base]
-		add	esi,eax
-		mov	ecx,[ebx+tIOV.Len]
-		sub	ecx,eax
-		jz	.V2Snext
-		mov	eax,[%$dbytes]
-		cmp	eax,ecx
-		jge	.2
-		mov	ecx,eax
-.2:		sub	[%$dbytes],ecx
-		add	[%$dladdr],ecx
-		call	K_CopyToAct
-		mpop	edi,esi,ecx,ebx
-		jc	near .CopyErr
-.V2Snext:	cmp	dword [%$dbytes],0
-		jle	.V2Sdone
-		add	esi,byte tIOV_size
-		call	SLin2Phys
+
+		; Send a pulse to the channel. This routine is used
+		; by MsgSendPulse and MsgDeliverEvent.
+		; Input: AL=pulse code,
+		;	 ECX=pulse value,
+		;	 EBX=address of TCB,
+		;	 EDI=address of connection descriptor.
+		; Output: none.
+proc K_SendPulse
+		mpush	ebx,edx,esi,eax
+
+		; Get a pulse descriptor and fill it in
+		mov	edx,ebx
+		call	AllocPulseDesc
 		jc	near .Exit
-		mov	edi,[%$dladdr]
-		loop	.V2Sloop
 
-		; Return number of bytes copied
-.V2Sdone:	mov	eax,[%$dparts]
-		neg	eax
-		sub	eax,[%$dbytes]
-		jmp	.Exit
+		mLockCB ebx, tPulseDesc
+		mov	al,[esp]
+		mov	[ebx+tPulse.Code],al
+		mov	[ebx+tPulse.SigValue],ecx
+		mov	[ebx+tPulseDesc.TCB],edx
+		mov	[ebx+tPulseDesc.ConnDesc],edi
 
-		; Destination is a vector. Check the source as well.
-.Dvector:	test	eax,eax
-		jns	.Vect2vect
+		; Put the pulse into the queue
+		mov	esi,[edi+tConnDesc.ChanDesc]
+		mEnqueue dword [esi+tChanDesc.PulseQueue], Next, Prev, ebx, tPulseDesc, edx
+		mUnlockCB ebx, tPulseDesc
 
-		; Scalar-to-vector copy - a bit simpler than previous.
-		neg	eax
-		sub	eax,[%$offs]
-		jc	near .BadOffset
-		add	esi,[%$offs]
-		mov	[%$sladdr],esi
-		mov	[%$sbytes],eax
-		mov	[%$sparts],eax
+		; If there is somebody in the receive queue, wake him up
+		mov	ebx,[esi+tChanDesc.ReceiveWaitQ]
+		or	ebx,ebx
+		jz	.Exit
+		mDequeue dword [esi+tChanDesc.ReceiveWaitQ], RcvNext, RcvPrev, ebx, tTCB, edx
+		call	MT_ThreadWakeup
 
-.S2Vloop:	mpush	ebx,ecx,esi,edi
-		mov	ecx,[edi+tIOV.Len]
-		mov	eax,[%$sbytes]
-		cmp	eax,ecx
-		jge	.3
-		mov	ecx,eax
-.3:		sub	[%$sbytes],ecx
-		add	[%$sladdr],ecx
-		mov	edi,[edi+tIOV.Base]
-		call	K_CopyToAct
-		mpop	edi,esi,ecx,ebx
-		jc	.CopyErr
-		cmp	dword [%$sbytes],0
-		jle	.S2Vdone
-		add	edi,byte tIOV_size
-		mov	esi,[%$sladdr]
-		loop	.S2Vloop
-
-		; Return number of bytes copied
-.S2Vdone:	mov	eax,[%$sparts]
-		sub	eax,[%$sbytes]
-		jmp	.Exit
-
-		; Vector-to-vector copy. Complicated.
-.Vect2vect:	mov	[%$dparts],ecx
-		mov	ecx,eax
-		mov	eax,[%$offs]
-		call	CalcSIOVoffs
-		jc	.BadOffset
-		mov	dword [%$sbytes],0
-
-.V2Vloop:	mpush	ebx,ecx,esi,edi
-		mov	esi,[ebx+tIOV.Base]
-		add	esi,eax
-		mov	ecx,[ebx+tIOV.Len]
-		sub	ecx,eax
-		jz	.V2Vnext
-		mov	eax,[edi+tIOV.Len]
-		cmp	eax,ecx
-		jge	.4
-		mov	ecx,eax
-.4:		add	[%$sbytes],ecx
-		mov	edi,[edi+tIOV.Base]
-		call	K_CopyToAct
-		mpop	edi,esi,ecx,ebx
-		jc	.CopyErr
-.V2Vnext:	dec	dword [%$dparts]
-		jz	.V2Vdone
-		add	esi,byte tIOV_size
-		add	edi,byte tIOV_size
-		loop	.V2Vloop
-
-		; Return number of bytes copied
-.V2Vdone:	mov	eax,[%$sbytes]
-		clc
-
-.Exit:		pop	edi
-		epilogue
-		ret
-
-.BadOffset:	mov	eax,-EFAULT
-		jmp	.Exit
-
-.CopyErr:	mov	eax,-EFAULT
-		jmp	.Exit
-
-.SrvFault:	mov	eax,-ESRVRFAULT
-		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; Multipart copy from reply to send-reply buffers.
-		; Input:
-		; Output:
-proc CopyVfromAct
+.Exit:		mpop	eax,esi,edx,ebx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -404,39 +211,32 @@ proc sys_MsgSendvnc
 		prologue
 
 		; Get current thread
-		mCurrThread edx
+		mCurrThread ebx
 
 		; Get connection descriptor address
 		mov	eax,[%$coid]
-		mov	esi,[edx+tTCB.PCB]
+		mov	esi,[ebx+tTCB.PCB]
 		call	IPC_ConnDescAddr
-		jc	near .MkErrno
+		jc	near .Exit
 
-		; Get a message descriptor and fill it
-		call	AllocMsgDesc
-		jc	near .MkErrno
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemP
-		mov	[ebx+tMsgDesc.TCB],edx
-		mov	[ebx+tMsgDesc.ConnDesc],edi
+		; Fill in the fields in TCB
+		mLockCB ebx, tTCB
+		mov	[ebx+tTCB.ConnDesc],edi
 		mov	eax,[%$smsg]
-		mov	[ebx+tMsgDesc.SendBuf],eax
+		mov	[ebx+tTCB.SendBuf],eax
 		mov	eax,[%$sparts]
-		mov	[ebx+tMsgDesc.SendSize],eax
+		mov	[ebx+tTCB.SendSize],eax
 		mov	eax,[%$rmsg]
-		mov	[ebx+tMsgDesc.ReplyBuf],eax
+		mov	[ebx+tTCB.ReplyBuf],eax
 		mov	eax,[%$rparts]
-		mov	[ebx+tMsgDesc.ReplySize],eax
+		mov	[ebx+tTCB.ReplySize],eax
 
 		; Put the message into the send queue
 		mov	esi,[edi+tConnDesc.ChanDesc]
-		mEnqueue dword [esi+tChanDesc.SendWaitQ], Next, Prev, ebx, tMsgDesc, edx
+		mEnqueue dword [esi+tChanDesc.SendWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, edx
+		mUnlockCB ebx, tTCB
 
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemV
-
-		; If there is somebody in the receive queue, wake it up
-		mov	edx,ebx
+		; If there is somebody in the receive queue, wake him up
 		mov	ebx,[esi+tChanDesc.ReceiveWaitQ]
 		or	ebx,ebx
 		jz	.Sleep
@@ -451,17 +251,10 @@ proc sys_MsgSendvnc
 		call	MT_Schedule
 
 		; Get a status and free message descriptor
-		mov	ebx,edx
-		mov	edx,[ebx+tMsgDesc.Status]
-		call	FreeMsgDesc
-		jc	.MkErrno
-		mov	eax,edx
+		mov	eax,[ebx+tTCB.MsgStatus]
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -483,13 +276,13 @@ endp		;---------------------------------------------------------------
 		; int MsgReceive(int chid, void *msg, int bytes, 
 		;		 struct _msg_info *info);
 proc sys_MsgReceivev
-		arg	chid, msg, bytes, info
+		arg	chid, msg, parts, info
 		prologue
-		
+
 		; Get an address of channel descriptor
 		mov	eax,[%$chid]
 		call	IPC_ChanDescAddr
-		jc	near .MkErrno
+		jc	near .Exit
 
 		; If there is a message or pulse pending, we won't block
 .WaitLoop:	mov	ebx,[esi+tChanDesc.PulseQueue]
@@ -506,36 +299,25 @@ proc sys_MsgReceivev
 		call	MT_Schedule
 		jmp	.WaitLoop
 
-		; Change sender status to REPLY-blocked and calculate data size
-.GotMsg:	mov	eax,[ebx+tMsgDesc.TCB]
-		mov	byte [eax+tTCB.State],THRSTATE_REPLY
-		mov	eax,[eax+tTCB.PCB]
-		mov	edx,[eax+tProcDesc.PageDir]
-		mov	ecx,[%$bytes]
+		; Change sender status to REPLY-blocked
+.GotMsg:	mov	byte [ebx+tTCB.State],THRSTATE_REPLY
 
-		mov	eax,[ebx+tMsgDesc.SendSize]
-		cmp	eax,ecx
-		jge	.1
+		; Copy the message
+		mov	ecx,[%$parts]
+		xor	edx,edx
+		mov	edi,[%$msg]
+		call	CopyVtoAct
+		jc	near .Exit
 		mov	ecx,eax
 
-		; Copy the data
-.1:		mpush	ebx,ecx,esi,edi
-		mov	esi,[ebx+tMsgDesc.SendBuf]
-		mov	edi,[%$msg]
-		call	K_CopyToAct
-		mpop	edi,esi,ecx,ebx
-		jc	near .CopyErr
+		; Delete the TCB from the send queue and put it into a
+		; reply queue
+		mLockCB ebx, tTCB
+		mDequeue dword [esi+tChanDesc.SendWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, edx
+		mEnqueue dword [esi+tChanDesc.ReplyWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, edx
+		mUnlockCB ebx, tTCB
 
-		; Delete message descriptor from the send queue and put it
-		; into reply queue
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemP
-		mDequeue dword [esi+tChanDesc.SendWaitQ], Next, Prev, ebx, tMsgDesc, edx
-		mEnqueue dword [esi+tChanDesc.ReplyWaitQ], Next, Prev, ebx, tMsgDesc, edx
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemV
-
-		; Get a message ID
+		; Get a rcvid
 		mov	esi,ebx
 		call	K_PoolChunkNumber
 		jc	.MkErrno
@@ -557,36 +339,17 @@ proc sys_MsgReceivev
 .MkErrno:	mErrno
 		jmp	.Exit
 
-.CopyErr:	mov	eax,-EFAULT
-		jmp	.Exit
-
-.BadBuf:	mov	eax,-EFAULT
-		jmp	.Exit
-
-		; We got a pulse. First check if a receive buffer is valid.
-.GotPulse:	mov	ecx,[%$bytes]
-		cmp	ecx,tPulse_size
-		jl	.BadBuf
+		; We got a pulse. Simply copy it.
+.GotPulse:	mov	ecx,[%$parts]
 		mov	edi,[%$msg]
-		add	edi,USERAREASTART
-		jc	.BadBuf
-		add	ecx,edi
-		jc	.BadBuf
-		
-		; Copy the pulse data
-		mov	edx,esi
-		mov	esi,ebx
-		mov	ecx,tPulse_size / 4
-		cld
-		rep	movsd
+		call	CopyPulseToAct
+		jc	.Exit
 		
 		; Delete the descriptor from pulse queue and free it
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemP
-		mDequeue dword [edx+tChanDesc.PulseQueue], Next, Prev, ebx, tMsgDesc, ecx
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemV
-		call	FreeMsgDesc
+		mLockCB ebx, tPulseDesc
+		mDequeue dword [esi+tChanDesc.PulseQueue], Next, Prev, ebx, tPulseDesc, ecx
+		mUnlockCB ebx, tPulseDesc
+		call	FreePulseDesc
 		jc	.MkErrno
 
 		; Return 0, which means "pulse is received"
@@ -598,60 +361,36 @@ endp		;---------------------------------------------------------------
 		; int MsgReplyv(int rcvid, int status, const iov_t *riov, int rparts);
 		; int MsgReply(int rcvid, int status, const void *msg, int size);
 proc sys_MsgReplyv
-		arg	rcvid, status, msg, size
+		arg	rcvid, status, msg, parts
 		prologue
 		
-		; Get the message descriptor address
+		; Get the sending TCB address
 		mov	eax,[%$rcvid]
-		mov	ebx,?MsgPool
-		call	K_PoolChunkAddr
-		jc	.MkErrno
-		mov	ebx,esi
+		call	K_DecodeRcvid
+		jc	.Exit
 
-		; Prepare to copy
-		mov	eax,[ebx+tMsgDesc.TCB]
-		mov	eax,[eax+tTCB.PCB]
-		mov	edx,[eax+tProcDesc.PageDir]
-		mov	ecx,[ebx+tMsgDesc.ReplySize]
-		mov	eax,[%$size]
-		cmp	eax,ecx
-		jge	.1
-		mov	ecx,eax
+		; Copy the message
+		mov	ecx,[%$parts]
+		xor	edx,edx
+		mov	esi,[%$msg]
+		call	CopyVfromAct
+		jc	.Exit
 
-		; Copy the data
-.1:		mov	esi,[%$msg]
-		mov	edi,[ebx+tMsgDesc.ReplyBuf]
-		push	ebx
-		call	K_CopyFromAct
-		pop	ebx
-		jc	.CopyErr
-
-		; Fill the status and remove the message from reply queue
-		mov	edi,[ebx+tMsgDesc.ConnDesc]
+		; Fill the status and remove the TCB from reply queue
+		mov	edi,[ebx+tTCB.ConnDesc]
 		mov	esi,[edi+tConnDesc.ChanDesc]
 		mov	eax,[%$status]
-		mov	[ebx+tMsgDesc.Status],eax
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemP
-		mDequeue dword [esi+tChanDesc.ReplyWaitQ], Next, Prev, ebx, tMsgDesc, ecx
-		lea	eax,[ebx+tMsgDesc.Lock]
-		call	K_SemV
+		mov	[ebx+tTCB.MsgStatus],eax
+		mLockCB ebx, tTCB
+		mDequeue dword [esi+tChanDesc.ReplyWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, ecx
+		mUnlockCB ebx, tTCB
 
-		; Unblock a thread that sent this message
-		mov	ebx,[ebx+tMsgDesc.TCB]
+		; Finally, unblock the sender and return success
 		call	MT_ThreadWakeup
-
-		; All OK
 		xor	eax,eax
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
-
-.CopyErr:	mov	eax,-EFAULT
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -660,138 +399,72 @@ proc sys_MsgError
 		arg	rcvid, errno
 		prologue
 
-		; Get the message descriptor address
+		; Get the sending TCB address
 		mov	eax,[%$rcvid]
-		mov	ebx,?MsgPool
-		call	K_PoolChunkAddr
-		jc	.MkErrno
-		mov	edx,esi
+		call	K_DecodeRcvid
+		jc	.Exit
 
-		; Set the status and thread's errno, then remove a message from
+		; Set the status and thread's errno, then remove the TCB from
 		; the channel's reply wait queue
-		mov	edi,[edx+tMsgDesc.ConnDesc]
+		mov	edi,[ebx+tTCB.ConnDesc]
 		mov	esi,[edi+tConnDesc.ChanDesc]
-		xor	eax,eax
-		dec	eax
-		mov	[edx+tMsgDesc.Status],eax
-		mov	ebx,[edx+tMsgDesc.TCB]
+		mov	dword [ebx+tTCB.MsgStatus],-1
 		mov	eax,[%$errno]
 		mov	[ebx+tTCB.LastErrno],eax
-		mDequeue dword [esi+tChanDesc.ReplyWaitQ], Next, Prev, edx, tMsgDesc, edi
+		mLockCB ebx, tTCB
+		mDequeue dword [esi+tChanDesc.ReplyWaitQ], SendReplyNext, SendReplyPrev, ebx, tTCB, edi
+		mUnlockCB ebx, tTCB
 
-		; Unblock a thread that sent this message
+		; Unblock the sender and return success
 		call	MT_ThreadWakeup
-
-		; All OK
 		xor	eax,eax
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; int MsgReadv(int rcvid, const iov_t *riov, int rparts, int offset);
 		; int MsgRead(int rcvid, void *msg, int bytes, int offset);
 proc sys_MsgReadv
-		arg	rcvid, msg, bytes, offs
+		arg	rcvid, msg, parts, offs
 		prologue
 
-		; Get the message descriptor address
+		; Get the sending TCB address
 		mov	eax,[%$rcvid]
-		mov	ebx,?MsgPool
-		call	K_PoolChunkAddr
-		jc	.MkErrno
-		mov	ebx,esi
-
-		; Check whether the size and offset are OK
-		mov	ecx,[%$bytes]
-		mov	eax,[ebx+tMsgDesc.SendSize]
-		sub	eax,[%$offs]
-		jc	.BadOffset
-		cmp	eax,ecx
-		jge	.1
-		mov	ecx,eax
+		call	K_DecodeRcvid
+		jc	.Exit
 
 		; Copy the data
-.1:		mov	eax,[ebx+tMsgDesc.TCB]
-		mov	eax,[eax+tTCB.PCB]
-		mov	edx,[eax+tProcDesc.PageDir]
-		mov	esi,[ebx+tMsgDesc.SendBuf]
-		add	esi,[%$offs]
+		mov	ecx,[%$parts]
+		mov	edx,[%$offs]
 		mov	edi,[%$msg]
-		push	ecx
-		call	K_CopyToAct
-		pop	ecx
-		jc	.CopyErr
-
-		; Return number of bytes read
-		mov	eax,ecx
+		call	CopyVtoAct
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
-
-.BadOffset:	mov	eax,-EFAULT
-		jmp	.Exit
-
-.CopyErr:	mov	eax,-EFAULT
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; int MsgWritev(int rcvid, const iov_t *iov, int parts, int offset);
 		; int MsgWrite(int rcvid, const void *msg, int size, int offset);
 proc sys_MsgWritev
-		arg	rcvid, msg, size, offs
+		arg	rcvid, msg, parts, offs
 		prologue
 
-		; Get the message descriptor address
+		; Get the sending TCB address
 		mov	eax,[%$rcvid]
-		mov	ebx,?MsgPool
-		call	K_PoolChunkAddr
-		jc	.MkErrno
-		mov	ebx,esi
-
-		; Check whether the size and offset are OK
-		mov	ecx,[%$size]
-		mov	eax,[ebx+tMsgDesc.ReplySize]
-		sub	eax,[%$offs]
-		jc	.BadOffset
-		cmp	eax,ecx
-		jge	.1
-		mov	ecx,eax
+		call	K_DecodeRcvid
+		jc	.Exit
 
 		; Copy the data
-.1:		mov	eax,[ebx+tMsgDesc.TCB]
-		mov	eax,[eax+tTCB.PCB]
-		mov	edx,[eax+tProcDesc.PageDir]
+		mov	ecx,[%$parts]
+		mov	edx,[%$offs]
 		mov	esi,[%$msg]
-		mov	edi,[ebx+tMsgDesc.ReplyBuf]
-		add	edi,[%$offs]
-		push	ecx
-		call	K_CopyFromAct
-		pop	ecx
-		jc	.CopyErr
-
-		; Return number of bytes written
-		mov	eax,ecx
+		call	CopyVfromAct
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
-
-.BadOffset:	mov	eax,-EFAULT
-		jmp	.Exit
-
-.CopyErr:	mov	eax,-EFAULT
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -812,48 +485,23 @@ proc sys_MsgSendPulse
 		prologue
 
 		; Get an address of current TCB
-		mCurrThread edx
+		mCurrThread ebx
 
 		; Get connection descriptor address
 		mov	eax,[%$coid]
-		mov	esi,[edx+tTCB.PCB]
+		mov	esi,[ebx+tTCB.PCB]
 		call	IPC_ConnDescAddr
-		jc	near .MkErrno
+		jc	.Exit
 
-		; Get a message descriptor and fill it
-		call	AllocMsgDesc
-		jc	near .MkErrno
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemP
-		mov	[ebx+tPulseDesc.TCB],edx
-		mov	[ebx+tPulseDesc.ConnDesc],edi
+		; Send the pulse
 		mov	al,[%$code]
-		mov	[ebx+tPulse.Code],al
-		mov	eax,[%$value]
-		mov	[ebx+tPulse.SigValue],eax
-
-		; Put the pulse into the queue
-		mov	esi,[edi+tConnDesc.ChanDesc]
-		mEnqueue dword [esi+tChanDesc.PulseQueue], Next, Prev, ebx, tMsgDesc, edx
-
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemV
-
-		; If there is somebody in the receive queue, wake it up
-		mov	ebx,[esi+tChanDesc.ReceiveWaitQ]
-		or	ebx,ebx
-		jz	.OK
-		mDequeue dword [esi+tChanDesc.ReceiveWaitQ], RcvNext, RcvPrev, ebx, tTCB, edx
-		call	MT_ThreadWakeup
+		mov	ecx,[%$value]
+		call	K_SendPulse
 
 		; No error
-.OK:		xor	eax,eax
-
+		xor	eax,eax
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -862,7 +510,7 @@ endp		;---------------------------------------------------------------
 		; int MsgReceivePulse(int chid, void *pulse, int bytes,
 		;			struct _msg_info *info);
 proc sys_MsgReceivePulsev
-		arg	chid, pulse, bytes, info
+		arg	chid, pulse, parts, info
 		prologue
 
 		; Get an address of channel descriptor
@@ -882,34 +530,17 @@ proc sys_MsgReceivePulsev
 		call	MT_Schedule
 		jmp	.WaitLoop
 
-		; Check if receive buffer is valid
-.GotPulse:	mov	ecx,[%$bytes]
-		cmp	ecx,tPulse_size
-		jl	.BadBuf
+		; Copy the pulse
+.GotPulse:	mov	ecx,[%$parts]
 		mov	edi,[%$pulse]
-		add	edi,USERAREASTART
-		jc	.BadBuf
-		add	ecx,edi
-		jc	.BadBuf
-
-		; Copy the pulse code and value; fill scoid
-		mov	al,[ebx+tPulse.Code]
-		mov	[edi+tPulse.Code],al
-		mov	eax,[ebx+tPulse.SigValue]
-		mov	[edi+tPulse.SigValue],eax
-		push	esi
-		mov	esi,[ebx+tPulseDesc.ConnDesc]
-		call	K_PoolChunkNumber
-		pop	esi
-		mov	[edi+tPulse.SCoID],eax
+		call	CopyPulseToAct
+		jc	.Exit
 		
 		; Delete the descriptor from pulse queue and free it
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemP
-		mDequeue dword [esi+tChanDesc.PulseQueue], Next, Prev, ebx, tMsgDesc, ecx
-		lea	eax,[ebx+tPulseDesc.Lock]
-		call	K_SemV
-		call	FreeMsgDesc
+		mLockCB ebx, tPulseDesc
+		mDequeue dword [esi+tChanDesc.PulseQueue], Next, Prev, ebx, tPulseDesc, ecx
+		mUnlockCB ebx, tPulseDesc
+		call	FreePulseDesc
 		jc	.MkErrno
 
 		; Return 0, that means "pulse is received"
@@ -919,9 +550,6 @@ proc sys_MsgReceivePulsev
 		ret
 
 .MkErrno:	mErrno
-		jmp	.Exit
-
-.BadBuf:	mov	eax,-EFAULT
 		jmp	.Exit
 endp		;---------------------------------------------------------------
 
@@ -942,27 +570,15 @@ proc sys_MsgInfo
 		arg	rcvid, info
 		prologue
 
-		; Get the message descriptor address
+		; Get the sending TCB address
 		mov	eax,[%$rcvid]
-		mov	ebx,?MsgPool
-		call	K_PoolChunkAddr
-		jc	.NotFound
-		mov	ebx,esi
+		call	K_DecodeRcvid
+		jc	.Exit
 
 		; Fill in the buffer
 		mov	edi,[%$info]
 		call	FillMessageInfo
-		jc	.MkErrno
-
-		; All OK
-		xor	eax,eax
 
 .Exit:		epilogue
 		ret
-
-.MkErrno:	mErrno
-		jmp	.Exit
-
-.NotFound:	mov	eax,-ESRCH
-		jmp	.Exit
 endp		;---------------------------------------------------------------

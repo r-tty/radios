@@ -22,6 +22,8 @@ struc tProcDesc
 .SigQueue	RESD	1			; Head of signal queue
 .Next		RESD	1			; Next PCB in list
 .Prev		RESD	1			; Previous PCB in list
+.PgrpNext	RESD	1			; Next in process group
+.PgrpPrev	RESD	1			; Previous in process group
 .Flags		RESD	1			; PF_* flags
 .Lock		RESB	tSemaphore_size		; Descriptor lock semaphore
 .SyncList	RESD	1			; Head of sync object list

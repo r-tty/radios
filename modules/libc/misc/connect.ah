@@ -1,0 +1,39 @@
+;-------------------------------------------------------------------------------
+; connect.ah - definitions used by ConnectControl and friends.
+;-------------------------------------------------------------------------------
+
+; Flags used in the connect_ctrl structure
+FLAG_NOCTTY		EQU	1
+FLAG_SET_ENTRY		EQU	2
+FLAG_TEST_ENTRY		EQU	4	; Test the entry, nid,pid,handle,chid
+FLAG_NO_PREFIX		EQU	8
+FLAG_NO_SYM		EQU	10h
+FLAG_MALLOC_FDS		EQU	20h
+FLAG_TEST_NPC_ONLY	EQU	40h	; Test only the nid,pid,chid when FLAG_TEST_ENTRY is set
+
+FLAG_REUSE_BUFFER	EQU	80h	; Re-use the initial buffer instead of allocting more
+FLAG_STACK_ALLOC	EQU	100h	; Allocate from stack (alloca) not heap (malloc)
+FLAG_TEST_ND_ONLY	EQU	200h	; Only send full requests to the node matching the 'nd' value
+FLAG_NO_RETRY		EQU	400h	; If at first you don't succeed, then fail (no link resolution)
+
+struc tConnectCtrl
+.Base		RESD	1
+.Msg		RESP	1		; Pointer to tIOMconnect
+.Link:
+.Ftype:		mResMax tIOMconnectLinkReply_size, tIOMconnectFtypeReply_size
+.Entry		RESP	1
+.Extra		RESP	1
+.Status		RESD	1
+.Response	RESP	1
+.SendFunc	RESP	1
+.Flags		RESD	1
+.Path		RESP	1
+.PathSize	RESD	1
+.PathLen	RESD	1
+.PrefixLen	RESD	1
+.FDsLen		RESW	1
+.FDsIndex	RESW	1
+.FDs		RESP	1
+.ResponseLen	RESD	1
+.ND		RESD	1
+endstruc

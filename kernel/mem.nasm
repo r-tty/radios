@@ -106,10 +106,9 @@ endp		;---------------------------------------------------------------
 		; Input: EDI=address,
 		;	 EDX=page directory address.
 		; Output: CF=0 - OK, EBX=physical address;
-		;	  CF=1 - error
-		; Note: clobbers EBP.
+		;	  CF=1 - error.
 proc DLin2Phys
-		push	edi
+		mpush	edi,ebp
 		mov	ebp,edi
 		and	ebp,ADDR_OFSMASK		; EBP=offset
 		mov	ebx,edi
@@ -128,7 +127,7 @@ proc DLin2Phys
 		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
 		add	ebx,ebp				; EBX=physical address
 		clc
-.Quit:		pop	edi
+.Quit:		mpop	ebp,edi
 		ret
 endp		;---------------------------------------------------------------
 
@@ -137,10 +136,9 @@ endp		;---------------------------------------------------------------
 		; Input: ESI=address,
 		;	 EDX=page directory address.
 		; Output: CF=0 - OK, EBX=physical address;
-		;	  CF=1 - error
-		; Note: clobbers EBP.
+		;	  CF=1 - error.
 proc SLin2Phys
-		push	esi
+		mpush	esi,ebp
 		mov	ebp,esi
 		and	ebp,ADDR_OFSMASK		; EBP=offset
 		mov	ebx,esi
@@ -159,7 +157,7 @@ proc SLin2Phys
 		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
 		add	ebx,ebp				; EBX=physical address
 		clc
-.Quit:		pop	esi
+.Quit:		mpop	ebp,esi
 		ret
 endp		;---------------------------------------------------------------
 

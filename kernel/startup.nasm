@@ -26,9 +26,8 @@ externproc PIC_Init, PIC_SetIRQmask, PIC_EnableIRQ
 externproc TMR_InitCounter, TMR_CountCPUspeed
 externproc PG_Init, PG_StartPaging
 externproc MT_Init, MT_GetNumThreads, MT_CreateThread, MT_ThreadExec
-externproc K_InitTime
-externproc IPC_ChanInit, IPC_MsgInit
-externdata RadiOS_Version, TxtRVersion, TxtRCopyright
+externproc K_InitTime, K_SyncInit
+externproc IPC_ChanInit, IPC_PulseInit
 externdata GDTlimAddr
 externdata ?CPUinfo, ?CPUspeed
 externdata ?LowerMemSize, ?UpperMemSize
@@ -54,6 +53,10 @@ ModuleInfo: instance tModInfoTag
     field(Base,		DD	4000h)
     field(Entry,	DD	Start)
 iend
+
+TxtRVersion	DB	10,"RadiOS ", 0E6h, "kernel, version ",0
+TxtSysVersion	DB	RADIOS_VERSION,0
+TxtRCopyright	DB	" (c) 2003 RET & COM Research.",10,10,0
 
 TxtKernDone	DB	NL,"There is no work left for the kernel - bye.",0
 TxtDetected	DB	"Detected ", 0
@@ -146,7 +149,7 @@ proc Start
 %endif
 		; Show version information
 		kPrintStr TxtRVersion
-		kPrintStr RadiOS_Version
+		kPrintStr TxtSysVersion
 		kPrintStr TxtRCopyright
 
 		; Initialize CPU and FPU
@@ -179,8 +182,12 @@ proc Start
 		mov	eax,MAXCHANNELS
 		call	IPC_ChanInit
 		jc	near ExitKernel
-		mov	eax,MAXMESSAGES
-		call	IPC_MsgInit
+		mov	eax,MAXPULSES
+		call	IPC_PulseInit
+		jc	near ExitKernel
+
+		; Initialize synchronization object pool
+		call	K_SyncInit
 		jc	near ExitKernel
 
 		; Initialize multitasking memory structures

@@ -8,7 +8,7 @@ module libc.stdlib
 %include "locstor.ah"
 %include "lib/stdlib.ah"
 
-exportproc _ldiv, _malloc, _free
+exportproc _ldiv, _malloc, _free, _atexit
 
 publicproc libc_init_stdlib
 
@@ -24,6 +24,10 @@ endstruc
 tMallocHdr_shift	EQU	3		; log2(tMallocHdr_size)
 
 FixNeg			EQU	-1 / 2		; for _ldiv
+
+section .bss
+
+atexit_list	RESP	1			; Head of atexit() list
 
 section .text
 
@@ -209,6 +213,27 @@ proc _free
 		ret
 endp		;---------------------------------------------------------------
 
+
+		; int atexit(void (*function)(void));
+proc _atexit
+		arg	func
+		prologue
+
+		Ccall _malloc, tAtExitFunc_size
+		test	eax,eax
+		jz	.Failure
+		mov	ebx,[%$func]
+		mov	[eax+tAtExitFunc.Func],ebx
+		mov	ebx,[atexit_list]
+		mov	[eax+tAtExitFunc.Next],ebx
+		mov	[atexit_list],eax
+		xor	eax,eax
+.Done:		epilogue
+		ret
+
+.Failure:	dec	eax
+		jmp	.Done
+endp		;---------------------------------------------------------------
 
 
 		; Initialization

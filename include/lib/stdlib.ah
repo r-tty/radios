@@ -24,4 +24,9 @@ struc tLLdiv
 .Rem	RESQ	1
 endstruc
 
+struc tAtExitFunc
+.Next		RESP	1
+.Func		RESP	1
+endstruc
+
 %endif

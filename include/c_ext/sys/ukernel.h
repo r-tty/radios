@@ -2,8 +2,8 @@
  * ukernel.h - definitions and system call prototypes for RadiOS microkernel
  */
 
-#ifndef _ukernel_h
-#define _ukernel_h
+#ifndef _sys_ukernel_h
+#define _sys_ukernel_h
 
 #include <sys/types.h>
 

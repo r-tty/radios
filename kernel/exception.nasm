@@ -209,7 +209,7 @@ proc K_HandlePageFault
 		call	PG_Alloc
 		jc	.OutOfMem
 		or	al,PG_WRITABLE
-		test	ch,4				; User mode?
+		test	ch,PG_USERMODE			; User mode?
 		jz	.1
 		or	al,PG_USERMODE
 .1:		mov	[edi],eax

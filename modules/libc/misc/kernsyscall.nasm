@@ -24,9 +24,9 @@ module libc.kernsyscall
 ;		%4 - optional syscall number (if omited, S%1 is assumed).
 %macro mSyscall 1-4
 	exportproc %1_r
-%1_r:	pop	edx
-	mNegate %2
+%1_r:	mNegate %2
 	mNegate %3
+	pop	edx
 %ifid %4
 	mDoSyscall %4
 %else
@@ -35,9 +35,9 @@ module libc.kernsyscall
 	jmp	edx
 
 	exportproc %1
-%1:	pop	edx
-	mNegate %2
+%1:	mNegate %2
 	mNegate %3
+	pop	edx
 %ifid %4
 	mDoSyscall %4
 %else
@@ -54,6 +54,8 @@ module libc.kernsyscall
 %endmacro
 
 ;******* Exports *******
+
+section .text
 
 ; Interrupt handling
 mSyscall _InterruptAttach

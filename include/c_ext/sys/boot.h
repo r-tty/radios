@@ -2,8 +2,8 @@
  * boot.h - BTL module descriptor and other definitions.
  */
 
-#ifndef _BOOT_H
-#define _BOOT_H
+#ifndef _sys_boot_h
+#define _sys_boot_h
 
 #include <sys/types.h>
 

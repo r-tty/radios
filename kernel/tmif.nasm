@@ -56,6 +56,6 @@ proc K_Ring0
 		mov	[esp+4+tStackFrame.EFLAGS],ah
 		ret
 
-.Err:		mov	word [esp+4+tStackFrame.EAX],ENOSYS
+.Err:		mov	word [esp+4+tStackFrame.EAX],-ENOSYS
 		jmp	.Exit
 endp		;---------------------------------------------------------------

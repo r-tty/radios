@@ -1,6 +1,7 @@
-;-------------------------------------------------------------------------------
+;*******************************************************************************
 ; channel.nasm - channel handling functions.
-;-------------------------------------------------------------------------------
+; Copyright (c) 2003 RET & COM Research.
+;*******************************************************************************
 
 module kernel.ipc.channel
 
@@ -51,7 +52,7 @@ endp		;---------------------------------------------------------------
 		; IPC_ChanDescAddr - get a channel descriptor address.
 		; Input: EAX=channel ID.
 		; Output: CF=0 - OK, ESI=descriptor address;
-		;	  CF=1 - error, AX=error code.
+		;	  CF=1 - error, EAX=errno.
 proc IPC_ChanDescAddr
 		push	ebx
 		mov	ebx,?ChanPool
@@ -69,7 +70,7 @@ endp		;---------------------------------------------------------------
 		; Input: EAX=connection ID,
 		;	 ESI=process descriptor address.
 		; Output: CF=0 - OK, EDI=descriptor address;
-		;	  CF=1 - error, AX=error code.
+		;	  CF=1 - error, EAX=errno.
 		; Note: linear search. Probably should be replaced with hash.
 proc IPC_ConnDescAddr
 		push	ebx
@@ -85,11 +86,10 @@ proc IPC_ConnDescAddr
 .Exit:		pop	ebx
 		ret
 
-.InvCoID:	mov	ax,EBADF
+.InvCoID:	mov	eax,-EBADF
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
-
 
 ; --- System calls -------------------------------------------------------------
 

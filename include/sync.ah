@@ -66,33 +66,59 @@ endstruc
 %endmacro
 
 
-; Sync control commands
-SCTL_SETPRIOCEILING	EQU	1	; mutex	const int *prioceiling
-SCTL_GETPRIOCEILING	EQU	2	; mutex	int *prioceiling
-SCTL_SETEVENT		EQU	3	; mutex	struct sigevent *event
-
-; Synchronization types
+; Structure of user-space synchronization object
 struc tSync
 .Count		RESD	1	; Count for recursive mutexes and semaphores
-.Owner		RESD	1	; Thread id (valid for mutex only)
+.Owner		RESD	1	; Thread ID (valid for mutex only)
 endstruc
 
+; Structure of synchronization object attributes
 struc tSyncAttr
 .Protocol	RESD	1
 .Flags		RESD	1
-.PrioCeiling	RESD	1				; Reserved
-.ClockID	RESD	1				; Condvars only
+.PrioCeiling	RESD	1			; Reserved
+.ClockID	RESD	1			; Condvars only
 .Reserved	RESD	4
 endstruc
 
-; Synchronization object descriptor
+; Synchronization object kernel descriptor
 struc tSyncDesc
 .Type		RESD	1
-.Obj		RESB	tSync_size
 .Attr		RESB	tSyncAttr_size
-.PCB		RESD	1				; Owning proces
+.Usync		RESD	1			; User address of sync object
+.PCB		RESD	1			; Owning proces
 .Next		RESD	1
 .Prev		RESD	1
 endstruc
+
+; Synchronization object types
+SYNC_MUTEX_FREE		EQU	0	; mutexes, and old cond, sem, spin
+SYNC_INITIALIZER	EQU	-1	; count is 0=mutexes, 0(old), -5(new)=cond
+SYNC_DESTROYED		EQU	-2	; mutexes, cond, sem, spin
+SYNC_NAMED_SEM		EQU	-3	; sem (count is handle)
+SYNC_SEM		EQU	-4	; sem (count is value)
+SYNC_COND		EQU	-5	; cond (count is clockid)
+SYNC_SPIN		EQU	-6	; spin (count is internal)
+SYNC_DEAD		EQU	-256	; mutex (when a process dies with a mutex locked)
+; For mutexes
+SYNC_NONRECURSIVE	EQU	80000000h
+SYNC_NOERRORCHECK	EQU	40000000h
+SYNC_PRIOCEILING	EQU	20000000h
+SYNC_COUNTMASK		EQU	0FFFFFFFh
+SYNC_WAITING		EQU	80000000h	; Top bit used with mutexes
+SYNC_OWNER_MASK		EQU	7FFFFFFFh	; Owner used with mutexes
+
+; Sync control commands for mutexes
+SYNC_CTL_SETPRIOCEILING	EQU	1	; const int *prioceiling
+SYNC_CTL_GETPRIOCEILING	EQU	2	; int *prioceiling
+SYNC_CTL_SETEVENT	EQU	3	; struct sigevent *event
+
+; Priority protocol for mutexes
+MUTEX_PRIO_INHERIT	EQU	0
+MUTEX_PRIO_NONE		EQU	1
+MUTEX_PRIO_PROTECT	EQU	2
+
+; Maximum value of semaphore
+SEM_VALUE_MAX		EQU	40000000h
 
 %endif

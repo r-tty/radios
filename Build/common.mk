@@ -7,7 +7,11 @@ ifndef TARGET_LIB
 endif
 
 ifndef SRCS
-    srcfiles = $(patsubst %.$(O),%.nasm,$(OBJS))
+    ifdef C_SOURCE
+	srcfiles = $(patsubst %.$(O),%.c,$(OBJS))
+    else
+	srcfiles = $(patsubst %.$(O),%.nasm,$(OBJS))
+    endif
 else
     srcfiles = $(SRCS)
 endif

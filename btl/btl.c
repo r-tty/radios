@@ -8,7 +8,7 @@
 #include <sys/rdf.h>
 #include <sys/multiboot.h>
 #include <sys/boot.h>
-#include <mach/param.h>
+#include <machine/param.h>
 
 #include "btl.h"
 

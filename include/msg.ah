@@ -9,22 +9,7 @@
 %include "rmk.ah"
 %include "sync.ah"
 
-; Message descriptor
-struc tMsgDesc
-.SendBuf	RESD	1			; Send buffer address
-.SendSize	RESD	1			; Number of bytes to send
-.ReplyBuf	RESD	1			; Reply buffer address
-.ReplySize	RESD	1			; Number of bytes to reply
-.ConnDesc	RESD	1			; Connection descriptor address
-.TCB		RESD	1			; TCB address
-.Lock		RESB	tSemaphore_size 	; To manipulate safely
-.Flags		RESD	1			; Flags
-.Status		RESD	1			; Status
-.Next		RESD	1			; List link
-.Prev		RESD	1
-endstruc
-
-; Message descriptor for pulses. Field layout is critical!
+; Pulse descriptor
 struc tPulseDesc
 .Pulse		RESB	tPulse_size		; Pulse structure (16 bytes)
 .ConnDesc	RESD	1			; Connection descriptor address

@@ -255,7 +255,7 @@ proc MapShLib
 		; Actually, only the code section can be shared
 		mov	edx,[esi+tProcDesc.PageDir]
 		mov	al,PG_PRESENT | PG_USERMODE
-		mov	ah,al
+		mov	ah,PG_PRESENT | PG_USERMODE | PG_WRITABLE
 		mov	esi,[ebx+tModule.CodeStart]
 		mov	edi,[ebx+tModule.VirtAddr]
 		add	edi,USERAREASTART

@@ -2,8 +2,8 @@
  * rdf.h - Relocatable Dynamic Format (RDF) definitions.
  */
 
-#ifndef _rdf_h
-#define _rdf_h
+#ifndef _sys_rdf_h
+#define _sys_rdf_h
 
 #include <sys/types.h>
 

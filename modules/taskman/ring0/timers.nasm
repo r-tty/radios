@@ -58,42 +58,59 @@ endp		;---------------------------------------------------------------
 ; --- System calls -------------------------------------------------------------
 
 
+		; int TimerCreate(clockid_t id, const struct sigevent *event);
 proc sys_TimerCreate
+		arg	id, event
 		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int TimerDestroy(timer_t id);
 proc sys_TimerDestroy
+		arg	id
 		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int TimerSetTime(timer_id id, int flags,
+		;	 const struct itimer *itime, struct itimer *otime);
 proc sys_TimerSettime
+		arg	id, flags, itime, otime
 		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int TimerInfo(pid_t pid, timer_t id, int flags,
+		;		struct timer_info *info);
 proc sys_TimerInfo
+		arg	pid, id flags, info
 		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int TimerAlarm(clockid_t id, const struct itimer *itime,
+		;		 struct itimer *otime);
 proc sys_TimerAlarm
+		arg	id, itime, otime
 		prologue
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int TimerTimeout(clockid_t id, int flags,
+		;		   const struct sigevent *notify,
+		;		   const uint64 *ntime, uint64 *otime)
 proc sys_TimerTimeout
+		arg	id, flags, notify, ntime, otime
 		prologue
 		epilogue
 		ret

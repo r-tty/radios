@@ -11,7 +11,7 @@ subgroup = _ipc
 include ../../Build/header.mk
 
 # Change variables here
-OBJS = msg.$(O) channel.$(O) event.$(O)
+OBJS = msg.$(O) channel.$(O)
 
 # This part shouldn't be changed
 include ../../Build/common.mk

@@ -10,10 +10,11 @@ module tm.kern.connection
 %include "tm/kern.ah"
 %include "tm/process.ah"
 
+publicproc FindConnByNum
 publicdata ConnectSyscallTable, ?ConnPool
 
 library $rmk
-importproc K_PoolAllocChunk
+importproc K_PoolAllocChunk, K_PoolChunkAddr
 importproc K_AllocateID
 importproc IPC_ChanDescAddr
 importproc K_SemP, K_SemV
@@ -32,6 +33,26 @@ section .bss
 ?ConnPool	RESB	tMasterPool_size
 
 section .text
+
+		; Find a connection descriptor by its ordinal number.
+		; Input: EAX=descriptor number.
+		; Output: CF=0 - OK, EDI=descriptor address;
+		;	  CF=1 - error, EAX=errno.
+proc FindConnByNum
+		mpush	ebx,esi
+		mov	ebx,?ConnPool
+		call	K_PoolChunkAddr
+		jc	.NotFound
+		mov	edi,esi
+.Exit:		mpop	esi,ebx
+		ret
+
+.NotFound:	mov	eax,-EBADF
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+; --- System calls -------------------------------------------------------------
 
 		; int ConnectAttach(uint nd, pid_t pid, int chid,
 		;			uint index, int flags);
@@ -85,6 +106,7 @@ proc sys_ConnectAttach
 .Again:		mov	eax,-EAGAIN
 		jmp	.Exit
 endp		;---------------------------------------------------------------
+
 
 		; int ConnectServerInfo(pid_t pid, int coid,
 		;			struct _server_info *info);

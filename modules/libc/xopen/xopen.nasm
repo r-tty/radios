@@ -1,5 +1,5 @@
 ;
-;
+; xopen.nasm - various routines described by X/Open specification.
 ;
 
 module libc.xopen

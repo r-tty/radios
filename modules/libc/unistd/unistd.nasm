@@ -9,6 +9,8 @@ publicproc libc_init_unistd
 
 extern _MsgSendnc
 
+section .text
+
 		; Initialization
 proc libc_init_unistd
 		ret

@@ -12,10 +12,13 @@ global MT_InitProc, MT_InitKernelProc
 ; --- Imports ---
 
 library kernel
-extern KernelEventHandler
+extern KernelEventHandler:near
 
 library kernel.paging
-extern ?KernPagePool
+extern ?KernPagePool, ?KernPageDir
+
+library kernel.misc
+extern MemSet:near
 
 
 ; --- Variables ---
@@ -26,6 +29,7 @@ section .bss
 ?MaxNumOfProc	RESD	1			; Max. number of processes
 ?ProcessPool	RESB	tMasterPool_size	; Process master pool
 ?ResCount	RESD	1			; Resource count
+?PIDsBitmap	RESD	1			; Address of PIDs bitmap
 
 
 ; --- Code ---
@@ -37,31 +41,46 @@ section .text
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MT_InitPCBpool
-		mpush	ebx,ecx
+		mpush	ebx,ecx,edx
 		mov	[?MaxNumOfProc],eax
 		mov	ebx,?ProcessPool
 		mov	ecx,tProcDesc_size
 		xor	dl,dl
 		call	K_PoolInit
-		mpop	ecx,ebx
+		jc	short .Exit
+		
+		; Allocate memory for PIDs bitmap
+		mov	ecx,[?MaxNumOfProc]
+		shr	ecx,3				; 8 bits per byte
+		xor	dl,dl
+		call	PG_AllocContBlock
+		jc	short .Exit
+		mov	[?PIDsBitmap],ebx
+		
+		mov	al,0FFh				; All PIDs are free
+		call	MemSet
+		
+.Exit:		mpop	edx,ecx,ebx
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; MT_NewProcess - create a new process.
 		; Input: ESI=address of parent PCB.
-		; Output: CF=0 - OK, ESI=pointer to created PCB;
+		; Output: CF=0 - OK, ESI=address of PCB;
 		;	  CF=1 - error, AX=error code.
 proc MT_NewProcess
+
 		mpush	ebx,ecx,edx
 		mov	edx,esi				; Save parent PCB
 		mov	ebx,?ProcessPool
 		call	K_PoolAllocChunk
 		jc	short .Exit
 
-		mov	ecx,tProcDesc_size
+		mov	ecx,tProcDesc_size		; Zero PCB body
+		mov	ebx,ecx
 		call	BZero
-		
+
 		call	MT_GetNewPID
 		jc	short .Exit
 		mov	[esi+tProcDesc.PID],eax
@@ -77,11 +96,12 @@ proc MT_NewProcess
 		
 		; Allocate each registered resource descriptor
 		mov	ecx,[?ResCount]
+		jecxz	.EnqProc
 .AllocRes:	call	K_PoolAllocChunk
 		jc	short .Exit
 		loop	.AllocRes
 
-		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
+.EnqProc:	mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
 
 .Exit:		mpop	edx,ecx,ebx
 		ret
@@ -148,17 +168,62 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc MT_InitKernelProc
-		ret
+		xor	esi,esi				; No parent process
+		call	MT_NewProcess
+		jc	short .Exit
+		mov	eax,[?KernPageDir]
+		mov	[esi+tProcDesc.PageDir],eax
+		
+.Exit:		ret
 endp		;---------------------------------------------------------------
 
 
 		; MT_GetNewPID - get a new PID for process.
-		; Input: ESI=PCB address.
-		; Output: EAX=new PID.
+		; Input: none.
+		; Output: EAX=PID.
+		; Note: [?MaxNumOfProc] must be >= 32, otherwise this
+		;	procedure won't work!
 proc MT_GetNewPID
-		mov	eax,esi
-		sub	eax,[?KernPagePool]
-		shr	eax,PROCDESCSHIFT
+		mpush	ecx,esi
+		mov	ecx,[?MaxNumOfProc]
+		shr	ecx,byte 5			; # of dwords
+		mov	esi,[?PIDsBitmap]
+		sub	esi,byte 4
+		
+.Loop:		add	esi,byte 4
+		bsf	eax,[esi]			; Look for free PID
+		loopz	.Loop
+		jz	short .Err
+		btr	[esi],eax
+		sub	esi,[?PIDsBitmap]
+		shl	esi,3
+		add	eax,esi
+		clc
+		
+.Exit:		mpop	esi,ecx
 		ret
+		
+.Err:		mov	ax,ERR_MT_NoPIDs
+		stc
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
+
+		; MT_ReleasePID - release a PID.
+		; Input: EAX=PID.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MT_ReleasePID
+		cmp	eax,[?MaxNumOfProc]
+		jae	short .Err
+		push	esi
+		mov	esi,[?PIDsBitmap]
+		bts	[esi],eax
+		pop	esi
+		clc
+		ret
+		
+.Err:		mov	ax,ERR_MT_BadPID
+		stc
+		ret
+endp		;--------------------------------------------------------------

@@ -331,8 +331,7 @@ endp		;---------------------------------------------------------------
 		; KB_ReadKey - wait until a key will be pressed and read it.
 		; Input: none.
 		; Output: AX=pressed key code.
-KB_ReadKey: jmp near KB_ReadKeyNoSched
-proc _KB_ReadKey
+proc KB_ReadKey
 		call	KB_GetKeyNoWait
 		jnz	short .Done
 .Loop:		push	ebx

@@ -1,0 +1,119 @@
+;-------------------------------------------------------------------------------
+;  vstafs.ah - definitions for the VSTa-specific filesystem.
+;  This file is based on the VSTa Operating System (c) 1996-2001 Andy Valencia.
+;-------------------------------------------------------------------------------
+
+; The VSTa filesystem has the following features:
+;  * Hierarchical, acyclic directory structure
+;  * 28-character filenames
+;  * Automatic file versioning
+;  * Hardened filesystem semantics
+;  * Extent-based storage allocation
+
+%define SECSZ		512		; Basic size of allocation units 
+%define MAXEXT		32		; Max # extents in a file 
+%define MAXNAMLEN	28		; Max chars in dir entry name 
+%define EXTSIZ		128		; File growth increment 
+					;  ...must be power of 2! 
+%define DIREXTSIZ	3		; File growth for directories 
+					;  1 << (DIREXTSIZ + extent#) 
+%define NCACHE		8*EXTSIZ	; Crank up if you have lots of users 
+%define CORESEC		512		; Sectors to buffer in core at once 
+
+; Conversion of units: bytes<->sectors 
+%define btos(x)		((x) / SECSZ)
+%define btors(x)	(((x) + SECSZ-1) / SECSZ)
+%define stob(x)		((x) * SECSZ)
+
+; The <Start,Len> pair describing file extents and contiguous
+; chunks on the free list.
+struc tFSalloc
+.Start		RESD	1		; Starting sector # 
+.Len		RESD	1		; Length, in sectors 
+endstruc
+
+; The first sector of a filesystem
+%define BASE_SEC	0
+
+; File system header
+struc tFSheader
+.Magic		RESD	1		; Magic number 
+.Size		RESD	1		; # sectors in filesystem 
+.ExtSize	RESD	1		; Contiguous space allocated on extension
+.Free		RESD	1		; Start of free list 
+.FreeSecs	RESB	tFSalloc_size	; fsck freed sectors 
+endstruc
+
+%define BASE_FREESECS	(SECSZ - tFSheader_size) / tFSalloc_size
+%define FS_MAGIC (0xDEADFACE)		; Value for .tFSheader.Magic 
+
+; Next sector is root directory
+%define ROOT_SEC	1
+
+; Sector after is first block of free list entries
+%define FREE_SEC	2
+
+; A free list sector
+%define NALLOC		(SECSZ-8) / tFSalloc_size)
+struc tFSfree
+.Next		RESD	1		; Next sector of free list 
+.Nfree		RESD	1		; # free in this sector 
+.Free		RESB	tFSalloc_size*NALLOC	; Zero or more 
+endstruc
+
+; A directory is simply a file structured as fs_dirent records
+struc tFSdirent
+.Name		RESB	MAXNAMLEN	; Name 
+.ClStart	RESD	1		; Starting cluster # 
+endstruc
+
+; The first part of a file is a description of the file and its
+; block allocation. The file's contents follows.
+struct tFSfile
+.PrevVersion	RESD	1		; Previous version of this file 
+.Rev		RESD	1		; Revision # 
+.Len		RESD	1		; File length in bytes 
+.Type		RESW	1		; Type of file 
+.Nlink		RESW	1		; # dir entries pointing to this 
+.Prot		RESB	tProt_size	; Protection on this file
+.Owner		RESD	1		; Creator's UID 
+.NBlk		RESD	1		; extents 
+.Blks		RESB	tFSalloc_size*MAXEXT ; <Start,Off> tuples of extents
+.Ctime		RESD	1		; Create timestamp 
+.Mtime		RESD	1		; Modify timestamp
+.Pad		RESB	16		; Pad to 32-byte boundary 
+					;  ...this keeps FSdirent's aligned
+.Data		RESB	0		; Data starts here
+endstruc
+
+; File types
+%define FT_FILE	1
+%define FT_DIR	2
+
+; # bytes which reside at the tail of the file's information sector 
+%define OFF_DATA (sizeof(struct fs_file))
+%define OFF_SEC1 (SECSZ - ((int)(((struct fs_file *)0)->fs_data)))
+
+; Structure of an open file in the filesystem
+struct tFSopenfile {
+.File		RESD	1	; 1st sector of file 
+.Len		RESD	1	;  ...first extent's length 
+.HiWrite	RESD	1	; Highest file position written 
+.Refs		RESD	1	; # references 
+.Flags		RESB	1	; Flags 
+endstruc
+
+; Bits in tFSopenfile.Flags
+%define O_DELETED	1	; Delete on last close 
+%define O_HASHED	2	; Might be hashed (hint) 
+
+; Our per-client data structure
+struct tFSfile
+.File		RESD	1	; Current file open (ptr to tFSopenfile)
+.Pos		RESD	1	; Current file offset 
+.Perms		RESB	tPerm_size*PROCPERMS	; Things we're allowed to do 
+.Nperm		RESD	1
+.Perm		RESD	1	;  ...for the current .File 
+.RenameID	RESD	1	; Transaction # for rename() 
+.RenameMsg	RESB	tMsg_size ;  ...message for that transaction 
+endstruc

@@ -1021,11 +1021,16 @@ proc IDE_WaitIntr
 		pushfd
 		cli
 		mov	edx,[?CurrThread]
+		or	edx,edx
+		jz	short .SkipThrSleep
 		call	MT_ThreadSleep			; Sleep current thread
 		popfd
 		pop	ebx
 		call	MT_Schedule
-		mov	al,[ebx+IDE_Status]
+		jmp	short .ChkStatus
+.SkipThrSleep:	popfd
+		pop	ebx		
+.ChkStatus:	mov	al,[ebx+IDE_Status]
 		test	al,STATUS_BSY
 		jnz	.Loop
 

@@ -1,0 +1,20 @@
+;-------------------------------------------------------------------------------
+;  perm.h - definitions for permission/protection structures.
+;  This file is based on the VSTa Operating System (c) 1996-2001 Andy Valencia.
+;-------------------------------------------------------------------------------
+
+%define PERMLEN	7		; Max levels of permission discrimination
+%define	PROCPERMS 6		; # permissions per process
+
+struct tPerm
+.Len	RESB	1		; # slots valid
+.ID	RESB	PERMLEN		; Permission values
+.UI	RESD	1		; UID for this ability
+endstruc
+
+struct tProt
+.Len		RESB	1		; # slots valid
+.Default	RESB	1		; Capabilities available to all
+.ID		RESB	PERMLEN		; Permission values
+.Bits		RESB	PERMLEN		; Capabilities granted
+endstruc

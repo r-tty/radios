@@ -14,7 +14,7 @@
 %define	Init_MaxNumDrivers	64
 %define	Init_NumFSlinkPoints	26
 
-%define	Init_MaxNumOfProcesses	24		; Maximum number of processes
+%define	Init_MaxNumOfProcesses	4096		; Maximum number of processes
 %define Init_MaxNumOfThreads	32		; Maximum number of threads
 %define	Init_MaxVirtMem		0		; Virtual memory size in KB
 %define	Init_NumIndexes		100		; Number of indexes
@@ -25,4 +25,3 @@
 
 %define	Init_SerInpBufSize	2048		; Serial input buffer size
 %define	Init_SerOutBufSize	2048		; Serial output buffer size
-

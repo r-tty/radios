@@ -10,7 +10,7 @@ include ../etc/header.mk
 export TARGET_LIB = fs.rdl
 OBJS = commonfs.rdm
 modnamesfile = $(OUTPATH)/.fs-modules
-SUBDIRS = rfs ext2
+SUBDIRS = vstafs
 
 # Make in subdirs
 include ../etc/subdirs.mk

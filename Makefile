@@ -9,7 +9,7 @@ export DEBUG = 1
 MULTIBOOT = 1
 
 # Subdirs
-SUBDIRS = kernel drivers/hard drivers/soft monitor init loader
+SUBDIRS = kernel drivers/hard drivers/soft fs monitor init loader
 
 # Kernel objects and libraries
 TARGET_DEP = version.rdm syscall.rdm kernel.rdl hardware.rdl softdrivers.rdl \

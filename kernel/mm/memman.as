@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ;  memman.as - RadiOS memory management.
-;  Copyright (c) 1999 RET & COM Research.
+;  Copyright (c) 1999-2001 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.mm
@@ -33,7 +33,7 @@ extern K_DescriptorAddress:near, K_GetDescriptorBase:near
 extern ?HeapBegin, ?TotalMemPages
 
 library kernel.paging
-extern PG_Prepare:near, PG_GetPTEaddr:near
+extern PG_GetPTEaddr:near
 extern PG_Alloc:near, PG_Dealloc:near
 extern ?KernPgPoolEnd
 
@@ -63,8 +63,6 @@ proc MM_Init
 		mov	dx,USERCODE
 		call	K_DescriptorAddress
 		call	K_GetDescriptorBase
-		mov	ebx,edi
-		call	PG_Prepare
 
 		; Initialize kernel MCB area
 		call	MM_PrepareMCBarea

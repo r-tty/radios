@@ -1,0 +1,90 @@
+;-------------------------------------------------------------------------------
+;  tar.ah - Extended tar format from POSIX.1.
+;  This file is based on the GNU C Library 
+;   Copyright (C) 1992, 1996 Free Software Foundation, Inc.
+;-------------------------------------------------------------------------------
+
+; A tar archive consists of 512-byte blocks.
+;   Each file in the archive has a header block followed by 0+ data blocks.
+;   Two blocks of NUL bytes indicate the end of the archive.
+;
+; The fields of header blocks:
+;   All strings are stored as ISO 646 (approximately ASCII) strings.
+;
+;   Fields are numeric unless otherwise noted below; numbers are ISO 646
+;   representations of octal numbers, with leading zeros as needed.
+;
+;   LinkName is only valid when typeflag==LNKTYPE.  It doesn't use prefix;
+;   files that are links to pathnames >100 chars long can not be stored
+;   in a tar archive.
+;
+;   If TypeFlag=={LNKTYPE,SYMTYPE,DIRTYPE} then size must be 0.
+;
+;   DevMajor and DevMinor are only valid for typeflag=={BLKTYPE,CHRTYPE}.
+;
+;   ChkSum contains the sum of all 512 bytes in the header block,
+;   treating each byte as an 8-bit unsigned value and treating the
+;   8 bytes of chksum as blank characters.
+;
+;   UName and GName are used in preference to UID and GID, if those
+;   names exist locally.
+;
+;   If the first character of prefix is '\0', the file name is name;
+;   otherwise, it is prefix/name.  Files whose pathnames don't fit in that
+;   length can not be stored in a tar archive.
+
+struc tTarHeaderBlock
+.Name		RESB	100		; NUL-terminated if NUL fits
+.Mode		RESB	8
+.UID		RESB	8
+.GID		RESB	8
+.Size		RESB	12
+.Mtime		RESB	12
+.ChkSum		RESB	8
+.TypeFlag	RESB	1		; See below
+.LinkName	RESB	100		; NUL-terminated if NUL fits
+.Magic		RESB	6		; must be TMAGIC (NUL term.)
+.Version	RESB	2		; must be TVERSION
+.UName		RESB	32		; NUL-terminated
+.GName		RESB	32		; NUL-terminated
+.DevMajor	RESB	8
+.DevMinor	RESB	8
+.Prefix		RESB	155		; NUL-terminated if NUL fits
+endstruc
+
+
+; The bits in mode
+%define TAR_SUID	800h
+%define TAR_SGID	400h
+%define TAR_SVTX	200h
+%define TAR_UREAD	100h
+%define TAR_UWRITE	80h
+%define TAR_UEXEC	40h
+%define TAR_GREAD	20h
+%define TAR_GWRITE	10h
+%define TAR_GEXEC	08h
+%define TAR_OREAD	04h
+%define TAR_OWRITE	02h
+%define TAR_OEXEC	01h
+
+; The values for typeflag:
+;   Values 'A'-'Z' are reserved for custom implementations.
+;   All other values are reserved for future POSIX.1 revisions.
+%define TAR_REGTYPE	'0'	; Regular file (preferred code).  
+%define TAR_AREGTYPE	'\0'	; Regular file (alternate code).  
+%define TAR_LNKTYPE	'1'	; Hard link.  
+%define TAR_SYMTYPE	'2'	; Symbolic link (hard if not supported).  
+%define TAR_CHRTYPE	'3'	; Character special.  
+%define TAR_BLKTYPE	'4'	; Block special.  
+%define TAR_DIRTYPE	'5'	; Directory.  
+%define TAR_FIFOTYPE	'6'	; Named pipe.  
+%define TAR_CONTTYPE	'7'	; Contiguous file 
+				; (regular file if not supported).  
+
+; Contents of magic field and its length.  
+%define TAR_MAGIC	"ustar"
+%define TAR_MAGLEN	6
+
+; Contents of the version field and its length.  
+%define TAR_VERSION	"00"
+%define TAR_VERSLEN	2

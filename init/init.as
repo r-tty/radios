@@ -45,7 +45,6 @@ extern GDTaddrLim, IDTaddr, IntHandlersArr
 extern DrvId_Con, DrvId_RD, DrvId_BIOS32
 extern ?HeapBegin, ?HeapEnd
 extern ?BaseMemSz, ?ExtMemSz
-extern ?TotalMemPages, ?VirtMemPages
 
 ; Kernel procedures
 extern K_CheckCPU:near, K_InitFPU:near, K_InitMem:near, K_GetMemInitStr:near
@@ -64,7 +63,7 @@ library kernel.mm
 extern MM_Init:near
 
 library kernel.paging
-extern PG_Init:near, PG_InitPageTables:near
+extern PG_Init:near, PG_StartPaging:near
 
 library kernel.mt
 extern MT_Init:near, MT_InitKernelProc:near
@@ -107,19 +106,14 @@ section .data
 Msg_A20Fail	DB "A20 line opening failure.",0
 Msg_Bytes	DB " bytes.",NL,0
 Msg_RVersion	DB NL,"Radiant Operating System (RadiOS), kernel version ",0
-Msg_RCopyright	DB NL,"Copyright (c) 2000 RET & COM Research.",NL
-		DB "RadiOS is free software, covered by the GNU General Public License, and you are",NL
-		DB "welcome to change it and/or distribute copies of it under certain conditions.",NL,0
+Msg_RCopyright	DB NL,"Copyright (c) 1998-2001 RET & COM Research.",NL
+		DB "RadiOS is free software, covered by the GNU General Public License,",NL
+		DB "and you are welcome to change it and/or distribute copies of it",NL
+		DB "under certain conditions.",NL,0
 
 Msg_InitDskDr	DB NL,NL,"Initializing disk drivers"
 Msg_Dots	DB "...",NL,0
 Msg_SearchPart	DB NL,"Searching partitions on ",0
-Msg_TotMem	DB NL,"Total memory size: ",0
-Msg_KB		DB " KB",NL,0
-Msg_MemKrnl	DB " Kernel:  ",0
-Msg_MemDrv	DB " Drivers: ",0
-Msg_MemFree	DB " Free:    ",0
-Msg_MemVirt	DB " Virtual: ",0
 Msg_InitChDr	DB NL,"Initializing character device drivers...",NL,0
 Msg_InitErr	DB ": init error ",0
 
@@ -155,6 +149,7 @@ BinFmtDrivers		DD	DrvRDM
 
 section .bss
 
+IdleTCB		RESD	1				; Idle thread TCB
 IDTaddrLim	RESB	6
 InitStringBuf	RESB	256
 
@@ -354,10 +349,6 @@ endp		;---------------------------------------------------------------
 
 		; INIT_LoadRDimage - load RAM-disk image.
 proc INIT_LoadRDimage
-%ifdef LOADRDIMAGE
-	extern RKDT_CreateRDimage
-	call	RKDT_CreateRDimage
-%endif
 		ret
 endp		;---------------------------------------------------------------
 
@@ -421,108 +412,6 @@ proc INIT_PrintPartTbl
 		jmp	.Loop
 .OK:		clc
 .Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_PrepEDRVcodeSeg - prepare to use external drivers
-		;			 code segment.
-proc INIT_PrepEDRVcodeSeg
-		xor	al,al
-	;	call	EDRV_FixDrvSegLimit		; Fix limit of data seg.
-		mov	dx,DRVDATA
-		call	K_DescriptorAddress
-		call	K_GetDescriptorBase		; Get its base
-		call	K_GetDescriptorLimit		; and limit
-		add	edi,eax				; Count base for
-		inc	edi				; code segment
-		test	edi,0Fh				; Alignment required?
-		jz	short .NoAlign
-		shr	edi,4				; Align by paragraph
-		inc	edi
-		shl	edi,4
-.NoAlign:	mov	dx,DRVCODE
-		call	K_DescriptorAddress
-		call	K_SetDescriptorBase		; Set base of code seg.
-	;	call	EDRV_InitCodeAlloc		; Reinit code alloc vars
-		clc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_PrepUserSeg - prepare to use user segment.
-proc INIT_PrepUserSeg
-		mov	al,1
-	;	call	EDRV_FixDrvSegLimit		; Fix limit of
-		mov	dx,DRVCODE			; drivers code segment
-		call	K_DescriptorAddress
-		call	K_GetDescriptorBase		; Get its base
-		call	K_GetDescriptorAR		; and ARs
-		or	ax,ax				; Allocated?
-		jz	short .SegSetup			; No, begin setup
-		call	K_GetDescriptorLimit		; Else get its limit
-		add	edi,eax				; Count base for
-		inc	edi				; user segment
-
-.SegSetup:	test	edi,0FFFh			; Alignment required?
-		jz	short .NoAlign
-		shr	edi,12				; Align by page
-		inc	edi
-		shl	edi,12
-
-.NoAlign:	mov	[?HeapBegin],edi
-		mov	eax,[?TotalMemPages]		; Count heap size
-		shl	eax,PAGESHIFT
-		add	eax,StartOfExtMem
-		mov	[?HeapEnd],eax
-		sub	eax,edi				; Count limit
-		dec	eax				; of user segment
-
-		mov	dx,USERCODE
-		call	K_DescriptorAddress		; Set base and limit of
-		call	K_SetDescriptorBase		; user code segment
-		call	K_SetDescriptorLimit
-		mov	dx,USERDATA
-		call	K_DescriptorAddress		; Set base and limit of
-		call	K_SetDescriptorBase		; user data segment
-		call	K_SetDescriptorLimit
-
-		; Print memory information
-		mPrintString Msg_TotMem
-		mov	eax,[?TotalMemPages]
-		shl	eax,2
-		add	eax,[?BaseMemSz]
-		call	PrintDwordDec
-		mPrintString Msg_KB
-		mPrintString Msg_MemKrnl
-		mov	eax,[?BaseMemSz]
-		call	PrintDwordDec
-		mPrintString Msg_KB
-		mPrintString Msg_MemDrv
-		mov	eax,[?HeapBegin]
-		sub	eax,StartOfExtMem
-		shr	eax,10
-		call	PrintDwordDec
-		mPrintString Msg_KB
-		mPrintString Msg_MemFree
-		mov	eax,[?ExtMemSz]
-		mov	ebx,[?HeapBegin]
-		sub	ebx,StartOfExtMem
-		shr	ebx,10
-		sub	eax,ebx
-		call	PrintDwordDec
-		mPrintString Msg_KB
-		mov	eax,[?VirtMemPages]
-		shl	eax,2
-		or	eax,eax
-		jz	short .OK
-		push	eax
-		mPrintString Msg_MemVirt
-		pop	eax
-		call	PrintDwordDec
-		mPrintString Msg_KB
-
-.OK:		clc
-		ret
 endp		;---------------------------------------------------------------
 
 
@@ -704,11 +593,10 @@ proc Start
 		call	MT_Init
 		jc	.Monitor
 		
-		; Create page tables and enable paging
-		mov	ecx,Init_MaxNumOfProcesses
-		call	PG_InitPageTables
+		; Enable paging
+		call	PG_StartPaging
 		jc	.Monitor
-int3
+
 		; Create kernel process
 		call	MT_InitKernelProc
 		jc	.Monitor
@@ -742,31 +630,23 @@ int3
 		mPrintString RadiOS_Version
 		mPrintString Msg_RCopyright
 
-		; Prepare to use external drivers code segment
-		call	INIT_PrepEDRVcodeSeg
-		jc	near .Monitor
-
-		; Prepare user segment and print memory info
-		call	INIT_PrepUserSeg
-		jc	near .Monitor
-
 		; Initialize module table
 		mov	eax,Init_MaxNumLoadedMods
 		call	MOD_InitMem
 		jc	near .Monitor
 
 		; Initialize kernel module
-		call	MOD_InitKernelMod
-		jc	near .Monitor
+;		call	MOD_InitKernelMod
+;		jc	near .Monitor
 
 		; Install and initialize binary format drivers
-		call	INIT_InstallBinFmtDrvs
-		jc	FatalError
+;		call	INIT_InstallBinFmtDrvs
+;		jc	FatalError
 
 		; Initialize memory management
-		call	MM_Init
-		jc	FatalError
-int3
+;		call	MM_Init
+;		jc	FatalError
+		
 		; Create two initial kernel threads
 		; (idle and RKDT).
 		mov	ebx,INIT_IdleThread
@@ -774,7 +654,7 @@ int3
 		xor	esi,esi
 		call	MT_CreateThread
 		jc	.Monitor
-		mov	edi,ebx				; Save launcher TCB
+		mov	[IdleTCB],ebx			; Save launcher TCB
 
 		mov	ebx,RKDT_Main
 		mov	ecx,16384			; 16KB stack
@@ -784,7 +664,7 @@ int3
 		; Enable timer interrupts and roll the dice! ;)
 		xor	al,al
 		call	PIC_EnbIRQ
-		mov	ebx,edi
+		mov	ebx,[IdleTCB]
 		call	MT_ThreadExec
 
 		; This point must never be reached!

@@ -71,7 +71,7 @@ proc K_InitMem
 		call	K_ProbeMem			; If no map - probe mem
 		jc	short .Exit
 .MemSizOK:	mov	[?ExtMemSz],ecx
-		shl	ecx,2
+		shr	ecx,2
 		mov	[?PhysMemPages],ecx
 		mov	[?TotalMemPages],ecx
 

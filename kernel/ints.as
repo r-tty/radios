@@ -169,7 +169,7 @@ proc IRQ0Handler
 		jne	short .1
 		inc	dword [?TimerTicksHi]
 .1:		mPICACK 0
-;		call	K_SwitchTask
+		call	K_SwitchTask
 		mTrapLeave
 endp		;---------------------------------------------------------------
 

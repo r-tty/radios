@@ -30,7 +30,9 @@ extern MM_AllocBlock, MM_FreeBlock
 extern MM_FreeMCBarea
 
 library kernel.mt
-extern MT_Exec, K_GetProcDescAddr
+;extern MT_Exec:near
+extern ?ProcListPtr
+
 
 library kernel.fs
 extern CFS_MakeFS, CFS_LinkFS, CFS_UnlinkFS
@@ -183,6 +185,8 @@ endp		;---------------------------------------------------------------
 
 
 proc TEST_ExamineFS
+.IDLE: inc byte [0xb8000+40]
+jmp .IDLE
 		mWrString msg_Banner
 .Loop:		mWrString msg_DbgPrompt
 		mov	esi,offset SBuffer
@@ -742,11 +746,11 @@ proc TEST_Exec
 		add	esi,ecx
 		inc	esi
 
-		xor	eax,eax
-		xor	edx,edx				; Sync exec
-		call	MT_Exec
-		jnc	short .Exit
-		call	TEST_ErrorHandler
+;		xor	eax,eax
+;		xor	edx,edx				; Sync exec
+;		call	MT_Exec
+;		jnc	short .Exit
+;		call	TEST_ErrorHandler
 
 .Exit:		mpop	esi,ecx
 		ret
@@ -763,7 +767,7 @@ proc TEST_AllocMem
 		call	ValDwordHex
 		jc	short .Exit
 		mov	ecx,eax
-		xor	eax,eax
+		xor	esi,esi				; Kernel process
 		xor	dl,dl
 		call	MM_AllocBlock
 		jnc	short .PrintAddr
@@ -811,8 +815,7 @@ proc TEST_MemStat
 		call    ValDwordDec
 		jc	near .Exit
 
-		call	K_GetProcDescAddr
-		jc	near .Exit
+		mIsKernProc ebx
 		mov	edi,ebx
 		mov	ebx,[ebx+tProcDesc.FirstMCB]
 
@@ -873,8 +876,7 @@ proc TEST_FreeMCBs
 		jz	short .Exit
 		mov	edx,eax
 
-		call	K_GetProcDescAddr
-		jc	short .Exit
+		mIsKernProc ebx
 		mov	esi,ebx
 
 		mov	eax,cr3

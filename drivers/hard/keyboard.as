@@ -29,7 +29,7 @@ extern StrCopy:extcall, StrAppend:extcall
 extern K_HexW2Str:extcall
 
 library kernel.ipc
-extern K_SendMessage:extcall
+extern K_HandleEvent:extcall
 
 library kernel.onboard
 extern KBC_ClrOutBuf:near, KBC_SendKBCmd:near, KBC_ReadKBPort:near
@@ -474,7 +474,7 @@ proc KB_AnalyseKCode
 		jne	near .Exit
 		mov	eax,(EV_SIGNAL << 16)+SIG_CTRLALTDEL
 		xor	edx,edx				; PID=0 (kernel)
-		call	K_SendMessage
+		call	K_HandleEvent
 		jmp	.Exit
 
 .Release:	cmp	al,KB_LShift+80h

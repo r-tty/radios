@@ -30,3 +30,6 @@ AR = rdflib
 # Command flags
 ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.mac -i$(INCLPATH)/ -s -o
 LDFLAGS = -2 -xe -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx
+
+# Command to generate dependencies file
+GENDEPS = ndepgen -M

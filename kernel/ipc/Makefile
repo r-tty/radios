@@ -4,17 +4,11 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../../etc/header.mk
 
 # Change variables here
-export TARGET_LIB = kernel.rdl
-OBJS = kernel.rdm kheap.rdm driver.rdm module.rdm paging.rdm \
-       pool.rdm sema.rdm misc.rdm setjmp.rdm
-modnamesfile = $(OUTPATH)/.kernel-modules
-SUBDIRS = mm mt syscall ipc
-
-# Make in subdirs
-include ../etc/subdirs.mk
+OBJS = event.rdm
+modnamesfile = $(OUTPATH)/.ipc-modules
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../../etc/common.mk

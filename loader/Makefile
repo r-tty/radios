@@ -1,24 +1,28 @@
-#*******************************************************************************
-#  Makefile for kernel loader (GNU make, Unix)
-#*******************************************************************************
+################################################################################
+# Makefile - universal makefile for RadiOS.
+# Copyright (c) 2000 RET & COM Research.
+################################################################################
 
+# Standard header
 include ../etc/header.mk
 
+# Converter to flat binary
 CONV = rdf2bin -o 0xBF000 -b 4096 -p 1
 
+# Change variables here
+LOADER_BIN = $(OUTPATH)/loader.bin
+OBJS = loader.rdm
+modnamesfile = $(OUTPATH)/.loader-modules
 
-loader.bin: loader.rdm
-	$(CONV) $(OUTPATH)/loader.rdm $(OUTPATH)/loader.bin
-	
-loader.rdm: loader.as util.as scfg.as mb_info.ah
-	$(AS) $(ASFLAGS) $(OUTPATH)/loader.rdm loader.as
-	
-	
+# Additional rule
+loader.bin: .depend $(OBJS)
+	@$(CONV) $(OUTPATH)/$(OBJS) $(LOADER_BIN)
+
+# This part shouldn't be changed
+include ../etc/common.mk
+
+# This is needed for master makefile
 all-depends: dep
-dep:
-	@echo "deps_generated = TRUE" >.depend
-
 
 all-clean: clean
-clean:
-	cd $(OUTPATH) && rm -f loader.bin loader.rdm
+	@rm -f $(LOADER_BIN)

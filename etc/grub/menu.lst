@@ -1,0 +1,19 @@
+# This is the amount grub waits in seconds before booting the default entry
+# Set this when you're sure that the default entry is correct.
+timeout 10
+
+# Tell which entry to boot by default.  Note that this is origin zero
+# from the beginning of the file.
+default 0
+
+# Note that to GRUB, all hard disks are `hd' and all floppy disks are `fd'.
+# To Mach, SCSI disks are `sd' and IDE type disks are `hd'.  Use
+# GRUB names in the `root' command and prefixing filenames.  Use a
+# Mach name as the `root' arg for the kernel, and whenever running the Hurd.
+
+# Entry 0
+title  RadiOS current
+root   (fd0)
+kernel /radios.rdz rootdev=%hd2.1 rootlp=C:
+#module /boot/radios/ext2fs.rdz
+

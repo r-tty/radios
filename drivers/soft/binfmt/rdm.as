@@ -23,9 +23,6 @@ global DrvRDM
 
 ; --- Imports ---
 
-library kernel
-extern K_CurrPID
-
 library kernel.mm
 extern MM_AllocRegion:extcall
 
@@ -96,7 +93,8 @@ endp		;---------------------------------------------------------------
 
 
 		; RDM_Load - load RDM module.
-		; Input: EBX=file handle,
+		; Input: EAX=PID,
+		;	 EBX=file handle,
 		;	 EDX=relocation base,
 		;	 EDI=address of kernel module structure.
 		; Output: CF=0 - OK, EBX=module ID;
@@ -116,7 +114,6 @@ proc RDM_Load
 		prologue 32+tRDMmaster_size+2+128
 		mpush	ebx,ecx,edx
 int3
-		mov	eax,[K_CurrPID]
 		mov	[.pid],eax
 		mov	[.fhandle],ebx
 		mov	[.relocbase],edx

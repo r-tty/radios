@@ -58,6 +58,9 @@
 %define	ERR_MT_NoFreeTCB		0363h
 %define ERR_MT_CantAllocStack		0364h
 %define ERR_MT_CantAllocKernStk		0365h
+%define	ERR_MT_SwitchToCurrThr		0366h
+%define	ERR_MT_UnableAttachThread	0367h
+%define	ERR_MT_UnableDetachThread	0367h
 
 ; Module errors
 %define	ERR_MOD_TooManyBinFmts		0370h

@@ -2,15 +2,13 @@
 ;  thread.as - thread management routines.
 ;-------------------------------------------------------------------------------
 
-%include "sema.ah"
-%include "pool.ah"
 %include "thread.ah"
 
 
 ; --- Exports ---
 
-global K_CurrThread
-global MT_ThreadSleep, MT_ThreadWakeup
+global MT_ThreadSleep, MT_ThreadWakeup, MT_ThreadExec
+global MT_CreateThread
 
 
 ; --- Imports ---
@@ -22,17 +20,25 @@ extern K_PoolAllocChunk:near, K_PoolFreeChunk:near
 library kernel.mm
 extern MM_AllocBlock:near
 
+
+; --- Data ---
+
+section .data
+
+MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread is already sleep",0
+MsgThrRunning	DB	":THREAD:MT_ThreadSleep: warning: this thread is already running",0
+
 ; --- Variables ---
 
 section .bss
 
-K_MaxThreads	RESD	1
-K_CurrThread	RESD	1
+?MaxThreads	RESD	1
 
-MT_ThrPool	RESB	tMasterPool_size
+?ThreadPool	RESB	tMasterPool_size
 
-MT_ReadyThrLst	RESD	1		; Pointer to a list of ready threads
-MT_ReadyThrCnt	RESD	1		; Counter of ready threads
+?ReadyThrList	RESD	1		; Pointer to a list of ready threads
+?ReadyThrCnt	RESD	1		; Counter of ready threads
+?NumThreads	RESD	1		; Total number of threads
 
 
 ; --- Procedures ---
@@ -45,9 +51,9 @@ section .text
 		;         CF=1 - error, AX=error code.
 proc MT_InitTCBpool
 		mpush	ebx,ecx
-		mov	[K_MaxThreads],eax
+		mov	[?MaxThreads],eax
+		mov	ebx,?ThreadPool
 		mov	ecx,tTCB_size
-		mov	ebx,MT_ThrPool
 		call	K_PoolInit
 .Done:		mpop	ecx,ebx
 		ret
@@ -55,20 +61,20 @@ endp		;---------------------------------------------------------------
 
 
 		; MT_ThrEnqueue -  add a thread to the list.
-		;		    It also ends up on the ready queue.
+		;		   It also ends up on the ready queue.
 		; Input: EBX=TCB address.
 		; Output: none.
 proc MT_ThrEnqueue
-		cmp	dword [MT_ReadyThrLst],0
+		cmp	dword [?ReadyThrList],0
 		jne	.NotFirst
-		mov	[MT_ReadyThrLst],ebx
+		mov	[?ReadyThrList],ebx
 		mov	[ebx+tTCB.Next],ebx
 		mov	[ebx+tTCB.Prev],ebx
 		mov	[ebx+tTCB.ReadyNext],ebx
 		mov	[ebx+tTCB.ReadyPrev],ebx
 		ret
 
-.NotFirst:	mov	eax,[MT_ReadyThrLst]
+.NotFirst:	mov	eax,[?ReadyThrList]
 		push	eax
 		mov	[ebx+tTCB.Next],eax
 		mov	eax,[eax+tTCB.Prev]
@@ -100,9 +106,9 @@ proc MT_ThrRemove
 		mov	edi,[ebx+tTCB.Prev]
 		mov	[esi+tTCB.Prev],edi
 		mov	[edi+tTCB.Next],esi
-		cmp	[MT_ReadyThrLst],ebx
+		cmp	[?ReadyThrList],ebx
 		jne	.TuneReadyList
-		mov	[MT_ReadyThrLst],esi
+		mov	[?ReadyThrList],esi
 
 		; Take care of ready list to
 .TuneReadyList:	mov	esi,[ebx+tTCB.ReadyNext]
@@ -113,7 +119,7 @@ proc MT_ThrRemove
 		mpop	edi,esi
 		ret
 
-.IsFirst:	mov	dword [MT_ReadyThrLst],0
+.IsFirst:	mov	dword [?ReadyThrList],0
 		ret
 endp		;---------------------------------------------------------------
 
@@ -127,12 +133,12 @@ proc MT_ThrRLink
 		; since no such thing exists. There is always one thread
 		; ready to run (idle thread) linked on this list.
 		; Assuming that, the code gets easier and quicker.
-		mov	eax,[MT_ReadyThrLst]
+		mov	eax,[?ReadyThrList]
 		mov	[ebx+tTCB.ReadyNext],eax
 		mov	eax,[eax+tTCB.ReadyPrev]
 		mov	[ebx+tTCB.ReadyPrev],eax
 		mov	[eax+tTCB.ReadyNext],ebx
-		mov	eax,[MT_ReadyThrLst]
+		mov	eax,[?ReadyThrList]
 		mov	[eax+tTCB.ReadyPrev],ebx
 		ret
 endp		;---------------------------------------------------------------
@@ -159,6 +165,10 @@ proc MT_ThreadSleep
 		cmp	byte [ebx+tTCB.State],THRST_WAITING
 		jne	.1
 	%ifdef KPOPUPS
+		push	esi
+		mov	esi,MsgThrSleep
+		call	K_PopUp
+		pop	esi
 	%endif
 		ret
 
@@ -168,7 +178,7 @@ proc MT_ThreadSleep
 		mov	al,[ebx+tTCB.Priority]
 		mov	[ebx+tTCB.CurrPriority],al
 		call	MT_ThrRUnlink
-		dec	dword [MT_ReadyThrCnt]
+		dec	dword [?ReadyThrCnt]
 		popfd
 		ret
 endp		;---------------------------------------------------------------
@@ -181,6 +191,10 @@ proc MT_ThreadWakeup
 		cmp	byte [ebx+tTCB.State],THRST_READY
 		jne	.1
 	%ifdef KPOPUPS
+		push	esi
+		mov	esi,MsgThrRunning
+		call	K_PopUp
+		pop	esi
 	%endif
 		ret
 
@@ -188,7 +202,7 @@ proc MT_ThreadWakeup
 		cli
 		mov	byte [ebx+tTCB.State],THRST_READY
 		call	MT_ThrRLink
-		inc	dword [MT_ReadyThrCnt]
+		inc	dword [?ReadyThrCnt]
 		popfd
 		ret
 endp		;---------------------------------------------------------------
@@ -196,44 +210,48 @@ endp		;---------------------------------------------------------------
 
 		; MT_CreateThread - create new thread.
 		; Input: EBX=start address,
-		;	 ECX=stack size (0=don't allocate stack),
-		;	 EDX=address of process descriptor.
+		;	 ESI=address of process descriptor (might be 0 for
+		;	     kernel threads),
+		;	 ECX=0:
+ 		;	     kernel threads: don't allocate kernel stack;
+		;	     user/drv threads: don't allocate user/drv stack.
+		;	 ECX!=0:
+		;	     kernel threads: ECX=kernel stack size;
+		;	     user/drv threads: ECX=user/drv stack size
+		;			       (kernel stack will be PAGESIZE).
 		; Output: CF=0 - OK, EBX=TCB address;
 		;	  CF=1 - error, AX=error code.
 		; Note: CR3 must be set.
 proc MT_CreateThread
-%define	.pid	ebp-4
-%define .tstart	ebp-8
+		mpush	ecx,edx,esi,edi
 
-		prologue 8
-		mpush	ecx,edx,esi
-		mov	[.tstart],ebx
-
-		mov	ebx,MT_ThrPool
+		mov	edx,ebx					; EDX=start addr
+		mov	ebx,?ThreadPool
+		push	esi
 		call	K_PoolAllocChunk			; Allocate TCB
+		mov	edi,esi
+		pop	esi
 		jc	near .Err1
-		mov	ebx,esi
 
-		; Initialize 'PCB' and 'Entry' fields
-		mov	[ebx+tTCB.PCB],edx
-		mPDA2PID edx
-		mov	[.pid],eax
-		mov	eax,[.tstart]
-		mov	[ebx+tTCB.Entry],eax
+		; Initialize 'Entry' field
+		mov	[edi+tTCB.Entry],edx
 
 		; Initial values for typical scheduler fields.
-		mov	byte [ebx+tTCB.State],THRST_READY
-		mov	byte [ebx+tTCB.PrioClass],THRPRCL_NORMAL
-		mov	byte [ebx+tTCB.Priority],THRPRVAL_DEFAULT
-		mov	byte [ebx+tTCB.CurrPriority],THRPRVAL_DEFAULT
+		mov	byte [edi+tTCB.State],THRST_READY
+		mov	byte [edi+tTCB.PrioClass],THRPRCL_NORMAL
+		mov	byte [edi+tTCB.Priority],THRPRVAL_DEFAULT
+		mov	byte [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
+
+		; Initialize 'PCB' field and check stack size
+		mov	[edi+tTCB.PCB],esi
+		mIsKernProc esi
+		cmp	esi,[?ProcListPtr]		; Kernel thread?
+		je	.KStackCheck
+		mov	dword [edi+tTCB.Stack],0
+		or	ecx,ecx				; Allocate stack?
+		jz	.SetKStack
 
 		; Setup user/driver stack (for non-kernel threads).
-		mov	[edi+tTCB.Stack],eax
-		mov	eax,[.pid]
-		or	eax,eax
-		jz	.SetKStack
-		or	ecx,ecx
-		jz	.SetKStack
 		mov	dl,1				; Don't load CR3
 		mov	dh,PG_WRITEABLE+PG_USERMODE
 		call	MM_AllocBlock
@@ -243,6 +261,13 @@ proc MT_CreateThread
 		and	bl,0FCh				; Align by dword
 		sub	ebx,byte 4
 		mov	[edi+tTCB.Stack],ebx
+		jmp	.SetKStack
+
+.KStackCheck:	or	ecx,ecx				; Allocate kernel stack?
+		jnz	.SetKStack2
+		mov	[edi+tTCB.KStack],esp		; Use current stack
+		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],esp
+		jmp	short .KCtxSet
 
 		; Setup kernel stack.
 		; Every thread has a kernel stack regardless if it
@@ -252,25 +277,38 @@ proc MT_CreateThread
 		; entering kernel mode (its state is pushed on it).
 		; For kernel threads, this is actual working stack
 		; NOTE: kernel stack is only one page long, there is no
-		;	 mechanism to grow kernel stack at the moment
-		;	 therefore kernel threads mustn't be stack hungry
-.SetKStack:	mov	edi,ebx				; Keep TCB address
-		mov	ecx,PageSize
-		mov	dl,1				; Don't load CR3
+		; mechanism to grow kernel stack at the moment
+		; therefore kernel threads mustn't be stack hungry
+.SetKStack:	mov	ecx,PageSize
+.SetKStack2:	mov	dl,1				; Don't load CR3
 		mov	dh,PG_WRITEABLE
-		mov	eax,[.pid]
 		call	MM_AllocBlock			; Get kernel stack
 		jc	.Err2
 		call	BZero
-		add	ebx,PageSize-4
+		lea	ebx,[ebx+ecx-4]
 		mov	[edi+tTCB.KStack],ebx
+		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],ebx
 
+		cmp	dword [edi+tTCB.PCB],0		; Kernel thread?
+		jne	.Attach				; No, attach to process
+.KCtxSet:	mov	eax,[edi+tTCB.Entry]
+		mov	[edi+tTCB.Context+tJmpBuf.R_EIP],eax
+		jmp	short .EnqReady
+	
 		; This will add newly created thread to its process
-		call	MT_ProcAttachThread
+.Attach:	call	MT_ProcAttachThread
 		jc	.Done
+		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing13
 
-.Done:		mpop	esi,edx,ecx
-		epilogue
+.EnqReady:	pushfd
+		cli
+		mov	ebx,edi
+		call	MT_ThrEnqueue
+		inc	dword [?ReadyThrCnt]
+		inc	dword [?NumThreads]
+		popfd
+
+.Done:		mpop	edi,esi,edx,ecx
 		ret
 
 .Err1:		mov	ax,ERR_MT_NoFreeTCB
@@ -282,5 +320,86 @@ proc MT_CreateThread
 
 .Err3:		mov	ax,ERR_MT_CantAllocKernStk
 		jmp	short .Err
+endp		;---------------------------------------------------------------
+
+
+		; MT_ThreadExec - pass execution to thread.
+		; Input: EBX=address of TCB.
+		; Output: (no return) if successes;
+		;	  CF=1 and AX=error code if fails.
+proc MT_ThreadExec
+		cmp	ebx,[?CurrThread]
+		je	short .Err
+		cli
+		mov	[?CurrThread],ebx
+		mov	dword [ebx+tTCB.Quant],THRQUANT_DEFAULT
+		xor	eax,eax
+		lea	edi,[ebx+tTCB.Context]
+		call	K_LongJmp
+
+.Err:		mov	ax,ERR_MT_SwitchToCurrThr
+		stc
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_ThreadKillCurrent - terminate current thread.
+		; Input: none.
+		; Output: none.
+		; Note: assumes that interrupts are disabled.
+proc MT_ThreadKillCurrent
+
+		; This should never happen
+		
+endp		;---------------------------------------------------------------
+
+
+		; K_GoRing13 - routine used to switch to driver or user mode.
+		; Input: AL=target mode:
+		;	  AL=1 - driver mode;
+		;	  AL=3 - user mode.
+		; Output: never returns.
+proc K_GoRing13
+%define	.rESDS		ebp-24
+%define .rEIP		ebp-20
+%define	.rECS		ebp-16
+%define	.rEFLAGS	ebp-12
+%define	.rESP		ebp-8
+%define	.rESS		ebp-4
+
+		push	ebp
+		mov	ebp,esp
+		sub	esp,byte 24
+
+		; Setup ring 0 stack
+		cli
+		mov	ebx,[?CurrThread]
+		mov	eax,[ebx+tTCB.KStack]
+		mov	[KernTSS+tTSS.ESP0],eax
+
+		cmp	al,1
+		je	.DriverMode
+		mov	esi,(USER_DSEG << 16) | USER_DSEG
+		mov	edi,(USER_CSEG << 16) | USER_CSEG
+		jmp	short .Prepare
+
+.DriverMode:	mov	esi,(DRV_DSEG << 16) | DRV_DSEG
+		mov	edi,(DRV_CSEG << 16) | DRV_CSEG
+
+		; This is a layout of what 'iret' pops off the stack
+.Prepare:	mov	[.rESDS],esi
+		mov	eax,[ebx+tTCB.Entry]
+		mov	[.rEIP],eax
+		mov	[.rECS],edi
+		mov	dword [.rEFLAGS],FLAG_IOPL | FLAG_IF
+		mov	eax,[ebx+tTCB.Stack]
+		mov	[.rESP],eax
+		mov	[.rESS],esi
+
+		; Go to driver/user mode
+		lea	esp,[.rESDS]
+		pop	es
+		pop	ds
+		iret
 endp		;---------------------------------------------------------------
 

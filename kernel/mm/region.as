@@ -16,7 +16,7 @@
 section .text
 
 		; MM_AllocRegion - allocate a region.
-		; Input: EAX=PID,
+		; Input: ESI=PCB address,
 		;	 ECX=region size,
 		;	 DL=region type.
 		; Output: CF=0 - OK:
@@ -42,8 +42,9 @@ proc MM_AllocRegion
 		ret
 endp		;---------------------------------------------------------------
 
+
 		; MM_FreeRegion - free a region.
-		; Input: EAX=PID,
+		; Input: ESI=PCB address,
 		;	 EDI=MCB address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.

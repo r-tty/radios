@@ -89,8 +89,7 @@ endp		;---------------------------------------------------------------
 proc PIC_DisIRQ
 		cmp	al,10h
 		jae	short .Exit
-		push	eax
-		push	ecx
+		mpush	eax,ecx
 		pushfd
 		cli
 		mov	cl,al
@@ -110,8 +109,7 @@ proc PIC_DisIRQ
 		or	al,ah
 		out	PORT_PIC2_1,al
 .OK:		popfd
-		pop	ecx
-		pop	eax
+		mpop	ecx,eax
 .Exit:		ret
 endp		;---------------------------------------------------------------
 

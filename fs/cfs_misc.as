@@ -11,9 +11,8 @@ global CFS_GetCurrentIndex, CFS_SetCurrentIndex
 
 ; --- Imports ---
 
-library kernel.mt
-extern K_GetProcDescAddr:near
 
+; --- Code ---
 
 		; CFS_SetCurrentLP - set current file system link point
 		;		     for process.
@@ -23,8 +22,7 @@ extern K_GetProcDescAddr:near
 		;	  CF=1 - error, AX=error code.
 proc CFS_SetCurrentLP
 		push	ebx
-		call	K_GetProcDescAddr
-		jc	.Done
+		mPID2PDA
 		push	ebx
 		call	CFS_LPtoFSdrvID
 		pop	ebx
@@ -113,10 +111,9 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EBX=index;
 		;	  CF=1 - error, AX=error code.
 proc CFS_GetCurrentIndex
-		call	K_GetProcDescAddr
-		jc	.Done
+		mPID2PDA
 		mov	ebx,[ebx+tProcDesc.CurrDirIndex]
-.Done:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -128,10 +125,9 @@ endp		;---------------------------------------------------------------
 proc CFS_SetCurrentIndex
 		push	edx
 		mov	edx,ebx
-		call	K_GetProcDescAddr
-		jc	.Done
+		mPID2PDA
 		mov	[ebx+tProcDesc.CurrDirIndex],edx
-.Done:		pop	edx
+		pop	edx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -187,8 +183,7 @@ endp		;---------------------------------------------------------------
 proc CFS_GetFHndStructAddr
 		push	ebx
 		mov	dl,bl
-		call	K_GetProcDescAddr
-		jc	short .Exit
+		mPID2PDA
 		mov	ebx,[ebx+tProcDesc.FHandlesAddr]
 		or	ebx,ebx
 		jc	short .Err1
@@ -198,7 +193,7 @@ proc CFS_GetFHndStructAddr
 		shl	edx,FHANDLESHIFT
 		add	edx,ebx
 		clc
-.Exit:		pop	ebx
+		pop	ebx
 		ret
 
 .Err1:		mov	ax,ERR_FS_BadFHandleTable
@@ -218,8 +213,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc CFS_FindFreeFH
 		push	edi
-		call	K_GetProcDescAddr		; Get address
-		jc	short .Exit			; of process descriptor
+		mPID2PDA				; Get PDA address
 		mov	edi,ebx				; Keep it
 		mov	edx,[ebx+tProcDesc.FHandlesAddr]
 		add	edx,(tCFS_FHandle_size)*(STDERR+1)
@@ -234,7 +228,7 @@ proc CFS_FindFreeFH
 		add	edx,tCFS_FHandle_size
 		jmp	.Loop
 .OK:		clc
-.Exit:		pop	edi
+		pop	edi
 		ret
 
 .Err:		mov	ax,ERR_FS_NoFreeHandles

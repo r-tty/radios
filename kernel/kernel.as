@@ -34,7 +34,6 @@ global K_GetGateOffset, K_SetGateOffset, K_SetGateCount
 global K_GetExceptionVec, K_SetExceptionVec
 
 global K_RemapToSystem, K_MapStackToSystem, K_UnmapStack
-global K_SendMessage
 
 global KernTSS, DrvTSS
 global IDTaddr
@@ -56,7 +55,6 @@ library kernel.driver
 extern DRV_CallDriver:near
 
 library kernel.mt
-extern K_GetProcDescAddr:near
 extern K_SwitchTask:near
 
 library kernel.onboard
@@ -359,40 +357,6 @@ proc K_SetExceptionVec
 		call	K_SetGateOffset
 		call	K_SetGateSelector
 		mpop	ebx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SendMessage - send message to process (without buffering).
-		; Input: EDX=PID,
-		;	 EAX=event code.
-		; Output: CF=0 - OK;
-		;	  CF=1 - return.
-proc K_SendMessage
-%define	.selector	ebp-4				; Gate selector (far)
-%define	.evhandler	ebp-8				; Handler address ()
-
-		prologue 8
-		push	ebx
-
-		xchg	eax,edx
-		call	K_GetProcDescAddr		; Get process descriptor
-		jc	short .Exit			; address in EBX
-		mov	eax,[ebx+tProcDesc.EventHandler]
-		test	byte [ebx+tProcDesc.Flags],PDFL_USER ; Another segment?
-		jz	.Kernel				; No,  call
-		mov	[.selector],eax			; Else far call
-		mov	dword [.evhandler],0
-
-		mov	eax,edx
-		call	dword far [.evhandler]
-		jmp	short .Exit
-
-.Kernel:	xchg	eax,edx
-		call	edx
-
-.Exit:		pop	ebx
-		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

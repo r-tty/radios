@@ -4,6 +4,8 @@
 
 ; Process descriptor structure
 struc tProcDesc
+.PID		RESD	1			; PID
+.Parent		RESD	1			; Parent PCB
 .FHandlesAddr	RESD	1			; Address of file handles table
 .NumFHandles	RESB	1			; Max. number of file handles
 .Flags		RESB	1			; Flags
@@ -12,17 +14,16 @@ struc tProcDesc
 .PageDir	RESD	1			; Page directory address
 .FirstMCB	RESD	1			; First MCB address
 .LastMCB	RESD	1			; Last MCB address
-.Next		RESD	1			; NextProcessPID
 .EventHandler	RESD	1			; Event handler address
 .Module		RESW	1			; Module number
 .FSLP		RESB	1			; Current FSLP
 .Reserved	RESB	1
 .CurrDirIndex	RESD	1			; Current directory index
+.ThreadList	RESD	1			; Thread list head
+.Next		RESD	1			; Next PCB in list
+.Prev		RESD	1			; Previous PCB in list
 
-.FirstThread	RESD	1			; Address of first TCB
-.LastThread	RESD	1			; Address of last TCB
-
-.Reserved2	RESB	56			; Complement to 128 bytes
+.Reserved2	RESD	12			; Complement to 128 bytes
 endstruc
 
 %define	PROCDESCSHIFT	7			; log2(tProcDesc_size)
@@ -39,20 +40,27 @@ struc tProcInit
 .EventHandler	RESD	1			; Event handler address
 endstruc
 
-; Macro converts process descriptor address to PID
-%macro mPDA2PID 1
-%if %0>0
-	mov	eax,%1
+; Zero address of process descriptor is valid - it means kernel process
+; (with PID=0). This macro checks whether its argument (register) is 0
+; and if so - loads there address of kernel PCB
+%macro mIsKernProc 1
+%if %0==1
+	or	%1,%1
+	jnz	short %%Done
+	mov	%1,[?ProcListPtr]
+%%Done:
+%else
+%error mIsKernProc: invalid number of args
 %endif
-	sub	eax,[MT_ProcTblAddr]
-	shr	eax,PROCDESCSHIFT
 %endmacro
 
-; Macro converts PID to process descriptor address (PDA)
-%macro mPID2PDA 1
+; Macro that converts PID to process descriptor address (PDA)
+%macro mPID2PDA 0-1
 %if %0>0
 	mov	eax,%1
 %endif
-	shl	eax,PROCDESCSHIFT
-	add	eax,[MT_ProcTblAddr]
+	mov	ebx,eax
+	shl	ebx,PROCDESCSHIFT
+	add	ebx,[?ProcListPtr]
 %endmacro
+

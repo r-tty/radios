@@ -12,12 +12,13 @@ module kernel.mt
 %include "i386/paging.ah"
 %include "i386/stkframe.ah"
 %include "i386/setjmp.ah"
+%include "sema.ah"
+%include "pool.ah"
 %include "process.ah"
 
 ; --- Exports ---
 
 global MT_Init
-global MT_ProcTblAddr, MT_MaxNumOfProc
 
 
 ; --- Imports ---
@@ -32,13 +33,15 @@ extern KH_FillWithFF:near
 library kernel.misc
 extern BZero:near
 
+
 ; --- Variables ---
 
 section .bss
 
+
 ; --- Procedures ---
 
-%include "process.as"				; Process management
+%include "proc.as"				; Process management
 %include "thread.as"				; Thread management
 %include "sched.as"				; Scheduler
 
@@ -72,18 +75,16 @@ endp		;---------------------------------------------------------------
 
 
 		; MT_Init - initialize multitasking memory structures.
-		; Input: EAX=maximum number of processes,
-		;	 ECX=maximum number of threads.
+		; Input: ECX=maximum number of threads.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MT_Init
-		call	MT_InitPCBpool
-		jc	.Done
 		mov	eax,ecx
 		call	MT_InitTCBpool
 		jc	.Done
 		call	MT_InitKTSS		; Initialize PL0 TSS
 		call	MT_InitDTSS		; Initialize PL1 TSS
+		call	MT_InitTimeout		; Initialize shed timeout queue
 .Done		ret
 endp		;---------------------------------------------------------------
 

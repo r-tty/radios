@@ -68,7 +68,8 @@ library kernel.mm
 extern MM_Init:near, PG_Init:near
 
 library kernel.mt
-extern MT_Init:near, MT_CreateKernelProcess:near
+extern MT_Init:near, MT_InitProc:near, MT_InitKernelProc:near
+extern MT_CreateThread:near, MT_ThreadExec:near
 
 library kernel.module
 extern MOD_InitMem:near, MOD_InitKernelMod:near
@@ -84,7 +85,7 @@ extern PrintByteDec:near, PrintDwordDec:near, PrintWordHex:near, WriteChar:near
 extern StrLComp:near
 
 library onboard.pic
-extern PIC_Init:near, PIC_SetIRQmask:near
+extern PIC_Init:near, PIC_SetIRQmask:near, PIC_EnbIRQ:near
 
 library onboard.timer
 extern TMR_InitCounter:near
@@ -176,6 +177,7 @@ section .text
 
 %include "buildxdt.as"
 %include "parsecfg.as"
+%include "launcher.as"
 
 
 ; --- Initialization procedures ---
@@ -332,7 +334,7 @@ proc INIT_CreateKernelProcess
 		mov	byte [ebx+tProcInit.MaxFHandles],Init_NumKernFHandles
 		mov	word [ebx+tProcInit.EnvSize],Init_KernEnvSize
 		mov	dword [ebx+tProcInit.EventHandler],KernelEventHandler
-		call	MT_CreateKernelProcess
+		call	MT_InitKernelProc
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -343,7 +345,6 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, ECX=size of virtual memory;
 		;	  CF=1 - error.
 proc INIT_ChkSwapDev
-	mov	ecx,Init_MaxVirtMem
 	clc
 		ret
 endp		;---------------------------------------------------------------
@@ -790,7 +791,9 @@ proc Start
 		mov	al,IRQ8int
 		call	PIC_Init
 		xor	eax,eax
+		mov	al,1				; IRQ0 disabled
 		call	PIC_SetIRQmask
+		dec	al
 		inc	ah
 		call	PIC_SetIRQmask
 		call	CMOS_EnableInt
@@ -847,14 +850,25 @@ mReadKey
 		mCallDriver eax, byte DRVF_Init
 		jnc	short .BIOSinitOK
 		call	DrvInitErr
-		jmp	short .InitMT
+		jmp	short .InitProc
 
 .BIOSinitOK:	mWrChar ' '
 		mCallDriverCtrl dword [DrvId_Con], DRVCTL_CON_WrString
 
+		; Initialize process management
+.InitProc:	mov	eax,Init_MaxNumOfProcesses
+		call	MT_InitProc
+		jc	near .Monitor
+
+		; Initialize paging
+.InitPaging:	mov	al,SCFG_SwapSize
+		call	INIT_GetStCfgItem
+		mov	ecx,[ebx]
+		call	PG_Init
+		jc	near .Monitor
+
 		; Initialize multitasking memory structures
-.InitMT:	mov	eax,Init_MaxNumOfProcesses
-		mov	ecx,Init_MaxNumOfThreads
+.InitMT:	mov	ecx,Init_MaxNumOfThreads
 		call	MT_Init
 		jc	near .Monitor
 
@@ -885,18 +899,16 @@ mReadKey
 		jc	near .Monitor
 
 		; Install and initialize file system drivers
-		mWrString Msg_InitFSDRV
-		call	INIT_InitFileSystems
-		jc	near .Monitor
+;		mWrString Msg_InitFSDRV
+;		call	INIT_InitFileSystems
+;		jc	near .Monitor
 
 		; Print partition table on boot device
 		call	INIT_PrintPartTbl
 		jc	near .Monitor
 
-		; Check swap device and initialize paging
+		; Check and initialize swap device
 		call	INIT_ChkSwapDev
-		jc	near .Monitor
-		call	PG_Init
 		jc	near .Monitor
 
 		; Initialize character device drivers
@@ -915,12 +927,12 @@ mReadKey
 
 		; Load RAM-disk image
 %ifdef LOADRDIMAGE 
-		call INIT_LoadRDimage
+;		call INIT_LoadRDimage
 %endif
 
 		; Link primary file system
-		call	INIT_LinkPrimFS
-		jc	near .Monitor
+;		call	INIT_LinkPrimFS
+;		jc	near .Monitor
 
 		; Prepare to use external drivers code segment
 		call	INIT_PrepEDRVcodeSeg
@@ -951,22 +963,37 @@ mReadKey
 		call	MM_Init
 		jc	FatalError
 
-extern TEST_ExamineFS
-call TEST_ExamineFS
+		; Create two initial kernel threads
+		; (launcher and system console).
+		mov	ebx,INIT_Launcher
+		xor	ecx,ecx
+		xor	esi,esi
+		call	MT_CreateThread
+		jc	.Monitor
+		mov	edi,ebx				; Save launcher TCB
 
-		; Start process 0
+extern TEST_ExamineFS:near
+		mov	ebx,TEST_ExamineFS
+		mov	ecx,16384
+		call	MT_CreateThread
+		jc	.Monitor
 
-		; Call monitor
-.Monitor:	xor	eax,eax				; Exit code=0
-		int3
+		; Enable timer interrupts and roll the dice! ;)
+		xor	al,al
+		call	PIC_EnbIRQ
+		mov	ebx,edi
+		call	MT_ThreadExec
+
+		; This point must never be reached!
+.Monitor:	int3
 
 		; Reset system
-SysReset:	mWrString Msg_SysReset1
+		mWrString Msg_SysReset1
 		call	PrintByteDec
 		mWrString Msg_SysReset2
 		mCallDriver dword [DrvId_Con], byte DRVF_Read
 
-		call	KBC_HardReset
+SysReset:	call	KBC_HardReset
 
 		; Fatal error: print error message, error number
 		; and halt the system
@@ -978,3 +1005,4 @@ FatalError:	push	eax
 
 .Halt:		jmp	.Halt
 endp		;---------------------------------------------------------------
+

@@ -209,7 +209,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 		; Note: discards EBX, ECX, ESI and EDI.
 proc RFS_MakeBBBs
-int3
+;int3
 		mpush	edx,ebp
 		mov	bp,ax			; Save test type
 		call	CFS_LPtoDevID
@@ -423,7 +423,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EBX=disk index of root;
 		;	  CF=1 - error, AX=error code.
 proc RFS_CreateRootDir
-int3
+;int3
 		call	RFS_AllocDirBlock	; Allocate a directory block
 		jc	short .Exit
 		push	eax			; Save block number

@@ -22,6 +22,8 @@ global CFS_LPtable
 
 ; --- Imports ---
 
+library kernel.mt
+extern ?ProcListPtr
 
 ; --- Data ---
 
@@ -190,10 +192,9 @@ proc CFS_GetLPbyName
 		ret
 
 .UseCurr:	push	ebx
-		call	K_GetProcDescAddr
-		jc	.Done1
+		mPID2PDA
 		mov	dl,[ebx+tProcDesc.FSLP]
-.Done1:		pop	ebx
+		pop	ebx
 		ret
 
 .Err:		mov	ax,ERR_FS_BadLP

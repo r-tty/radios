@@ -31,8 +31,7 @@ proc CFS_Path2Index
 		je	short .GetRootInd
 
 		mov	eax,[.pid]
-		call	K_GetProcDescAddr
-		jc	short .Exit
+		mPID2PDA
 		mov	ebx,[ebx+tProcDesc.CurrDirIndex] ; Get current dir index
 		jmp	short .Begin
 

@@ -65,7 +65,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, ESI=pool address;
 		;	  CF=1 - error, AX=error code.
 proc K_PoolNew
-		mpush	ecx,edx,esi
+		mpush	ebx,ecx,edx
 		
 		; See how many chunks will fit into a page.
 		; Take into account pool descriptor at the beginning of a page.
@@ -113,7 +113,7 @@ proc K_PoolNew
 .TrailNULL:	mov	dword [esi],0
 		pop	esi				; Return address of a
 		xor	eax,eax				; new pool in ESI
-.Done		mpop	esi,edx,ecx
+.Done		mpop	edx,ecx,ebx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -127,17 +127,17 @@ proc K_PoolAllocChunk
 		mpush	ebx,edx
 		mov	esi,ebx
 
-		mov	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		lea	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
 		call	K_SemP
 
 		; First check if hint is valid. If not, go through pool list
 		; to find one containing some free chunks
 		; If no pools with free space, get a new one.
 		; Always update hint for future use
-		mov	ebx,[esi+tMasterPool.Hint]
-		or	ebx,ebx
+		mov	edx,[esi+tMasterPool.Hint]
+		or	edx,edx
 		jz	.FindHint
-		cmp	dword [ebx+tPoolDesc.FreeHead],0
+		cmp	dword [edx+tPoolDesc.FreeHead],0
 		jnz	.HintOK
 
 .FindHint:	mov	ebx,[esi+tMasterPool.Pools]
@@ -166,7 +166,7 @@ proc K_PoolAllocChunk
 		dec	dword [edx+tPoolDesc.ChunksFree]
 		mov	edx,ebx
 
-		mov	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+		lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
 		mov	esi,edx				; Return chunk addr
@@ -190,7 +190,7 @@ proc K_PoolFreeChunk
 		and	edx,PGENTRY_ADDRMASK		; EDX=pooldesc address
 		mov	esi,[edx+tPoolDesc.Master]	; ESI=master pool addr
 
-		mov	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		lea	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
 		call	K_SemP
 
 		; Free this chunk
@@ -199,7 +199,7 @@ proc K_PoolFreeChunk
 		mov	[edx+tPoolDesc.FreeHead],edi
 		dec	dword [edx+tPoolDesc.ChunksFree]
 
-		; * Check reference count and free the whole pool if needed *
+		; Check reference count and free the whole pool if needed
 		dec	dword [edx+tPoolDesc.RefCount]
 		jnz	.Unlock
 		
@@ -237,7 +237,7 @@ proc K_PoolFreeChunk
 		call	PG_Dealloc
 		dec	dword [K_PoolPageCount]
 
-.Unlock:	mov	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+.Unlock:	lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
 		mov	ax,di				; Error code

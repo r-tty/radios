@@ -23,7 +23,6 @@
 
 ; Thread control block
 struc tTCB
-.TID		RESD	1			; TID
 .PCB		RESD	1			; PCB address of process which
 						; a thread belongs to
 .PrioClass	RESB	1			; Priority class
@@ -31,8 +30,11 @@ struc tTCB
 .CurrPriority	RESB	1			; Current priority value
 .State		RESB	1			; State
 
-.Next		RESD	1			; Thread list
+.Next		RESD	1			; Thread link
 .Prev		RESD	1
+
+.ProcNext	RESD	1			; Process link
+.ProcPrev	RESD	1
 
 .ReadyNext	RESD	1			; Scheduler link
 .ReadyPrev	RESD	1
@@ -55,26 +57,16 @@ struc tTCB
 
 .Context	RESB	tJmpBuf_size		; Context
 
-.Reserved	RESD	5			; Pad to 2^TCBSHIFT bytes
+.Reserved	RESD	4			; Pad to 2^TCBSHIFT bytes
 endstruc
 
 %define	TCBSHIFT	7			; log2(tTCB_size)
 
-; Macro converts the address of TCB to TID
-%macro mTCBA2TID 1
-%if %0>0
-	mov	eax,%1
-%endif
-	sub	eax,[K_TCBpoolAddr]
-	shr	eax,TCBSHIFT
-%endmacro
 
-; Macro converts TID to the address of TCB (TCBA)
-%macro mTID2TCBA 1
-%if %0>0
-	mov	eax,%1
-%endif
-	shl	eax,TCBSHIFT
-	add	eax,[K_TCBpoolAddr]
+; Macro sets AL to nonzero if thread is executed in user or driver mode
+; Also sets zero flag if in kernel mode.
+%macro mCheckKernelMode 1
+	mov	al,[%1+tStackFrame.ECS]
+	and	al,3
 %endmacro
 

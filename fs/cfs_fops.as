@@ -10,11 +10,6 @@ global CFS_SetPos, CFS_GetPos
 global CFS_OpenByIndex
 
 
-; --- Imports ---
-
-library kernel
-extern K_CurrPID
-
 
 		; CFS_CreateFile - create a file.
 		; Input: EAX=PID (0 for kernel),
@@ -43,12 +38,12 @@ endp		;---------------------------------------------------------------
 
 
 		; CFS_Close - close a file.
-		; Input: EBX=file handle.
+		; Input: EAX=PID (0 for kernel),
+		;	 EBX=file handle.
 		; Output: CF=0 - OK, EAX=0;
 		;	  CF=1 - error, AX=error code.
 proc CFS_Close
 		mpush	ebx,edx,edi
-		mov	eax,[K_CurrPID]
 		call	CFS_GetFHndStructAddr		; Get FH struc addr.
 		jc	short .Exit
 		mov	edi,edx				; Keep it in EDI
@@ -256,7 +251,8 @@ endp		;---------------------------------------------------------------
 
 
 		; CFS_ReadOrWrite - read or frite a file.
-		; Input: EBX=file handle,
+		; Input: EAX=PID,
+		;	 EBX=file handle,
 		;	 ECX=number of bytes to write,
 		;	 FS:ESI=buffer address,
 		;	 DL=function code (FOP_Read or FOP_Write).
@@ -269,7 +265,6 @@ proc CFS_ReadOrWrite
 		mov	[.function],dl
 
 		mpush	ebx,ecx,edi
-		mov	eax,[K_CurrPID]
 		call	CFS_GetFHndStructAddr		; Get FH struc addr.
 		jc	short .Exit
 
@@ -303,7 +298,8 @@ endp		;---------------------------------------------------------------
 
 
 		; CFS_SetGetPos - set/get file position.
-		; Input: EBX=file handle,
+		; Input: EAX=PID,
+		;	 EBX=file handle,
 		;	 ECX=new position (if set),
 		;	 DL=origin (if set),
 		;	 DH=function code (FOP_SetPos or FOP_GetPos).
@@ -316,7 +312,6 @@ proc CFS_SetGetPos
 		mpush	ebx,edi
 
 		mov	[.organdfun],edx		; Keep origin and fun
-		mov	eax,[K_CurrPID]
 		call	CFS_GetFHndStructAddr		; Get FH struc addr.
 		jc	short .Exit
 

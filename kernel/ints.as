@@ -2,6 +2,32 @@
 ;  ints.as - interrupt handlers.
 ;-------------------------------------------------------------------------------
 
+%include "i386/stkframe.ah"
+
+; Macros for generating entry points for CPU traps and interrupts.
+; We push supplied code value for ones without it.
+%macro mTrapEntry 1
+%if %1<128
+	push	byte %1
+%else
+	push	dword %1
+%endif
+	cld
+	mSaveRegs
+%endmacro
+
+%macro mTrapEntryWithErr 0
+	cld
+	mSaveRegs
+%endmacro
+
+%macro mTrapLeave 0
+	mRestoreRegs
+	add	esp,byte 4
+	iret
+%endmacro
+
+; Macro for temporary trap stubs
 %macro mIntHandler 2
 Int%1Handler:
 %if %2 != 0
@@ -72,7 +98,7 @@ mIntHandler 17,K_TmpExcHandler
 ; IRQ handlers
 		; IRQ0: system timer.
 proc IRQ0Handler
-		mpush	eax,ebx,edx
+		mTrapEntry 0
 		mov	eax,[TimerTicksLo]
 		inc	eax
 		mov	[TimerTicksLo],eax
@@ -81,11 +107,9 @@ proc IRQ0Handler
 		jmp	short .1
 .SetTTHi:	inc	dword [TimerTicksHi]
 
-.1:		mpop	edx,ebx
-		mPICACK 0
-		pop	eax
+.1:		mPICACK 0
 		call	K_SwitchTask
-		iret
+		mTrapLeave
 endp		;---------------------------------------------------------------
 
 

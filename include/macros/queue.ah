@@ -49,7 +49,7 @@
 	cmp	[@what+@next],@what
 	jne	%%NotFirst
 	mov	@head,0
-	ret
+	jmp	short %%Done
 %%NotFirst:
 	mpush	esi,edi
 	mov	esi,[@what+@next]
@@ -57,11 +57,10 @@
 	mov	[esi+@prev],edi
 	mov	[edi+@next],esi
 	cmp	@head,@what
-	jne	%%Done
+	jne	%%X
 	mov	@head,esi
+%%X:	mpop	edi,esi
 %%Done:
-	mpop	edi,esi
-	ret
 %else
 %error mDequeue: invalid number of arguments
 %endif

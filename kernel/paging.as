@@ -26,7 +26,7 @@ library kernel.kheap
 extern KH_Alloc:near
 
 library kernel.mt
-extern MT_MaxNumOfProc, MT_ProcTblAddr
+extern ?MaxNumOfProc, ?ProcListPtr
 
 library kernel.driver
 extern EDRV_AllocData:near
@@ -36,9 +36,9 @@ extern EDRV_AllocData:near
 
 section .bss
 
-MemMapAddr	RESD	1			; Address of memory map
-PgTablesBeg	RESD	1			; Begin of page tables
-PTsPerProc	RESD	1			; Page tables per process
+?MemMapAddr	RESD	1			; Address of memory map
+?PgTablesBeg	RESD	1			; Begin of page tables
+?PTsPerProc	RESD	1			; Page tables per process
 
 
 ; --- Procedures ---
@@ -59,7 +59,7 @@ proc PG_Init
 		shr	ecx,3				; bytes in memory map
 		call	KH_Alloc			; Allocate space for it
 		jc	near .Exit			; in kernel heap
-		mov	[MemMapAddr],ebx		; Store map address
+		mov	[?MemMapAddr],ebx		; Store map address
 		mov	edi,ebx
 		shr	ecx,2				; Mark all pages
 		xor	eax,eax				; as used
@@ -70,10 +70,10 @@ proc PG_Init
 		mov	eax,[TotalMemPages]		; First get size of
 		add	eax,PG_ITEMSPERTABLE-1		; page tables for one process
 		shr	eax,PG_ITEMSPERTBLSHIFT		; EAX=number of page tables
-		mov	[PTsPerProc],eax		; per process
+		mov	[?PTsPerProc],eax		; per process
 		inc	eax				; +PDE
 		shl	eax,PG_ITEMSPERTBLSHIFT+2	; EAX=bytes in PDE & PTEs
-		mov	ecx,[MT_MaxNumOfProc]		; ECX=number of processes
+		mov	ecx,[?MaxNumOfProc]		; ECX=number of processes
 		inc	ecx				; +system tables
                 mul	ecx				; Get amount of memory
 		mov	ecx,eax				; for all tables
@@ -92,25 +92,25 @@ proc PG_Init
 		pop	ebx
 		jc	near .Exit
 
-.NoAlign:	mov	[PgTablesBeg],ebx
+.NoAlign:	mov	[?PgTablesBeg],ebx
 
 		; Fill page directories and tables with initial values
 		xor	edx,edx				; Initialize system
 		dec	edx				; page tables
-		mov	ebx,[PgTablesBeg]
+		mov	ebx,[?PgTablesBeg]
 		jmp	short .1
 .Fill:		mov	eax,edx
 		call	PG_GetPageDirAddr		; Get address of
 							; process page dir
 		shl	eax,PROCDESCSHIFT		; Fill 'PDE' field in
-		add	eax,[MT_ProcTblAddr]		; process descriptor
+		add	eax,[?ProcListPtr]		; process descriptor
 		mov	[eax+tProcDesc.PageDir],ebx
 
 .1:		mov	eax,ebx				; Begin to fill the
 		xor	ecx,ecx				; page directory
 
 .FillPageDir:	add	eax,PageSize
-		cmp	ecx,[PTsPerProc]
+		cmp	ecx,[?PTsPerProc]
 		jae	short .Absent
 		mov	[ebx+4*ecx],eax
 		or	byte [ebx+4*ecx],PG_PRESENT	; Mark as present
@@ -136,7 +136,7 @@ proc PG_Init
 		jne	.FillPT
 
 		inc	edx				; Increase PID
-		cmp	edx,[MT_MaxNumOfProc]
+		cmp	edx,[?MaxNumOfProc]
 		jne	.Fill
 
 		; Enable paging
@@ -178,17 +178,17 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc PG_Alloc
 		mpush	ebx,ecx,esi
-		mov	esi,[MemMapAddr]
-		sub	esi,4
+		mov	esi,[?MemMapAddr]
+		sub	esi,byte 4
 		mov	ecx,[TotalMemPages]
-		shr	ecx,5
+		shr	ecx,byte 5
 
-.Loop:		add	esi,4				; Next dword
+.Loop:		add	esi,byte 4			; Next dword
 		bsf	eax,[esi]			; See if any bits set
 		loopz	.Loop				; Loop while not
 		jz	short .Err			; Quit if no memory
 		btr	[esi],eax			; Else reset the bit
-		sub	esi,[MemMapAddr]		; Find the dword address
+		sub	esi,[?MemMapAddr]		; Find the dword address
 		mov	ebx,esi				; Make it a relative bit #
 		shl	ebx,3				; EBX is 32 * dword #
 		add	eax,ebx				; Add the bit within the word
@@ -226,7 +226,7 @@ proc PG_Dealloc
 		mpush	eax,ebx
 		sub	eax,StartOfExtMem
 		shr	eax,PAGESHIFT
-		mov	ebx,[MemMapAddr]
+		mov	ebx,[?MemMapAddr]
 		bts	[ebx],eax
 		mpop	ebx,eax
 		ret
@@ -238,7 +238,7 @@ endp		;---------------------------------------------------------------
 		; Output: ECX=number of pages.
 proc PG_GetNumFreePages
 		mpush	edx,esi
-		mov	esi,[MemMapAddr]
+		mov	esi,[?MemMapAddr]
 		xor	ecx,ecx
 		xor	edx,edx
 .Loop:		bt	[esi],edx
@@ -258,7 +258,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EBX=address;
 		;	  CF=1 - error, AX=error code.
 proc PG_GetPageDirAddr
-		cmp	eax,[MT_MaxNumOfProc]
+		cmp	eax,[?MaxNumOfProc]
 		jb	short .Do
 		mov	ax,ERR_MT_BadPID
 		stc
@@ -266,11 +266,11 @@ proc PG_GetPageDirAddr
 
 .Do:		mpush	eax,edx
 		inc	eax				; Omit system tables
-		mov	ebx,[PTsPerProc]		; Page tables per process
+		mov	ebx,[?PTsPerProc]		; Page tables per process
 		inc	ebx				; + page directory
 		shl	ebx,PG_ITEMSPERTBLSHIFT+2
 		mul	ebx
-		add	eax,[PgTablesBeg]
+		add	eax,[?PgTablesBeg]
 		mov	ebx,eax
 		mpop	edx,eax
 		ret

@@ -4,7 +4,7 @@
 
 all-make: all
 	@for dir in $(SUBDIRS) ; do \
-	    (cd $$dir; $(MAKE) LIB_UPDATE=lib-update) ; \
+	    (cd $$dir; $(MAKE) LIB_UPDATE=lib-update || break) ; \
 	done
 
 all-depends: dep

@@ -6,5 +6,5 @@ global RADIOS_VERSION
 
 section .data
 
-RADIOS_VERSION	DB	"0.01-cvs004"
+RADIOS_VERSION	DB	"0.01-cvs005"
 

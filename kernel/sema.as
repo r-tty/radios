@@ -14,7 +14,7 @@ global K_SemP, K_SemV
 ; --- Imports ---
 
 library kernel.mt
-extern K_CurrThread
+extern ?CurrThread
 extern MT_ThreadSleep:near, MT_ThreadWakeup:near
 extern MT_Schedule:near
 
@@ -39,8 +39,7 @@ proc K_SemP
 
 		; Enqueue current thread under the semaphore
 		; and put him to bed :)
-.Sleep:		mov	eax,[K_CurrThread]
-		mTID2TCBA
+.Sleep:		mov	eax,[?CurrThread]
 		mSemEnq ebx,eax
 		push	ebx
 		mov	ebx,eax

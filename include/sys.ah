@@ -20,6 +20,11 @@
 %assign	DLDT		0x60
 %assign	ULDT		0x68
 
+%assign	DRV_CSEG	DRVCODE | 1
+%assign	DRV_DSEG	DRVDATA | 1
+%assign	USER_CSEG	USERCODE | 3
+%assign	USER_DSEG	USERDATA | 3
+
 %assign GDT_size	0x70
 %assign	IDT_size	0x180
 

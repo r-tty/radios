@@ -2,7 +2,6 @@
 ;  stkframe.ah - stack frame structures.
 ;-------------------------------------------------------------------------------
 
-
 ; Standard stack frame - this is how stack looks upon
 ; entry to kernel from user mode
 struc tStackFrame
@@ -24,3 +23,34 @@ struc tStackFrame
 .ESP		RESD	1
 .ESS		RESD	1
 endstruc
+
+; Generic macros for saving and restoring registers.
+; Note that this is the same for all traps (CPU traps, interrupts).
+
+%macro mSaveRegs 0
+	push	eax
+	push	ecx
+	push	edx
+	push	ebx
+	push	ebp
+	push	esi
+	push	edi
+	push	ds
+	push	es
+	mov	ax,ss
+	mov	ds,ax
+	mov	es,ax
+%endmacro
+
+%macro mRestoreRegs 0
+	pop	es
+	pop	ds
+	pop	edi
+	pop	esi
+	pop	ebp
+	pop	ebx
+	pop	edx
+	pop	ecx
+	pop	eax
+%endmacro
+

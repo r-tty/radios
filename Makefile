@@ -18,29 +18,34 @@ ifdef DEBUG
 TARGET_DEP += rkdt.rdm
 endif
 
+# Kernel file name
+KERNEL_RDX = main.rdx
+
+# Dependency file
+depfile = .depend
+
 # "Response" file for linker
 response_file = .link
 
 #--- Target kernel module ------------------------------------------------------
 
--include .depend
+all: .depend $(KERNEL_RDX)
+
+-include $(depfile)
 
 ifdef deps_generated
 
-main.rdx: $(response_file) version.rdm rkdt.rdm dummy
-	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE)) ; done
+$(KERNEL_RDX): $(response_file) version.rdm rkdt.rdm dummy
+	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) || break) ; done
 	@echo "Linking kernel..."
 	@$(LD) $(LDFLAGS) -@ $(response_file)
 ifdef MULTIBOOT
 	@echo -n "Building multiboot kernel..."
-	@cat $(OUTPATH)/loader.bin >>main.rdx
-	@gzip -c main.rdx >$(INSTALLPATH)/sys/radios.rdz
+	@cat $(OUTPATH)/loader.bin >>$(KERNEL_RDX)
+	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/sys/radios.rdz
 	@echo "done."
 endif
 
-else
-nodeps:
-	@echo 'No dependencies. Please run "gmake dep"'
 endif
 
 dummy:
@@ -48,16 +53,18 @@ dummy:
 #--- Individual dependencies ---------------------------------------------------
 
 version.rdm: etc/version.as
-	@$(AS) $(ASFLAGS) $(OUTPATH)/version.rdm etc/version.as
+	$(AS) $(ASFLAGS) $(OUTPATH)/version.rdm etc/version.as
 	
 rkdt.rdm: etc/rkdt/rkdt.as
-	@$(AS) $(ASFLAGS) $(OUTPATH)/rkdt.rdm etc/rkdt/rkdt.as
+	$(AS) $(ASFLAGS) $(OUTPATH)/rkdt.rdm etc/rkdt/rkdt.as
 
 
 #--- Recursive depends ---------------------------------------------------------
 
 dep:
-	@echo "deps_generated = TRUE" >.depend
+	@echo "deps_generated = TRUE" >$(depfile)
+	@$(GENDEPS) etc/version.as >>$(depfile)
+	@$(GENDEPS) etc/rkdt/rkdt.as >>$(depfile)
 	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) all-depends) ; done
 
 	
@@ -72,7 +79,7 @@ $(response_file): Makefile
 
 clean:
 	@for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) all-clean) ; done
-	@rm -f $(response_file) .depend main.rdx
+	@rm -f $(response_file) $(depfile) $(KERNEL_RDX)
 	@cd $(OUTPATH) && rm -f version.rdm rkdt.rdm
 
 	

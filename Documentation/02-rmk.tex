@@ -1,38 +1,41 @@
 % The Radiant Operating System (RadiOS)
-% Copyright (c) 2001 RET & COM Research.
+% Copyright (c) 2003 RET & COM Research.
 % This file is a LaTeX document.
 
 \section{RadiOS microkernel (rmk)}
 
-\subsection{Таблицы страниц}
+\subsection{Overview}
 
-Процедуры для работы со страницами памяти находятся в файле \textit{pages.nasm}.
-Рассмотрим назначение некоторых из них.
+\subsection{Kernel initialization}
+
+\subsection{Page primitives}
+
+The purpose of page primitives is to handle lowest-level memory allocation
+and mapping requests. These routines are in file \textit{pages.nasm}.
 \\
-\textit{PG\_Init} -- инициализация двоичной карты страниц. Информация о
-свободных и использующихся (выделенных) страницах хранится ядром в виде
-битовой карты (bit map). Если бит в карте сброшен, то соответствующая
-страница считается занятой, если установлен -- то свободной. Такой подход
-позволяет быстро и эффективно осуществлять поиск свободной страницы с
-помощью операции BSF.
+\textit{PG\_Init} -- initialization of page bitmap. Information about free
+and allocated pages is stored by the kernel in a binary map. If a bit in
+this map is set, corresponding page is free, otherwise it is allocated.
+This approach allows to perform fast and efficient search of free page using
+\texttt{BSF} operation.
 \\
-\textit{PG\_StartPaging} -- создание таблиц страниц ядра и разрешение
-страничного преобразования. На этом этапе в битовой карте отмечаются как
-свободные страницы, не принадлежащие загруженным модулям и специальной
-области верхней памяти HMA; затем строится каталог и таблицы страниц ядра.
-В таблицы заносятся адреса, соответствующие физическим адресам страниц.
-После этого регистр CR3 загружается адресом созданного каталога и
-разрешается страничное преобразование.
+\textit{PG\_StartPaging} -- creating root page tables and enabling the page
+translation. This routine first finds all free pages and marks them in the
+bitmap (page is considered free if it doesn't belong to any boot module,
+kernel, HMA, special regions (like memory-mapped IO or device memory) or
+page bitmap itself). Then it builds a kernel page directory and allocates
+enough page tables to provide 1:1 mapping of available physical memory.
+Finally, \texttt{CR3} (\texttt{PDBR}) register is initialized with an address
+of kernel page directory and page translation is enabled.
 \\
-\textit{PG\_Alloc} -- резервирование (выделение) страницы памяти. Процедура
-только осуществляет поиск свободной страницы в битовой карте и возвращает
-адрес найденной страницы. В зависимости от переданного аргумента страница
-резервируется либо в адресном пространстве ядра (первый мегабайт), либо
-в "пользовательском" пространстве.
+\textit{PG\_Alloc} -- page allocation. This routine just scans for a free
+bit in the bitmap and returns the address of page found (or ERR\_PG\_NoFreePage
+when no memory left in the pool). Allocation is done either in lower memory
+(i.e. kernel area) or in upper memory, depending of the value of DL passed
+to this routine.
 \\
-\textit{PG\_Dealloc} -- освобождение страницы. Данная процедура только
-устанавливает соответствующий бит в битовой карте, отмечая таким образом,
-что страница доступна для резервирования.
+\textit{PG\_Dealloc} -- page deallocation. This routine only sets the
+corresponding bit in the page bitmap, thus marking a page as free.
 \\
 \textit{PG\_AllocDir}
 \\
@@ -40,3 +43,15 @@
 \\
 
 \subsection{Pools}
+
+\subsection{Accessing user address space}
+
+\subsection{Overview of system calls}
+
+\subsection{Message passing primitives}
+
+\subsection{Synchronization primitives}
+
+\subsection{Exception and interrupt handling}
+
+\subsection{Clock services}

@@ -228,10 +228,7 @@ proc CFS_GetInode
 		epilogue
 		ret
 		
-.InodeChanged:
-	%ifdef KPOPUP
-	%endif
-		call	CFS_UngetInode
+.InodeChanged:	call	CFS_UngetInode
 		jmp	.Repeat
 endp		;---------------------------------------------------------------
 
@@ -507,8 +504,6 @@ proc IND_GetEmpty
 .TakeBest:	mov	esi,edi
 		or	esi,esi
 		jnz	short .GoodInode
-	%ifdef KPOPUP
-	%endif
 		mov	ebx,?InodeWaitQ
 		call	MT_SleepTQ
 		jmp	.Search
@@ -558,14 +553,7 @@ proc IND_Invalidate
 		call	CFS_ClearInode
 		jmp	.Loop
 
-.Busy:
-	%ifdef KPOPUP
-		push	esi
-		mov	esi,TxtInodeBusy
-		call	K_PopUp
-		pop	esi
-	%endif
-		jmp	.Loop
+.Busy:		jmp	.Loop
 		
 .Exit:		mpop	edi,esi,ecx
 		ret

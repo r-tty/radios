@@ -1,6 +1,0 @@
-deps_generated = TRUE
-buffer.$(O): buffer.nasm 
-inode.$(O): inode.nasm sys.ah errors.ah pool.ah wait.ah thread.ah fs/cfs.ah fs/inode.ah 
-open.$(O): open.nasm 
-rw.$(O): rw.nasm sys.ah errors.ah thread.ah 
-path.$(O): path.nasm 

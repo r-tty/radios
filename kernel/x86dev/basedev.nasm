@@ -12,38 +12,28 @@ module kernel.x86.basedev
 %include "cpu/tss.ah"
 
 
-; --- Exports ---
 publicproc CPU_Init, FPU_Init, FPU_HandleException
 publicdata ?CPUinfo
 
 
-; --- Imports ---
-
-library kernel
-extern KernTSS
-
-library kernel.syscall
-extern K_Sysenter
-
-library kernel.misc
-extern K_TTDelay, K_LDelayMs
+externproc K_Sysenter
+externdata KernTSS
+externproc K_TTDelay, K_LDelayMs
 
 
-; --- Data ---
 section .data
 
 FPUtest_X	DD	4195835,0
 FPUtest_Y	DD	3145727,0
 
 
-; --- Variables ---
 section .bss
 
 ?CPUinfo	RESB	tCPUinfo_size		; Only 1 CPU currently
 ?FPUtype	RESB	1
 ?FPUexcFlags	RESB	1			; FPU exception flags
 
-; --- Code ---
+
 section .text
 
 		; CPU_Init - initialize CPU information structure and internal
@@ -154,10 +144,8 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc FPU_Init
-%define	.fcw		ebp-4
-%define	.fdiv_bug	ebp-8
-
-		prologue 8
+		locals	fcw, fdivbug
+		prologue
 		push	ecx
 
 		mov	[?FPUtype],al
@@ -169,15 +157,15 @@ proc FPU_Init
 		or	ecx,CR0_NE			; Enable exception 16
 		mov	cr0,ecx
 		mov	al,13				; Enable 387 IRQ
-		call	PIC_EnbIRQ
+		call	PIC_EnableIRQ
 		sti
 
 		clts					; Clear TS in CR0
 		fninit
-		fnstcw	[.fcw]
+		fnstcw	[%$fcw]
 		wait
-		and	word [ebp-.fcw],0FFC0h
-		fldcw	[.fcw]
+		and	word [%$fcw],0FFC0h
+		fldcw	[%$fcw]
 		wait
 		mov	byte [?FPUexcFlags],0
 		fldz
@@ -187,9 +175,9 @@ proc FPU_Init
 		mov	ecx,100				; Delay 0.1 sec
 		call	K_LDelayMs
 		test	byte [?FPUexcFlags],1		; IRQ13 happened?
-		jz	short .Test487
+		jz	.Test487
 		mov	byte [?FPUtype],3
-		jmp	short .Exit
+		jmp	.Exit
 
 .Test487:	fninit
 		fld	qword [FPUtest_X]
@@ -197,14 +185,14 @@ proc FPU_Init
 		fmul	qword [FPUtest_Y]
 		fld	qword [FPUtest_X]
 		fsubp	st1,st0
-		fistp	dword [.fdiv_bug]
+		fistp	dword [%$fdivbug]
 		wait
 		fninit
 
-		cmp	dword [.fdiv_bug],0
+		cmp	dword [%$fdivbug],0
 		jne	.FdivBug
 		mov	byte [?FPUtype],4
-		jmp	short .Exit
+		jmp	.Exit
 
 .FdivBug:	or	byte [?CPUinfo+tCPUinfo.Bugs],CPUBUG_FDIV
 		mov	byte [?FPUtype],0

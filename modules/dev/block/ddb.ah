@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  ddb.ah - definitions for Disk Description Block (DDB)
+; ddb.ah - definitions for Disk Description Block (DDB).
 ;-------------------------------------------------------------------------------
 
 %define	DDB_SIGNATURE	"rddb"			; EMBR signature

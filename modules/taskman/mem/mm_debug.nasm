@@ -50,23 +50,23 @@ proc MM_DebugAllocMem
 		mov	edi,esi
 		call	StrScan
 		or	edi,edi
-		jz	short .GetSize
+		jz	.GetSize
 		mov	byte [edi],0
 		inc	edi
 		
 		call	ValDwordDec			
-		jc	short .Exit
+		jc	.Exit
 		mov	edx,eax				; EDX=PID
 		mov	esi,edi
 
 .GetSize:	call	ValDwordDec			
-		jc	short .Exit
+		jc	.Exit
 		mov	ecx,eax				; ECX=block size
 		
 		mov	eax,edx
 		call	MT_PID2PCB
-		jc	short .Exit
-		mov	dx,1
+		jc	.Exit
+		mov	al,PG_WRITABLE
 		call	MM_AllocBlock
 		jc	.Exit
 

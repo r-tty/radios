@@ -4,14 +4,27 @@
 
 module libc.kernsyscall
 
+%include "locstor.ah"
 %include "syscall.ah"
 
-; Macro for declaring actual system call C routine
+; Macro for declaring pair of system call C routines
 %macro mSyscall 1
+	exportproc %1_r
+%1_r:	pop	edx
+	mDoSyscall S%1
+	jmp	edx
+
 	exportproc %1
 %1:	pop	edx
 	mDoSyscall S%1
-	jmp	edx
+	push	edx
+	test	eax,eax
+	jns	%%ret
+	tlsptr(edx)
+	mov	[edx+tTLS.ErrVal],eax
+	xor	eax,eax
+	not	eax
+%%ret:	ret
 %endmacro
 
 ;******* Exports *******

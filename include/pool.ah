@@ -30,7 +30,7 @@ struc tPoolDesc
 endstruc
 
 %define	POOLFL_HIMEM		1	; Pool is allocated above 1M
-%define POOLFL_BUCKETALLOC	100h	; Allocate as many chunks as fit into
+%define POOLFL_BUCKETALLOC	80h	; Allocate as many chunks as fit into
 					; a page
 
 %endif

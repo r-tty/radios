@@ -1,6 +1,9 @@
 ;-------------------------------------------------------------------------------
-;  coff.ah - Common Object Format definitions.
+; coff.ah - Common Object File Format definitions.
 ;-------------------------------------------------------------------------------
+
+%ifndef _coff_ah
+%define _coff_ah
 
 struc tCOFFhdr
 .Machine	RESW	1			; 14Ch for i386
@@ -24,3 +27,5 @@ endstruc
 %define	COFFL_AR32W		1000h		; AR32W byte ordering
 %define	COFFL_PATCH		2000h		; Contains "patch" list in opthdr
 %define	COFFL_NODF		2000h
+
+%endif

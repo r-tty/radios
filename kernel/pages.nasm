@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ; pages.nasm - RadiOS memory paging primitives.
-; Copyright (c) 2001,2002 RET & COM Research.
+; Copyright (c) 2001, 2002 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.paging
@@ -9,39 +9,17 @@ module kernel.paging
 %include "errors.ah"
 %include "bootdefs.ah"
 %include "module.ah"
-%include "serventry.ah"
 %include "cpu/paging.ah"
 %include "cpu/stkframe.ah"
 
-%define PFDEBUG
-
-; --- Exports ---
-
 publicproc PG_Init, PG_StartPaging
-publicproc PG_GetNumFreePages, PG_FaultHandler
+publicproc PG_GetPTEaddr, PG_GetNumFreePages
+publicdata ?KernPagePool, ?KernPgPoolEnd
 
 exportproc PG_Alloc, PG_Dealloc
 exportproc PG_AllocContBlock, PG_AllocAreaTables
 
-publicdata ?KernPagePool, ?KernPgPoolEnd
-publicdata ?KernPageDir
-
-
-; --- Imports ---
-
-library kernel
-externdata ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
-
-
-; --- Data ---
-
-section .data
-%ifdef PFDEBUG
-TxtPageFault	DB	"Page fault: CR2=",0
-TxtErrCode	DB	", errcode=",0
-%endif
-
-; --- Variables ---
+externdata ?UpperMemPages
 
 section .bss
 
@@ -53,7 +31,6 @@ section .bss
 ?KernPageDir	RESD	1			; Kernel page directory address
 ?PTsPerProc	RESD	1			; Page tables per process
 
-; --- Code ---
 
 section .text
 
@@ -80,9 +57,7 @@ proc PG_Init
 		mov	[?KernPagePool],eax
 		mov	[?KernPgPoolEnd],edx
 		
-		; Initialize page bitmap.
-		; First mark all pages which belong to BTL area, kernel
-		; sections, syscall tables and page bitmap itself as used.
+		; Kernel sections pages and bitmap pages are used
 		shr	eax,PAGESHIFT
 		mov	ecx,eax
 		xor	eax,eax
@@ -90,7 +65,7 @@ proc PG_Init
 		inc	eax
 		loop	.KernArea
 		
-		; Now mark pages in kernel page pool as free.
+		; Now mark pages in kernel page pool as free
 		mov	ecx,edx
 		shr	ecx,PAGESHIFT
 		sub	ecx,eax
@@ -100,7 +75,7 @@ proc PG_Init
 		loop	.KernPgPool
 		
 		; Mark all pages above kernel pool up to start of extended
-		; memory as used.
+		; memory as used
 		mov	ecx,UPPERMEMSTART / PAGESIZE
 		sub	ecx,eax
 .ReservedMem:	btr	[ebx],eax
@@ -111,11 +86,11 @@ proc PG_Init
 		mov	ecx,[?PgBitmapSize]
 		shl	ecx,3
 		sub	ecx,eax
-.ExtendedMem:	btr	[ebx],eax
+.UpperMem:	btr	[ebx],eax
 		inc	eax
-		loop	.ExtendedMem
+		loop	.UpperMem
 		
-		; BZero kernel page pool.
+		; BZero kernel page pool
 		mov	edi,[?KernPagePool]
 		mov	ecx,[?NumPgsKernPool]
 		shl	ecx,PAGESHIFT-2
@@ -136,27 +111,32 @@ proc PG_StartPaging
 		locals	AllPages
 		prologue
 
-		; First, mark all physical pages except those which belong
-		; to boot modules and reserved area (HMA) as free.
+		; HMA area is used by BTL
 		mov	edi,[?PgBitmapAddr]
 		mov	ecx,HMASTART / PAGESIZE
-		mov	eax,[?TotalMemPages]
+		mov	eax,[?UpperMemPages]
 		add	eax,ecx
 		mov	[%$AllPages],eax
-		add	ecx,HMASIZE / PAGESIZE		; # of pages in HMA
+		add	ecx,HMASIZE / PAGESIZE
+		dec	ecx
 
-.FreeLoop:	cmp	ecx,[%$AllPages]
+		; Find free pages. Page is free when it is not used by some
+		; boot module and it's not marked as "reserved" in the BIOS
+		; memory map.
+.FreeLoop:	inc	ecx
+		cmp	ecx,[%$AllPages]
 		je	.BuildTables
 		mov	ebx,ecx
 		shl	ebx,PAGESHIFT
 		call	PG_IsBusyBootMod
-		jc	.PageBusy
+		jc	.FreeLoop
+		call	PG_IsPageReserved
+		jc	.FreeLoop
 		bts	[edi],ecx
-.PageBusy:	inc	ecx
 		jmp	.FreeLoop
 		
 		; Now construct kernel page directory and tables
-.BuildTables: 	mov	eax,[?TotalMemPages]		; First get size of
+.BuildTables: 	mov	eax,[?UpperMemPages]		; First get size of
 		add	eax,PG_ITEMSPERTABLE-1		; page tables for one dir
 		shr	eax,PG_ITEMSPERTBLSHIFT		; EAX=number of page tables
 		mov	[?PTsPerProc],eax		; per directory
@@ -168,11 +148,10 @@ proc PG_StartPaging
 		call	PG_AllocContBlock		; above 1 MB
 		jc	near .Exit
 		mov	[?KernPageDir],ebx
-
-		; Fill in page directory and tables with initial values
 		xor	ecx,ecx
 		mov	eax,ebx
 
+		; Fill in page directory
 .FillPageDir:	add	eax,PAGESIZE
 		cmp	ecx,[?PTsPerProc]
 		jae	.Absent
@@ -184,20 +163,16 @@ proc PG_StartPaging
 		cmp	ecx,PG_ITEMSPERTABLE
 		jb	.FillPageDir
 
-		add	ebx,PAGESIZE			; Begin to fill
-		xor	eax,eax				; the page table
-		xor	ecx,ecx
-.FillPT:	mov	[ebx+4*ecx],eax
-		add	eax,PAGESIZE
-		mov	edi,[?PhysMemPages]
-		add	edi,UPPERMEMSTART / PAGESIZE	; Add number of pages
-		cmp	ecx,edi				; in first megabyte
-		jae	short .Virtual
-		or	byte [ebx+4*ecx],PG_PRESENT | PG_WRITABLE
-.Virtual:	inc	ecx
-		add	edi,[?VirtMemPages]
-		cmp	ecx,edi
-		jne	.FillPT
+		; Provide 1:1 mapping of available physical memory
+		lea	esi,[ebx+PAGESIZE]
+		mov	ebx,PG_PRESENT | PG_WRITABLE
+		xor	eax,eax
+		mov	ecx,[?UpperMemPages]
+		add	ecx,UPPERMEMSTART / PAGESIZE
+.FillPT:	mov	[esi+4*eax],ebx
+		add	ebx,PAGESIZE
+		inc	eax
+		loop	.FillPT
 
 		; Enable paging
 		mov	eax,[?KernPageDir]
@@ -229,17 +204,17 @@ proc PG_AllocContBlock
 		or	dl,dl				; Kernel area?
 		jnz	short .ExtMemory
 		mov	ecx,[?NumPgsKernPool]
-		shr	ecx,byte 5			; 32 bits in dword
+		shr	ecx,5				; 32 bits in dword
 		jmp	short .FindFirst
 
 .ExtMemory:	add	esi,UPPERMEMSTART / PAGESIZE / 8
-		mov	ecx,[?TotalMemPages]
-		shr	ecx,byte 5
+		mov	ecx,[?UpperMemPages]
+		shr	ecx,5
 
 .FindFirst:	add	esi,byte 4
 		bsf	eax,[esi]
 		loopz	.FindFirst
-		jz	short .Err2
+		jz	.Err2
 
 		; We found free page, now check whether the rest of
 		; pages which immediately follow are free
@@ -300,7 +275,7 @@ proc PG_Alloc
 		jmp	short .Loop
 		
 .UserPages:	add	esi,UPPERMEMSTART / PAGESIZE / 8
-		mov	ecx,[?TotalMemPages]
+		mov	ecx,[?UpperMemPages]
 		shr	ecx,byte 5
 
 .Loop:		add	esi,byte 4			; Next dword
@@ -364,17 +339,16 @@ endp		;---------------------------------------------------------------
 		; PG_AllocAreaTables - allocate page tables for mapping
 		;			specific area.
 		; Input: EBX=area start address,
-		;	 ECX=area size (will be rounded up by PAGESIZE),
-		;	 EDX=directory address,
+		;	 ECX=number of tables,
+		;	 EDX=page directory address,
 		;	 AH=page table attributes.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 		; Note: this routine allocates page tables (if they are not
-		;	allocated yet) initializes PTEs with PG_DISABLE.
+		;	allocated yet) and initializes PTEs with PG_DISABLE.
 proc PG_AllocAreaTables
 		mpush	ebx,ecx,edx,esi,edi
-		mAlignOnPage ecx
-		shr	ecx,PAGESHIFT
+		jecxz	.Exit
 		mov	esi,ebx
 		mov	edi,edx
 		shr	ebx,PAGEDIRSHIFT			; EBX=PDE#
@@ -389,6 +363,7 @@ proc PG_AllocAreaTables
 		call	.InitPTattrs
 .Next:		inc	ebx
 		loop	.Loop
+		clc
 .Exit:		mpop	edi,esi,edx,ecx,ebx
 		ret
 		
@@ -417,7 +392,7 @@ proc PG_GetPTEaddr
 		shr	eax,PAGEDIRSHIFT		; EAX=PDE number
 		mov	edx,[edx+eax*4]			; EDX=page table addr.
 		cmp	edx,PG_DISABLE			; Page table present?
-		je	short .Err			; No, bad address
+		je	.Err				; No, bad address
 		and	edx,PGENTRY_ADDRMASK		; Mask control bits
 		and	ebx,ADDR_PTEMASK
 		shr	ebx,PAGESHIFT			; EBX=PTE number
@@ -438,51 +413,52 @@ endp		;---------------------------------------------------------------
 		; Input: EBX=page address.
 		; Output: CF=0 - page is free;
 		;	  CF=1 - page is busy by some boot module.
+		; Note: modifies EDX.
 proc PG_IsBusyBootMod
-		push	esi
-		mov	esi,[BOOTPARM(BMDmodules)]
-		or	esi,esi
+		mov	edx,[BOOTPARM(BMDmodules)]
+		or	edx,edx
 		jz	.Exit
-.Loop:		mov	eax,[esi+tModule.CodeStart]
+.Loop:		mov	eax,[edx+tModule.CodeStart]
 		cmp	ebx,eax
 		jb	.Next
-		add	eax,[esi+tModule.Size]
+		add	eax,[edx+tModule.Size]
 		cmp	ebx,eax
 		jc	.Exit
-.Next:		add	esi,byte tModule_size
-		cmp	dword [esi],0
+.Next:		add	edx,byte tModule_size
+		cmp	dword [edx],0
 		jne	.Loop
-.Exit:		pop	esi
-		ret
+.Exit:		ret
 endp		;---------------------------------------------------------------
 
 
-		; PG_FaultHandler - handle page faults.
-		; Input: none.
-		; Output: none.
-		; Note: frame with error code is on the stack
-proc PG_FaultHandler
-		arg	frame
-		prologue
-
-		; Get fault address, then let interrupts back in.  This
-		; minimizes latency on kernel preemption, while still keeping
-		; a preempting task from hosing our CR2 value.
-		mov	ebx,cr2
-		sti
-		mov	dl,[%$frame+tStackFrame.Err]
-		and	dl,PG_ATTRIBUTES
-%ifdef PFDEBUG
-		mServPrintStr TxtPageFault
-		mServPrint32h ebx
-		mServPrintStr TxtErrCode
-		mServPrint8h dl
-		mServPrintChar 10
-%endif
-		test	dl,PG_PRESENT			; Protection violation?
-		jnz	.Violation
-
-.Violation:	jmp	$
-		epilogue
+		; PG_IsPageReserved - check whether a page belongs to
+		;		reserved memory area in BIOS memory map.
+		; Input: EBX=page address.
+		; Output: CF=0 - page is free;
+		;	  CF=1 - page is busy by some boot module.
+		; Notes: modifies EDX;
+		;	 memory sizes more than 4G are not currenly supported :)
+proc PG_IsPageReserved
+		mov	edx,[BOOTPARM(MemMapAddr)]
+		or	edx,edx
+		jnz	.MemMapPresent
+		ret
+		
+.MemMapPresent:	push	ecx
+		mov	ecx,[BOOTPARM(MemMapSize)]
+.Loop:		cmp	dword [edx+tAddrRangeDesc.Type],1
+		jz	.Next
+		mov	eax,[edx+tAddrRangeDesc.BaseAddrLow]
+		cmp	ebx,eax
+		jb	.Next
+		add	eax,[edx+tAddrRangeDesc.LengthLow]
+		cmp	ebx,eax
+		jc	.Exit
+.Next:		mov	eax,[edx+tAddrRangeDesc.Size]
+		add	eax,byte 4
+		add	edx,eax
+		sub	ecx,eax
+		jnz	.Loop
+.Exit:		pop	ecx
 		ret
 endp		;---------------------------------------------------------------

@@ -1,40 +1,22 @@
 ;*******************************************************************************
 ; thread.nasm - RadiOS thread management.
 ; Copyright (c) 2000 RET & COM Research.
-; This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+; Based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
+%include "locstor.ah"
 %include "parameters.ah"
-%include "thread.ah"
 %include "tm/process.ah"
 
-
-; --- Exports ---
-
-publicproc MT_ThreadSleep, MT_ThreadWakeup
+publicproc MT_ThreadSleep, MT_ThreadWakeup, MT_GetNumThreads
 publicproc MT_SleepTQ, MT_WakeupTQ
 exportproc MT_CreateThread, MT_ThreadExec
-publicproc MT_GetNumThreads
 
 
-; --- Imports ---
-
-library kernel.pool
 externproc K_PoolInit
-externproc K_PoolAllocChunk, K_PoolFreeChunk
-
-library kernel.paging
+externproc K_PoolAllocChunk, K_PoolFreeChunk, K_PoolChunkNumber
 externproc PG_Alloc, PG_AllocContBlock, PG_AllocAreaTables
 
-
-; --- Data ---
-
-section .data
-
-TxtThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread already sleeps",0
-TxtThrRunning	DB	":THREAD:MT_ThreadWakeup: warning: this thread is already running",0
-
-; --- Variables ---
 
 section .bss
 
@@ -46,8 +28,6 @@ section .bss
 ?ReadyThrCnt	RESD	1		; Counter of ready threads
 ?NumThreads	RESD	1		; Total number of threads
 
-
-; --- Procedures ---
 
 section .text
 
@@ -165,22 +145,16 @@ proc MT_ThrRUnlink
 endp		;---------------------------------------------------------------
 
 
-		; MT_ThreadSleep - sleep a thread.
-		; Input: EBX=TCB address.
+		; MT_ThreadSleep - suspend a thread.
+		; Input: EBX=TCB address,
+		;	 AL=blocking state (THRSTATE_*).
 		; Output: none.
 proc MT_ThreadSleep
-		cmp	byte [ebx+tTCB.State],THRSTATE_STOPPED
-		jne	.1
-	%ifdef KPOPUPS
-		mKPopUp TxtThrSleep
-	%endif
-		ret
-
-.1:		pushfd
+		pushfd
 		cli
-		mov	byte [ebx+tTCB.State],THRSTATE_STOPPED
-		mov	al,[ebx+tTCB.Priority]
-		mov	[ebx+tTCB.CurrPriority],al
+		mov	[ebx+tTCB.State],al
+		mov	eax,[ebx+tTCB.Priority]
+		mov	[ebx+tTCB.CurrPriority],eax
 		call	MT_ThrRUnlink
 		dec	dword [?ReadyThrCnt]
 		popfd
@@ -193,10 +167,7 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc MT_ThreadWakeup
 		cmp	byte [ebx+tTCB.State],THRSTATE_READY
-		jne	short .1
-	%ifdef KPOPUPS
-		mKPopUp TxtThrRunning
-	%endif
+		jne	.1
 		ret
 
 .1:		pushfd
@@ -236,28 +207,37 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EBX=TCB address;
 		;	  CF=1 - error, AX=error code.
 proc MT_CreateThread
+		locals	entry, ustksize, ustkaddr, pcb
+		prologue
 		mpush	ecx,edx,esi,edi
 
-		mov	edx,edi
-		mpush	ebx,esi
+		mov	[%$entry],ebx
+		mov	[%$ustksize],ecx
+		mov	[%$ustkaddr],edi
+		mov	[%$pcb],esi
+
+		; Allocate a TCB and zero it
 		mov	ebx,?ThreadPool
-		call	K_PoolAllocChunk			; Allocate TCB
-		mov	edi,esi
-		mpop	esi,ebx
-		jc	near .Err1
+		call	K_PoolAllocChunk
+		jc	near .NoTCB
+		mov	ebx,esi
+		mov	ecx,tTCB_size
+		call	BZero
 
 		; Initialize 'Entry' and 'PCB' fields
-		mov	[edi+tTCB.Entry],ebx
-		mov	[edi+tTCB.PCB],esi
+		mov	eax,[%$entry]
+		mov	[ebx+tTCB.Entry],eax
+		mov	esi,[%$pcb]
+		mov	[ebx+tTCB.PCB],esi
 
 		; Initial values for typical scheduler fields.
-		mov	byte [edi+tTCB.State],THRSTATE_READY
-		mov	byte [edi+tTCB.PrioClass],THRPRCL_NORMAL
-		mov	dword [edi+tTCB.Priority],THRPRVAL_DEFAULT
-		mov	dword [edi+tTCB.CurrPriority],THRPRVAL_DEFAULT
-		mov	dword [edi+tTCB.Count],0
+		mov	byte [ebx+tTCB.State],THRSTATE_READY
+		mov	byte [ebx+tTCB.PrioClass],THRPRCL_NORMAL
+		mov	dword [ebx+tTCB.Priority],THRPRVAL_DEFAULT
+		mov	dword [ebx+tTCB.CurrPriority],THRPRVAL_DEFAULT
+		mov	dword [ebx+tTCB.Count],0
 		mov	eax,[?SchedTick]
-		mov	dword [edi+tTCB.Stamp],eax
+		mov	dword [ebx+tTCB.Stamp],eax
 
 		; Every thread has a kernel stack regardless if it
 		; is a kernel thread or regular user mode thread.
@@ -267,36 +247,74 @@ proc MT_CreateThread
 		; For kernel threads, this is actual working stack.
 		;
 		; Note: currently there is no mechanism of kernel stack growing.
-		push	ecx
+		mov	edi,ebx
 		mov	ecx,DFLTKSTACKSIZE
-		xor	dl,dl				;  Get kernel stack
-		call	PG_AllocContBlock		; in lower memory
-		pop	ecx
-		jc	.Err2
+		xor	dl,dl
+		call	PG_AllocContBlock
+		jc	near .NoKernStk
 		call	BZero
 		mov	[ebx],edi			; TCB address at bottom
 		lea	ebx,[ebx+ecx-4]
 		mov	[edi+tTCB.KStack],ebx
 		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],ebx
 
-		cmp	dword [edi+tTCB.PCB],0		; Kernel thread?
+		; If it's a kernel thread, many things are so simple
+		or	esi,esi	
 		jne	.User
-
 		mov	eax,[edi+tTCB.Entry]
 		mov	[edi+tTCB.Context+tJmpBuf.R_EIP],eax
 		jmp	.EnqReady
-	
+
+		; Otherwise, we need to set up user stack, get a TID,
+		; fill the TLS and create a small segment pointing it..
 .User:		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing3
+		mov	ecx,[%$ustksize]
 		or	ecx,ecx
 		jz	.DfltUStk
-		lea	edx,[edx+ecx]
-		mov	dword [edi+tTCB.Stack],edx
-		jmp	.EnqReady
-		
+		cmp	ecx,tTLS_size+64
+		jb	near .BadUserStk
+		mov	edx,[%$ustkaddr]
+		mov	eax,edx
+		add	eax,USERAREACHECK
+		jc	near .BadUserStk
+		add	eax,ecx
+		jc	near .BadUserStk
+		lea	eax,[edx+ecx-tTLS_size-16]
+		lea	ebx,[edx+ecx-tTLS_size-4]
+		jmp	.SetUstack
+
+		; User wants default stack. One page is for him (minus TLS)
 .DfltUStk:	mov	edx,[esi+tProcDesc.PageDir]
-		call	MT_AllocMinUserStack
-		jc	.Err3
-		mov	dword [edi+tTCB.Stack],USTACKTOP-4
+		mov	ebx,USERAREASTART+USTACKTOP-400000h
+		call	MT_AllocSpecialPage
+		jc	.Done
+		lea	ebx,[eax+PAGESIZE-tTLS_size-4]
+		add	eax,PAGESIZE-tTLS_size-16
+.SetUstack:	mov	[edi+tTCB.Stack],eax
+
+		; TLS is located on top of stack
+		mov	[edi+tTCB.TLS],ebx
+
+		; Find an unused LDT slot. Its number will be also TID
+		mov	eax,[esi+tProcDesc.LDTaddr]
+		xor	ecx,ecx
+.LoopLDT:	cmp	dword [eax+ecx*8],0
+		je	.FillLDT
+		inc	ecx
+		cmp	ecx,(ULDT_limit+1)/8
+		je	.NoTID
+		jmp	.LoopLDT
+
+		; Initialize the TLS descriptor
+.FillLDT:	mov	[edi+tTCB.TID],ecx
+		mov	word [eax+ecx*8+tDesc.LimitLo],tTLS_size+3
+		add	ebx,USERAREASTART
+		mov	[eax+ecx*8+tDesc.BaseLW],bx
+		ror	ebx,16
+		mov	[eax+ecx*8+tDesc.BaseHLB],bl
+		mov	[eax+ecx*8+tDesc.BaseHHB],bh
+		mov	byte [eax+ecx*8+tDesc.AR],ARpresent+ARsegment+AR_DS_RW+AR_DPL3
+		mov	byte [eax+ecx*8+tDesc.LimHiMode],AR_DfltSz
 
 .EnqReady:	cli
 		mov	ebx,edi
@@ -306,17 +324,22 @@ proc MT_CreateThread
 		clc
 
 .Done:		mpop	edi,esi,edx,ecx
+		epilogue
 		ret
 
-.Err1:		mov	ax,ERR_MT_NoFreeTCB
+.NoTCB:		mov	ax,ERR_MT_NoFreeTCB
 		stc
 		jmp	.Done
 
-.Err2:		mov	ax,ERR_MT_CantAllocKernStk
+.NoKernStk:	mov	ax,ERR_MT_CantAllocKernStk
 		stc
 		jmp	.Done
 
-.Err3:		mov	ax,ERR_MT_CantAllocStack
+.NoTID:		mov	ax,ERR_MT_NoFreeTID
+		stc
+		jmp	.Done
+
+.BadUserStk:	mov	ax,ERR_MT_BadUserStack
 		stc
 		jmp	.Done
 endp		;---------------------------------------------------------------
@@ -328,7 +351,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 and AX=error code if fails.
 proc MT_ThreadExec
 		cmp	ebx,[?CurrThread]
-		je	short .Err
+		je	.Err
 		cli
 		mov	[?CurrThread],ebx
 		mov	dword [ebx+tTCB.Quant],THRQUANT_DEFAULT
@@ -338,16 +361,6 @@ proc MT_ThreadExec
 
 .Err:		mov	ax,ERR_MT_SwitchToCurrThr
 		stc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_ThreadKillCurrent - terminate current thread.
-		; Input: none.
-		; Output: none.
-		; Note: assumes that interrupts are disabled.
-proc MT_ThreadKillCurrent
-		; This should never happen
 		ret
 endp		;---------------------------------------------------------------
 
@@ -367,28 +380,31 @@ endp		;---------------------------------------------------------------
 proc K_GoRing3
 		; This is a layout of what 'iret' pops off the stack
 		locals	rESS, rESP, rEFLAGS, rECS, rEIP, rESDS
+
+		cli
 		prologue
 
 		; Setup ring 0 stack
-		cli
 		mov	ebx,[?CurrThread]
 		mov	eax,[ebx+tTCB.KStack]
 		mov	[KernTSS+tTSS.ESP0],eax
 		
 		; Load a process's page directory
-		mov	eax,[ebx+tTCB.PCB]
-		mov	eax,[eax+tProcDesc.PageDir]
+		mov	esi,[ebx+tTCB.PCB]
+		mov	eax,[esi+tProcDesc.PageDir]
 		mov	cr3,eax
-		
+
+		; Fill in the TLS
+		call	MT_FillTLS
+
 		; Prepare user registers
 		mov	eax,(USER_DSEG << 16) | USER_DSEG
 		mov	[%$rESDS],eax
-		mov	fs,ax
 		mov	gs,ax
 		mov	eax,[ebx+tTCB.Entry]
 		mov	[%$rEIP],eax
 		mov	dword [%$rECS],USER_CSEG
-		mov	dword [%$rEFLAGS],FLAG_IOPL | FLAG_IF
+		mov	dword [%$rEFLAGS],FLAG_IF
 		mov	eax,[ebx+tTCB.Stack]
 		mov	[%$rESP],eax
 		mov	dword [%$rESS],USER_DSEG
@@ -404,36 +420,82 @@ proc K_GoRing3
 endp		;---------------------------------------------------------------
 
 
-		; Create a minimal user stack (if it is not allocated yet).
-		; Input: EDX=page directory address.
-		; Output: CF=0 - OK;
+		; Allocate a special page for thread (in stack or TLS area)
+		; Input: EDX=page directory address,
+		;	 EBX=user address of special area (4MB aligned)
+		; Output: CF=0 - OK, EAX=page address (user);
 		;	  CF=1 - error, AX=error code.
-proc MT_AllocMinUserStack
-		push	ebx
+proc MT_AllocSpecialPage
+		mpush	ebx,ecx,edx
+
 		; Allocate page table if necessary
 		mov	ah,PG_USERMODE | PG_WRITABLE
-		mov	ebx,USERAREASTART+USTACKTOP-PAGESIZE
-		mov	ecx,PAGESIZE
+		xor	ecx,ecx
+		inc	ecx
 		call	PG_AllocAreaTables
 		jc	.Exit
 
-		mov	ebx,[edx+PG_ITEMSPERTABLE*4-4]
-		and	ebx,PGENTRY_ADDRMASK			; EBX=PT address
-		cmp	dword [ebx+PG_ITEMSPERTABLE*4-4],PG_DISABLE
-		jne	.OK
+		; Find unused PTE
+		shr	ebx,PAGEDIRSHIFT
+		mov	edx,[edx+ebx*4]
+		and	edx,PGENTRY_ADDRMASK			; EDX=PT address
+		mov	ecx,PG_ITEMSPERTABLE-1
+.Loop:		cmp	dword [edx+ecx*4],PG_DISABLE
+		je	.Found
+		loop	.Loop
+		mov	ax,ERR_MT_CantAllocStack
+		stc
+		jmp	.Exit
 
 		; Get a page and clean it
-		mov	dl,1
+.Found:		mov	dl,1
 		call	PG_Alloc
 		jc	.Exit
+		xor	dl,dl
 		or	eax,PG_USERMODE | PG_WRITABLE
-		mov	[ebx+PG_ITEMSPERTABLE*4-4],eax
+		mov	[edx+ecx*4],eax
 		and	eax,PGENTRY_ADDRMASK
-		mov	ebx,eax
+		xchg	ebx,eax
+		mov	edx,ecx
+		mov	ecx,PAGESIZE
 		call	BZero
+		shl	eax,PAGEDIRSHIFT
+		shl	edx,PAGESHIFT
+		add	eax,edx
+		sub	eax,USERAREASTART
 		
 .OK:		clc
-.Exit:		pop	ebx
+.Exit:		mpop	edx,ecx,ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Fill in TLS information.
+		; Input: EBX=address of TCB.
+		; Output: CF=0 - OK:
+		;		    EAX=TID,
+		;		    ECX=PID,
+		;		    ESI=address of process descriptor;
+		;	  CF=1 - error, AX=error code.
+		; Note: CR3 must be already set;
+		;	destroys ESI and EDI.
+proc MT_FillTLS
+		; Put the actual address of TLS structure at the beginning of
+		; TLS segment, so user can easily obtain TLS linear address.
+		mov	edi,[ebx+tTCB.TLS]
+		mov	eax,edi
+		add	eax,byte 4
+		add	edi,USERAREASTART
+		stosd
+
+		; Fill in the TLS structure itself
+		mov	eax,[ebx+tTCB.Stack]
+		mov	[edi+tTLS.StackAddr],eax
+		mov	esi,[ebx+tTCB.PCB]
+		mov	ecx,[esi+tProcDesc.PID]
+		mov	[edi+tTLS.PID],ecx
+		mov	eax,[ebx+tTCB.TID]
+		mov	[edi+tTLS.TID],eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -458,7 +520,7 @@ proc MT_DumpReadyThreads
 		push	esi
 		mov	ebx,[?ReadyThrList]
 		or	ebx,ebx
-		jne	short .WrHdr
+		jne	.WrHdr
 		mPrintString TxtNoReady
 		ret
 		
@@ -466,10 +528,10 @@ proc MT_DumpReadyThreads
 .Walk:		mov	dl,[ebx+tTCB.State]
 		mov	dh,'R'
 		cmp	dl,THRST_READY
-		je	short .Print
+		je	.Print
 		mov	dh,'W'
 		cmp	dl,THRST_WAITING
-		je	short .Print
+		je	.Print
 		mov	dh,'?'
 
 .Print:		mov	eax,ebx				; TCB

@@ -13,8 +13,10 @@ publicproc K_Ring0
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkNumber, K_PoolChunkAddr
 externproc PG_Alloc, PG_Dealloc
+externproc K_CopyFromAct, K_CopyToAct
+externproc K_RegisterLDT, K_UnregisterLDT
 
-%define R0_NUMFUNC	7
+%define R0_NUMFUNC	11
 
 section .data
 
@@ -25,6 +27,10 @@ Ring0functions	DD	K_PoolInit		; 0
 		DD	K_PoolChunkAddr		; 4
 		DD	PG_Alloc		; 5
 		DD	PG_Dealloc		; 6
+		DD	K_CopyFromAct		; 7
+		DD	K_CopyToAct		; 8
+		DD	K_RegisterLDT		; 9
+		DD	K_UnregisterLDT		; 10
 
 section .text
 

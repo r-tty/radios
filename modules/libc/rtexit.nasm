@@ -5,7 +5,7 @@
 module rtexit
 
 global text_end, data_end, bss_end
-global _fini
+publicproc _fini
 
 section .text
 

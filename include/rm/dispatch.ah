@@ -22,7 +22,7 @@ RESMGR_FLAG_ATTACH_LOCAL	EQU	2
 RESMGR_FLAG_ATTACH_OTHERFUNC	EQU	4
 
 struc tResMgrAttr
-.flags		RESD	1
+.Flags		RESD	1
 .NpartsMax	RESD	1
 .MsgMaxSize	RESD	1
 .OtherFunc	RESD	1
@@ -56,17 +56,17 @@ struc tMessageAttr
 endstruc
 
 struc tMessageContext
-.rcvid		RESD	1
-.info		RESB	tMsgInfo_size
-.msg		RESP	1
+.RcvID		RESD	1
+.Info		RESB	tMsgInfo_size
+.Msg		RESP	1
 .dpp		RESP	1
-.id		RESD	1
-.tid		RESD	1
+.ID		RESD	1
+.TID		RESD	1
 .MsgMaxSize	RESD	1
-.status		RESD	1;
-.offset		RESD	1;
-.size		RESD	1;
-.iov		RESD	1;
+.Status		RESD	1
+.Offset		RESD	1
+.Size		RESD	1
+.IOV		RESD	1
 endstruc
 
 ; General dispatch functions

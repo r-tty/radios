@@ -1,6 +1,20 @@
 % The Radiant Operating System (RadiOS)
-% Copyright (c) 2002 RET & COM Research.
+% Copyright (c) 2003 RET & COM Research.
 % This file is a LaTeX document.
 
 \section{Overview}
 
+The Radiant Operating System (RadiOS) is based on microkernel technology.
+It resembles many design ideas and implementation techniques of QNX RTOS 6
+and VSTa.
+\\
+RadiOS microkernel (\textbf{rmk}) and major part of the Task Manager are
+written in x86 assembly language (NASM). Some parts (like boot-time linker)
+are written in ANSI C.
+\\
+Key features of RadiOS are:
+\begin{itemize}
+\item True microkernel architecture based on synchronous message passing
+\item High degree of modularity
+\item POSIX compatibility
+\end{itemize}

@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  hd.ah - device independend part of hard disk driver definitions.
+; hd.ah - device independend part of hard disk driver definitions.
 ;-------------------------------------------------------------------------------
 
 ; Miscellaneous
@@ -29,4 +29,3 @@ endstruc
 %define	HD_opWRITESEC	3
 %define	HD_opVERIFYTRK	4
 %define	HD_opFORMATTRK	5
-

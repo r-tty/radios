@@ -1,0 +1,136 @@
+;-------------------------------------------------------------------------------
+; rmk.ah - various high-level system definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _rmk_ah
+%define _rmk_ah
+
+%include "time.ah"
+%include "siginfo.ah"
+
+; Task manager parameters, like PID, CHID, COID
+SYSMGR_PID		EQU	1
+SYSMGR_CHID		EQU	1
+SYSMGR_COID		EQU	40000000h
+SYSMGR_HANDLE		EQU	0
+
+; Thread control commands
+TCTL_IO			EQU	1
+TCTL_THREADS_HOLD	EQU	2
+TCTL_THREADS_CONT	EQU	3
+TCTL_RUNMASK		EQU	4
+TCTL_ALIGN_FAULT	EQU	5
+TCTL_RUNMASK_GETANDSET	EQU	6
+
+; Scheduling parameters
+struc tSchedParam
+.SchedPrio	RESD	1
+.SchedCurrPrio	RESD	1
+.LowPrio	RESD	1
+.MaxRepl	RESD	1
+.ReplPeriod	RESB	tTimeSpec_size
+.InitBudget	RESB	tTimeSpec_size
+endstruc
+
+; Scheduler information - used by SchedInfo()
+struc tSchedInfo
+.PrioMin	RESD	1
+.PrioMax	RESD	1
+.Interval	RESQ	1
+.PrioPriv	RESD	1
+.Reserved	RESD	1
+endstruc
+
+; Definitions for type and subtype of any pulse.
+PULSE_TYPE		EQU	0
+PULSE_SUBTYPE		EQU	0
+PULSE_CODE_UNBLOCK	EQU	-32	; value - rcvid
+PULSE_CODE_DISCONNECT	EQU	-33	; value - server connection
+PULSE_CODE_THREADDEATH	EQU	-34	; value - thread id
+PULSE_CODE_COIDDEATH	EQU	-35	; value - thread id
+PULSE_CODE_NET_ACK	EQU	-36	; value - vtid
+PULSE_CODE_NET_UNBLOCK	EQU	-37	; value - vtid
+
+PULSE_CODE_MINAVAIL	EQU	0
+PULSE_CODE_MAXAVAIL	EQU	127
+
+PULSE_PRIO_HEAD		EQU	4000h
+PULSE_PRIO_VTID		EQU	40000000h
+
+; Pulse structure
+struc tPulse
+.Type		RESW	1
+.Subtype	RESW	1
+.Code		RESB	1
+.Zero		RESB	3
+.SigValue	RESD	1
+.SCoID		RESD	1
+endstruc
+
+; Interrupt flags
+HARD_FLAGS_END	EQU	1
+
+; Flags which can be applied to a pulse type
+PULSE_IF_UNIQUE	EQU	1000h
+PULSE_REPLACE	EQU	2000h
+
+; Flag bits for InterruptAttach[Event]
+INTR_FLAGS_END		EQU	1
+INTR_FLAGS_SMPRDY	EQU	2
+INTR_FLAGS_PROCESS	EQU	4
+INTR_FLAGS_TRK_MSK	EQU	8
+
+; System independent interrupt classes for InterruptAttach[Event]
+INTR_CLASS_EXTERNAL	EQU	0
+INTR_CLASS_SYNTHETIC	EQU	7FFFh << 16
+
+INTR_SPARE	EQU	INTR_CLASS_SYNTHETIC | 0FFFFh
+
+HOOK_TRACE	EQU	INTR_CLASS_SYNTHETIC | 0
+HOOK_IDLE	EQU	INTR_CLASS_SYNTHETIC | 1
+HOOK_LAST	EQU	INTR_CLASS_SYNTHETIC | 1
+
+; Flags for MsgReadiov
+READIOV_SEND	EQU	0
+READIOV_REPLY	EQU	1
+
+; Message information structure - for MsgInfo()
+struc tMsgInfo
+.ND		RESD	1
+.SrcNd		RESD	1
+.PID		RESD	1
+.TID		RESD	1
+.ChID		RESD	1
+.ScoID		RESD	1
+.CoID		RESD	1
+.MsgLen		RESD	1
+.SrcMsgLen	RESD	1
+.DstMsgLen	RESD	1
+.Priority	RESW	1
+.Flags		RESW	1
+.Reserved	RESD	1
+endstruc
+
+; Clock period structure
+struc tClockPeriod
+.nsec		RESD	1
+.fract		RESD	1
+endstruc
+
+; Limits
+LIMITS_PROCESS		EQU	0
+LIMITS_THREAD		EQU	1
+LIMITS_TIMER		EQU	2
+LIMITS_PULSE		EQU	3
+LIMITS_SYNC		EQU	4
+LIMITS_CONNECT		EQU	5
+LIMITS_CHANNEL		EQU	6
+LIMITS_INTERRUPT	EQU	7
+LIMITS_SYNCEVENT	EQU	8
+LIMITS_NUM		EQU	9
+
+; Operation to tell MsgKeyData to verify instead of calculate
+KEYDATA_VERIFY		EQU	0
+KEYDATA_CALCULATE	EQU	1
+
+%endif

@@ -5,11 +5,14 @@
 
 %include "bootdefs.ah"
 
-extern ConsInit, ServiceEntry, _cmain
+externproc ConsInit, ServiceEntry
+externproc _cmain, _printf, _getc
+
+%define BTLSTACK	10FFF0h
 
 section .text
 
-		; Execution begins here
+		; Set up our own GDT and load segment registers
 		lgdt	[GDTaddrLim]
 		mov	edx,eax				; Save multiboot magic
 		xor	eax,eax
@@ -21,15 +24,38 @@ section .text
 		mov	ss,eax
 		jmp	Start
 
-Start:		mov	esp,10FFF0h			; 64K in HMA are for us
-		call	ConsInit			; Initialize console
-		
+		; Initialize stack and clear the BSS area
+proc Start
+		mov	esp,BTLSTACK
+		mov	edi,bss_start
+		xor	eax,eax
+		mov	ecx,esp
+		sub	ecx,edi
+		shr	ecx,2
+		cld
+		rep	stosd
+
+		; Initialize console
+		call	ConsInit			
+
+		; Call _cmain. It will return kernel start address.
 		push	ebx				; Multiboot info
 		push	edx				; Multiboot magic
 		call	_cmain
 		add	esp,byte 8
 		mov	dword [BOOTPARM(ServiceEntry)],ServiceEntry
-		jmp	eax
+
+		; Real fun starts here
+		call	eax
+
+		; Kernel may return some error code
+		Ccall	_printf, TxtKernRet, eax
+		Ccall	_getc
+		mov	al,254
+		out	64h,al
+		hlt
+		jmp	$
+endp		;---------------------------------------------------------------
 
 
 section .data
@@ -41,3 +67,10 @@ GDT		DD	0,0
 		DB	0,9Ah,0CFh,0
 		DW	0FFFFh,0			; Data segment
 		DB	0,92h,0CFh,0
+
+TxtKernRet	DB	10,"Kernel returned with exit code %d",10
+		DB	"Press a key to reboot...",0
+
+section .bss
+
+bss_start:

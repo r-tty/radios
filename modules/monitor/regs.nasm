@@ -42,6 +42,8 @@ pSS		DD	rSS
 		DB	"ss:",0
 pCS		DD	rCS
 		DB	"cs:",0
+pLDTR		DD	rLDTR
+		DB	"ldtr:",0
 		DD	0
 
 pEFLAGS		DD	rEFLAGS
@@ -71,6 +73,7 @@ rES		RESW	1
 rSS		RESW	1
 rFS		RESW	1
 rGS		RESW	1
+rLDTR		RESW	1
 
 rtoss		RESD	1
 sstoss		RESD	1
@@ -95,8 +98,8 @@ proc MON_Registers
 .Loop:		inc	esi 			; Next text
 		inc	ecx			; Next count
 		mov	al,[esi]		; Get char
-		cmp	al,13			; IF CR or space
-		je	short .GotEnd
+		cmp	al,ASC_CR		; IF CR or space
+		je	.GotEnd
 		cmp	al,' '
 		jne	.Loop
 
@@ -182,8 +185,8 @@ proc ReadReg
 		mov	esi,InputBuffer
 		mov	cl,8
 		call	ReadString		; Get input line
-		movzx	ecx,cl
-		mov	byte [esi+ecx],13
+		call	StrLen
+		mov	byte [esi+ecx],ASC_CR
 		pop	ecx
 		call	WadeSpace		; Ignore spaces
 		cmp	al,13			; See if CR

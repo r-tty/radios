@@ -56,6 +56,7 @@ dep:
 
 
 #--- Clean ---------------------------------------------------------------------
+
 .PHONY: clean distclean release
 clean:
 	@rm -f $(RMK)
@@ -66,16 +67,31 @@ distclean: clean
 	@echo "Cleaning up..."
 	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir all-clean ; done
 	@$(MAKE) -s -C modules all-clean
+	@$(MAKE) -s -C Documentation clean
 
-#--- Snapshot and release ------------------------------------------------------
+#--- Documentation -------------------------------------------------------------
+
+doc:
+	$(MAKE) -s -C Documentation all
+
+#--- Snapshot, diff and release ------------------------------------------------
 
 snapshot: distclean
-	@snap="radios-`date +%Y%m%d_%k%M`.tar"; tar cf $$snap * && bzip2 $$snap
+	@echo -n "Snapshot file: "
+	@snap="radios-`date +%Y%m%d_%H%M`.tar"; \
+	   echo $${snap}.bz2; tar cf $$snap * && bzip2 $$snap
+
+diff: distclean
+	@echo -n "Diff file: "
+	@dif="radios-`date +%Y%m%d_%H%M`.diff.bz2"; echo $$dif; \
+	   diff -x "radios-`date +%Y`*" -x header.mk \
+		-uNr ../radios-previous/ . | bzip2 -c > $$dif
 
 release: distclean
 	@rm -f Build/header.mk
-	@echo -n "Making release file: "
-	@release_file=radios-`grep ^RadiOS_Version kernel/version.nasm | awk '{ print $$3 }' | sed 's/\"//g'`.tar.gz ; \
-	   echo $$release_file; tar -czf $$release_file *
+	@echo -n "Release file: "
+	@relf=radios-`grep ^RadiOS_Version kernel/version.nasm | awk \
+	  '{ print $$3 }' | sed 's/\"//g'`.tar.gz ; \
+	   echo $$relf; tar czf $$relf *
 
 #-------------------------------------------------------------------------------

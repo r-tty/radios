@@ -6,12 +6,8 @@ module monitor.opcodes
 
 %include "opcodes.ah"
 
-; --- Exports ---
+publicproc FindOpcode
 
-global FindOpcode
-
-
-; --- Data ---
 
 section .data
 

@@ -1,0 +1,77 @@
+;-------------------------------------------------------------------------------
+; kcons.ah - macros for calling kernel console routines.
+;-------------------------------------------------------------------------------
+
+%ifndef _kcons_ah
+%define _kcons_ah
+
+
+; Print "raw" character (no ASCII control codes handling)
+%macro kPrintCharRaw 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	call	PrintCharRaw
+%endmacro
+
+
+; Print a character
+%macro kPrintChar 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	call	PrintChar
+%endmacro
+
+
+; Print a ASCIIZ string
+%macro kPrintStr 0-1
+%if %0 == 1
+	mov	esi,%1
+%endif
+	call	PrintString
+%endmacro
+
+
+; Print a byte in hex
+%macro kPrint8h 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	call	PrintByteHex
+%endmacro
+
+
+; Print a word in hex
+%macro kPrint16h 0-1
+%if %0==1
+	mov	ax,%1
+%endif
+	call	PrintWordHex
+%endmacro
+
+
+; Print a double word in hex
+%macro kPrint32h 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	call	PrintDwordHex
+%endmacro
+
+
+; Print a decimal number
+%macro kPrintDec 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	call	PrintDwordDec
+%endmacro
+
+
+; Wait for a scan-code from keyboard (polling)
+%macro kReadKey 0
+	call	ReadChar
+%endmacro
+
+%endif

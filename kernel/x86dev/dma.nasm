@@ -39,20 +39,14 @@
 %define	DMAMASK_CH3		8
 
 
-; --- Exports ---
+publicproc DMA_Reset, DMA_InitChannel
 
-global DMA_Reset, DMA_InitChannel
-
-
-; --- Data ---
 
 section .data
 
 DMA1_PageRegs		DB PORT_DMA1_P0,PORT_DMA1_P1,PORT_DMA1_P2,PORT_DMA1_P3
 DMA2_PageRegs		DB PORT_DMA2_P4,PORT_DMA2_P5,PORT_DMA2_P6,PORT_DMA2_P7
 
-
-; --- Procedures ---
 
 section .text
 
@@ -137,7 +131,7 @@ proc DMA_InitChannel
 		pop	ebx
 		jnz	short .Err3
 
-
+		; XXX - finish!
 
 .OK:		clc
 		ret

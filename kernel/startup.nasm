@@ -8,65 +8,39 @@ module $rmk
 %include "sys.ah"
 %include "errors.ah"
 %include "parameters.ah"
-%include "asciictl.ah"
 %include "bootdefs.ah"
-%include "serventry.ah"
 %include "module.ah"
+%include "asciictl.ah"
+%include "kcons.ah"
 %include "hw/ports.ah"
 %include "hw/pit.ah"
 %include "hw/kbc.ah"
 
 
-; --- Exports ---
-
-exportproc Start, SysReboot
+exportproc Start, ExitKernel
 exportdata ModuleInfo
 
 
-; --- Imports ---
+externproc K_BuildGDT, K_InitInterrupts, CPU_Init, FPU_Init, K_InitMem
+externproc PIC_Init, PIC_SetIRQmask, PIC_EnableIRQ
+externproc TMR_InitCounter, TMR_CountCPUspeed
+externproc PG_Init, PG_StartPaging
+externproc MT_Init, MT_GetNumThreads, MT_CreateThread, MT_ThreadExec
+externproc K_InitTime
+externproc IPC_ChanInit, IPC_MsgInit
+externdata RadiOS_Version, TxtRVersion, TxtRCopyright
+externdata GDTlimAddr
+externdata ?CPUinfo, ?CPUspeed
+externdata ?LowerMemSize, ?UpperMemSize
 
-; Kernel variables and data
-library kernel
-extern RadiOS_Version, TxtRVersion, TxtRCopyright
-extern GDTaddrLim
-
-; Kernel procedures
-extern K_InitIDT, CPU_Init, FPU_Init, K_InitMem
-extern K_DescriptorAddress
-extern K_GetDescriptorBase, K_GetDescriptorLimit
-extern K_GetDescriptorAR
-extern K_SetDescriptorBase, K_SetDescriptorLimit
-
-library kernel.initmem
-extern ?LowerMemSize, ?UpperMemSize
-
-library kernel.paging
-extern PG_Init, PG_StartPaging
-extern PG_AllocContBlock
-
-library kernel.mt
-extern MT_Init, MT_GetNumThreads
-extern MT_CreateThread, MT_ThreadExec
-
-library kernel.x86.basedev
-extern PIC_Init, PIC_SetIRQmask, PIC_EnbIRQ
-extern TMR_InitCounter, TMR_CountCPUspeed
-extern CMOS_EnableInt
-extern ?CPUinfo, ?CPUspeed
-
-library kernel.strutil
-extern StrComp
-
-library kernel.ipc
-extern IPC_Init
+externproc StrComp
+externproc PrintChar, PrintString, PrintDwordDec, ReadChar
 
 %ifdef LINKMONITOR
 library monitor
 extern MonitorInit
 %endif
 
-
-; --- Data ---
 
 section .data
 
@@ -81,22 +55,24 @@ ModuleInfo: instance tModInfoTag
     field(Entry,	DD	Start)
 iend
 
-TxtFatalErr	DB	NL,"Fatal error - system is halted.", 0
 TxtKernDone	DB	NL,"There is no work left for the kernel - bye.",0
 TxtDetected	DB	"Detected ", 0
 TxtKBRAM	DB	" KB RAM", NL, 0
 TxtX86family	DB	"86 family CPU, speed index=", 0
 TxtInitKExtMods	DB	"Initializing kernel extension modules...", NL, 0
 
+%ifdef VERBOSE
+TxtDumpHdr	DB	NL,"BIOS memory map dump:"
+		DB	NL," Base address",ASC_HT,"Size (bytes)",ASC_HT
+		DB	"Pages",NL,0
+%endif
 
-; --- Variables ---
 
 section .bss
 
-IdleTCB		RESD	1				; Idle thread TCB
+?BTLstack	RESD	1
+?IdleTCB	RESD	1
 
-
-; --- Code ---
 
 section .text
 
@@ -105,20 +81,28 @@ section .text
 proc Start
 		; Initialize GDTR
 		cli
-		lgdt	[GDTaddrLim]
+		call	K_BuildGDT
+		lgdt	[GDTlimAddr]
 		jmp	KERNELCODE:.InitSegs
 
-		; Set segment registers
+		; Set segment registers and kernel LDTR
 .InitSegs:	mov	ax,KERNELDATA
 		mov	ds,ax
 		mov	es,ax
 		mov	gs,ax
 		mov	fs,ax
 		mov	ss,ax
-		mov	edx,[BOOTPARM(MemLower)]	; EDX=base memory top
+		mov	ax,KLDT
+		lldt	ax
+
+		; Store the address of BTL stack
+		mov	[?BTLstack],esp
+
+		; Kernel stack occupies 64K at the top of lower memory
+		mov	edx,[BOOTPARM(MemLower)]
 		shl	edx,10
 		lea	esp,[edx-4]
-		sub	edx,8000h			; Kernel stack size	
+		sub	edx,8000h
 
 		; Initialize global page pool
 		mov	eax,[BOOTPARM(BMDkernel)]
@@ -126,11 +110,13 @@ proc Start
 		add	ebx,[eax+tModule.Size]
 		mov	ecx,[BOOTPARM(MemUpper)]	; Upper memory size
 		call	PG_Init
+		jc	near ExitKernel
 
-		; Build IDT and initialize IDTR
-		call	K_InitIDT
+		; Initialize interrupt tables and load IDTR
+		call	K_InitInterrupts
+		jc	near ExitKernel
 
-		; Initialize interrupt controllers
+		; Initialize interrupt controllers and block all interrupts
 		xor	ah,ah
 		mov	al,IRQVECTOR(0)
 		call	PIC_Init
@@ -138,12 +124,11 @@ proc Start
 		mov	al,IRQVECTOR(8)
 		call	PIC_Init
 		xor	eax,eax
-		mov	al,1				; IRQ0 disabled
+		not	al
 		call	PIC_SetIRQmask
-		dec	al
 		inc	ah
 		call	PIC_SetIRQmask
-		call	CMOS_EnableInt
+		sti
 
 		; Initialize the PIT (counters 0 and 2)
 		mov	al,PITCW_Mode3+PITCW_LH+PITCW_CT0
@@ -153,18 +138,16 @@ proc Start
 		mov	cx,PIT_SPEAKERFREQ
 		call	TMR_InitCounter
 
-		; Finally, enable interrupts
-		sti
-		
 %ifdef LINKMONITOR
 		; Initialize monitor
 		xor	ebx,ebx
 		call	MonitorInit
+		jc	near ExitKernel
 %endif
 		; Show version information
-		mServPrintStr TxtRVersion
-		mServPrintStr RadiOS_Version
-		mServPrintStr TxtRCopyright
+		kPrintStr TxtRVersion
+		kPrintStr RadiOS_Version
+		kPrintStr TxtRCopyright
 
 		; Initialize CPU and FPU
 		call	CPU_Init
@@ -172,43 +155,50 @@ proc Start
 		call	TMR_CountCPUspeed
 		
 		; Print basic CPU information
-		mServPrintStr TxtDetected
+		kPrintStr TxtDetected
 		movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
-		mServPrintDec
-		mServPrintStr TxtX86family
-		mServPrintDec [?CPUspeed]
-		mServPrintChar NL
+		kPrintDec
+		kPrintStr TxtX86family
+		kPrintDec [?CPUspeed]
+		kPrintChar NL
 
 		; Initialize memory
 		call	K_InitMem
 		
 		; Print how much memory we have
-		mServPrintStr TxtDetected
-		mServPrintDec [?LowerMemSize]
-		mServPrintChar '+'
-		mServPrintDec [?UpperMemSize]
-		mServPrintStr TxtKBRAM
+		kPrintStr TxtDetected
+		kPrintDec [?LowerMemSize]
+		kPrintChar '+'
+		kPrintDec [?UpperMemSize]
+		kPrintStr TxtKBRAM
+
+		; Initialize RTC
+		call	K_InitTime
 
 		; Initialize IPC structures
-		call	IPC_Init
-		jc	near .Monitor
+		mov	eax,MAXCHANNELS
+		call	IPC_ChanInit
+		jc	near ExitKernel
+		mov	eax,MAXMESSAGES
+		call	IPC_MsgInit
+		jc	near ExitKernel
 
 		; Initialize multitasking memory structures
 		mov	eax,MAXNUMTHREADS
 		call	MT_Init
-		jc	near .Monitor
+		jc	near ExitKernel
 
 		; Enable paging
 		call	PG_StartPaging
-		jc	near .Monitor
+		jc	near ExitKernel
 
 		; Create idle thread
 		mov	ebx,IdleThread
 		xor	ecx,ecx
 		xor	esi,esi
 		call	MT_CreateThread
-		jc	.Monitor
-		mov	[IdleTCB],ebx
+		jc	ExitKernel
+		mov	[?IdleTCB],ebx
 		
 		; Initialize kernel extension modules
 		call	InitKernExtModules
@@ -221,24 +211,20 @@ proc Start
 
 		; At last, enable timer interrupts and roll the dice.
 		xor	al,al
-		call	PIC_EnbIRQ
-		mov	ebx,[IdleTCB]
+		call	PIC_EnableIRQ
+		mov	ebx,[?IdleTCB]
 		call	MT_ThreadExec
 
-		; This point must never be reached!
-.Monitor:	int3
+.Done:		kPrintStr TxtKernDone
+		kReadKey
 
-.Done:		mServPrintStr TxtKernDone
-		mServReadKey
-
-		; When everything has crashed...
-SysReboot:	cli
-		mov	al,KBC_P4W_HardReset
+		; In case when everything crashed..
+SysReboot:	mov	al,KBC_P4W_HardReset
 		out	PORT_KBC_4,al
-Halt:		hlt
-		jmp	Halt
-FatalError:	mServPrintStr TxtFatalErr
-		jmp	Halt
+
+		; Return to BTL, it will print some message.
+ExitKernel:	mov	esp,[?BTLstack]
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -267,7 +253,7 @@ endp		;---------------------------------------------------------------
 proc InitKernExtModules
 		mov	ecx,[BOOTPARM(NumModules)]
 		jecxz	.Exit
-		mServPrintStr TxtInitKExtMods
+		kPrintStr TxtInitKExtMods
 		mov	ebx,[BOOTPARM(BMDmodules)]
 		mov	esi,ebx
 .Loop:		cmp	byte [ebx+tModule.Type],MODTYPE_KERNEL
@@ -282,3 +268,41 @@ proc InitKernExtModules
 		loop	.Loop
 .Exit:		ret
 endp		;---------------------------------------------------------------
+
+
+%ifdef VERBOSE
+
+		; K_DumpBMM - Dump BIOS memory map.
+		; Input: none.
+		; Output: none.
+proc K_DumpBMM
+		mpush	ebx,ecx,esi
+		mov	ecx,[BOOTPARM(MemMapSize)]
+		or	ecx,ecx
+		jz	near .Exit
+		mServPrintStr TxtDumpHdr
+		mov	ebx,[BOOTPARM(MemMapAddr)]
+.Loop:		mServPrintChar ' '
+		mov	eax,[ebx+tAddrRangeDesc.BaseAddrLow]
+		mServPrint32h
+		mServPrintChar 9
+		mov	eax,[ebx+tAddrRangeDesc.LengthLow]
+		push	eax
+		mServPrint32h
+		mServPrintChar 9
+		pop	eax
+		shr	eax,PAGESHIFT
+		mServPrintDec
+		mServPrintChar 10
+		mov	eax,[ebx+tAddrRangeDesc.Size]
+		add	eax,byte 4
+		sub	ecx,eax
+		jz	.OK
+		add	ebx,eax
+		jmp	.Loop
+.OK:		mServPrintChar 10
+.Exit:		mpop	esi,ecx,ebx
+		ret
+endp		;---------------------------------------------------------------
+
+%endif

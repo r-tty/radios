@@ -1,24 +1,15 @@
 ;-------------------------------------------------------------------------------
-;  disasm.nasm - disassembler routines.
+; disasm.nasm - disassembler routines.
 ;-------------------------------------------------------------------------------
-
-; --- Definitions ---
 
 %define	DEFAULTBYTES	32
 %define	TAB_ARGPOS	12
 
+externproc FindOpcode
+externproc TabTo
+externproc ReadOverrides, DispatchOperands, FormatDisassembly
+externdata ?CodeAddress
 
-; --- Imports ---
-
-library monitor.opcodes
-extern FindOpcode
-
-library monitor.operands
-extern TabTo, code_address
-extern ReadOverrides, DispatchOperands, FormatDisassembly
-
-
-; --- Variables ---
 
 section .bss
 
@@ -27,8 +18,6 @@ dEnd		RESD	1
 ExtraBytes	RESD	1
 TheSeg		RESW	1
 
-
-; --- Procedures ---
 
 section .text
 
@@ -66,7 +55,7 @@ proc GetCodeLine
 		mov	dword [.IsNewLine],FALSE ; Doesn't have an opcode
 		jmp	.BTM
 
-.NotExtra:	mov	eax,[code_address]	; Get code address
+.NotExtra:	mov	eax,[?CodeAddress]	; Get code address
 		cmp	eax,[dEnd]		; See if done
 		jae	near .EndCodeLine	; Quit if nothing left
 		xchg	esi,edi			; esi = buffer
@@ -75,7 +64,7 @@ proc GetCodeLine
 		call	HexW2Str		; Put segment
 		mov	byte [esi],':'		; Print ':'
 		inc	esi
-		mov	eax,[code_address]	; Get code address
+		mov	eax,[?CodeAddress]	; Get code address
 		call	HexD2Str		; Print it out
 		mov	byte [esi],' '		; Put a space
 		inc	esi
@@ -140,7 +129,7 @@ proc GetCodeLine
 		loop	.PutLoop		; Loop till done
 		xchg	esi,edi			; Restore regs
 		mov	eax,[.BytesToMove]	; Codeaddress+=bytes dumped
-		add	[code_address],eax
+		add	[?CodeAddress],eax
 
 .EndCodeLine:	mov	eax,[.IsNewLine]	; Return new line flag
 		epilogue
@@ -185,7 +174,7 @@ proc MON_Disassembly
 		pop	ebx
 		cmp	ebx,eax
 		jae	near .Err
-		mov	[code_address],ebx	; Save code address for printout
+		mov	[?CodeAddress],ebx	; Save code address for printout
 		mov	esi,ebx
 
 		pushfd				; Need to keep interrupts
@@ -210,7 +199,7 @@ proc MON_Disassembly
 		mov	[DisStart],esi		; Save new start address
 		pop	gs
 		popfd
-		mov	esi,[code_address]
+		mov	esi,[?CodeAddress]
 		mov	[DisStart],esi
 		clc
 		jmp	short .Exit
@@ -233,7 +222,7 @@ proc DisOneLine
 		mov	eax,1
 		add	eax,ebx				; 1 byte to disassemble
 		mov	[dEnd],eax			; (will disassemble
-		mov	[code_address],ebx		;  entire instruction)
+		mov	[?CodeAddress],ebx		;  entire instruction)
 		pushfd					; Need to keep interrupts
 		cli					; disabled while using GS
 		push	gs

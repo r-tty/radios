@@ -8,7 +8,11 @@ module libc.rtinit
 
 exportdata ModuleInfo
 
-extern _main, _atexit, _fini, _exit
+externproc _main, _fini
+
+library $libc
+importproc _atexit, _exit
+
 
 section .data
 

@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  except.nasm - exceptions handling.
+; except.nasm - exceptions handling.
 ;-------------------------------------------------------------------------------
 
 %include "cpu/descript.ah"
@@ -89,6 +89,7 @@ section .text
 		; Output: EBX=number of bytes that ESP must be increased by
 		;	  after calling this routine.
 proc SaveRegisters
+		sldt	[rLDTR]		; Save LDTR
 		mov	[rEAX],eax	; Save GP regs
 		mov	[rEBX],ebx
 		mov	[rECX],ecx
@@ -131,7 +132,7 @@ proc SaveRegisters
 		mov	eax,ebp		; things in the trap routine
 		add	eax,16
 		mov	[rESP],eax
-		jmp	short .Exit	; Done, get out
+		jmp	.Exit		; Done, get out
 
 .StackOfStack:	add	ebx,8		; Offset pass SP:ESS
 		mov	eax,[ebp+16]	; Get SP:ESS from ring 0 stack
@@ -168,7 +169,7 @@ proc ExceptionHandler
 		mov	[sstoss],ss		; Save it for page error routine
 		mov	[rtoss],esp
 		test	byte [Tracing],1	; See if tracing
-		jnz	short .Tracing
+		jnz	.Tracing
 		call	DisableBreaks		; Disable breakpoints if not
 .Tracing:	call	AdjustEIP		; Adjust EIP to point to breakpoint
 		mov	byte [Tracing],0	; Clear tracing flag

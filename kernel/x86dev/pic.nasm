@@ -4,13 +4,11 @@
 
 %include "hw/pic.ah"
 
-; --- Exports ---
-
-global PIC_Init,PIC_EnbIRQ,PIC_DisIRQ,PIC_SetIRQmask
-global PIC_EOI1,PIC_EOI2
+publicproc PIC_Init,PIC_EnableIRQ,PIC_DisableIRQ,PIC_SetIRQmask
+publicproc PIC_EOI1,PIC_EOI2
 
 
-; --- Procedures ---
+section .text
 
 		; PIC_Init - initialize programmable interrupts controller.
 		; Input: AH=0 - PIC #1,
@@ -23,7 +21,7 @@ proc PIC_Init
 		cli
 		or	ah,ah			; PIC #1?
 		mov	ah,al
-		jz	short .PIC1
+		jz	.PIC1
 		mov	al,PIC2_ICW1		; Begin initialize PIC #2
 		out	PORT_PIC2_0,al
 		PORTDELAY
@@ -39,7 +37,7 @@ proc PIC_Init
 		mov	al,PIC_OCW3
 		out	PORT_PIC2_0,al
 		PORTDELAY
-		jmp	short .Exit
+		jmp	.Exit
 
 .PIC1:		mov	al,PIC1_ICW1		; Begin initialize PIC #1
 		out	PORT_PIC1_0,al
@@ -73,9 +71,9 @@ proc PIC_SetIRQmask
 		pushfd
 		cli
 		or	ah,ah
-		jz	short .PIC1
+		jz	.PIC1
 		out	PORT_PIC2_1,al
-		jmp	short .Exit
+		jmp	.Exit
 .PIC1:		out	PORT_PIC1_1,al
 .Exit:		popfd
 		pop	eax
@@ -83,25 +81,25 @@ proc PIC_SetIRQmask
 endp		;---------------------------------------------------------------
 
 
-		; PIC_DisIRQ - disable IRQ.
+		; Disable an IRQ.
 		; Input: AL=IRQ number
 		; Output: none.
-proc PIC_DisIRQ
+proc PIC_DisableIRQ
 		cmp	al,10h
-		jae	short .Exit
+		jae	.Exit
 		mpush	eax,ecx
 		pushfd
 		cli
 		mov	cl,al
 		mov	ah,1
 		cmp	al,8
-		jae	short .PIC2
+		jae	.PIC2
 		shl	ah,cl
 		in	al,PORT_PIC1_1
 		PORTDELAY
 		or	al,ah
 		out	PORT_PIC1_1,al
-		jmp	short .OK
+		jmp	.OK
 .PIC2:		sub	cl,8
 		shl	ah,cl
 		in	al,PORT_PIC2_1
@@ -114,26 +112,26 @@ proc PIC_DisIRQ
 endp		;---------------------------------------------------------------
 
 
-		; PIC_EnbIRQ - enable IRQ.
+		; Enable an IRQ.
 		; Input: AL=IRQ number
 		; Output: none.
-proc PIC_EnbIRQ
+proc PIC_EnableIRQ
 		cmp	al,10h
-		jae	short .Exit
+		jae	.Exit
 		mpush	eax,ecx
 		pushfd
 		cli
 		mov	cl,al
 		mov	ah,1
 		cmp	al,8
-		jae	short .PIC2
+		jae	.PIC2
 		shl	ah,cl
 		not	ah
 		in	al,PORT_PIC1_1
 		PORTDELAY
 		and	al,ah
 		out	PORT_PIC1_1,al
-		jmp	short .OK
+		jmp	.OK
 .PIC2:		sub	cl,8
 		shl	ah,cl
 		not	ah

@@ -1,0 +1,370 @@
+;-------------------------------------------------------------------------------
+; procmsg.ah - process manager message structures.
+;-------------------------------------------------------------------------------
+
+%ifndef _procmsg_ah
+%define _procmsg_ah
+
+%include "perm.ah"
+%include "resource.ah"
+%include "tm/sysmsg.ah"
+%include "tm/spawn.ah"
+
+PROCMGR_PID	EQU	SYSMGR_PID
+PROCMGR_CHID	EQU	SYSMGR_CHID
+PROCMGR_COID	EQU	SYSMGR_COID
+PROCMGR_HANDLE	EQU	SYSMGR_HANDLE
+
+PROC_SPAWN	EQU	PROCMGR_BASE
+PROC_WAIT	EQU	PROCMGR_BASE+1
+PROC_FORK	EQU	PROCMGR_BASE+2
+PROC_GETSETID	EQU	PROCMGR_BASE+3
+PROC_SETPGID	EQU	PROCMGR_BASE+4
+PROC_UMASK	EQU	PROCMGR_BASE+5
+PROC_GUARDIAN	EQU	PROCMGR_BASE+6
+PROC_SESSION	EQU	PROCMGR_BASE+7
+PROC_DAEMON	EQU	PROCMGR_BASE+8
+PROC_EVENT	EQU	PROCMGR_BASE+9
+PROC_RESOURCE	EQU	PROCMGR_BASE+10
+
+
+PROC_SPAWN_START	EQU	0
+PROC_SPAWN_FD		EQU	1
+PROC_SPAWN_ARGS		EQU	2
+PROC_SPAWN_DONE		EQU	3
+PROC_SPAWN_DEBUG	EQU	4
+PROC_SPAWN_EXEC		EQU	5
+PROC_SPAWN_REMOTE	EQU	6
+
+PROC_ID_GETID		EQU	0
+PROC_ID_SETUID		EQU	1
+PROC_ID_SETGID		EQU	2
+PROC_ID_SETEUID		EQU	3
+PROC_ID_SETEGID		EQU	4
+PROC_ID_SETREUID	EQU	5
+PROC_ID_SETREGID	EQU	6
+PROC_ID_SETGROUP	EQU	7
+
+PROC_EVENT_NOTIFY	EQU	0
+PROC_EVENT_TRIGGER	EQU	1
+
+PROC_UMASK_SET		EQU	0
+PROC_UMASK_GET		EQU	1
+
+PROC_RESOURCE_USAGE	EQU	0
+PROC_RESOURCE_GETLIMIT	EQU	1
+PROC_RESOURCE_SETLIMIT	EQU	2
+
+FORK_ASPACE	EQU	1	; Don't share address space
+FORK_NOFDS	EQU	2	; Don't dup any fds
+FORK_NOZOMBIE	EQU	4	; Don't allow waiting
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_START ---
+struc tMsg_ProcSpawn
+.Type		RESW	1
+.Subtype	RESW	1
+.SearchLen	RESW	1
+.PathLen	RESW	1
+.Parms		RESB	tSpawnInheritance_size
+.NFDs		RESW	1
+.Nargv		RESW	1
+.Narge		RESW	1
+.Reserved	RESW	1
+.Nbytes		RESD	1	; Number of bytes of argv + arge with nulls
+endstruc
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_ARGS ---
+struc tMsg_ProcSpawnArgs
+.Type		RESW	1
+.Subtype	RESW	1
+.Nbytes		RESD	1
+.Offset		RESD	1
+.Zero		RESD	1
+endstruc
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_DEBUG ---
+struc tMsg_ProcSpawnDebug
+.Type		RESW	1
+.Subtype	RESW	1
+.CodeStart	RESD	1
+.CodeSize	RESD	1
+.CodeReloc	RESD	1
+.DataStart	RESD	1
+.DataSize	RESD	1
+.DataReloc	RESD	1
+.Name		RESP	1
+endstruc
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_FD ---
+struc tProcSpawnFDrequest
+.Type		RESW	1
+.Subtype	RESW	1
+.Flags		RESW	1
+.NFDs		RESW	1
+.Base		RESD	1
+.Ppid		RESD	1
+endstruc
+
+; Flags
+PROC_SPAWN_FD_LIST	EQU	1	; Only FDs from passed in list (otherwise all fds)
+PROC_SPAWN_FD_NOCLOEXC	EQU	2	; No FDs with CLOEXC set (i.e. spawn)
+
+struc tProcSpawnFDinfo
+.FD	RESD	1
+.ND	RESD	1
+.SrcND	RESD	1
+.PID	RESD	1
+.ChID	RESD	1
+.ScoID	RESD	1
+.CoID	RESD	1
+endstruc
+
+struc tProcSpawnFDreply
+.Flags		RESW	1
+.NFDs		RESW	1
+endstruc
+
+; Flags
+PROC_SPAWN_FDREPLY_MORE	EQU	1	; More FDs to return, send again
+
+union tMsg_ProcSpawnFD
+	unimemb	tProcSpawnFDrequest
+	unimemb	tProcSpawnFDreply
+endunion
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_DONE ---
+struc tMsg_ProcSpawnDone
+.Type		RESW	1
+.Subtype	RESW	1
+.RcvID		RESD	1
+endstruc
+
+; Additional message parts for remote spawn
+struc tProcSpawnRemote
+.Key		RESD	1
+.Umask		RESD	1
+.NFDs		RESW	1
+.RootLen	RESW	1
+.CWDlen		RESW	1
+.Flags		RESW	1
+endstruc
+
+; Flags
+PROC_SPAWN_REMOTE_FLAGS_FDALLIN	EQU	1
+
+struc tSpawnRemote
+.ND	RESD	1
+.PID	RESD	1
+.ChID	RESD	1
+.Size	RESD	1
+endstruc
+
+%define SPAWN_REMOTE_FDARRAY_SIZE 10
+%define SPAWN_REMOTE_REMOTEBUF_SIZE tProcSpawnFDinfo_size * SPAWN_REMOTE_FDARRAY_SIZE + PATH_MAX * 2 + tProcSpawnRemote_size
+%define SPAWN_REMOTE_MSGBUF_SIZEEQU tSpawnRemote + SPAWN_REMOTE_REMOTEBUF_SIZE
+
+
+; --- Message of PROC_SPAWN / PROC_SPAWN_DIR ---
+
+PROC_SPAWN_DIR_ALL	EQU	0
+PROC_SPAWN_DIR_ROOT	EQU	1
+PROC_SPAWN_DIR_CWD	EQU	2
+ 
+struc tProcSpawnDirRequest
+.Type		RESW	1
+.Subtype	RESW	1
+.Ppid		RESD	1
+.Request	RESW	1
+.PathMax	RESW	1
+endstruc
+
+struc tProcSpawnDirReply
+.Result		RESW	1
+.RootLen	RESW	1
+endstruc
+
+union tMsg_ProcSpawnDir
+	unimemb tProcSpawnDirRequest
+	unimemb tProcSpawnDirReply
+endunion
+
+
+; --- Message of PROC_GETSETID ---
+struc tProcGetSetIDrequest
+.Type		RESW	1
+.Subtype	RESW	1
+.PID		RESD	1
+.EID		RESD	1
+.RID		RESD	1
+.Ngroups	RESD	1
+endstruc
+
+struc tProcGetSetIDreply
+.Zero		RESD	1
+.Pgrp		RESD	1
+.Ppid		RESD	1
+.SID		RESD	1
+.Reserved	RESD	3
+.Cred		RESB	tCredInfo
+endstruc
+
+union tMsg_ProcGetSetIDreply
+	unimemb tProcGetSetIDrequest
+	unimemb	tProcGetSetIDreply
+endunion
+
+
+; --- Message of PROC_SETPGID ---
+struc tMsg_ProcSetPGid
+.Type		RESW	1
+.Zero		RESW	1
+.PID		RESD	1
+.GID		RESD	1
+endstruc
+
+
+; --- Message of PROC_WAIT ---
+struc tProcWaitRequest
+.Type	   	RESW	1
+.IDtype 	RESW	1
+.Options	RESD	1
+.ID		RESD	1
+endstruc
+	
+union tMsg_ProcWait
+	unimemb tProcWaitRequest
+	unimemb tSigInfo
+endunion
+
+
+; --- Message of PROC_FORK ---
+struc tMsg_ProcFork
+.Type		RESW	1
+.Zero		RESW	1
+.Flags		RESD	1
+.Frame		RESQ	1
+endstruc
+
+
+; --- Message of PROC_UMASK ---
+struc tProcUmaskRequest
+.Type		RESW	1
+.Subtype	RESW	1
+.Umask		RESD	1
+.PID		RESD	1
+endstruc
+
+struc tProcUmaskReply
+.Zero		RESD	1
+.Umask		RESD	1
+endstruc
+
+union tMsg_ProcUmask
+	unimemb	tProcUmaskRequest
+	unimemb	tProcUmaskReply
+endunion
+
+
+; --- Message of PROC_GUARDIAN ---
+struc tProcGuardianRequest
+.Type		RESW	1
+.Subtype	RESW	1
+.PID		RESD	1
+.Reserved	RESD	1
+endstruc
+
+struc tProcGuardianReply
+.Zero		RESD	1
+.PID		RESD	1
+endstruc
+
+union tMsg_ProcGuardian
+	unimemb tProcGuardianRequest
+	unimemb tProcGuardianReply
+endunion
+
+
+; --- Message of _PROC_SESSION ---
+struc tMsg_ProcSession
+.Type 		RESW	1
+.Ssubtype	RESW	1
+.SID		RESD	1
+.ID	   	RESD	1
+.Event		RESD	1
+endstruc
+
+
+; --- Message of PROC_DAEMON ---
+struc tMsg_ProcDaemon
+.Type		RESW	1					
+.Subtype	RESW	1
+.Status		RESD	1
+.Flags		RESD	1
+.Reserved	RESD	1
+endstruc
+
+
+; --- Message of PROC_EVENT ---
+struc tMsg_ProcEvent
+.Type		RESW	1
+.Subtype	RESW	1
+.Flags		RESD	1
+.Event		RESB	tSigEvent_size
+endstruc
+
+
+; --- Message header for all PROC_RESOURCE ---
+struc tProcResourceHdr
+.Type		RESW	1
+.Subtype	RESW	1
+.PID		RESD	1
+endstruc
+
+
+; --- Message of PROC_RESOURCE / PROC_RESOURCE_USAGE ---
+struc tProcResourceUsage
+.Type		RESW	1
+.Subtype	RESW	1
+.PID		RESD	1
+.Who		RESD	1
+endstruc
+
+union tMsg_ProcResourceUsage
+	unimemb	tProcResourceUsage
+	unimemb	tRusage
+endunion
+
+
+; --- Message of PROC_RESOURCE / PROC_RESOURCE_GETLIMIT
+struc tProcResourceGetLimit
+.Type		RESW	1					
+.Subtype	RESW	1					
+.PID		RESD	1					
+.Count		RESD	1					
+.Reserved	RESD	1						
+.Resource	RESD	1					
+endstruc
+
+union tMsg_ProcResourceGetLimit
+	unimemb	tProcResourceGetLimit
+	unimemb	tRlimit
+endunion
+
+; --- Message of PROC_RESOURCE / PROC_RESOURCE_SETLIMIT ---
+struc tMsg_ProcResourceSetlimit
+.Type		RESW	1
+.Subtype	RESW	1
+.Pid		RESD	1
+.Count		RESD	1
+.Reserved1	RESD	1
+.Resource	RESD	1
+.Reserved2	RESD	1
+.Limit		RESB	tRlimit_size
+endstruc
+
+%endif

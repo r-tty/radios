@@ -10,33 +10,33 @@ module $console
 %include "asciictl.ah"
 %include "module.ah"
 %include "serventry.ah"
+%include "rm/ftype.ah"
+%include "rm/stat.ah"
+%include "rm/resmgr.ah"
 %include "rm/iofunc.ah"
+%include "rm/dispatch.ah"
 
-; --- Exports ---
 
 exportdata ModuleInfo
-
 publicproc SpkClick
 
-; --- Imports ---
+externproc KB_Init, KB_ReadKey
+externproc KBC_SpeakerON, KBC_SpeakerOFF
+externproc VTX_Init
+externproc VTX_MoveCursor, VTX_MoveCurNext, VTX_GetCurPos
+externproc VTX_WrChar, VTX_WrCharTTY
+externproc VTX_Scroll, VTX_ClrLine
+externdata ?MaxColNum, ?MaxRowNum
+
 library $libc
-importproc _usleep
+importproc _memset, _usleep, _ThreadCtl
 
-library cons.vtx
-extern VTX_Init
-extern VTX_MoveCursor, VTX_MoveCurNext, VTX_GetCurPos
-extern VTX_WrChar, VTX_WrCharTTY
-extern VTX_Scroll, VTX_ClrLine
-extern ?MaxColNum, ?MaxRowNum
+library $librm
+importproc RM_InitHandlers, RM_InitAttributes
+importproc RM_AttachName, RM_HandleMsg
+importproc RM_AllocDesc, RM_AllocContext
+importproc RM_WaitMsg
 
-library cons.keyboard
-extern KB_Init, KB_ReadKey
-
-library cons.kbc
-extern KBC_SpeakerON, KBC_SpeakerOFF
-
-
-; --- Definitions ---
 
 %define	NUMVIRTCONS	8			; Number of virtual consoles
 
@@ -66,8 +66,6 @@ endstruc
 
 
 
-; --- Data ---
-
 section .data
 
 ModuleInfo: instance tModInfoTag
@@ -81,38 +79,103 @@ ModuleInfo: instance tModInfoTag
     field(Entry,	DD	CON_Main)
 iend
 
-; --- Variables ---
+ConDevPath	DB	"%console",0
+Txt~InitVideo	DB	"Video device init error",NL,0
+Txt~InitKbd	DB	"Keyboard device init error",NL,0
+Txt~AllocDesc	DB	"Unable to allocate descriptor",NL,0
+Txt~AttachName	DB	"Unable to attach name",NL,0
+Txt~WaitMsg	DB	"RM_WaitMsg error",NL,0
 
 section .bss
 
 ?ConParmTable	RESB	tConParm_size * NUMVIRTCONS
 ?BeepTone	RESW	1
-
-
-; --- Code ---
+?ConnectFuncs	RESB	tResMgrConnectFunctions_size
+?IOfuncs	RESB	tResMgrIOfunctions_size
+?Attr		RESB	tIOfuncAttr_size
 
 section .text
 
-		; CON_Main - main loop.
+		; CON_Main - initialization and main loop.
 proc CON_Main
-		mpush	edx,esi
+		locauto	rmattr, tResMgrAttr_size
+		locals	dpp, id
+		prologue
+
 		mov	byte [?ConParmTable+tConParm.VidParms+tConVidParm.PrintAttr],7
 
+		; Get I/O privilege
+		Ccall	_ThreadCtl, TCTL_IO, 0
+		test	eax,eax
+		js	near .Exit
+
 		; Initialize video device and keyboard
-		xor	dl,dl
 		call	VTX_Init
-		jc	.Exit
+		jc	near .ErrVidInit
 		call	KB_Init
-		jc	.Exit
+		jc	near .ErrKbdInit
 
 		; Default PC speaker beep tone
 		mov	word [?BeepTone],1200
 
-		jmp	$
+		; Allocate the descriptor
+		call	RM_AllocDesc
+		jc	near .Err1
+		mov	[%$dpp],eax
 
-		xor	eax,eax
-.Exit:		mpop	esi,edx
-		ret
+		; Initialize resource manager attributes
+		lea	edi,[%$rmattr]
+		Ccall	_memset, edi, 0, tResMgrAttr_size
+		mov	dword [edi+tResMgrAttr.NpartsMax],1
+		mov	dword [edi+tResMgrAttr.MsgMaxSize],2048
+
+		; Initialize functions for handling messages
+		mov	ecx,RESMGR_CONNECT_NFUNCS + (RESMGR_IO_NFUNCS << 16)
+		mov	ebx,?ConnectFuncs
+		mov	edx,?IOfuncs
+		call	RM_InitHandlers
+
+		; Initialize device attributes
+		mov	ebx,?Attr
+		mov	eax,ST_MODE_IFNAM | 1B6h
+		call	RM_InitAttributes
+
+		; Attach device name
+		mov	eax,[%$dpp]
+		mov	esi,ConDevPath
+		mov	ecx,FTYPE_ANY
+		mov	ebx,?ConnectFuncs
+		mov	edx,?IOfuncs
+		push	?Attr
+		call	RM_AttachName
+		jc	.Err2
+		mov	edx,eax
+
+		; Allocate a context structure
+		mov	eax,[%$dpp]
+		call	RM_AllocContext
+		mov	ebx,eax
+
+		; Start the message processing loop
+.Loop:		call	RM_WaitMsg
+		jc	.Err3
+		mov	ebx,eax
+		call	RM_HandleMsg
+		jmp	.Loop
+
+.Exit:		epilogue
+		retf
+
+.ErrVidInit:	mServPrintStr Txt~InitVideo
+		jmp	.Exit
+.ErrKbdInit:	mServPrintStr Txt~InitKbd
+		jmp	.Exit
+.Err1:		mServPrintStr Txt~AllocDesc
+		jmp	.Exit
+.Err2:		mServPrintStr Txt~AttachName
+		jmp	.Exit
+.Err3:		mServPrintStr Txt~WaitMsg
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 

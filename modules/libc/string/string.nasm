@@ -265,7 +265,7 @@ endp		;---------------------------------------------------------------
 proc _strlen
 		arg	str
 		prologue
-		push	edi
+		mpush	ecx,edi
 		mov	edi,[%$str]
 		xor	al,al
 		mov	ecx,-1
@@ -274,7 +274,7 @@ proc _strlen
 		not	ecx
 		dec	ecx
 		mov	eax,ecx
-		pop	edi
+		mpop	edi,ecx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

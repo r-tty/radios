@@ -45,7 +45,7 @@ KBlayoutShift	DB	0,27,"!@#$%^&*()_+",8,9			; 00h - 0Fh
 
 ; Service entries
 
-%define	NUMSERVENTRIES	9
+%define	NUMSERVENTRIES	10
 
 FunctionTable	DD	PrintCharRawTTY		; 0
 		DD	PrintChar		; 1
@@ -56,6 +56,7 @@ FunctionTable	DD	PrintCharRawTTY		; 0
 		DD	PrintByteHex		; 6
 		DD	PrintNumDec		; 7
 		DD	GetChar			; 8
+		DD	GetString		; 9
 		
 
 TxtPanic	DB	"BTL fatal error: ", 0
@@ -453,7 +454,7 @@ endp		;---------------------------------------------------------------
 		; PrintStr - print an ASCIIZ string.
 		; Input: ESI=pointer to string.
 proc PrintStr
-		push	esi
+		mpush	eax,esi
 		cld
 .LoopStr:	lodsb
 		or	al,al
@@ -461,7 +462,7 @@ proc PrintStr
 		call	PrintChar
 		jmp	.LoopStr
 		
-.Done:		pop	esi
+.Done:		mpop	esi,eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -509,12 +510,14 @@ PrintByteHex:	push	eax		; To print a byte
 		shr	eax,4		; Print the high nibble
 		call	PrintNibbleHex
 		pop	eax		; And the low nibble
-PrintNibbleHex:	and	al,0Fh		; Get a nibble
+PrintNibbleHex:	push	eax
+		and	al,0Fh		; Get a nibble
 		add	al,'0'		; Make it numeric
 		cmp	al,'9'		; If supposed to be alphabetic
 		jle	.Numeric
 		add	al,7		; Add 7
 .Numeric:	call	PrintChar
+		pop	eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -587,6 +590,69 @@ proc GetChar
 		shr	al,7				; Shift released?
 		mov	[?KeybFlags],al
 		jmp	.WaitLoop
+endp		;---------------------------------------------------------------
+
+
+		; Get a string of character from keyboard to the buffer.
+		; Input: ESI=buffer address,
+		;	 CL=maximum string length.
+		; Output: CL=number of characters read.
+		; Note: destroys CH and high word of ECX.
+proc GetString
+		prologue
+		dec	cl
+		movzx	ecx,cl			; Allocate memory
+		sub	esp,ecx			; for local buffer
+
+		mpush	eax,esi,edi
+
+		mov	edi,ebp
+		sub	edi,ecx
+		push	edi			; EDI=local buffer address
+		push	ecx
+		cld
+		rep	movsb
+		pop	ecx
+		pop	edi
+		mov	esi,edi			; ESI=EDI=local buffer address
+
+.ReadKey:	call	GetChar
+		or	al,al
+		jz	.FuncKey
+		cmp	al,ASC_BS
+		je	.BS
+		cmp	al,ASC_CR
+		je	.Done
+		cmp	al,' '			; Another ASCII CTRL?
+		jb	.ReadKey		; Yes, ignore it.
+		cmp	edi,ebp			; Buffer full?
+		je	.ReadKey		; Yes, ignore it.
+		mov	[edi],al		; Store character read
+		inc	edi
+		call	PrintChar
+		jmp	.ReadKey
+
+.FuncKey:	jmp	.ReadKey
+
+.BS:		cmp	edi,esi
+		je	.ReadKey
+		dec	edi
+		call	PrintChar
+		jmp	.ReadKey
+
+.Done:		mov	ecx,edi
+		sub	ecx,esi
+		mov	edi,[esp+4]		; EDI=target buffer address
+		push	ecx			; ECX=number of characters read
+		cld
+		rep	movsb
+		pop	ecx
+		mov	edi,[esp+4]
+		mov	byte [edi+ecx],0
+
+		mpop	edi,esi,eax
+		epilogue
+		ret
 endp		;---------------------------------------------------------------
 
 

@@ -23,11 +23,12 @@
 %define	PG_PRESENT		1
 
 %define	PG_PWT			8
-%define	PG_PCD			32
-%define	PG_ACCESSED		32
-%define	PG_DIRTY		64
+%define	PG_PCD			20h
+%define	PG_ACCESSED		20h
+%define	PG_DIRTY		40h
 
-%define	PG_ALLOCATED		512			; "User" PTE bits
+%define	PG_ALLOCATED		200h			; "User" PTE bits
+%define PG_MAPPED		400h
 
 %define	PGENTRY_ADDRMASK	0FFFFF000h
 %define PGENTRY_ATTRIBMASK	0FFFh

@@ -1,45 +1,19 @@
 ;*******************************************************************************
-;  ide.nasm - IDE driver.
-;  Ported from Adri Koppes's Minix AT HD driver.
-;  RadiOS version 1.0 by Yuri Zaporogets.
+; ide.nasm - E-IDE resource manager.
+; Based on Minix 2.0.0 code.
 ;*******************************************************************************
 
-module hw.ide
+module $eide
 
 %include "sys.ah"
 %include "errors.ah"
-%include "driver.ah"
-%include "drvctrl.ah"
 %include "hw/ports.ah"
 %include "hd.ah"
 
-
-; --- Exports ---
-
-global DrvIDE
-
-
-; --- Imports ---
-
-library kernel.mt
-extern MT_Schedule
-extern MT_ThreadSleep, MT_ThreadWakeup
-extern MT_SuspendCurr, MT_SuspendCurr1ms
-extern ?CurrThread
-
-library kernel.misc
-extern StrCopy, StrEnd, StrAppend
-extern DecD2Str
-extern BZero
-
-library onboard.pic
-extern PIC_DisIRQ, PIC_EnbIRQ
-
-library hardware.hd
-extern HD_Open, HD_Close
-extern HD_Read, HD_Write
-extern HD_GetPartParams, HD_GetPartInfoStr
-extern HD_LBA2CHS
+externproc HD_Open, HD_Close
+externproc HD_Read, HD_Write
+externproc HD_GetPartParams, HD_GetPartInfoStr
+externproc HD_LBA2CHS
 
 
 ; --- Definitions ---

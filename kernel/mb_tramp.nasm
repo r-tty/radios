@@ -5,7 +5,7 @@
 ; Definitions
 %define RDXPOS		110000h		; Kernel image will be placed here
 %define BTL_DEST	100000h		; Target address of BTL
-%define	BTL_SIZE	12288		; Size of BTL
+%define	BTL_SIZE	16384		; Size of BTL (with spare)
 
 ; RDOFF master header
 struc tRDOFFmaster

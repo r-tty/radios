@@ -5,74 +5,87 @@
 module kernel.ipc.channel
 
 %include "sys.ah"
+%include "errors.ah"
 %include "pool.ah"
 %include "msg.ah"
+%include "thread.ah"
+%include "tm/process.ah"
 
 publicproc IPC_ChanInit
-publicproc IPC_ChanDescAddr, IPC_ConnDescAddr
-exportproc sys_ChannelCreate, sys_ChannelDestroy
-exportproc sys_ConnectAttach, sys_ConnectDetach
-exportproc sys_ConnectServerInfo, sys_ConnectClientInfo
-exportproc sys_ConnectFlags
+exportproc IPC_ChanDescAddr, IPC_ConnDescAddr
+publicproc sys_ChannelCreate, sys_ChannelDestroy
+publicproc sys_ConnectDetach
+publicproc sys_ConnectClientInfo
 
 externproc BZero, K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkNumber,K_PoolChunkAddr
-externproc IPC_MsgAlloc, IPC_MsgPutFreeList
 
 section .data
 
 ?MaxChannels	RESD	1
 ?MaxConnections	RESD	1
 ?ChanPool	RESB	tMasterPool_size
-?ConnPool	RESB	tMasterPool_size
 
 
 section .text
 
 		; Initialize channels memory structures.
 		; Input: EAX=maximum number of channels,
-		;	 ECX=maximum number of channel connections.
+		;	 ECX=maximum number of connections (per-process).
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc IPC_ChanInit
 		mov	[?MaxChannels],eax
 		mov	[?MaxConnections],ecx
 		mov	ebx,?ChanPool
-		mov	ecx,tChanDesc_size
-		xor	edx,edx
+		xor	ecx,ecx
+		mov	cl,tChanDesc_size
+		xor	dl,dl
 		call	K_PoolInit
-		jc	.Exit
-		mov	ebx,?ConnPool
-		mov	ecx,tConnDesc_size
-		call	K_PoolInit
-.Exit:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 
 		; IPC_ChanDescAddr - get a channel descriptor address.
-		; Input: EAX=channel number.
+		; Input: EAX=channel ID.
 		; Output: CF=0 - OK, ESI=descriptor address;
 		;	  CF=1 - error, AX=error code.
 proc IPC_ChanDescAddr
 		push	ebx
 		mov	ebx,?ChanPool
 		call	K_PoolChunkAddr
-		pop	ebx
+		jc	.BadID
+.Exit		pop	ebx
 		ret
+
+.BadID:		mov	eax,-ESRCH
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
 		; IPC_ConnDescAddr - get a connection descriptor address.
-		; Input: EAX=connection number.
-		; Output: CF=0 - OK, ESI=descriptor address;
+		; Input: EAX=connection ID,
+		;	 ESI=process descriptor address.
+		; Output: CF=0 - OK, EDI=descriptor address;
 		;	  CF=1 - error, AX=error code.
+		; Note: linear search. Probably should be replaced with hash.
 proc IPC_ConnDescAddr
 		push	ebx
-		sub	eax,40000000h				; XXX - kluge
-		mov	ebx,?ConnPool
-		call	K_PoolChunkAddr
-		pop	ebx
+		mov	edi,[esi+tProcDesc.ConnList]
+.Loop:		or	edi,edi
+		jz	.InvCoID
+		cmp	eax,[edi+tConnDesc.ID]
+		je	.Exit
+		mov	ebx,edi
+		mov	edi,[edi+tConnDesc.Next]
+		cmp	edi,ebx
+		jne	.Loop
+.Exit:		pop	ebx
 		ret
+
+.InvCoID:	mov	ax,EBADF
+		stc
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -83,54 +96,30 @@ proc sys_ChannelCreate
 		arg	fl
 		prologue
 
-		mpush	ebx,esi
-
+		; Allocate a channel descriptor and zero it
 		mov	ebx,?ChanPool
 		call	K_PoolAllocChunk
-		jc	short .Exit
-
-		; Initialize message queue pointers
-		xor	eax,eax
-		mov	[esi+tChanDesc.Head],eax
-		mov	[esi+tChanDesc.Tail],eax
+		jc	.Exit
+		mov	ebx,esi
+		mov	ecx,tChanDesc_size
+		call	BZero
 
 		; Channel semaphore
-		lea	ebx,[esi+tChanDesc.Lock]
-		mSemInit ebx
+		lea	eax,[esi+tChanDesc.Lock]
+		mSemInit eax
 
-		; Receive semaphore
-		mov	[esi+tChanDesc.RecvSem+tSemaphore.Count],eax
-		mov	[esi+tChanDesc.RecvSem+tSemaphore.WaitQ],eax
-		
-		; Connection list is empty
-		mov	[esi+tChanDesc.NumConn],eax
-		mov	[esi+tChanDesc.ConnList],eax
+		; Channel is considered to be owned by a calling process
+		mCurrThread
+		mov	eax,[eax+tTCB.PCB]
+		mov	[esi+tChanDesc.PCB],eax
+		mEnqueue dword [eax+tProcDesc.ChanList], Next, Prev, esi, tChanDesc, ecx
 
-		; Initialize free list
-		mov	edi,esi
-		mov	ecx,8
-		mov	dword [edi+tChanDesc.FreeList],0
-.Loop:		call	IPC_MsgAlloc
-		jc	short .Warning
-		call	IPC_MsgPutFreeList
-		loop	.Loop
-
-		mov	esi,edi
+		; Return the channel ID
 		call	K_PoolChunkNumber
 
 .Exit:		mCheckNeg
-		mpop	esi,ebx
 		epilogue
 		ret
-
-.Warning:
-	%ifdef KPOPUPS
-		push	esi
-		mov	esi,MsgCantAllocMsg
-		call	K_PopUp
-		pop	esi
-	%endif
-		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -138,10 +127,15 @@ endp		;---------------------------------------------------------------
 proc sys_ChannelDestroy
 		arg	chid
 		prologue
+
 		mov	eax,[%$chid]
 		call	K_PoolChunkAddr
 		jz	.Exit
 
+		; Remove this channel descriptor from the list
+		mov	eax,[esi+tChanDesc.PCB]
+		mDequeue dword [eax+tProcDesc.ChanList], Next, Prev, esi, tChanDesc, ecx
+		
 		; Wake up all sleeping thread waiting for the messages in
 		; this channel and indicate that channel is being destroyed.
 
@@ -150,35 +144,6 @@ proc sys_ChannelDestroy
 		xor	eax,eax
 
 .Exit:		mCheckNeg
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; int ConnectAttach(uint nd, pid_t pid, int chid,
-		;			uint index, int flags);
-proc sys_ConnectAttach
-		arg	nd, pid, chid, index, flags
-		prologue
-		mpush	ebx,esi
-
-		; Get the address of channel descriptor
-		mov	eax,[%$chid]
-		call	IPC_ChanDescAddr
-		jc	.Exit
-		mov	edi,esi
-
-		mov	ebx,?ConnPool
-		call	K_PoolAllocChunk
-		jc	.Exit
-
-		inc	dword [edi+tChanDesc.NumConn]
-		mov	[esi+tConnDesc.ChanDesc],edi
-		mEnqueue dword [edi+tChanDesc.ConnList], Next, Prev, esi, tConnDesc
-		clc
-
-.Exit:		mCheckNeg
-		mpop	esi,ebx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -193,26 +158,11 @@ proc sys_ConnectDetach
 endp		;---------------------------------------------------------------
 
 
-		; int ConnectServerInfo(pid_t pid, int coid,
-		;			struct _server_info *info);
-proc sys_ConnectServerInfo
-		arg	pid, coid, info
-		prologue
-		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; int ConnectClientInfo(int scoid, struct _client_info *info,
 		;			int ngroups);
 proc sys_ConnectClientInfo
 		arg	scoid, info, ngroups
 		prologue
 		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-proc sys_ConnectFlags
 		ret
 endp		;---------------------------------------------------------------

@@ -57,7 +57,7 @@ proc RD_Init
 
 .AllocRD:	mov	ecx,INITRDSIZE * 1024
 		mov	esi,[?ProcListPtr]
-		mov	ah,PG_WRITABLE
+		mov	al,PG_WRITABLE
 		call	MM_AllocBlock
 		jc	.Err2
 		mov	edx,ebx

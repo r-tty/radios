@@ -22,34 +22,34 @@ endp		;---------------------------------------------------------------
 proc MON_Go
 		call	WadeSpaceOnly	; Wade till address
 		cmp	al,13		; CR means from this point on
-		je	short .DoGo	; Do it from this EIP if CR
+		je	.DoGo		; Do it from this EIP if CR
 		inc	esi		; See if is a comma
-		cmp	al,','		;
-		je	short .Break	; Only a breakpoint if so
+		cmp	al,','
+		je	.Break		; Only a breakpoint if so
 		dec	esi		; Get the execution point
 		call	ReadAddress
 		jc	.Err
 		mov	[rEIP],ebx	; Fix CS:EIP for new routine
 		or	dx,dx
-		jz	short .CheckBreak
+		jz	.CheckBreak
 		mov	[rCS],dx
 
 .CheckBreak:	call	WadeSpaceOnly	; Wade
 		cmp	al,13		; execute if CR
-		je	short .DoGo
+		je	.DoGo
 		cmp	al,','		; Check for comma
 		jne	.Err		; Error if not a comma
 		inc	esi		; Wade to address
 		call	WadeSpaceOnly
 
 .Break:		call	ReadAddress	; Read break address
-		jc	short .Err	; Quit if error
+		jc	.Err		; Quit if error
 		xor	eax,eax		; Break 0
 		call	SetBreak	; Set the break
 
 .DoGo:		call	EnableBreaks	; Enable breaks
 		xor	eax,eax		; Not trapping
-		jmp	short GoTrace	; Run the code
+		jmp	GoTrace		; Run the code
 .Err:		stc
 		ret
 endp		;---------------------------------------------------------------
@@ -59,17 +59,20 @@ endp		;---------------------------------------------------------------
 		; MON_Proceed - limited proceed, only traces through
 		;		and far direct calls.
 proc MON_Proceed
-		push	fs			; Get CS:EIP in FS:EBX
-		mov	fs,[rCS]
+		pushfd
+		cli
+		push	gs			; Get CS:EIP in GS:EBX
+		mov	gs,[rCS]
 		mov	ebx,[rEIP]
-		mov	ah,[fs:ebx]		; Load the first byte
-		pop	fs			; of the instruction
+		mov	ah,[gs:ebx]		; Load the first byte
+		pop	gs			; of the instruction
+		popfd
 		cmp	ah,0E8h			;  Call?
 		mov	al,5			; Yes, this is five bytes
-		jz	short .Go		; And execute it
+		jz	.Go			; And execute it
 		cmp	ah,09Ah			; Far call
 		mov	al,7			; This one is 7 bytes
-		jnz	short MON_Trace		; Not either of these, just trace
+		jnz	MON_Trace		; Not either of these, just trace
 .Go:		cbw				; EAX = bytes to skip past
 		cwde
 		add	ebx,eax			; EBC = breakpoint
@@ -78,7 +81,7 @@ proc MON_Proceed
 		call	SetBreak		; Set a break
 		call	EnableBreaks		; Enable breakpoints
 		xor	eax,eax			; No trapping
-		jmp	short GoTrace		; Run the code
+		jmp	GoTrace			; Run the code
 endp		;---------------------------------------------------------------
 
 
@@ -90,7 +93,7 @@ GoTrace:	mov	esp,[rtoss]		; Load ESP
 		movzx	ecx,word [rCS]
 		xor	ebx,ecx
 		test	ebx,SELECTOR_RPL
-		jz	short .NoStack
+		jz	.NoStack
 		movzx	ebx,word [rSS]       	; Yes, have to put
 		push	ebx			; outer stack on inner stack
 		push	dword [rESP]
@@ -104,6 +107,7 @@ GoTrace:	mov	esp,[rtoss]		; Load ESP
 		movzx	eax,word [rES]		; Load other segs
 		mov	es,eax
 		cli
+		lldt	[rLDTR]
 		movzx	eax,word [rFS]
 		mov	fs,eax
 		movzx	eax,word [rGS]

@@ -10,7 +10,7 @@ group = btl
 include ../Build/header.mk
 
 # Converter to flat binary
-CONV = rdf2bin -o 0x100000 -b 12288 -p 1
+CONV = rdf2bin -o 0x100000 -p 1
 
 # Change variables here
 TARGET_RDM = btl.$(M)

@@ -7,6 +7,11 @@
 
 %include "siginfo.ah"
 
+struc tTimeVal
+.Seconds	RESD	1
+.Microseconds	RESD	1
+endstruc
+
 struc tTimeSpec
 .Seconds	RESD	1
 .Nanoseconds	RESD	1

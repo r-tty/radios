@@ -10,6 +10,8 @@ module tm.svcif
 publicproc PoolInit, PoolAllocChunk, PoolFreeChunk
 publicproc PoolChunkNumber, PoolChunkAddr
 publicproc PageAlloc, PageDealloc
+publicproc CopyToAct, CopyFromAct
+publicproc RegisterLDT, UnregisterLDT
 
 section .text
 
@@ -68,5 +70,33 @@ endp		;---------------------------------------------------------------
 		; Deallocate a page of physical memory.
 proc PageDealloc
 		mRing0call R0_PageDealloc
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Copy from active address space.
+proc CopyFromAct
+		mRing0call R0_CopyFromAct
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Copy to active address space.
+proc CopyToAct
+		mRing0call R0_CopyToAct
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Register a LDT.
+proc RegisterLDT
+		mRing0call R0_RegisterLDT
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Unregister a LDT.
+proc UnregisterLDT
+		mRing0call R0_UnregisterLDT
 		ret
 endp		;---------------------------------------------------------------

@@ -1,0 +1,90 @@
+;-------------------------------------------------------------------------------
+; sysmsg.ah - system message definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _sysmsg_ah
+%define _sysmsg_ah
+
+SYSMSG_BASE	EQU	0
+SYSMGR_BASE	EQU	0
+SYSMGR_MAX	EQU 	0Fh
+PROCMGR_BASE	EQU 	10h
+PROCMGR_MAX	EQU 	3Fh
+MEMMGR_BASE	EQU	40h
+MEMMGR_MAX	EQU	6Fh
+PATHMGR_BASE	EQU	70h
+PATHMGR_MAX	EQU 	9Fh
+CPUMSG_BASE	EQU	0A0h
+CPUMSG_MAX	EQU	0CFh
+RSRCDBMGR_BASE	EQU	0D0h
+RSRCDBMGR_MAX	EQU	0D3h
+SYSMSG_MAX	EQU	0FFh
+
+SYS_CONF	EQU	SYSMGR_BASE
+SYS_CMD		EQU	SYSMGR_BASE+1
+SYS_LOG		EQU	SYSMGR_BASE+2
+
+SYS_SUB_GET	EQU	0
+SYS_SUB_SET	EQU	1
+
+SYS_CMD_REBOOT	EQU	0
+
+
+; --- Message of SYS_CONF ---
+struc tSysConfRequest
+.Type		RESW	1
+.Subtype	RESW	1
+.Cmd		RESD	1
+.Name		RESD	1
+.Spare		RESD	1
+.Value		RESQ	1
+endstruc
+
+struc tSysConfReply
+.Zero		RESD	3
+.Match		RESD	1
+.Value		RESQ	1
+endstruc
+
+union tMsg_SysConf
+	unimemb	tSysConfRequest
+	unimemb	tSysConfReply
+endunion
+
+
+; --- Message of SYS_CMD ---
+struc tMsg_SysCmd
+.Type		RESW	1
+.Cmd		RESW	1
+.Reserved	RESD	1
+endstruc
+
+
+; --- Message of SYS_LOG ---
+ 
+; Layout matches to tIOMwrite
+struc tMsg_SysLog
+.Type		RESW	1
+.Reserved	RESW	1
+.Nbytes		RESD	1
+.Zero		RESD	2
+endstruc
+
+
+; --- Macro for declaring an entry in the message handlers table ---
+; Parameters: %1 = handler address, %2 - message type.
+%macro mMHTabEnt 1-2
+%ifnum %1
+    %if %1 == 0
+    	DD	0
+	DW	0
+    %else
+	%error Bad parameter
+    %endif
+%else
+	DD	%1
+	DW	%2
+%endif
+%endmacro
+
+%endif

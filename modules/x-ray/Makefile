@@ -11,7 +11,7 @@ include ../../Build/header.mk
 
 # Variables
 TARGET_RDM = x-ray.$(X)
-OBJS = x-ray.$(O) cons.$(O)
+OBJS = x-ray.$(O)
 
 # Build module
 include ../../Build/module.mk

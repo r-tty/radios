@@ -1,0 +1,58 @@
+;-------------------------------------------------------------------------------
+; resource.ah - resource and limit definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _resource_ah
+%define _resource_ah
+
+PRIO_PROCESS	EQU	0
+PRIO_PGRP	EQU	1
+PRIO_USER	EQU	2
+
+RLIMIT_CPU	EQU	0		; Limit on CPU time per process
+RLIMIT_FSIZE	EQU	1		; Limit on file size
+RLIMIT_DATA	EQU	2		; Limit on data segment size
+RLIMIT_STACK	EQU	3		; Limit on stack size
+RLIMIT_CORE	EQU	4		; Limit on size of core dump file
+RLIMIT_NOFILE	EQU	5		; Limit on number of open files
+RLIMIT_OFILE	EQU	RLIMIT_NOFILE
+RLIMIT_AS	EQU	6		; Limit on address space size
+RLIMIT_VMEM	EQU	RLIMIT_AS
+RLIMIT_RSS	EQU	RLIMIT_AS
+RLIMIT_MEMLOCK	EQU	7		; Locked-in-memory address space
+RLIMIT_NPROC	EQU	8		; Number of processes
+
+RLIM_NLIMITS	EQU	9		; Number of resource limits
+
+RLIM_INFINITY	EQU	7FFFFFFFh	; No limit
+RLIM_SAVED_MAX	EQU	7FFFFFFEh	; Unrepresentable saved hard limit
+RLIM_SAVED_CUR	EQU	7FFFFFFDh	; Unrepresentable saved soft limit
+
+struc tRlimit
+.Cur	RESQ	1			; Current (soft) limit
+.Max	RESQ	1			; Hard limit
+endstruc
+
+RUSAGE_SELF	EQU	0		; Current process
+RUSAGE_CHILDREN	EQU	-1		; Children of current process
+
+struc tRusage
+.Utime		RESB	tTimeVal_size	; User time used
+.Stime		RESB	tTimeVal_size	; System time used
+.MaxRSS		RESD	1		; Max resident set size
+.ixrss		RESD	1		; Integral shared memory size
+.idrss		RESD	1		; Integral unshared data memory size
+.isrss		RESD	1		; Integral unshared stack memory size
+.MinFlt		RESD	1		; Page reclaims
+.MajFlt		RESD	1		; Page faults
+.Nswap		RESD	1		; Swaps
+.InBlock	RESD	1		; Block input operations
+.OutBlock	RESD	1		; Block output operations
+.MsgsSent	RESD	1		; Messages sent
+.MsgsRcvd	RESD	1		; Messages received
+.Nsignals	RESD	1		; Signals received
+.Nvcsw		RESD	1		; Voluntary context switches
+.Nivcsw		RESD	1		; Involuntary context switches
+endstruc
+
+%endif

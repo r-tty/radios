@@ -21,10 +21,10 @@ exportproc K_PoolChunkNumber, K_PoolChunkAddr
 ; --- Imports ---
 
 library kernel.paging
-extern PG_Alloc, PG_Dealloc
+externproc PG_Alloc, PG_Dealloc
 
 library kernel.sync
-extern K_SemP, K_SemV
+externproc K_SemP, K_SemV
 
 
 ; --- Variables ---
@@ -42,7 +42,7 @@ section .text
 		; K_PoolInit - initialize the master pool.
 		; Input: EBX=address of the master pool,
 		;	 ECX=chunk size,
-		;	 EDX=flags.
+		;	 DL=flags.
 		; Output: none.
 proc K_PoolInit
 		xor	eax,eax
@@ -50,14 +50,12 @@ proc K_PoolInit
 		mov	[ebx+tMasterPool.Hint],eax
 		mov	[ebx+tMasterPool.Count],eax
 		mov	[ebx+tMasterPool.Size],ecx
-		mov	[ebx+tMasterPool.Flags],edx
+		mov	[ebx+tMasterPool.Flags],dl
 		mov	[ebx+tMasterPool.Signature],ebx
-		push	ebx
-		lea	ebx,[ebx+tMasterPool.SemLock]
-		mSemInit ebx
-		pop	ebx
+		lea	eax,[ebx+tMasterPool.SemLock]
+		mSemInit eax
 		inc	dword [?PoolCount]
-		clc
+		xor	eax,eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -106,12 +104,14 @@ proc K_PoolNew
 		inc	dword [ebx+tMasterPool.Count]
 
 		; Initialize free list pointers for every chunk
-		; trailing with null.
+		; trailing with null. Also mark every chunk with a signature.
 		pop	esi				; ESI=free list head
 		dec	ecx				; ECX=chunks-1
 		jz	.TrailNULL
+		mov	eax,[ebx+tMasterPool.Signature]
 .Loop:		lea	ebx,[esi+edx]
 		mov	[esi],ebx
+		mov	[esi+4],eax
 		add	esi,edx
 		dec	ecx
 		jnz	.Loop
@@ -134,12 +134,12 @@ proc K_PoolAllocChunk
 		mpush	ebx,edx
 		mov	esi,ebx
 
-		lea	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		lea	eax,[esi+tMasterPool.SemLock]	; Lock master pool
 		call	K_SemP
 		
 		; First check if "bucket alloc" flag is set. If so - 
 		; immediately allocate new pool.
-		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
+		test	byte [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
 		jnz	.AllocPool
 
 		; Now check if hint is valid. If not, go through pool list
@@ -179,19 +179,19 @@ proc K_PoolAllocChunk
 		
 		; Return number of chunks in ECX if the pool is marked
 		; for "bucket alloc"
-		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
+		test	byte [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
 		jz	.Finish
 		mov	ecx,[edx+tPoolDesc.ChunksFree]
 		inc	ecx
 		
 .Finish:	mov	edx,ebx
-		lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+		lea	eax,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
-		mov	eax,[esi+tMasterPool.Signature]	; Store signature of
-		mov	[edx],eax			; master pool in a chunk
 		mov	esi,edx				; Return chunk addr
-		xor	eax,eax				; All OK
+		xor	eax,eax
+		mov	[esi],eax			; Clean fields we used
+		mov	[esi+4],eax
 
 .Done		mpop	edx,ebx
 		ret
@@ -211,14 +211,16 @@ proc K_PoolFreeChunk
 		and	edx,PGENTRY_ADDRMASK		; EDX=pooldesc address
 		mov	esi,[edx+tPoolDesc.Master]	; ESI=master pool addr
 
-		lea	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
+		lea	eax,[esi+tMasterPool.SemLock]	; Lock master pool
 		call	K_SemP
 
 		; Free this chunk
 		mov	eax,[edx+tPoolDesc.FreeHead]
 		mov	[edi],eax
+		mov	eax,[esi+tMasterPool.Signature]
+		mov	[edi+4],eax
 		mov	[edx+tPoolDesc.FreeHead],edi
-		dec	dword [edx+tPoolDesc.ChunksFree]
+		inc	dword [edx+tPoolDesc.ChunksFree]
 
 		; Check reference count and free the whole pool if needed
 		dec	dword [edx+tPoolDesc.RefCount]
@@ -258,7 +260,7 @@ proc K_PoolFreeChunk
 		call	PG_Dealloc
 		dec	dword [?PoolPageCount]
 
-.Unlock:	lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
+.Unlock:	lea	eax,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
 		mov	ax,di				; Error code
@@ -360,10 +362,11 @@ proc K_PoolChunkAddr
 		mul	dword [ebx+tMasterPool.Size]
 		lea	esi,[esi+eax+tPoolDesc_size]
 
-		; Check the chunk signature
+		; If this chunk is marked with signature - error
 		mov	eax,[ebx+tMasterPool.Signature]
-		cmp	eax,[esi]
-		jne	.Err2
+		cmp	eax,[esi+4]
+		je	.Err2
+		clc
 
 .Exit:		mpop	edx,ecx
 		ret

@@ -1,7 +1,6 @@
-;*******************************************************************************
-; misc.nasm - miscellaneous kernel routines and data.
-; Copyright (c) 1999-2002 RET & COM research.
-;*******************************************************************************
+;-------------------------------------------------------------------------------
+; misc.nasm - miscellaneous kernel routines.
+;-------------------------------------------------------------------------------
 
 module kernel.misc
 
@@ -9,338 +8,13 @@ module kernel.misc
 %include "errors.ah"
 %include "biosdata.ah"
 %include "pool.ah"
-%include "cpu/descript.ah"
-%include "cpu/tss.ah"
 %include "cpu/paging.ah"
-%include "hw/ports.ah"
-%include "hw/pic.ah"
-%include "bootdefs.ah"
-%include "serventry.ah"
-%include "asciictl.ah"
 
+exportproc K_AllocateID, K_ReleaseID, K_InitIDbmap
 
-; --- Exports ---
-
-exportproc K_DescriptorAddress
-exportproc K_GetDescriptorBase, K_SetDescriptorBase
-exportproc K_GetDescriptorLimit, K_SetDescriptorLimit
-exportproc K_GetDescriptorAR, K_SetDescriptorAR
-exportproc K_GetGateSelector, K_SetGateSelector
-exportproc K_GetGateOffset, K_SetGateOffset, K_SetGateCount
-exportproc K_GetExceptionVec, K_SetExceptionVec
-
-exportproc MemSet, BZero
-publicproc K_CopyIn, K_CopyOut
-
-publicdata KernTSS
-
-
-; --- Includes ---
-
-%include "pmdata.nasm"
-%include "ints.nasm"
-
-
-; --- Procedures ---
+externproc MemSet, PG_AllocContBlock
 
 section .text
-
-		; K_DescriptorAddress - get address of descriptor.
-		; Input: DX=descriptor.
-		; Output: EBX=descriptor address.
-proc K_DescriptorAddress
-		push	edi
-		movzx	edx,dx
-		test	dx,SELECTOR_LDT		; See if in LDT
-		jz	.GetGDT
-		xor	ebx,ebx			; If so get LDT selector
-		sldt	bx
-		and	ebx,~SELECTOR_STATUS	; Strip off RPL and TI
-		add	ebx,GDT			; Find position in GDT
-		call	K_GetDescriptorBase	; Load up the LDT base address
-		mov	ebx,edi
-		jmp	short .GotLDT
-.GetGDT:	mov	ebx,GDT			; Otherwise just get the GDT table
-.GotLDT:	and	edx,~SELECTOR_STATUS	; Strip off RPL and TI of descriptor
-		add	ebx,edx			; Add in to table base
-		pop	edi
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetDescriptorBase - get base fields of descriptor.
-		; Input: EBX=descriptor address.
-		; Output: EDI=base address.
-proc K_GetDescriptorBase
-		push	eax
-		mov	al,[ebx+tDesc.BaseHLB]
-		mov	ah,[ebx+tDesc.BaseHHB]
-		shl	eax,16
-		mov	ax,[ebx+tDesc.BaseLW]
-		mov	edi,eax
-		pop	eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetDescriptorBase - set base fields of descriptor.
-		; Input: EBX=descriptor address,
-		;	 EDI=base address.
-		; Output: none.
-proc K_SetDescriptorBase
-		push	eax
-		mov	eax,edi
-		mov	[ebx+tDesc.BaseLW],ax
-		shr	eax,16
-		mov	[ebx+tDesc.BaseHLB],al
-		mov	[ebx+tDesc.BaseHHB],ah
-		pop	eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetDescriptorLimit - get limit fields of descriptor.
-		; Input: EBX=descriptor address.
-		; Output: EAX=limit.
-proc K_GetDescriptorLimit
-		mov	al,[ebx+tDesc.LimHiMode]
-		and	ax,15
-		shl	eax,16
-		mov	ax,[ebx+tDesc.LimitLo]
-		test	byte [ebx+tDesc.LimHiMode],AR_Granlr
-		jz	.Exit
-		shl	eax,12
-		or	eax,PAGESIZE-1
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetDescriptorLimit - set limit fields of descriptor.
-		; Input: EBX=descriptor address,
-		;	 EAX=limit.
-		; Output: none.
-proc K_SetDescriptorLimit
-		push	eax
-		and	byte [ebx+tDesc.LimHiMode],~AR_Granlr
-		test	eax,0FFF00000h
-		jz	.LowGrn
-		or	byte [ebx+tDesc.LimHiMode],AR_Granlr
-		shr	eax,12
-.LowGrn:	mov	[ebx+tDesc.LimitLo],ax
-		shr	eax,16
-		and	byte [ebx+tDesc.LimHiMode],0F0h
-		or	byte [ebx+tDesc.LimHiMode],al
-		pop	eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetDescriptorAR - get access rights fields of descriptor.
-		; Input: EBX=descriptor address.
-		; Output: AX=ARs.
-proc K_GetDescriptorAR
-		mov	al,[ebx+tDesc.AR]
-		mov	ah,[ebx+tDesc.LimHiMode]
-		and	ah,15
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetDescriptorAR - get access rights fields of descriptor.
-		; Input: EBX=descriptor address,
-		;	 AX=ARs.
-		; Output: none.
-proc K_SetDescriptorAR
-		mov	[ebx+tDesc.AR],al
-		and	ah,15
-		or	[ebx+tDesc.LimHiMode],ah
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetGateSelector - get selector field of gate descriptor.
-		; Input: EBX=descriptor address.
-		; Output: DX=selector.
-proc K_GetGateSelector
-		mov	dx,[ebx+tGateDesc.Selector]
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetGateSelector - set selector field of gate descriptor.
-		; Input: EBX=descriptor address,
-		;	 DX=selector.
-proc K_SetGateSelector
-		mov	[ebx+tGateDesc.Selector],dx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetGateOffset - get offset field of gate descriptor.
-		; Input: EBX=descriptor address,
-		; Output: EAX=offset.
-proc K_GetGateOffset
-		mov	ax,[ebx+tGateDesc.OffsetHi]
-		shl	eax,16
-		mov	ax,[ebx+tGateDesc.OffsetLo]
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetGateOffset - set offset field of gate descriptor.
-		; Input: EBX=descriptor address,
-		;	 EAX=offset.
-proc K_SetGateOffset
-		mov	[ebx+tGateDesc.OffsetLo],ax
-		shr	eax,16
-		mov	[ebx+tGateDesc.OffsetHi],ax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetGateCount - set gate descriptor count field.
-		; Input: EBX=descriptor address,
-		;	 AL=count.
-proc K_SetGateCount
-		mov	[ebx+tGateDesc.Count],al
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_GetExceptionVec - get exception handler selector
-		;		      and offset.
-		; Input: AL=vector number.
-		; Output: DX=handler selector,
-		;	  EBX=handler offset.
-proc K_GetExceptionVec
-		push	eax
-		movzx	ebx,al
-		shl	ebx,3				; Count gate address
-		add	ebx,[IDTaddrLim+2]
-		call	K_GetGateOffset
-		call	K_GetGateSelector
-		mov	ebx,eax
-		pop	eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SetExceptionVec - set exception vector.
-		; Input: DX=handler selector,
-		;	 EBX=handler offset,
-		;	 AL=vector number.
-proc K_SetExceptionVec
-		mpush	eax,ebx
-		movzx	eax,al
-		shl	eax,3				; Count gate address
-		add	eax,[IDTaddrLim+2]
-                xchg	eax,ebx
-		call	K_SetGateOffset
-		call	K_SetGateSelector
-		mpop	ebx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-; --- Routines for copying to and from the user space --------------------------
-
-		; K_CopyIn - copy data from user to kernel space.
-		; Input: ESI=source address,
-		;	 ECX=size in bytes,
-		;	 EDI=destination address.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, EAX=-1.
-proc K_CopyIn
-		add	esi,USERAREASTART
-		jc	CpFailed
-		mov	eax,ecx
-		cmp	eax,40000000h
-		jae	CpFailed
-		add	eax,esi
-		jc	CpFailed
-		shr	ecx,2
-		rep	movsd
-		sub	eax,esi
-		jnz	CpAlign
-		ret
-
-CpFailed:	mov	eax,-1
-		stc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_CopyOut - copy data from kernel to user space.
-		; Input: ESI=source address,
-		;	 ECX=size in bytes,
-		;	 EDI=destination address.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, EAX=-1.
-proc K_CopyOut
-		add	edi,USERAREASTART
-		jc	CpFailed
-		mov	eax,ecx
-		cmp	eax,40000000h
-		jae	CpFailed
-		add	eax,edi
-		jc	CpFailed
-		shr	ecx,2
-		rep	movsd
-		sub	eax,edi
-		jnz	CpAlign
-		ret
-
-		; Handle the last parts of the unaligned data
-CpAlign:	test	eax,2
-		jz	.1
-		movsw
-.1:		test	eax,1
-		jz	.2
-		mov	al,[esi]
-		mov	[edi],al
-.2:		xor	eax,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-; --- Another useful routines ---
-
-		; MemSet - fill memory with a constant byte.
-		; Input: EBX=block address,
-		;	 ECX=block size,
-		;	 AL=value.
-		; Output: none.
-proc MemSet
-		mpush	eax,ecx,edi
-		mov	edi,ebx
-		mov	ah,al
-		cld
-		shr	ecx,byte 1
-		rep	stosw
-		adc	ecx,ecx
-		rep	stosb
-		mpop	edi,ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; BZero - fill memory with a NULL.
-		; Input: EBX=block address,
-		;	 ECX=block size.
-		; Output: none.
-proc BZero
-		mpush	eax,ecx,edi
-		mov	edi,ebx
-		xor	eax,eax
-		cld
-		shr	ecx,1
-		rep	stosw
-		adc	ecx,ecx
-		rep	stosb
-		mpop	edi,ecx,eax
-		ret
-endp		;---------------------------------------------------------------
-
 
 		; K_TableSearch - search in table.
 		; Input: EBX=table address,
@@ -358,11 +32,11 @@ proc K_TableSearch
 		movzx	edi,dh
 		xor	edx,edx
 .Loop:		test	[ebx+edi],eax
-		jz	short .Found
+		jz	.Found
 		add	ebx,esi
 		inc	edx
 		cmp	edx,ecx
-		je	short .NotFound
+		je	.NotFound
 		jmp	.Loop
 .Found:		clc
 .Exit:		mpop	edi,esi,edx
@@ -370,3 +44,76 @@ proc K_TableSearch
 .NotFound:	stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------
+
+
+		; Initialize the ID bitmap.
+		; Input: ECX=maximum number of IDs,
+		;	 EBX=address of bitmap descriptor.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+proc K_InitIDbmap
+		push	edi
+		mov	edi,ebx
+		mov	[edi+tIDbmapDesc.MaxIDs],ecx
+		shr	ecx,3				; 8 bits per byte
+		xor	dl,dl
+		call	PG_AllocContBlock
+		jc	.Exit
+		mov	[edi+tIDbmapDesc.BMstart],ebx
+		
+		mov	al,0FFh				; All PIDs are free
+		call	MemSet
+
+.Exit:		pop	edi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; K_AllocateID - allocate a new ID from bitmap.
+		; Input: EBX=address of bitmap descriptor.
+		; Output: EAX=ID.
+proc K_AllocateID
+		mpush	ecx,esi
+		mov	ecx,[ebx+tIDbmapDesc.MaxIDs]
+		shr	ecx,5				; # of dwords
+		mov	esi,[ebx+tIDbmapDesc.BMstart]
+		sub	esi,byte 4
+		
+.Loop:		add	esi,byte 4
+		bsf	eax,[esi]			; Look for free ID
+		loopz	.Loop
+		jz	.Err
+		btr	[esi],eax
+		sub	esi,[ebx+tIDbmapDesc.BMstart]
+		shl	esi,3
+		add	eax,esi
+		clc
+		
+.Exit:		mpop	esi,ecx
+		ret
+		
+.Err:		mov	ax,ERR_NoFreeID
+		stc
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; K_ReleaseID - release ID.
+		; Input: EBX=address of bitmap descriptor,
+		;	 EAX=ID.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc K_ReleaseID
+		cmp	eax,[ebx+tIDbmapDesc.MaxIDs]
+		jae	.Err
+		push	esi
+		mov	esi,[ebx+tIDbmapDesc.BMstart]
+		bts	[esi],eax
+		pop	esi
+		clc
+		ret
+		
+.Err:		mov	ax,ERR_BadID
+		stc
+		ret
+endp		;--------------------------------------------------------------

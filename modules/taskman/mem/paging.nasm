@@ -46,13 +46,12 @@ proc NewPageDir
 endp		;---------------------------------------------------------------
 
 
-		; Free a page directory and its page tables.
+		; Free a page directory and all user page tables.
 		; Input: EDX=directory address.
 		; Output: none.
-		; XXX - caution! Frees everything, including kernel tables!!
 proc FreePageDir
 		push	ecx
-		xor	ecx,ecx
+		mov	ecx,PG_ITEMSPERTABLE / 2	; Start from user mem
 .ChkPDE:	mov	eax,[edx+ecx*4]			; First we free all
 		test	eax,PG_PRESENT			;  page tables
 		jz	.NextPDE
@@ -96,6 +95,22 @@ proc GetPTEaddr
 endp		;---------------------------------------------------------------
 
 
+		; Initialize all PTEs with default value (PG_DISABLE).
+		; Input: EAX=page table address.
+		; Output: none.
+proc InitPTEs
+		mpush	eax,ecx,edi
+		mov	edi,eax
+		and	edi,~ADDR_OFSMASK
+		mov	ecx,PAGESIZE / 4
+		mov	eax,PG_DISABLE
+		cld
+		rep	stosd
+		mpop	edi,ecx,eax
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; Allocate a page table for given address if it is not
 		; allocated yet.
 		; Input: EBX=address,
@@ -117,14 +132,7 @@ proc AllocPTifNecessary
 		jc	.Exit
 		or	al,cl
 		mov	[edx+edi*4],eax
-
-		; Fill in new page table with PG_DISABLE
-		mov	edi,eax
-		and	edi,~ADDR_OFSMASK
-		mov	ecx,PAGESIZE / 4
-		mov	eax,PG_DISABLE
-		cld
-		rep	stosd
+		call	InitPTEs
 
 .OK:		clc
 .Exit:		mpop	edi,ecx
@@ -169,6 +177,7 @@ proc MapArea
 		mov	dl,1				; Else allocate a new one
 		call	PageAlloc
 		jc	.Exit
+		call	InitPTEs
 .SetPDEattr:	or	al,dh
 		mov	[ebx+edi*4],eax
 		
@@ -177,6 +186,7 @@ proc MapArea
 		mov	edi,eax
 		and	edi,PGENTRY_ADDRMASK
 		movzx	eax,byte [%$attrs]
+		or	eax,PG_MAPPED
 		or	esi,eax
 		mov	eax,[%$pte]
 .PTloop:	mov	[edi+eax*4],esi

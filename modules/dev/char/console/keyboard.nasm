@@ -5,31 +5,25 @@
 
 module cons.kbd
 
-%include "sys.ah"
+%include "rmk.ah"
 %include "errors.ah"
 %include "asciictl.ah"
+%include "tm/sysmsg.ah"
 %include "hw/ports.ah"
 %include "hw/kbc.ah"
 %include "hw/kbdcodes.ah"
 
 
-; --- Exports ---
-
 publicproc KB_Init, KB_ReadKey
 
+externproc SpkClick
+externproc KBC_SendKBCmd, KBC_ReadKBPort, KBC_ClrOutBuf
 
-; --- Imports ---
-
+library $libc
+importproc _ThreadCreate, _ThreadCtl
+importproc _InterruptAttach, _InterruptWait
+importproc _MsgSend
 importproc _usleep
-
-library cons
-extern SpkClick
-
-library cons.kbc
-extern KBC_SendKBCmd, KBC_ReadKBPort, KBC_ClrOutBuf
-
-
-; --- Definitions ---
 
 ; Keyboard commands
 %define	KB_CmdReset		0FFh
@@ -131,17 +125,27 @@ section .bss
 
 ?CurrVirtCon	RESB	1			; Current virtual console
 
-; --- Procedures ---
+?IntThrStack	RESB	1024
 
 section .text
 
-		; KB_Init - reset and initialize keyboard.
+		; Create the interrupt handling thread for keyboard.
+proc KB_Init
+		Ccall	_ThreadCreate, 0, KB_InterruptThread, 0, 0
+		test	eax,eax
+		js	.Err
+		ret
+
+.Err:		stc
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Reset and initialize keyboard.
 		; Input: none.
 		; Output: EAX >= 0 - OK (AX=keyboard internal ID);
 		;	  EAX < 0 - error.
-proc KB_Init
-	clc
-	ret
+proc KB_DetectDev
 		mpush	ecx,edx
 		call	KBC_ClrOutBuf
 
@@ -158,7 +162,7 @@ proc KB_Init
 		mov	edx,20
 .Ping:		Ccall	_usleep, dword 1000*1000h	; Wait for echo ping
 		test	byte [?AnswFlags],KB_FlagEcho
-		jnz	short .EchoOK
+		jnz	.EchoOK
 		dec	edx
 		jnz	.Ping
 		jmp	.Err
@@ -176,7 +180,7 @@ proc KB_Init
 
 		mov	edx,100				; Wait for ID
 .WaitID:	test	byte [?AnswFlags],KB_FlagACK
-		jnz	short .ReadID
+		jnz	.ReadID
 		Ccall	_usleep, dword 100*100
 		dec	edx
 		jnz	.WaitID
@@ -197,52 +201,6 @@ proc KB_Init
 .Err:		xor	eax,eax
 		dec	eax
 		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; KB_IRQhandler - keyboard IRQ handler.
-		; Input: none.
-		; Output: CF=0 - OK,
-		;	  CF=1 - error, AX=error code.
-proc KB_HandleEv
-		push	eax
-		call	KBC_ReadKBPort
-		mov	byte [?LastKCode],al
-
-		cmp	al,KB_AnsBufErr
-		je	short .BErr
-		cmp	al,KB_AnsDiagFail
-		je	short .DFail
-		cmp	al,KB_AnsResend
-		je	short .Rsnd
-		cmp	al,KB_AnsEcho
-		je	short .Echo
-		cmp	al,KB_AnsACK
-		je	short .ACK
-
-		call	KB_AnalyseKCode
-		test	byte [?MiscFlags],KB_flNoAnalyse
-		jnz	short .InBuf
-		or	ax,ax
-		jz	short .Done
-		
-		; Put a key in the buffer
-.InBuf:		call	KB_PutInBuf
-		jmp	short .Done
-
-.BErr:		or	byte [?AnswFlags],KB_FlagBufErr
-		jmp	short .Done
-.DFail:		or	byte [?AnswFlags],KB_FlagDiagFail
-		jmp	short .Done
-.Rsnd:		or	byte [?AnswFlags],KB_FlagResend
-		jmp	short .Done
-.Echo:		or	byte [?AnswFlags],KB_FlagEcho
-		jmp	short .Done
-.ACK:		or	byte [?AnswFlags],KB_FlagACK
-
-.Done:		pop	eax
-		clc
-		ret
 endp		;---------------------------------------------------------------
 
 
@@ -461,7 +419,6 @@ proc KB_AnalyseKCode
 		jb	.SetVirtCon
 		xor	ah,ah
 .SetVirtCon:	mov	[?CurrVirtCon],ah
-	mov [0xb8000+100],ah
 		jmp	.Exit
 		
 .DecVirtCon:	dec	ah
@@ -612,9 +569,79 @@ proc KB_SetIndicators
 endp		;---------------------------------------------------------------
 
 
-		; KB_NotifyReboot
+		; KB_InterruptThread - thread for handling interrupts.
+		; Input: none.
+		; Output: CF=0 - OK,
+		;	  CF=1 - error, AX=error code.
+proc KB_InterruptThread
+		locauto	ev, tSigEvent_size
+		prologue
+
+		; Get I/O privilege
+		Ccall	_ThreadCtl, TCTL_IO, 0
+		test	eax,eax
+		stc
+		jns	.Attach
+		ret
+
+		; Attach an interrupt event
+.Attach		lea	eax,[%$ev]
+		Ccall	_InterruptAttach, 1, 0, eax, tSigEvent_size, 0
+		test	eax,eax
+		stc
+		jns	.WaitLoop
+
+		; Infinite loop: wait for an interrupt and handle it
+.WaitLoop:	Ccall	_InterruptWait, 0, 0
+		call	KBC_ReadKBPort
+		mov	byte [?LastKCode],al
+		cmp	al,KB_AnsBufErr
+		je	.BErr
+		cmp	al,KB_AnsDiagFail
+		je	.DFail
+		cmp	al,KB_AnsResend
+		je	.Rsnd
+		cmp	al,KB_AnsEcho
+		je	.Echo
+		cmp	al,KB_AnsACK
+		je	.ACK
+
+		call	KB_AnalyseKCode
+		test	byte [?MiscFlags],KB_flNoAnalyse
+		jnz	.InBuf
+		or	ax,ax
+		jz	.WaitLoop
+		
+		; Put a key in the buffer
+.InBuf:		call	KB_PutInBuf
+		jmp	.WaitLoop
+
+.BErr:		or	byte [?AnswFlags],KB_FlagBufErr
+		jmp	.WaitLoop
+.DFail:		or	byte [?AnswFlags],KB_FlagDiagFail
+		jmp	.WaitLoop
+.Rsnd:		or	byte [?AnswFlags],KB_FlagResend
+		jmp	.WaitLoop
+.Echo:		or	byte [?AnswFlags],KB_FlagEcho
+		jmp	.WaitLoop
+.ACK:		or	byte [?AnswFlags],KB_FlagACK
+		jmp	.WaitLoop
+		epilogue
+endp		;---------------------------------------------------------------
+
+
+		; KB_NotifyReboot - send a SYS_CMD_REBOOT to task manager.
 		; Input: none.
 		; Output: none.
 proc KB_NotifyReboot
+		locauto msgbuf, tMsg_SysCmd_size
+		prologue
+
+		lea	edi,[%$msgbuf]
+		mov	word [edi+tMsg_SysCmd.Type],SYS_CMD
+		mov	word [edi+tMsg_SysCmd.Cmd],SYS_CMD_REBOOT
+		Ccall	_MsgSend, SYSMGR_COID, edi, tMsg_SysCmd_size, edi, 0
+
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

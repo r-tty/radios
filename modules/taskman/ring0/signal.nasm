@@ -15,11 +15,11 @@ section .data
 SignalSyscallTable:
 
 mSyscallTabEnt SignalKill, 6
-mSyscallTabEnt SignalReturn, 1	
-mSyscallTabEnt SignalFault, 3	
-mSyscallTabEnt SignalAction, 5	
-mSyscallTabEnt SignalProcmask, 5	
-mSyscallTabEnt SignalSuspend, 1	
+mSyscallTabEnt SignalReturn, 1
+mSyscallTabEnt SignalFault, 3
+mSyscallTabEnt SignalAction, 5
+mSyscallTabEnt SignalProcmask, 5
+mSyscallTabEnt SignalSuspend, 1
 mSyscallTabEnt SignalWaitinfo, 2
 mSyscallTabEnt 0
 

@@ -6,44 +6,17 @@
 
 %include "timeout.ah"
 
-; --- Exports ---
+%define	CNT_SHIFT	1		; CPU usage aging factor
 
 publicproc K_SwitchTask, MT_Schedule
 publicproc MT_SuspendCurr, MT_SuspendCurr1ms
 publicdata ?CurrThread, ?TicksCounter
 
+externproc K_SetJmp, K_LongJmp
+externproc K_SemP, K_SemV
+externproc K_LDelayMs
+externdata KernTSS
 
-; --- Constants ---
-
-%define	CNT_SHIFT	1		; CPU usage aging factor
-
-
-; --- Imports ---
-
-library kernel
-extern KernTSS
-%ifdef KPOPUPS
- extern K_PopUp
-%endif
-
-library kernel.setjmp
-extern K_SetJmp, K_LongJmp
-
-library kernel.sync
-extern K_SemP, K_SemV
-
-library kernel.misc
-extern K_LDelayMs
-
-; --- Data ---
-
-section .data
-
-TxtSwToCurr	DB	":SCHEDULER:MT_ContextSwitch: switching to current thread",0
-TxtNoMoreTmQ	DB	":SCHEDULER:MT_SetTimeout: no more space in the queue",0
-
-
-; --- Variables ---
 
 section .bss
 
@@ -81,7 +54,6 @@ section .bss
 ?TimeoutTrailer	RESB	tTimeout_size
 ?TimeoutPool	RESB	tTimeout_size*MAX_TIMEOUTS
 
-; --- Code ---
 
 section .text
 
@@ -92,10 +64,7 @@ section .text
 		; Output: none.
 proc MT_ContextSwitch
 		cmp	ebx,[?CurrThread]
-		jne	short .SetKstack
-	%ifdef KPOPUPS
-		mKPopUp TxtSwToCurr
-	%endif
+		jne	.SetKstack
 		ret
 		
 		; Set new kernel stack
@@ -103,20 +72,27 @@ proc MT_ContextSwitch
 		mov	[KernTSS+tTSS.ESP0],eax
 
 		; If new thread belongs to another process - switch
-		; to its page directory.
+		; to its page directory and reload LDTR.
 		; There may be kernel threads with PCB == 0. We don't
-		; switch PD for them
+		; switch PD and don't touch LDTR for them.
 		mov	eax,[?CurrThread]
 		mov	esi,[ebx+tTCB.PCB]
 		cmp	esi,[eax+tTCB.PCB]
-		je	.Warp
+		je	.UpdateFS
 		or	esi,esi
-		je	.Warp
+		je	.NewContext
 		mov	eax,[esi+tProcDesc.PageDir]
 		mov	cr3,eax
+		lldt	[esi+tProcDesc.LDTdesc]
+
+		; Always keep FS pointing at thread info page
+.UpdateFS:	mov	eax,[ebx+tTCB.TID]
+		shl	eax,3
+		or	ax,SELECTOR_LDT | SELECTOR_RPL3
+		mov	fs,ax
 
 		; Warp out to a new context
-.Warp:		mov	[?CurrThread],ebx
+.NewContext:	mov	[?CurrThread],ebx
 		inc	dword [ebx+tTCB.Preempt]
 		lea	edi,[ebx+tTCB.Context]
 		xor	eax,eax
@@ -145,7 +121,7 @@ proc MT_SchedAging
 
 .Walk:		mov	ebx,[ebx+tTCB.Next]
 		cmp	ebx,[?ReadyThrList]
-		je	short .Done
+		je	.Done
 		shr	dword [ebx+tTCB.Count],CNT_SHIFT
 
 		; Calculate new priority if thread priority class is NORMAL
@@ -155,10 +131,10 @@ proc MT_SchedAging
 		mov	ecx,[ebx+tTCB.Count]
 		shr	ecx,1
 		sub	eax,ecx
-		jge	short .SetPrio
+		jge	.SetPrio
 		xor	eax,eax
 .SetPrio:	mov	[ebx+tTCB.CurrPriority],eax
-		jmp	short .Walk
+		jmp	.Walk
 
 		; Periodically, we should check for starving threads.
 		; tTCB.Stamp gets updated with current ?SchTicksCnt every
@@ -189,7 +165,7 @@ proc MT_Schedule
 		mov	ecx,[ebx+tTCB.Count]
 		shr	ecx,1
 		sub	eax,ecx
-		jge	short .SetPrio
+		jge	.SetPrio
 		xor	eax,eax
 .SetPrio:	mov	[ebx+tTCB.CurrPriority],eax
 
@@ -232,7 +208,7 @@ proc MT_Schedule
 		lea	edi,[ebx+tTCB.Context]
 		call	K_SetJmp
 		or	eax,eax
-		jnz	short .Done
+		jnz	.Done
 
 		; Switch to next
 		mov	ebx,edx
@@ -291,9 +267,9 @@ proc K_SwitchTask
 		
 		; Bail out if reentered
 		cmp	dword [?SchedInClock],0
-		je	short .CntTicks
+		je	.CntTicks
 		inc	dword [?NestedClocks]
-		jmp	short .Exit
+		jmp	.Exit
 
 		; Count the ticks
 .CntTicks:	inc	dword [?TicksCounter]
@@ -305,13 +281,13 @@ proc K_SwitchTask
 		; Increase CPU usage and decrease quantum
 		mov	ebx,[?CurrThread]
 		cmp	ebx,[?ReadyThrList]
-		je	short .DecQuantum
+		je	.DecQuantum
 		inc	dword [ebx+tTCB.Count]
 .DecQuantum:	dec	dword [ebx+tTCB.Quant]
 
 		; Need to age CPU usage?
 		cmp	dword [?SchedTimer],100
-		jb	short .ChkTimeout
+		jb	.ChkTimeout
 		call	MT_SchedAging
 		mov	dword [?SchedTimer],0
 
@@ -345,7 +321,7 @@ proc MT_InitTimeout
 		mov	byte [ebx+tTimeout.State],TM_ST_ALLOC
 
 		; Enqueue trailer
-		mEnqueue dword [?TimeoutQue], Next, Prev, ebx, tTimeout
+		mEnqueue dword [?TimeoutQue], Next, Prev, ebx, tTimeout, ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -406,15 +382,11 @@ proc MT_SetTimeout
 		; Now actually wait for the timeout to elapse
 		; we have previously initialized the semaphore
 		; to non-singnaled state, so we block here
-		lea	ebx,[ebx+tTimeout.Sem]
+		lea	eax,[ebx+tTimeout.Sem]
 		call	K_SemP
 		ret
 
-.NoSpace:	
-	%ifdef KPOPUPS
-		mKPopUp TxtNoMoreTmQ
-	%endif
-		popfd
+.NoSpace:	popfd
 		ret
 endp		;---------------------------------------------------------------
 
@@ -432,9 +404,9 @@ proc MT_CheckTimeout
 .ChkLoop:	mov	eax,[?TicksCounter]
 		cmp	eax,[edx+tTimeout.Ticks]
 		jb	.Done
-		lea	ebx,[edx+tTimeout.Sem]
+		lea	eax,[edx+tTimeout.Sem]
 		call	K_SemV
-		mDequeue dword [?TimeoutQue], Next, Prev, edx, tTimeout
+		mDequeue dword [?TimeoutQue], Next, Prev, edx, tTimeout, ebx
 		mov	edx,[edx+tTimeout.Next]
 		jmp	.ChkLoop
 		

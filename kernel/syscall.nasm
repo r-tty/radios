@@ -36,7 +36,7 @@ externproc sys_%1
 ; --- Public ---
 
 publicproc K_Sysenter, K_SysInt, K_ServEntry
-exportproc K_InstallSyscallHandler
+exportproc K_InstallSyscallHandler, K_CurrentSyscallHandler
 
 ; --- Extern ---
 
@@ -86,11 +86,11 @@ mSyscallTabEntry ChannelCreate, 1		; 23
 mSyscallTabEntry ChannelDestroy, 1		; 24
 mSyscallTabEntry 0				; 25 (reserved)
 mSyscallTabEntry 0				; 26 (reserved)
-mSyscallTabEntry ConnectAttach, 5		; 27
+mSyscallTabEntry 0				; 27 ConnectAttach
 mSyscallTabEntry ConnectDetach, 1		; 28
-mSyscallTabEntry ConnectServerInfo, 3		; 29
+mSyscallTabEntry 0				; 29 ConnectServerInfo
 mSyscallTabEntry ConnectClientInfo, 3		; 2A
-mSyscallTabEntry ConnectFlags, 4		; 2B
+mSyscallTabEntry 0				; 2B ConnectFlags
 mSyscallTabEntry 0				; 2C (reserved)
 mSyscallTabEntry 0				; 2D (reserved)
 mSyscallTabEntry 0				; 2E ThreadCreate
@@ -205,11 +205,11 @@ proc K_SysInt
 
 .DoSyscall:	call	ebx					; Do syscall
 
-.Done:		mov	[edx+tStackFrame.EAX],eax
+.Done:		mov	[%$frame+tStackFrame.EAX],eax
 		epilogue
 		ret
 
-.Err:		mov	dword [edx+tStackFrame.EAX],-ENOSYS
+.Err:		mov	eax,-ENOSYS
 		jmp	.Done
 endp		;---------------------------------------------------------------
 

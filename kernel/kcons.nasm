@@ -1,19 +1,17 @@
 ;-------------------------------------------------------------------------------
-; cons.nasm - basic console routines.
+; kcons.nasm - elementary console routines (actually BTL service wrappers).
 ;-------------------------------------------------------------------------------
+
+module kernel.cons
 
 %include "serventry.ah"
 %include "asciictl.ah"
 
-; --- Exports ---
+exportproc PrintChar, PrintCharRaw, PrintString
+exportproc PrintByteDec, PrintWordDec, PrintDwordDec
+exportproc PrintByteHex, PrintWordHex, PrintDwordHex
+exportproc ReadChar, ReadString
 
-publicproc PrintChar, PrintCharRaw, PrintString
-publicproc PrintByteDec, PrintWordDec, PrintDwordDec
-publicproc PrintByteHex, PrintWordHex, PrintDwordHex
-publicproc ReadChar, ReadString
-
-
-; --- Code ---
 
 section .text
 
@@ -112,61 +110,11 @@ proc ReadChar
 endp		;---------------------------------------------------------------
 
 
-		; ReadString - read string from kernel console in buffer.
+		; ReadString - read string from kernel console in the buffer.
 		; Input: ESI=buffer address,
 		;	 CL=maximum string length.
-		; Output: CL=number of read characters.
-		; Note: destroys CH and high word of ECX.
+		; Output: none.
 proc ReadString
-		prologue
-		movzx	ecx,cl			; Allocate memory
-		sub	esp,ecx			; for local buffer
-
-		mpush	eax,esi,edi
-
-		mov	edi,ebp
-		sub	edi,ecx
-		push	edi			; EDI=local buffer address
-		push	ecx
-		cld
-		rep	movsb
-		pop	ecx
-		pop	edi
-		mov	esi,edi			; ESI=EDI=local buffer address
-
-.ReadKey:	call	ReadChar
-		or	al,al
-		jz	.FuncKey
-		cmp	al,ASC_BS
-		je	.BS
-		cmp	al,ASC_CR
-		je	.Done
-		cmp	al,' '			; Another ASCII CTRL?
-		jb	.ReadKey		; Yes, ignore it.
-		cmp	edi,ebp			; Buffer full?
-		je	.ReadKey		; Yes, ignore it.
-		mov	[edi],al		; Store read character
-		inc	edi
-		call	PrintChar
-		jmp	.ReadKey
-
-.FuncKey:	jmp	.ReadKey
-
-.BS:		cmp	edi,esi
-		je	.ReadKey
-		dec	edi
-		call	PrintChar
-		jmp	.ReadKey
-
-.Done:		mov	ecx,edi
-		sub	ecx,esi
-		mov	edi,[esp+4]		; EDI=target buffer address
-		push	ecx			; ECX=number of read characters
-		cld
-		rep	movsb
-		pop	ecx
-
-		mpop	edi,esi,eax
-		epilogue
+		mServReadString
 		ret
 endp		;---------------------------------------------------------------

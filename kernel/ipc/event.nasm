@@ -11,11 +11,19 @@ publicproc sys_MsgDeliverEvent, sys_MsgVerifyEvent
 
 section .text
 
+		; int MsgDeliverEvent(int rcvid, const struct sigevent* event);
 proc sys_MsgDeliverEvent
+		arg	rcvid, event
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
+		; int MsgDeliverEvent(int rcvid, const struct sigevent *event);
 proc sys_MsgVerifyEvent
+		arg	rcvid, event
+		prologue
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

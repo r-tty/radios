@@ -1,6 +1,9 @@
-;
-; pic.ah - Programmable Interrupt Controller (8259) definitions
-;
+;-------------------------------------------------------------------------------
+; pic.ah - Programmable Interrupt Controller (8259) definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _pic_ah
+%define _pic_ah
 
 ; Initialization command words for PIC #1
 %define	PIC1_ICW1	11h
@@ -36,3 +39,5 @@
 	out	PORT_PIC1_0,al
 %endif
 %endmacro
+
+%endif

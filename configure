@@ -38,5 +38,14 @@ awk '
 			{ print $0 }
 ' Build/header.mk.in > Build/header.mk
 
+# Make sure that installation directory layout is OK
+mkdir -p $INSTALLPATH/bin
+mkdir -p $INSTALLPATH/boot/grub
+mkdir -p $INSTALLPATH/lib
+mkdir -p $INSTALLPATH/sys
+mkdir -p $INSTALLPATH/usr/bin
+mkdir -p $INSTALLPATH/usr/lib
+mkdir -p $INSTALLPATH/var
+
 echo
 echo "Configuration file has been generated. Now run 'gmake dep', then 'gmake'."

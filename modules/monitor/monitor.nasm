@@ -18,13 +18,11 @@ importproc K_GetExceptionVec, K_SetExceptionVec
 importproc K_GetDescriptorBase, K_GetDescriptorAR
 importproc K_DescriptorAddress, K_GetDescriptorLimit
 importproc StrComp
-importproc SysReboot
-
-library monitor.console
-externproc PrintChar, PrintCharRaw, PrintString
-externproc PrintByteDec, PrintWordDec, PrintDwordDec
-externproc PrintByteHex, PrintWordHex, PrintDwordHex
-externproc ReadChar, ReadString
+importproc ExitKernel
+importproc PrintChar, PrintCharRaw, PrintString
+importproc PrintByteDec, PrintWordDec, PrintDwordDec
+importproc PrintByteHex, PrintWordHex, PrintDwordHex
+importproc ReadChar, ReadString
 
 
 ; --- Definitions ---
@@ -61,7 +59,7 @@ TxtHelp		DB NL,"Monitor commands:",NL
 		DB " e addr",9,9,"  - examine address",NL
 		DB " g [addr][,addr1] - run from addr to addr1 (sets special breakpoint 0)",NL
 		DB " p",9,9,"  - proceed, only runs calls though",NL
-		DB " q",9,9,"  - quit",NL
+		DB " q",9,9,"  - exit from kernel",NL
 		DB " r [reg]",9,"  - view/modify registers",NL
 		DB " t",9,9,"  - single step",NL
 		DB " u [addr]",9,"  - disassemble",NL,0
@@ -136,10 +134,10 @@ proc InputHandler
 		mov	esi,InputBuffer
 		mov	cl,InputBufSize-1
 		call	ReadString			; Read command line
-		or	cl,cl
+		call	StrLen
+		or	ecx,ecx
 		jz	.WaitCmd
-		movzx	ecx,cl				; Put CR at end of line
-		mov	byte [esi+ecx],ASC_CR
+		mov	byte [esi+ecx],ASC_CR		; Put CR at end of line
 		call	WadeSpace
 		inc	esi
 
@@ -171,8 +169,8 @@ proc InputHandler
 		call	DisplayErr			; Display error pos.
 		jmp     .WaitCmd
 
-.Reset:		mov	eax,[rEAX]			; Load exit code
-		jmp	SysReboot
+.Reset:		xor	eax,eax
+		jmp	ExitKernel
 endp		;---------------------------------------------------------------
 
 
@@ -207,15 +205,13 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error.
 proc VerifySelector
 		push	eax
-		cmp	ax,GDT_size			; Error if beyond GDT
-		jae	.Err
-		push	ebx
-		push	edx
+		cmp	ax,GDT_limit			; Error if beyond GDT
+		ja	.Err
+		mpush	ebx,edx
 		movzx	edx,ax
 		call	K_DescriptorAddress
 		call	K_GetDescriptorAR		; Get descriptor ARs
-		pop	edx
-		pop	ebx
+		mpop	edx,ebx
 		test	al,ARpresent			; Error if not present
 		jz	.Err
 		test	al,ARsegment			; Error if not

@@ -1,0 +1,46 @@
+;-------------------------------------------------------------------------------
+; spawn.ah - definitions for spawn.
+;-------------------------------------------------------------------------------
+
+%ifndef _spawn_ah
+%define _spawn_ah
+
+%include "siginfo.ah"
+
+struc tSpawnInheritance
+.Flags		RESD	1		
+.Pgroup		RESD	1		; SPAWN_SETGROUP must be set in flags
+.SigMask	RESB	tSigSet_size	; SPAWN_SETSIGMASK must be set in flags
+.SigDefault	RESB	tSigSet_size	; SPAWN_SETSIGDEF must be set in flags
+.SigIgnore	RESB	tSigSet_size	; SPAWN_SETSIGIGN must be set in flags
+.StackMax	RESD	1		; SPAWN_SETSTACKMAX must be set in flags
+.Policy		RESD	1		; SPAWN_EXPLICIT_SCHED must be set in flags
+.ND	   	RESD	1		; SPAWN_SETND must be set in flags
+.Reserved	RESD	1
+.Param		RESB	tSchedParam_size	; SPAWN_EXPLICIT_SCHED must be set in flags
+endstruc
+
+SPAWN_SETGROUP		EQU	1	; set process group
+SPAWN_SETSIGMASK	EQU	2	; set mask to sigmask
+SPAWN_SETSIGDEF		EQU	4	; set members of sigdefault to SIG_DFL
+SPAWN_SETSIGIGN		EQU	8	; set members of sigignore to SIG_IGN
+SPAWN_TCSETPGROUP	EQU	80h	; Start a new terminal group
+SPAWN_SETND		EQU	100h	; spawn to remote node
+SPAWN_SETSID		EQU	200h	; Make new process a session leader
+SPAWN_EXPLICIT_SCHED	EQU	400h	; Set the scheduling policy
+SPAWN_SETSTACKMAX	EQU	1000h	; Set the stack max
+SPAWN_NOZOMBIE		EQU	2000h	; Process will not zombie on death 
+SPAWN_DEBUG		EQU	4000h	; Debug process
+SPAWN_HOLD		EQU	8000h	; Hold a process for Debug
+SPAWN_EXEC		EQU	10000h	; Cause the spawn to act like exec()
+SPAWN_SEARCH_PATH	EQU	20000h	; Search envar PATH for executable
+SPAWN_CHECK_SCRIPT	EQU	40000h	; Allow starting a shell passing file as script
+SPAWN_ALIGN_MASK	EQU	3000000h ; Mask for align fault states below
+SPAWN_ALIGN_DEFAULT	EQU	0	 ; Use system default settings for alignment
+SPAWN_ALIGN_FAULT	EQU	1000000h ; Try to always fault data misalignment references
+SPAWN_ALIGN_NOFAULT	EQU	2000000h ; Don't fault on misalignment, and attempt to fix it (may be slow)
+
+SPAWN_FDCLOSED		EQU	-1
+SPAWN_NEWPGROUP		EQU	0
+
+%endif

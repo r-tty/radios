@@ -21,15 +21,17 @@ publicdata ?BootModsArr, ?KernPCB
 ; --- Imports ---
 
 externproc TM_Main, TM_InitTimerPool, MapArea
-externdata SignalSyscallTable, TimerSyscallTable, ThreadSyscallTable
+externdata SignalSyscallTable, TimerSyscallTable
+externdata ThreadSyscallTable, ConnectSyscallTable
 externdata ?ProcListPtr, ?MaxNumOfProc, ?ProcessPool
 
 library $rmk
 importproc K_InstallSyscallHandler
 importproc K_PoolInit, K_PoolAllocChunk
 importproc PG_Alloc, PG_AllocAreaTables
-importproc BZero
+importproc K_RegisterLDT
 importproc MT_CreateThread
+importproc BZero, MemSet
 importdata ?UpperMemSize
 
 ; --- Data ---
@@ -39,9 +41,10 @@ section .data
 SyscallTables	DD	SignalSyscallTable
 		DD	TimerSyscallTable
 		DD	ThreadSyscallTable
+		DD	ConnectSyscallTable
 		DD	0
 
-TxtInitErr	DB	"Error while initializing kernel part of task manager", 0
+TxtInitErr	DB	"taskman ring0 init error, code=", 0
 
 
 ; --- Variables ---
@@ -63,7 +66,7 @@ section .text
 proc Start
 		locals	bmd
 		prologue
-		
+
 		mpush	ebx,esi
 		mov	[?BootModsArr],esi
 		mov	[%$bmd],ebx
@@ -86,19 +89,16 @@ proc Start
 		call	K_PoolAllocChunk
 		jc	near .Err
 		mov	[?KernPCB],esi
-		; Zap the pool signature, so any reference to pool chunk # 0
-		; will be catched.
 		mov	ebx,esi				
 		call	BZero
 		mov	eax,cr3
 		mov	[esi+tProcDesc.PageDir],eax
 
-		; Get our process descriptor and zero it
+		; Get our process descriptor
 		mov	ebx,?ProcessPool
 		call	K_PoolAllocChunk
 		jc	near .Err
-		lea	ebx,[esi+4]			; Keep pool signature
-		sub	ecx,byte 4
+		mov	ebx,esi
 		call	BZero
 
 		; Allocate a new page directory for our process
@@ -107,6 +107,7 @@ proc Start
 		jc	near .Err
 		and	eax,PGENTRY_ADDRMASK
 		mov	edx,eax
+
 		; Copy the kernel page directory
 		push	esi
 		mov	esi,cr3
@@ -118,23 +119,50 @@ proc Start
 
 		; Fill in some fields of our process descriptors
 		mov	[esi+tProcDesc.PageDir],edx
-		mov	dword [esi+tProcDesc.PID],1
+		inc	ecx
+		mov	[esi+tProcDesc.PID],ecx
 		mov	ebx,[%$bmd]
 		mov	[esi+tProcDesc.Module],ebx
+		mov	ecx,MAXCONNECTIONS
+		mov	[esi+tProcDesc.MaxConn],ecx
+		lea	ebx,[esi+tProcDesc.CoIDbmap]
+		mov	dword [esi+tProcDesc.CoIDbmapAddr],ebx
+		shr	ecx,3
+		xor	eax,eax
+		dec	eax
+		call	MemSet
+
+		; Allocate a page for LDT and activate it
+		mov	dl,1
+		call	PG_Alloc
+		jc	near .Err
+		and	eax,PGENTRY_ADDRMASK
+		mov	[esi+tProcDesc.LDTaddr],eax
+		mov	ebx,eax
+		mov	ecx,PAGESIZE
+		call	BZero
+		xor	eax,eax
+		inc	al
+		call	K_RegisterLDT
+		mov	[esi+tProcDesc.LDTdesc],dx
 
 		; Put our process descriptor into a linked list
-		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
+		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc, edx
 
 		; Create a thread within our process
 		mov	ebx,TM_Main
 		xor	ecx,ecx
 		call	MT_CreateThread
-		jc	.Err
+		jc	near .Err
 
 		; Create page tables for mapping physical memory
+		mov	edx,[esi+tProcDesc.PageDir]
 		mov	ebx,USERAREASTART
-		mov	ecx,UPPERMEMSTART
-		add	ecx,[?UpperMemSize]
+		mov	ecx,[?UpperMemSize]
+		shl	ecx,10
+		add	ecx,UPPERMEMSTART
+		add	ecx,~ADDR_PDEMASK
+		shr	ecx,PAGEDIRSHIFT
 		mov	ah,PG_PRESENT | PG_USERMODE | PG_WRITABLE
 		call	PG_AllocAreaTables
 		jc	near .Err
@@ -174,7 +202,9 @@ proc Start
 		epilogue
 		ret
 
-.Err:		mServPrintStr TxtInitErr
+.Err:		mov	edx,eax
+		mServPrintStr TxtInitErr
+		mServPrint16h dx
 		stc
 		jmp	.Exit
 endp		;---------------------------------------------------------------

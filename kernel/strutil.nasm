@@ -1,6 +1,6 @@
-;
+;-------------------------------------------------------------------------------
 ; strutil.nasm - ASCIIZ string routines.
-;
+;-------------------------------------------------------------------------------
 
 module kernel.strutil
 
@@ -16,10 +16,11 @@ exportproc StrLower, StrUpper
 section .text
 
 		; StrLen - count length of string (without NULL-terminator).
-		; Input: EDI=pointer to string.
+		; Input: ESI=pointer to string.
 		; Output: ECX=length of string.
 proc StrLen
 		mpush	eax,edi
+		mov	edi,esi
 		mov	ecx,-1
 		xor	al,al
 		cld

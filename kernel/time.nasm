@@ -4,18 +4,40 @@
 
 module kernel.time
 
-publicproc K_TTDelay, K_LDelay, K_LDelayMs
-exportproc sys_ClockTime, sys_ClockAdjust, sys_ClockPeriod, sys_ClockId
+%include "sys.ah"
+%include "errors.ah"
+%include "thread.ah"
+%include "perm.ah"
+%include "time.ah"
 
-library kernel.mt
-extern ?TicksCounter
+publicproc K_InitTime, K_TTDelay, K_LDelay, K_LDelayMs
+publicproc sys_ClockTime, sys_ClockAdjust, sys_ClockPeriod, sys_ClockId
+publicdata ?RTticks
 
-library kernel
-extern ?CPUspeed
+externproc PIC_EnableIRQ, CMOS_EnableInt
+externdata ?TicksCounter, ?CPUspeed
 
-; --- Code ---
+
+section .bss
+
+?RTticks	RESQ	1
+
 
 section .text
+
+		; K_InitTime - initialize RTC, enable CMOS interrupts
+		;		and set the system RT clock.
+		; Input: none.
+		; Output: none.
+proc K_InitTime
+		mov	al,2
+		call	PIC_EnableIRQ
+		mov	al,8
+		call	PIC_EnableIRQ
+		call	CMOS_EnableInt
+		ret
+endp		;---------------------------------------------------------------
+
 
 		; K_TTDelay - kernel delay (using timer ticks counter).
 		; Input: ECX=number of quantum of times in delay.
@@ -79,10 +101,65 @@ endp		;---------------------------------------------------------------
 
 		; int ClockTime(clockid_t id, const uint64_t *new, uint64_t *old);
 proc sys_ClockTime
-		arg	id, newlo, newhi, oldlo, oldhi
+		arg	id, newt, oldt
 		prologue
-		epilogue
+
+		; Currently we support only real time clock
+		mov	eax,[%$id]
+		cmp	eax,CLOCK_REALTIME
+		jne	.Inval
+
+		; Is the old time requested?
+		mov	edi,[%$oldt]
+		or	edi,edi
+		jz	.CheckPerm
+
+		; Check if the buffer is OK
+		add	edi,USERAREACHECK
+		jc	.Fault
+		mov	eax,edi
+		add	eax,byte 7
+		jc	.Fault
+
+		; Store the old time
+		mov	eax,[?RTticks]
+		mov	[edi],eax
+		mov	eax,[?RTticks+4]
+		mov	[edi+4],eax
+
+		; Check if user wants to set new time
+		mov	esi,[%$newt]
+		or	esi,esi
+		jz	.Success
+		add	esi,USERAREACHECK
+		jc	.Fault
+		mov	eax,esi
+		add	eax,byte 7
+		jc	.Fault
+
+		; Does he have enough privileges?
+.CheckPerm:	mCurrThread ebx
+		mIsRoot [ebx+tTCB.PCB]
+		jc	.Perm
+
+		; Set time
+		mov	eax,[esi]
+		mov	[?RTticks],eax
+		mov	eax,[esi+4]
+		mov	[?RTticks+4],eax
+
+		; All OK
+.Success:	xor	eax,eax
+
+.Exit:		epilogue
 		ret
+
+.Inval:		mov	eax,-EINVAL
+		jmp	.Exit
+.Perm:		mov	eax,-EPERM
+		jmp	.Exit
+.Fault:		mov	eax,-EPERM
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 

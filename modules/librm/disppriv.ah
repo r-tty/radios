@@ -1,0 +1,18 @@
+;------------------------------------------------------------------------------
+; disppriv.ah - internal structures and definitions of dispatch layer.
+;------------------------------------------------------------------------------
+
+struc tDispatch
+.OtherFunc	RESP	1
+.NpartsMax	RESD	1
+.MsgMaxSize	RESD	1
+.BlockType	RESD	1
+.Timeout	RESB	tTimeSpec_size	
+.Flags		RESD	1
+.ChID		RESD	1
+.ContextSize	RESD	1
+.ResmgrCtrl	RESP	1
+.MessageCtrl	RESP	1
+.SelectCtrl	RESP	1
+.SigwaitCtrl	RESP	1
+endstruc

@@ -1,0 +1,83 @@
+;-------------------------------------------------------------------------------
+; trap.ah - macros for interrupt handling functions.
+;-------------------------------------------------------------------------------
+
+%ifndef _trap_ah
+%define _trap_ah
+
+%include "cpu/stkframe.ah"
+
+; *** Macros for generating entry points for CPU traps and interrupts.
+; *** We push supplied code value for ones without it.
+%macro mTrapEntry 1
+	pushimm %1
+	cld
+	mSaveRegs
+%endmacro
+
+%macro mTrapEntryWithErr 0
+	cld
+	mSaveRegs
+%endmacro
+
+%macro mTrapLeave 0
+	mRestoreRegs
+	add	esp,byte 4
+	iret
+%endmacro
+
+; *** Macros for exception "trampolines"
+; *** Parameters: %1 - exception number, %2 - routine address.
+
+; Without error code
+%macro mExceptionTramp 2
+Exception%1Handler:
+	push	byte 0
+	push	byte %1
+	call	%2
+%endmacro
+
+; With error code
+%macro mExcErrTramp 2
+Exception%1Handler:
+	push	byte %1
+	call	%2
+%endmacro
+
+
+; *** Macros for interrupt service routines (ISRs).
+; *** Parameters: %1=IRQ number, %2=procedure name.
+
+; For first interrupt controller
+%macro mISR 2
+K_ISR%1:
+	mTrapEntry %1
+	mPICACK 0
+	call	%2
+	mTrapLeave
+%endmacro
+
+; For second interrupt controller
+%macro mISR2 2
+K_ISR%1:
+	mTrapEntry %1
+	mPICACK 1
+	call	%2
+	mTrapLeave
+%endmacro
+
+; *** Macro for service traps (used by some syscalls)
+; *** Parameters: %1=trap number, %2=procedure name.
+%macro mServTrapHandler 2
+ServTrap%1Handler:
+	mTrapEntry %1
+	call	%2
+	mTrapLeave
+%endmacro
+
+; *** This macro is used when constructing the table of interrupt handlers
+%macro mDefineOffset 2-3
+		DD	%1%2%3
+%endmacro
+
+%endif

@@ -14,10 +14,12 @@ R0_PoolChunkNumber	EQU	3
 R0_PoolChunkAddr	EQU	4
 R0_PageAlloc		EQU	5
 R0_PageDealloc		EQU	6
-R0_NewPageDir		EQU	7
-R0_MapArea		EQU	8
+R0_CopyFromAct		EQU	7
+R0_CopyToAct		EQU	8
+R0_RegisterLDT		EQU	9
+R0_UnregisterLDT	EQU	10
 
-%define R0_MAX	8
+%define R0_MAX	10
 
 %macro mRing0call 1
 %ifnum %1

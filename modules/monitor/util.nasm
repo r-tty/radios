@@ -114,11 +114,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error.
 proc ValByteDec
 		mpush	ecx,edx,edi
-		mov	edi,esi
 		call	StrLen
 		cmp	ecx,4
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		add	edi,ecx
 		xor	eax,eax
 		xor	edx,edx
@@ -155,11 +154,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error.
 proc ValDwordDec
 		mpush	ebx,ecx,edx,esi,edi
-		mov	edi,esi
 		call	StrLen
 		cmp	ecx,11
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		add	esi,ecx
 		xor	eax,eax
 		xor	ebx,ebx
@@ -195,11 +193,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error.
 proc ValDwordHex
 		mpush	ecx,edx,edi
-		mov	edi,esi
 		call	StrLen
 		cmp	ecx,9
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		add	edi,ecx
 		xor	eax,eax
 		xor	edx,edx

@@ -39,9 +39,10 @@
 %endif
 
 
-; Check the carry flag, if set - negate EAX
+; Check the carry flag, if set - make a negative error code from AX
 %macro mCheckNeg 0
 	jnc	%%1
+	cwde
 	neg	eax
 %%1:
 %endmacro

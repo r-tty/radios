@@ -5,6 +5,7 @@
 %ifndef _thread_ah
 %define _thread_ah
 
+%include "cpu/fpu.ah"
 %include "cpu/setjmp.ah"
 
 ; Thread states
@@ -59,14 +60,6 @@ TF_NOMULTISIG		EQU	8000000h
 TF_FROZEN		EQU	10000000h
 TF_IOPRIV		EQU	80000000h
 
-; Thread control commands
-TCTL_IO			EQU	1
-TCTL_THREADS_HOLD	EQU	2
-TCTL_THREADS_CONT	EQU	3
-TCTL_RUNMASK		EQU	4
-TCTL_ALIGN_FAULT	EQU	5
-TCTL_RUNMASK_GETANDSET	EQU	6
-
 ; Priority classes
 THRPRCL_CRIT		EQU	1		; Real-time tasks (fixed priority)
 THRPRCL_NORMAL		EQU	2		; Normal tasks (float priority)
@@ -82,14 +75,16 @@ THRQUANT_MIN		EQU	2
 
 ; Thread control block
 struc tTCB
-.PoolSignature	RESD	1			; Pool chunk signature
-.Reserved	RESW	1
-.State		RESB	1			; State
-.PrioClass	RESB	1			; Priority class
+.PCB		RESD	1			; Process descriptor address
+.TID		RESD	1			; Thread ID
 .Priority	RESD	1			; Initial priority value
 .CurrPriority	RESD	1			; Current priority value
+.PrioClass	RESB	1			; Priority class
+.State		RESB	1			; State
+.IntPending	RESB	1			; Number of pending interrupts
+.Reserved	RESB	1
 
-.Next		RESD	1			; Thread link
+.Next		RESD	1			; Thread list
 .Prev		RESD	1
 
 .ReadyNext	RESD	1			; Scheduler link
@@ -98,15 +93,22 @@ struc tTCB
 .SemNext	RESD	1			; Semaphore link
 .SemPrev	RESD	1
 
+.RcvNext	RESD	1			; Receive link
+.RcvPrev	RESD	1
+
 .ProcNext	RESD	1			; Process link
 .ProcPrev	RESD	1
 
-.PCB		RESD	1			; Process descriptor address
 .Entry		RESD	1			; Start entry point
 .Stack		RESD	1			; Stack pointer
 .KStack		RESD	1			; Kernel stack pointer
+.TLS		RESD	1			; User address of TLS
+.LastErrno	RESD	1			; Last error number (signed)
 
+.Flags		RESD	1			; TF_* flags
 .SemWait	RESD	1			; Semaphore wait count
+.SigBlockMask	RESQ	1			; Signal blocking mask
+.SigQueue	RESD	1			; Head of signal queue
 
 .Ticks		RESD	1			; Ticks collected
 .Quant		RESD	1			; Quantum count
@@ -115,13 +117,15 @@ struc tTCB
 .Preempt	RESD	1			; Preemptive flag
 .Stamp		RESD	1			; Timestamp
 
+.DebugRegs	RESD	8			; DR0..DR7 values
+.FPUstate	RESB	tFPUstate_size		; FPU state
+
 .Context	RESB	tJmpBuf_size		; Context
 endstruc
 
-%define	TCBSHIFT	7			; log2(tTCB_size)
 
 ; Default kernel stack size
-%define DFLTKSTACKSIZE	8192
+%define DFLTKSTACKSIZE	4096
 
 ; Macro sets AL to nonzero if thread is executed in user mode
 ; Also sets zero flag if in kernel mode.

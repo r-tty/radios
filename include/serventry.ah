@@ -8,7 +8,7 @@
 ; Service trap number
 SERVTRAP		EQU	3Fh
 
-; BTL functions
+; Function numbers
 SERVPROC_PRINTCHARRAW	EQU	0
 SERVPROC_PRINTCHAR	EQU	1
 SERVPROC_PRINTSTR	EQU	2
@@ -18,6 +18,7 @@ SERVPROC_PRINT16H	EQU	5
 SERVPROC_PRINT8H	EQU	6
 SERVPROC_PRINTDEC	EQU	7
 SERVPROC_READKEY	EQU	8
+SERVPROC_READSTRING	EQU	9
 
 %macro mCallServ 1
 	pushimm	%1
@@ -92,6 +93,10 @@ SERVPROC_READKEY	EQU	8
 
 %macro mServReadKey 0
 	mCallServ SERVPROC_READKEY
+%endmacro
+
+%macro mServReadString 0
+	mCallServ SERVPROC_READSTRING
 %endmacro
 
 %endif

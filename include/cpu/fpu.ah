@@ -1,0 +1,43 @@
+;-------------------------------------------------------------------------------
+; fpu.ah - structures used to store FPU and MMX/XMM state.
+;-------------------------------------------------------------------------------
+
+%ifndef _fpu_ah
+%define _fpu_ah
+
+; FPU state - plain i387
+struc tFsave
+.CWD		RESD	1
+.SWD		RESD	1
+.TWD		RESD	1
+.FIP		RESD	1
+.FCS		RESD	1
+.FOO		RESD	1
+.FOS		RESD	1
+.STregs		RESD	20
+.Status		RESD	1
+endstruc
+
+; FPU, MMX and SSE state - P6 and higher
+struc tFXsave
+.CWD		RESW	1
+.SWD		RESW	1
+.TWD		RESW	1
+.FOP		RESW	1
+.FIP		RESD	1
+.FCS		RESD	1
+.FOO		RESD	1
+.FOS		RESD	1
+.MXCSR		RESD	1
+.Reserved	RESD	1
+.STspace	RESD	20	; 8*16 bytes for each FP-reg = 128 bytes
+.XMMspace	RESD	32	; 8*16 bytes for each XMM-reg = 128 bytes
+.Pad		RESD	56
+endstruc
+
+union tFPUstate
+	unimemb tFsave
+	unimemb tFXsave
+endunion
+
+%endif

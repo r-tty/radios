@@ -7,7 +7,6 @@
 
 ; Memory control block structure
 struc tMCB
-.PoolSignature	RESD	1			; Pool chunk signature
 .Signature	RESW	1			; Signature
 .Flags		RESW	1			; Flags
 .Addr		RESD	1			; Region address
@@ -17,7 +16,7 @@ struc tMCB
 .Reserved	RESB	1
 .Next		RESD	1			; List link
 .Prev		RESD	1
-.Pad		RESD	1
+.Pad		RESD	2
 endstruc
 
 ; MCB signatures
@@ -46,5 +45,27 @@ endstruc
 %define PROT_EXEC	400h			; Pages can be executed
 %define PROT_NOCACHE	800h			; Pages are not cached
 %define PROT_MASK	0F00h			; Mask for prot bits
+
+; Sharing types: must choose either SHARED, PRIVATE or ANON
+%define MAP_SHARED      1			; share changes
+%define MAP_PRIVATE     2			; changes are private
+%define MAP_FILE        0
+%define MAP_PRIVATEANON 3			; anonymous private memory
+%define MAP_TYPE	0Fh			; mask for share type
+
+; Flags to mmap (ORed in to MAP_SHARED or MAP_PRIVATE)
+%define MAP_FIXED	10h			; user assigns address
+%define MAP_NOSYNCFILE	40h			; Memory not synced to file
+%define MAP_LAZY	80h			; allow lazy mapping
+%define MAP_STACK	1000h			; memory used for stack
+%define MAP_BELOW       2000h			; allocate below hint
+%define MAP_PHYS        10000h			; map physical memory
+%define MAP_NOX64K      20000h			; don't cross 64k bound
+%define MAP_BELOW16M    40000h			; allocate below 16M
+%define MAP_ANON        80000h			; anonymous memory
+%define MAP_SYSRAM      1000000h		; system RAM
+
+; When mmap fails, it returns this
+%define MAP_FAILED	-1
 
 %endif

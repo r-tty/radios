@@ -62,6 +62,7 @@ section .text
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc TM_InitModules
+		mpush	ebx,ecx
 		mov	[?MaxModules],eax
 		xor	ecx,ecx
 		mov	[?ModListHead],ecx
@@ -81,14 +82,15 @@ proc TM_InitModules
 		pop	esi
 		jc	near .Exit
 		mov	edx,edi
-		mov	cl,tModule_size
+		mov	ecx,tModule_size
 		rep	movsb
-		mEnqueue dword [?ModListHead], Next, Prev, edx, tModule
+		mEnqueue dword [?ModListHead], Next, Prev, edx, tModule, ecx
 		cmp	dword [esi+tModule.Size],0
 		jnz	.Loop
 		clc
 
-.Exit:		ret
+.Exit:		mpop	ecx,ebx
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -104,8 +106,10 @@ proc TM_IterateModList
 		jz	.Exit
 		call	edx
 		jc	.Exit
-.Next:		mov	ebx,[ebx+tModule.Next]
-		jmp	.Loop
+.Next:		mov	eax,ebx
+		mov	ebx,[ebx+tModule.Next]
+		cmp	ebx,eax
+		jne	.Loop
 .Exit:		pop	ebx
 		ret
 endp		;---------------------------------------------------------------
@@ -254,7 +258,7 @@ proc TM_LoadModule
 		mov	[edi+tModule.BinFmt],edx		; Binary format
 		
 		; Put module descriptor into a linked list
-		mEnqueue dword [?ModListHead], Next, Prev, edi, tModule
+		mEnqueue dword [?ModListHead], Next, Prev, edi, tModule, edx
 		clc
 
 .Exit:		mpop	esi,edx,ecx,ebx
@@ -275,7 +279,7 @@ proc TM_UnloadModule
 		mov	edx,[edi+tModule.BinFmt]
 		;callsafe dword [edx+tBinFmtFunctions.FreeSections]
 		;jc	.Exit
-		mDequeue dword [?ModListHead], Next, Prev, edi, tModule
+		mDequeue dword [?ModListHead], Next, Prev, edi, tModule, esi
 		mov	esi,edi
 		call	PoolFreeChunk
 .Exit:		mpop	esi,edx,ebx
@@ -311,8 +315,10 @@ proc TM_GetModIdByName
 		je	.Found
 		cmp	byte [edi-1],0
 		je	.Found
+		mov	eax,ebx
 		mov	ebx,[ebx+tModule.Next]
-		jmp	.Loop
+		cmp	ebx,eax
+		jne	.Loop
 
 .NotFound:	mov	ax,ERR_MOD_NotFound
 		stc
@@ -341,14 +347,14 @@ proc MOD_CheckSignature
 		
 .Loop:		mov	edx,[?BinFmtDrivers+ecx*4]
 		or	edx,edx
-		jz	short .Next
+		jz	.Next
 		
 		callsafe dword [edx+tBinFmtFunctions.CheckSig]
 		or	al,al
 		jge	short .OK
 .Next:		inc	cl
 		cmp	cl,MOD_MAXBINFORMATS
-		je	short .Err
+		je	.Err
 		mov	eax,edi
 		jmp	.Loop
 

@@ -5,20 +5,22 @@
 %ifndef _memmsg_ah
 %define _memmsg_ah
 
-%include "sys.ah"
-%include "rm/sysmsg.ah"
+%include "rmk.ah"
+%include "tm/sysmsg.ah"
 
 MEMMGR_COID	EQU	SYSMGR_COID
 
-MEM_MAP		EQU	 MEMMGR_BASE
-MEM_CTRL	EQU	 MEMMGR_BASE+1
-MEM_INFO	EQU	 MEMMGR_BASE+2
-MEM_OFFSET	EQU	 MEMMGR_BASE+3
-MEM_DEBUG_INFO	EQU	 MEMMGR_BASE+4
-MEM_SWAP	EQU	 MEMMGR_BASE+5
+MEM_MAP		EQU	MEMMGR_BASE
+MEM_CTRL	EQU	MEMMGR_BASE+1
+MEM_INFO	EQU	MEMMGR_BASE+2
+MEM_OFFSET	EQU	MEMMGR_BASE+3
+MEM_DEBUG_INFO	EQU	MEMMGR_BASE+4
+MEM_SWAP	EQU	MEMMGR_BASE+5
+MEM_ALLOCPAGES	EQU	MEMMGR_BASE+2Eh
+MEM_FREEPAGES	EQU	MEMMGR_BASE+2Fh
 
 MEM_CTRL_UNMAP		EQU	0
-MEM_CTRL_PROTEC		EQU	1
+MEM_CTRL_PROTECT	EQU	1
 MEM_CTRL_SYNC		EQU	2
 MEM_CTRL_LOCKALL	EQU	3
 MEM_CTRL_UNLOCKALL	EQU	4
@@ -117,17 +119,17 @@ endunion
 
 ; --- Message of MEM_DEBUG_INFO ---
 struc tMsg_MemDebugInfo
-.type		RESW	1
-.zero   	RESW	1
-.reserved	RESD	1
-.offset 	RESQ	1
-.ino    	RESQ	1
-.vaddr  	RESP	1
-.size   	RESD	1
-.flags  	RESD	1
-.dev    	RESD	1
-.old_vadd	RESP	1
-.path		RESP	1
+.Type		RESW	1
+.Zero   	RESW	1
+.Reserved	RESD	1
+.Offset 	RESQ	1
+.Ino    	RESQ	1
+.Vaddr  	RESP	1
+.Size   	RESD	1
+.Flags  	RESD	1
+.Dev    	RESD	1
+.OldVadd	RESP	1
+.Path		RESP	1
 endstruc
 	
 
@@ -167,5 +169,34 @@ union tMsg_MemSwap
 	unimemb tMemSwapStatRequest
 	unimemb tMemSwapStatReply
 endunion
+
+
+; --- Message of MEM_ALLOCPAGES ---
+
+struc tMemAllocPagesRequest
+.Type		RESW	1
+.Subtype	RESW	1
+.Size		RESD	1
+.Flags		RESD	1
+endstruc
+
+struc tMemAllocPagesReply
+.Zero		RESD	1
+.Addr		RESD	1
+endstruc
+
+union tMsg_MemAllocPages
+	unimemb tMemAllocPagesRequest
+	unimemb tMemAllocPagesReply
+endunion
+
+
+; --- Message of MEM_FREEPAGES ---
+
+struc tMsg_MemFreePages
+.Type		RESW	1
+.Subtype	RESW	1
+.Addr		RESD	1
+endstruc
 
 %endif

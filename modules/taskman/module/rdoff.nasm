@@ -17,7 +17,7 @@ module binfmt.rdoff
 publicdata BinFmtRDOFF
 
 library taskman.mm
-externproc MM_AllocRegion, MM_ReallocBlock
+externproc MM_ReallocBlock
 
 library $libc
 importproc _strcmp, _strlen, _memset
@@ -240,7 +240,7 @@ proc LoadModule
 .AllocReg:	jecxz	.CheckCount
 		mov	esi,[%$pcb]
 		mov	dl,[edi+tModule.Type]		; XXX Kluge
-		call	MM_AllocRegion			; Allocate region
+	;	call	MM_AllocRegion			; XXX FIX!
 		jc	near .Exit
 		cmp	dh,REGTYPE_CODE
 		je	short .CodeAllocOK

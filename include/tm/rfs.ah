@@ -92,7 +92,6 @@ endstruc
 
 ; --- RFS Open Control Block (OCB) ---
 struc tRFSOCB
-.PoolSignature	RESD	1
 .Page		RESD	1
 .CurrPage	RESD	1
 .FSaddr		RESD	1
@@ -100,7 +99,6 @@ struc tRFSOCB
 .Pages		RESD	1
 .PosBytes	RESD	1
 .PosPages	RESD	1
-.Reserved	RESD	1
 endstruc
 
 ; --- Macros ---

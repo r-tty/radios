@@ -5,18 +5,15 @@
 %include "hw/pit.ah"
 %include "hw/kbc.ah"
 
-; --- Public ---
-
 publicproc TMR_InitCounter,TMR_CountCPUspeed
 publicdata ?CPUspeed
 
 
-; --- Variables ---
-
 section .bss
+
 ?CPUspeed	RESD	1
 
-; --- Procedures ---
+
 section .text
 
 		; TMR_InitCounter - initialize counter.

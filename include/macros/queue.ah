@@ -6,31 +6,32 @@
 %define _queue_ah_
 
 ; Enqueue
-; Parameters: head, next, prev, what, type
-%macro mEnqueue 5
-%if %0=5
+; Parameters: head, next, prev, what, type, tmpreg
+%macro mEnqueue 6
+%if %0=6
 %define	@head %1
 %define	@next %5.%2
 %define	@prev %5.%3
 %define	@what %4
+%define @tmp %6
 	cmp	@head,0
 	jne	%%HeadNZ
 	mov	@head,@what
 	mov	[@what+@next],@what
 	mov	[@what+@prev],@what
-	jmp	short %%Done
+	jmp	%%Done
 %%HeadNZ:
-	mpush	eax,esi
-	mov	esi,@what
+	push	eax
+	mov	@tmp,@what
 	mov	eax,@head
 	push	eax
 	mov	eax,[eax+@prev]
-	mov	[esi+@prev],eax
-	mov	eax,[esi+@prev]
-	mov	[eax+@next],esi
+	mov	[@tmp+@prev],eax
+	mov	eax,[@tmp+@prev]
+	mov	[eax+@next],@tmp
 	pop	eax
-	mov	[eax+@prev],esi
-	mpop	esi,eax
+	mov	[eax+@prev],@tmp
+	pop	eax
 %%Done:
 %else
 %error mEnqueue: invalid number of arguments
@@ -39,27 +40,28 @@
 
 
 ; Dequeue
-; Parameters: head, next, prev, what, type
-%macro mDequeue 5
-%if %0=5
+; Parameters: head, next, prev, what, type, tmpreg
+%macro mDequeue 6
+%if %0=6
 %define	@head %1
 %define	@next %5.%2
 %define	@prev %5.%3
 %define	@what %4
+%define @tmp %6
 	cmp	[@what+@next],@what
 	jne	%%NotFirst
 	mov	@head,0
-	jmp	short %%Done
+	jmp	%%Done
 %%NotFirst:
-	mpush	esi,edi
-	mov	esi,[@what+@next]
-	mov	edi,[@what+@prev]
-	mov	[esi+@prev],edi
-	mov	[edi+@next],esi
+	push	eax
+	mov	eax,[@what+@next]
+	mov	@tmp,[@what+@prev]
+	mov	[eax+@prev],@tmp
+	mov	[@tmp+@next],eax
 	cmp	@head,@what
 	jne	%%X
-	mov	@head,esi
-%%X:	mpop	edi,esi
+	mov	@head,eax
+%%X:	pop	eax
 %%Done:
 %else
 %error mDequeue: invalid number of arguments

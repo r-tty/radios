@@ -7,13 +7,11 @@
 module cons.vtx
 
 %include "sys.ah"
+%include "biosdata.ah"
 %include "hw/ports.ah"
 %include "hw/vga.ah"
 %include "tm/memman.ah"
 %include "vtx.ah"
-
-
-; --- Public ---
 
 publicproc VTX_Init
 publicproc VTX_ClrVidPage, VTX_ClrLine
@@ -22,21 +20,17 @@ publicproc VTX_SetActPage, VTX_MoveCurNext, VTX_Scroll
 publicproc VTX_WrCharXY, VTX_WrChar, VTX_WrCharA, VTX_WrCharTTY
 publicdata ?MaxColNum, ?MaxRowNum
 
-
-; --- Imports ---
+library $libc
 importproc _mmap_device_memory
 
-
-; --- Definitions ---
 
 %define	FNT_BytesPerChar	16
 %define	FNT_Entries		256
 
 
-; --- Variables ---
-
 section .bss
 
+?BIOSdata	RESD	1
 ?VidMemVGA	RESD	1
 ?VidMemMDA	RESD	1
 ?VidMemCGA	RESD	1
@@ -51,13 +45,11 @@ section .bss
 ?ScanLines	RESW	1		; Number of scan lines
 ?CursorPos	RESW	1		; Absolute position of cursor
 
-; --- Procedures ---
 
 section .text
 
 		; VTX_Init - initialize text mode of VGA controller.
-		; Input: DL=0 - color mode (3),
-		;	 DL=1 - monochrome mode (7).
+		; Input: none.
 		; Output: CF=0 - OK:
 		;		 EAX=0,
 		;		 DL=number of columns,
@@ -67,18 +59,38 @@ section .text
 		;	sets page 0 active;
 		;	clears video pages 1-7.
 proc VTX_Init
-clc
-ret
-		; Map in video memory areas
-		Ccall	_mmap_device_memory, 0, VIDMEMVGASIZE, \
-			dword PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMVGA
-		Ccall	_mmap_device_memory, 0, VIDMEMMDASIZE, \
-			dword PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMMDA
-		Ccall	_mmap_device_memory, 0, VIDMEMCGASIZE, \
-			dword PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMCGA
+		push	ebx
 
-		or	dl,dl				; Monochrome?
-		jnz	.Mono
+		; Map in BIOS data area
+		mov	ecx,MAP_FAILED
+		Ccall	_mmap_device_memory, 0, BDASIZE, \
+			PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, 0, 0
+		cmp	eax,ecx
+		je	near .MapFail
+		mov	[?BIOSdata],eax
+
+		; Map in video memories
+		Ccall	_mmap_device_memory, 0, VIDMEMVGASIZE, \
+			PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMVGA, 0
+		cmp	eax,ecx
+		je	near .MapFail
+		mov	[?VidMemVGA],eax
+		Ccall	_mmap_device_memory, 0, VIDMEMMDASIZE, \
+			PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMMDA, 0
+		cmp	eax,ecx
+		je	near .MapFail
+		mov	[?VidMemMDA],eax
+		Ccall	_mmap_device_memory, 0, VIDMEMCGASIZE, \
+			PROT_READ|PROT_WRITE|PROT_NOCACHE, 0, VIDMEMCGA, 0
+		cmp	eax,ecx
+		je	near .MapFail
+		mov	[?VidMemCGA],eax
+
+		; Monochrome or color mode?
+		mov	eax,[?BIOSdata]
+		mov	dl,[eax+BDA(VideoMode)]
+		cmp	dl,7				; Monochrome?
+		je	.Mono
 		mov	edi,[?VidMemCGA]
 		mov	ax,PORT_CGA_CAddr
 		jmp	.1
@@ -91,11 +103,8 @@ ret
 		mov	byte [?CharHorSize],8
 		mov	byte [?MaxRowNum],24
 
-		push	ebx
-		pushfd
 		mov	dx,[?CRTCport]
 		mov	al,CRTC(1)
-		cli
 		out	dx,al
 		PORTDELAY
 		inc	dx
@@ -126,7 +135,6 @@ ret
 		PORTDELAY
 		inc	dx
 		in	al,dx
-		popfd					; Restore flags
 		mov	bh,al
 		and	bh,2
 		shr	bh,1
@@ -148,7 +156,7 @@ ret
 		mov	[eax],bl
 		mov	bh,[eax]
 		cmp	bl,bh
-		jne	short .Err
+		jne	.Err
 		mov	byte [eax],0
 
 		push	edx
@@ -157,8 +165,7 @@ ret
 		pop	edx
 
 		mov	bh,1
-.ClearLoop:	mov	ah,7				; Clear pages 1-7
-		stc
+.ClearLoop:	mov	ax,701h				; Clear pages 1-7
 		call	VTX_ClrVidPage
 		inc	bh
 		cmp	bh,VGATXTPAGES
@@ -168,6 +175,9 @@ ret
 
 .Exit:		pop	ebx
 		ret
+
+.MapFail:	stc
+		jmp	.Exit
 
 .Err:		mov	ax,ERR_VTX_DetFail
 		stc
@@ -237,7 +247,7 @@ proc VTX_MoveCursor
 .Hidden:	popfd
 		mpop	edx,ecx,ebx,eax
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 
 .Err1:		mov	ax,ERR_VTX_BadCurPos
 		jmp	.Err
@@ -586,24 +596,24 @@ endp		;---------------------------------------------------------------
 
 		; VTX_ClrVidPage - clear video page.
 		; Input: BH=page number,
-		;	 AH=attribute (if CF=1),
-		;	 CF=0 - don't change attributes,
-		;	 CF=1 - change attributes (AH).
+		;	 AL=attribute change flag:
+		;		AL=0 - don't change attributes,
+		;		AL=1 - change attributes (AH).
+		;	 AH=attribute (if AL=1),
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
 proc VTX_ClrVidPage
-		pushfd
 		cmp	bh,VGATXTPAGES
-		jae	short .Err
-		mpush	eax,ebx,ecx,edi
+		jae	.Err
+		mpush	ebx,ecx,edi,eax
 
 		movzx	edi,bh			; Set EDI to begin of
 		shl	edi,12			; specified video page
 		add	edi,[?VidMemAddr]
 		mov	ecx,MODE3TXTCOLS*MODE3TXTROWS
 		xor	al,al
-		test	byte [esp+16],1		; Keep attributes?
-		jz	short .KeepAttr
+		cmp	byte [esp],1		; Keep attributes?
+		jz	.KeepAttr
 
 		shl	ecx,1			; Number of dwords in page
 		mov	bx,ax
@@ -611,25 +621,23 @@ proc VTX_ClrVidPage
 		mov	ax,bx			; EAX=filled dword
 		cld
 		rep	stosd
-		jmp	short .OK
+		jmp	.OK
 
 .KeepAttr:	lea	ebx,[edi+ecx*2]
 .Loop:		mov	[edi],al
 		inc	edi
 		inc	edi
 		cmp	edi,ebx
-		jae	short .OK
+		jae	.OK
 		jmp	.Loop
 
-.OK:		mpop	edi,ecx,ebx,eax
-		popfd
+.OK:		mpop	eax,edi,ecx,ebx
 		clc
-		jmp	short .Exit
+		ret
 
-.Err:		popfd
-		mov	ax,ERR_VTX_BadVPage
+.Err:		mov	ax,ERR_VTX_BadVPage
 		stc
-.Exit:		ret
+		ret
 endp		;---------------------------------------------------------------
 
 

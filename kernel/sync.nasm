@@ -24,34 +24,33 @@ publicproc sys_SyncMutexRevive
 ; --- Imports ---
 
 library kernel.mt
-extern ?CurrThread
-extern MT_ThreadSleep, MT_ThreadWakeup
-extern MT_Schedule
+externdata ?CurrThread
+externproc MT_ThreadSleep, MT_ThreadWakeup
+externproc MT_Schedule
 
 %include "thread.ah"
 %include "sync.ah"
 
 section .text
 
-		; K_SemP - the "P" operation.
-		; Input: EBX=address of semaphore structure.
+		; K_SemP - the "P" operation (decrement and sleep if negative).
+		; Input: EAX=address of semaphore structure.
 		; Output: none.
 proc K_SemP
 		pushfd
 		cli
 
 		; Check the optimistic case first
-		dec	dword [ebx+tSemaphore.Count]
+		dec	dword [eax+tSemaphore.Count]
 		js	.Sleep
 		popfd
 		ret
 
-		; Enqueue current thread under the semaphore
-		; and put him to bed :)
-.Sleep:		mov	eax,[?CurrThread]
-		mSemEnq ebx,eax
-		push	ebx
-		mov	ebx,eax
+		; Enqueue current thread under the semaphore and suspend it
+.Sleep:		push	ebx
+		mov	ebx,[?CurrThread]
+		mSemEnq eax,ebx
+		mov	al,THRSTATE_SEM
 		call	MT_ThreadSleep
 		inc	dword [ebx+tTCB.SemWait]
 		pop	ebx
@@ -61,24 +60,23 @@ proc K_SemP
 endp		;---------------------------------------------------------------
 
 
-		; K_SemV - the "V" operation.
-		; Input: EBX=address of semaphore structure.
+		; K_SemV - the "V" operation (increase and wake up waiting thread).
+		; Input: EAX=address of semaphore structure.
 		; Output: none.
 proc K_SemV
 		pushfd
 		cli
 
 		; If no threads kept, quickly bail out
-		inc	dword [ebx+tSemaphore.Count]
-		cmp	dword [ebx+tSemaphore.WaitQ],0
+		inc	dword [eax+tSemaphore.Count]
+		cmp	dword [eax+tSemaphore.WaitQ],0
 		je	.Done
 
 		; Dequeue thread from under the semaphore
 		; and let it be woken up next timeslice
-		mov	eax,[ebx+tSemaphore.WaitQ]
-		mSemDeq ebx,eax
 		push	ebx
-		mov	ebx,eax
+		mov	ebx,[eax+tSemaphore.WaitQ]
+		mSemDeq eax,ebx
 		call	MT_ThreadWakeup
 		pop	ebx
 		
@@ -87,7 +85,8 @@ proc K_SemV
 endp		;---------------------------------------------------------------
 
 
-; --- Syncronizaton system calls -----------------------------------------------
+; --- Synchronizaton system calls ----------------------------------------------
+
 
 proc sys_SyncTypeCreate
 		ret

@@ -4,27 +4,21 @@
 ################################################################################
 
 # This must be defined first
-group = binfmt
+group = librm
 
 # Standard header
 include ../../Build/header.mk
 
 # Change variables here
-OBJS = coff.$(O) elf.$(O)
-BINFMTS = binfmt_coff.$(M) binfmt_elf.$(M)
-
-all-make: $(SUBDIRS) $(BINFMTS)
-
-binfmt_coff.$(M): coff.$(O)
-	@echo "Linking $@"
-	@$(LD) $(LDFLAGS) -o $(LIBPATH)/$@ $(<F)
-
-binfmt_elf.$(M): elf.$(O)
-	@echo "Linking $@"
-	@$(LD) $(LDFLAGS) -o $(LIBPATH)/$@ $(<F)
+TARGET_RDM = librm.$(M)
+OBJS = head.$(O) rmhelper.$(O) iomh.$(O)
 
 # This part shouldn't be changed
-include ../../Build/common.mk
+include ../../Build/module.mk
+
+# Individual rules
+install:
+	cp $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/lib
 
 # Individual dependencies
 all-dep: dep

@@ -5,22 +5,31 @@
 
 module $x-ray
 
-%include "sys.ah"
+%include "rmk.ah"
 %include "errors.ah"
 %include "module.ah"
+%include "locstor.ah"
 %include "serventry.ah"
 %include "asciictl.ah"
+%include "tm/sysmsg.ah"
 
 exportdata ModuleInfo
 
 library $libc
-importproc _strncmp
-importproc _MsgSend
+importproc _fgets, _exit
+importproc _strncmp, _strlen
+importproc _MsgSend, _MsgSendPulse
+importproc _ClockTime
+importproc _AllocPages, _FreePages
 
-library monitor.cons
-extern ReadString, PrintWordHex
-
-; --- Data ---
+; Macro for declaring a dispatch table entry
+; Parameters:	%1 - command string,
+;		%2 - handler address.
+%macro mDispTabEnt 2
+%strlen cmdlen %1
+	DB	cmdlen,%1
+	DD	%2
+%endmacro
 
 section .data
 
@@ -36,59 +45,52 @@ ModuleInfo: instance tModInfoTag
 iend
 
 TxtBanner	DB	NL,"x-ray - RadiOS system debugging tool",NL
-		DB	"Copyright (c) 2002 RET & COM Research.",NL,0
+		DB	"Copyright (c) 2003 RET & COM Research.",NL,0
 
 TxtHelp		DB	NL,"Commands:",NL
-		DB     "S		- call monitor (g to go back)",NL
-		DB     "smsg num	- send a message to task manager",NL
-		DB     "stat		- view scheduler statistics",NL
+		DB     "pulse		- send a pulse to task manager",NL
+		DB     "schedstat	- view scheduler statistics",NL
 		DB     "ts		- view thread statistics",NL
-		DB     "allocmem size	- allocate <size> bytes block",NL
+		DB     "tls		- print current TLS information",NL
+		DB     "modstat		- print module information",NL
+		DB     "allocpgs X	- allocate X memory pages",NL
 		DB     "freemem addr	- free memory block",NL
 		DB     "memstat		- print memory allocation info",NL
 		DB     "reboot		- reboot machine",NL,0
 		
 TxtDbgPrompt	DB	NL,"x-ray> ",0
-TxtErr		DB	NL,NL,7,"ERROR ",0
+TxtErr		DB	NL,"Function returned an error ",0
+TxtGotReply	DB	"x-ray got reply: ",0
+TxtOpenPar	DB	" (-",0
+TxtTID		DB	NL,"My TID is ",0
+TxtPID		DB	", and PID is ",0
+TxtBlockAddr	DB	NL,"Block address: ",0
 
-CommandTable	DB	1,"?"
-		DD	XR_Help
-		DB	4,"help"
-		DD	XR_Help
-		DB	1,"S"
-		DD	XR_CallMonitor
-		DB	4,"smsg"
-		DD	XR_SendMsg
-;		DB	8,"allocmem"
-;		DD	MM_DebugAllocMem
-;		DB	7,"freemem"
-;		DD	MM_DebugFreeMem
-;		DB	7,"memstat"
-;		DD	MM_PrintStat
-;		DB	8,"freemcbs"
-;		DD	MM_DebugFreeMCBs
+CommandTable:
+mDispTabEnt "?",	XR_Help
+mDispTabEnt "help",	XR_Help
+mDispTabEnt "*",	XR_Breakpoint
+mDispTabEnt "smsg",	XR_SendMsg
+mDispTabEnt "pulse",	XR_SendPulse
+mDispTabEnt "tls",	XR_PrintTLS
+mDispTabEnt "rt",	XR_Time
+mDispTabEnt "reboot",	XR_Reboot
+mDispTabEnt "allocpgs",	XR_AllocPages
+mDispTabEnt "freepgs",	XR_FreePages
+;mDispTabEnt "memstat",	MM_PrintStat
+;mDispTabEnt "freemcbs",MM_DebugFreeMCBs
+;mDispTabEnt "schedstat", MT_PrintSchedStat
+;mDispTabEnt "ts",	MT_DumpReadyThreads
 
-;		DB	4,"stat"
-;		DD	MT_PrintSchedStat
-;		DB	2,"ts"
-;		DD	MT_DumpReadyThreads
-;		DB	6,"reboot"
-;		DD	XR_Reboot
-		DB	0
-
-
-; --- Variables ---
 
 section .bss
 
-SBuffer		RESB	80
+?InpBuffer	RESB	80
 
-
-; --- Code ---
 
 section .text
 
-		; XR_DispatchCmd - dispatch entered command.
+		; XR_DispatchCmd - run a command.
 		; Input: ESI=address of command line.
 		; Output: none.
 proc XR_DispatchCmd
@@ -98,7 +100,7 @@ proc XR_DispatchCmd
 		
 .Loop:		mov	cl,[edi]			; Command length
 		or	cl,cl
-		jz	short .Done
+		jz	.Done
 		inc	edi
 		Ccall	_strncmp, esi, edi, ecx
 		or	eax,eax
@@ -120,17 +122,22 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: never.
 proc XR_Main
-;jmp $
 		mServPrintStr TxtBanner
+
+		; Read a line from standard input and process command
 .Loop:		mServPrintStr TxtDbgPrompt
-		mov	esi,SBuffer
-		mov	cl,48
-		call	ReadString
-		and	ecx,0FFh
-		mov	byte [esi+ecx],0
+
+		mov	esi,?InpBuffer
+		Ccall	_fgets, esi, 48, 0
+		test	eax,eax
+		jz	.Loop
+		Ccall	_strlen, eax
+		mov	byte [esi+eax],0
+		mov	ecx,eax
 
 		call	XR_DispatchCmd
 		jmp	.Loop
+		
 endp		;---------------------------------------------------------------
 
 
@@ -141,8 +148,8 @@ proc XR_Help
 endp		;---------------------------------------------------------------
 
 
-		; XR_CallMonitor - just int3.
-proc XR_CallMonitor
+		; XR_Breakpoint - just int3.
+proc XR_Breakpoint
 		int3
 		ret
 endp		;---------------------------------------------------------------
@@ -154,11 +161,101 @@ proc XR_SendMsg
 		prologue
 		mpush	ecx,esi
 
-		lea	eax,[%$msgbuf]
-		Ccall	_MsgSend, SYSMGR_COID, eax, 256, eax, 256
+		lea	edi,[%$msgbuf]
+		Ccall	_strlen, esi
+		sub	eax,ecx
+		add	esi,ecx
+		inc	esi
+		Ccall	_MsgSend, SYSMGR_COID, esi, eax, edi, 20
+		test	eax,eax
+		js	.Err
+		mServPrintStr TxtGotReply
+		mServPrintStr edi
 
-		mpop	esi,ecx
+.Exit:		mpop	esi,ecx
 		epilogue
+		ret
+
+.Err:		call	XR_ErrorHandler
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; XR_SendPulse - send a pulse to task manager.
+proc XR_SendPulse
+		mpush	ecx,esi
+
+		Ccall	_MsgSendPulse, SYSMGR_COID, 0, 23, 15300
+		test	eax,eax
+		jz	.Exit
+		call	XR_ErrorHandler
+
+.Exit:		mpop	esi,ecx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Print information from TLS
+proc XR_PrintTLS
+		mpush	esi,ecx
+		tlsptr(ebx)
+		mServPrintStr TxtTID
+		mServPrintDec [ebx+tTLS.TID]
+		mServPrintStr TxtPID
+		mServPrintDec [ebx+tTLS.PID]
+		mServPrintChar NL
+		mpop	ecx,esi
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Print current time.
+proc XR_Time
+		locauto	tbuf, Qword_size
+		prologue
+		lea	edi,[%$tbuf]
+		Ccall	_ClockTime, 0, 0, edi
+		test	eax,eax
+		js	.Exit
+
+		mServPrintChar NL
+		mServPrintDec [edi]
+
+.Exit		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Reboot the system.
+proc XR_Reboot
+		locauto msgbuf, tMsg_SysCmd_size
+		prologue
+
+		lea	edi,[%$msgbuf]
+		mov	word [edi+tMsg_SysCmd.Type],SYS_CMD
+		mov	word [edi+tMsg_SysCmd.Cmd],SYS_CMD_REBOOT
+		Ccall	_MsgSend, SYSMGR_COID, edi, tMsg_SysCmd_size, edi, 0
+
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Allocate memory pages
+proc XR_AllocPages
+		mov	ecx,8192
+		Ccall	_AllocPages, ecx
+		test	eax,eax
+		js	XR_ErrorHandler
+		mServPrintStr TxtBlockAddr
+		mServPrint32h
+		mServPrintChar NL
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Free memory pages
+proc XR_FreePages
 		ret
 endp		;---------------------------------------------------------------
 
@@ -168,7 +265,16 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc XR_ErrorHandler
 		mServPrintStr TxtErr
-		call	PrintWordHex
-		xor	eax,eax
-.Exit:		ret
+		mServPrint32h
+		push	eax
+		mServPrintChar 'h'
+		pop	eax
+		test	eax,eax
+		jns	.Done
+		neg	eax
+		mServPrintStr TxtOpenPar
+		mServPrintDec
+		mServPrintChar ')'
+.Done:		mServPrintChar NL
+		ret
 endp		;---------------------------------------------------------------

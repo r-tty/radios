@@ -344,6 +344,7 @@ void resolve_module(const tBMD *btlp, ulong imptbuf)
 	    iptr += rsize, hdrlen -= rsize;
 	    switch (recp->g.Type) {
 		case RDFREC_DLL:
+		    if (pass) break;
 		    if ((dll = is_module_loaded(recp->l.LibName)) == NULL)
 			panic("%s: DLL `%s' is not loaded", btlp->name, recp->l.LibName);
 		    if (dll->type == MODTYPE_EXECUTABLE)
@@ -355,6 +356,8 @@ void resolve_module(const tBMD *btlp, ulong imptbuf)
 			panic("%s: import from undefined DLL", btlp->name);
 		    memcpy(imptentry, recp, rsize);
 		    imptentry += rsize;
+		    *(tBMD **)imptentry = dll;
+		    imptentry += sizeof(void *);
 		    break;
 		case RDFREC_RELOC: {
 		    ulong sn, segstart, refsegstart, *where;
@@ -393,11 +396,13 @@ void resolve_module(const tBMD *btlp, ulong imptbuf)
     		    while (*imptentry) {
 			tRDFimport *iep = (void *)imptentry;
 			int n = iep->RecLen + 2;
+			imptentry += n;
 			if (recp->r.RefSeg == iep->Seg) {
 			    impsymbol = iep->Lbl;
+			    dll = *(tBMD **)imptentry;
 			    break;
 			}
-			imptentry += n;
+			imptentry += sizeof(void *);
 		    }
 		    if (impsymbol == NULL)
 			panic("%s: dynamic relocation to undefined segment %d", btlp->name, recp->r.RefSeg);

@@ -5,6 +5,7 @@
 module tm.kern.thread
 
 %include "sys.ah"
+%include "errors.ah"
 %include "thread.ah"
 %include "perm.ah"
 %include "tm/kern.ah"
@@ -43,34 +44,54 @@ proc sys_ThreadCreate
 		or	eax,eax
 		jz	.Create
 		mIsRoot esi
-		jc	.Exit
+		jc	.Perm
 		push	ebx
 		mov	ebx,?ProcessPool
 		call	K_PoolChunkAddr
 		pop	ebx
-		jc	.Exit
+		jc	.ChkNeg
 
 		; Fast and lazy.
 .Create:	mov	ebx,[%$func]
 		xor	ecx,ecx
 		call	MT_CreateThread
+		jc	.ChkNeg
 
-.Exit:		mCheckNeg
+		; Return TID
+		mov	eax,[esi+tTCB.TID]
+		jmp	.Exit
+
+.ChkNeg:	mCheckNeg
+.Exit:		epilogue
+		ret
+
+.Perm:		mov	eax,-EPERM
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+proc sys_SchedGet
+		prologue
+		push	edx
+		pop	edx
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
-proc sys_SchedGet
-		ret
-endp		;---------------------------------------------------------------
-
-
 proc sys_SchedSet
+		prologue
+		push	edx
+		pop	edx
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
 proc sys_SchedInfo
+		prologue
+		push	edx
+		pop	edx
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

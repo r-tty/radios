@@ -1,8 +1,8 @@
 ;-------------------------------------------------------------------------------
-;  cmosrtc.nasm - CMOS memory and real-time clock control routines.
+; cmosrtc.nasm - CMOS memory and real-time clock control routines.
 ;-------------------------------------------------------------------------------
 
-; --- Definitions ---
+; RTC registers
 %define	RTCREG_Sec		0
 %define	RTCREG_SecAlarm		1
 %define	RTCREG_Min		2
@@ -45,15 +45,13 @@
 %define	RTC_STB_SummerTime	1
 
 
-; --- Exports ---
-
-global CMOS_ReadLowerMemSize, CMOS_ReadUpperMemSize
-global CMOS_ReadFDDTypes, CMOS_ReadHDDTypes
-global CMOS_EnableInt, CMOS_DisableInt, CMOS_HandleInt
-global CMOS_GetDate, CMOS_GetTime
+publicproc CMOS_ReadLowerMemSize, CMOS_ReadUpperMemSize
+publicproc CMOS_ReadFDDTypes, CMOS_ReadHDDTypes
+publicproc CMOS_EnableInt, CMOS_DisableInt
+publicproc CMOS_GetDate, CMOS_GetTime
 
 
-; --- Procedures ---
+section .text
 
 		; CMOS_Read - read CMOS register.
 		; Input: AL=port number.
@@ -135,13 +133,16 @@ proc CMOS_ReadHDDTypes
 endp		;---------------------------------------------------------------
 		
 
-		; CMOS_EnableInt - enable CMOS interrupt (IRQ8)
+		; CMOS_EnableInt - enable 1024 Hz CMOS interrupt (IRQ8).
+		; Input: none.
+		; Output: none.
 proc CMOS_EnableInt
 		push	eax
 		mov	al,RTCREG_StatusA
 		mov	ah,al
 		call	CMOS_Read
-		or	al,15
+		and	al,0F0h
+		or	al,1
 		xchg	ah,al
 		call	CMOS_Write
 		mov	al,RTCREG_StatusB
@@ -157,17 +158,13 @@ endp		;---------------------------------------------------------------
 
 		; CMOS_DisableInt - disable CMOS interrupt
 proc CMOS_DisableInt
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; CMOS_HandleInt - handle RTC interrupt.
-		; Input: none.
-		; Output: none.
-proc CMOS_HandleInt
 		push	eax
-		mov	al,RTCREG_StatusC
+		mov	al,RTCREG_StatusB
+		mov	ah,al
 		call	CMOS_Read
+		and	al,~RTC_STB_TicksIntEnb
+		xchg	al,ah
+		call	CMOS_Write
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------

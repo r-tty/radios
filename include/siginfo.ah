@@ -14,6 +14,11 @@ SIGEV_UNBLOCK		EQU	5	; notify
 SIGEV_INTR		EQU	6	; notify
 SIGEV_THREAD		EQU	7	; notify, notify_function, notify_attributes
 
+; Signal bit set (64 bits)
+struc tSigSet
+.Bits		RESQ	1
+endstruc
+
 struc tSigEvent
 .SigEvNotify	RESD	1
 .Union1		RESD	1

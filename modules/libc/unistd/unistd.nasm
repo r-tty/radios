@@ -1,9 +1,10 @@
 
 module libc.unistd
 
-%include "rm/memmsg.ah"
+%include "tm/memman.ah"
+%include "tm/memmsg.ah"
 
-exportproc _mmap64
+exportproc _mmap64, _exit
 publicproc libc_init_unistd
 
 extern _MsgSendnc
@@ -17,7 +18,7 @@ endp		;---------------------------------------------------------------
 		; void *mmap64(void *addr, size_t len, int prot, 
 		;		int flags, int fd, off64_t off);
 proc _mmap64
-		arg	addr, len, prot, flags, fd, off
+		arg	addr, len, prot, flags, fd, offl, offh
 		locauto	msg, tMsg_MemMap_size
 		prologue
 		push	ebx
@@ -40,17 +41,24 @@ proc _mmap64
 		mov	[%$msg+tMemMapRequest.Flags],ebx
 		mov	ebx,[%$fd]
 		mov	[%$msg+tMemMapRequest.FD],ebx
-		mov	ebx,[%$off]
+		mov	ebx,[%$offl]
 		mov	[%$msg+tMemMapRequest.Offset],ebx
-		mov	ebx,[%$off+4]
+		mov	ebx,[%$offh]
 		mov	[%$msg+tMemMapRequest.Offset+4],ebx
 
 		lea	ebx,[%$msg]
-		Ccall	_MsgSendnc, dword MEMMGR_COID, ebx, \
-			dword tMemMapRequest_size, ebx, \
-			dword tMemMapReply_size
+		Ccall	_MsgSendnc, MEMMGR_COID, ebx, tMemMapRequest_size, \
+			ebx, tMemMapReply_size
 		test	eax,eax
-		pop	ebx
+		jns	.Exit
+		mov	eax,MAP_FAILED
+
+.Exit		pop	ebx
 		epilogue
 		ret
+endp		;---------------------------------------------------------------
+
+
+proc _exit
+		jmp	$
 endp		;---------------------------------------------------------------

@@ -22,45 +22,49 @@ struc tResMgrContext
 endstruc
 
 struc tResMgrConnectFunctions
-.nfuncs		RESD	1
-.open		RESD	1
-.unlink		RESD	1
-.rename		RESD	1
-.mknod		RESD	1
-.readlink	RESD	1
-.link		RESD	1
-.unblock	RESD	1
-.mount		RESD	1
+.Nfuncs		RESD	1
+.Open		RESD	1
+.Unlink		RESD	1
+.Rename		RESD	1
+.Mknod		RESD	1
+.Readlink	RESD	1
+.Link		RESD	1
+.Unblock	RESD	1
+.Mount		RESD	1
 endstruc
 
+RESMGR_CONNECT_NFUNCS	EQU	(tResMgrConnectFunctions_size-4)/4
+
 struc tResMgrIOfunctions
-.nfuncs		RESD	1
-.read		RESD	1
-.write		RESD	1
-.close_ocb	RESD	1
-.stat		RESD	1
-.notify		RESD	1
-.devctl		RESD	1
-.unblock	RESD	1
-.pathconf	RESD	1
-.lseek		RESD	1
-.chmod		RESD	1
-.chown		RESD	1
-.utime		RESD	1
-.openfd		RESD	1
-.fdinfo		RESD	1
-.lock		RESD	1
-.space		RESD	1
-.shutdown	RESD	1
-.mmap		RESD	1
-.msg		RESD	1
-.reserved	RESD	1
-.dup		RESD	1
-.close_dup	RESD	1
-.lock_ocb	RESD	1
-.unlock_ocb	RESD	1
-.sync		RESD	1
+.Nfuncs		RESD	1
+.Read		RESD	1
+.Write		RESD	1
+.CloseOCB	RESD	1
+.Stat		RESD	1
+.Notify		RESD	1
+.DevCtl		RESD	1
+.Unblock	RESD	1
+.PathConf	RESD	1
+.Lseek		RESD	1
+.Chmod		RESD	1
+.Chown		RESD	1
+.Utime		RESD	1
+.OpenFD		RESD	1
+.Fdinfo		RESD	1
+.Lock		RESD	1
+.Space		RESD	1
+.Shutdown	RESD	1
+.Mmap		RESD	1
+.Msg		RESD	1
+.Reserved	RESD	1
+.Dup		RESD	1
+.CloseDup	RESD	1
+.LockOCB	RESD	1
+.UnlockOCB	RESD	1
+.Sync		RESD	1
 endstruc
+
+RESMGR_IO_NFUNCS	EQU	(tResMgrIOfunctions_size-4)/4
 
 %define RESMGR_NOREPLY	((~0 ^ (~0 >> 1)) | 0)	; Do not reply to sender (could use _RESMGR_AGAIN later)
 %define RESMGR_DEFAULT	((~0 ^ (~0 >> 1)) | 1)	; Default action (usually return ENOSYS)

@@ -25,7 +25,6 @@ endstruc
 %define	IFL_LOCKED	32
 
 struc tInode
-.PoolSignature	RESD	1
 .Flags		RESW	1
 .Stamp		RESW	1
 .Dev		RESD	1

@@ -63,6 +63,8 @@
 %define	ERR_PoolFreeNoHead		0280h
 %define ERR_PoolNotFound		0281h
 %define ERR_PoolBadChunkNum		0282h
+%define ERR_NoFreeID			0290h
+%define ERR_BadID			0291h
 
 ; Paging primitives
 %define	ERR_PG_NoFreePage		02A0h
@@ -82,6 +84,9 @@
 
 ;--- Error codes for different task manager subsystems -------------------------
 
+; Process manager errors
+%define	ERR_PM_NoParent			0320h
+
 ; Path manager errors
 %define ERR_PTM_InvalidRAMdisk		0330h
 %define ERR_PTM_UnableAllocRD		0331h
@@ -99,13 +104,14 @@
 ; Task management errors
 %define	ERR_MT_NoPIDs			0360h
 %define	ERR_MT_BadPID			0361h
-%define ERR_MT_NoFreePD			0362h
-%define	ERR_MT_NoFreeTCB		0363h
+%define	ERR_MT_NoFreeTCB		0362h
+%define	ERR_MT_NoFreeTID		0363h
 %define ERR_MT_CantAllocStack		0364h
-%define ERR_MT_CantAllocKernStk		0365h
-%define	ERR_MT_SwitchToCurrThr		0366h
-%define	ERR_MT_UnableAttachThread	0367h
-%define	ERR_MT_UnableDetachThread	0367h
+%define ERR_MT_BadUserStack		0365h
+%define ERR_MT_CantAllocKernStk		0366h
+%define	ERR_MT_SwitchToCurrThr		0367h
+%define	ERR_MT_UnableAttachThread	0368h
+%define	ERR_MT_UnableDetachThread	0369h
 
 ; Module management errors
 %define	ERR_MOD_TooManyBinFmts		0370h

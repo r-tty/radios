@@ -1,3 +1,7 @@
+;-------------------------------------------------------------------------------
+; operands.ah - definitions for operand decoding module.
+;-------------------------------------------------------------------------------
+
 %define	TAB_ARGPOS	12
 
 %define	REG_EAX 	0
@@ -132,14 +136,14 @@
 %endmacro
 
 struc tOperand
-.FLAGS		RESW	1
-.OVERRIDE 	RESW	1
-.ADDRESS	RESD	1
-.SEG		RESW	1
-.CODE		RESB	1
-.THEREG		RESB	1
-.SCALEREG 	RESB	1
-.SCALE		RESB	1
+.Flags		RESW	1
+.Override 	RESW	1
+.Address	RESD	1
+.Seg		RESW	1
+.Code		RESB	1
+.TheReg		RESB	1
+.ScaleReg 	RESB	1
+.Scale		RESB	1
 endstruc
 
 %define	SZ_QWORD	2

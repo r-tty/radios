@@ -123,4 +123,22 @@ endstruc
 %define	CPU_586		5
 %define CPU_686plus	6
 
+; Exception number
+%define CPU_EXC_DIV0	0
+%define CPU_EXC_SSTEP	1
+%define CPU_EXC_NMI	2
+%define CPU_EXC_BRPT	3
+%define CPU_EXC_INTO	4
+%define CPU_EXC_BOUND	5
+%define CPU_EXC_INVOP	6
+%define CPU_EXC_287	7
+%define CPU_EXC_DBLFLT	8
+%define CPU_EXC_BADTSS	10
+%define CPU_EXC_SEGMIS	11
+%define CPU_EXC_STKFLT	12
+%define CPU_EXC_GPF	13
+%define CPU_EXC_PGFLT	14
+%define CPU_EXC_FPERR	16
+%define CPU_EXC_ALIGN	17
+
 %endif

@@ -11,7 +11,7 @@ subgroup = _mem
 include ../../../Build/header.mk
 
 # Change variables here
-OBJS = paging.$(O) memman.$(O)
+OBJS = paging.$(O) memman.$(O) memmsg.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

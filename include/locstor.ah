@@ -1,0 +1,32 @@
+;-------------------------------------------------------------------------------
+; locstor.ah - definitions of thread and process local storage.
+;-------------------------------------------------------------------------------
+
+%ifndef _locstor_ah
+%define _locstor_ah
+
+; Thread local storage
+struc tTLS
+.ExitFunction	RESP	1
+.Arg		RESP	1
+.ErrPtr		RESP	1
+.ErrVal		RESD	1		; Not used for main() thread
+.Flags		RESD	1
+.PID		RESD	1
+.TID		RESD	1
+.Owner		RESD	1
+.StackAddr	RESP	1
+.Reserved1	RESD	1
+.NumKeys	RESD	1
+.KeyData	RESP	1		; Indexed by pthread_key_t
+.Cleanup	RESP	1
+.Spare		RESD	3
+.HheadPtr	RESD	1		; Pointer to first allocated block
+.HheadSize	RESD	1		; Size of first allocated block
+.HlastPtr	RESD	1		; Ponter to last allocated block
+endstruc
+
+; Macro to get a pointer to TLS
+%define tlsptr(x) mov x,[fs:0]
+
+%endif

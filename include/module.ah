@@ -10,8 +10,7 @@
 
 ; Module descriptor
 struc tModule
-.PoolSignature	RESD	1		; PoolChunkSignature
-.Spare		RESD	1
+.Spare		RESD	2
 .Size		RESD	1		; Total size (aligned)
 .Entry		RESD	1		; Entry point
 .VirtAddr	RESD	1		; Virtual address of module

@@ -11,7 +11,7 @@ include ../../Build/header.mk
 
 # Variables
 TARGET_RDM = monitor.$(M)
-OBJS = monitor.$(O) cons.$(O) opcodes.$(O) operands.$(O)
+OBJS = monitor.$(O) opcodes.$(O) operands.$(O)
 
 # Build module
 include ../../Build/module.mk

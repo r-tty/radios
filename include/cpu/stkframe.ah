@@ -2,6 +2,9 @@
 ; stkframe.ah - stack frame structures.
 ;-------------------------------------------------------------------------------
 
+%ifndef _stkframe_ah
+%define _stkframe_ah
+
 ; Standard stack frame - this is how stack looks upon
 ; entry to kernel from user mode
 struc tStackFrame
@@ -54,3 +57,4 @@ o16	pop	ds
 	pop	eax
 %endmacro
 
+%endif

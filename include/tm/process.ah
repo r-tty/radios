@@ -2,27 +2,33 @@
 ; process.ah - process definitions.
 ;-------------------------------------------------------------------------------
 
+%ifndef _process_ah
+%define _process_ah
+
+%include "parameters.ah"
+%include "pool.ah"
+
 ; Process descriptor structure
 struc tProcDesc
-.PoolSignature	RESD	1			; Pool chunk signaature
 .PID		RESD	1			; PID
 .Parent		RESD	1			; Parent PCB
 .Module		RESD	1			; Module descriptor
 .PageDir	RESD	1			; Page directory address
+.LDTaddr	RESD	1			; LDT address
+.LDTdesc	RESD	1			; LDT descriptor in GDT
 .ThreadList	RESD	1			; Thread list head
 .MCBlist	RESD	1			; MCB list head
-.EventHandler	RESD	1			; Event handler address
+.SigIgnoreMask	RESQ	1			; Signal ignore mask
+.SigQueue	RESD	1			; Head of signal queue
 .Next		RESD	1			; Next PCB in list
 .Prev		RESD	1			; Previous PCB in list
 .Flags		RESD	1			; PF_* flags
-
-.ChanList	RESD	1			; Head of channels list
-.Files		RESD	1			; Head of open files list
-
-.Reserved	RESD	19			; Complement to 128 bytes
+.ChanList	RESD	1			; Head of channel list
+.ConnList	RESD	1			; Head of connection list
+.MaxConn	RESD	1			; Maximum number of connections
+.CoIDbmapAddr	RESD	1			; Address of CoID bitmap
+.CoIDbmap	RESB	MAXCONNECTIONS / 8	; CoID bitmap itself
 endstruc
-
-%define	PROCDESCSHIFT	7			; log2(tProcDesc_size)
 
 ; Process flags
 PF_NOCLDSTOP		EQU	1
@@ -48,3 +54,5 @@ PF_DESTROYALL		EQU	80000h
 PF_NOCOREDUMP		EQU	100000h
 PF_NOCTTY		EQU	200000h
 PF_THREADWATCH		EQU	80000000h
+
+%endif

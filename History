@@ -91,3 +91,7 @@ Dec 30, 2002	Version 0.0.1-mk5: Basic message passing routines. Task
 		for taskman :-) . It handles simple B-Tree based file system
 		in memory only (this method simplifies many things, e.g. no
 		need to organize disk buffers). Untested (yet).
+
+Jan 20, 2003	Version 0.0.1-mk6: Message passing primitives - the core of
+		RadiOS microkernel - work, as well as synchronization system
+		calls.

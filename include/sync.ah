@@ -28,7 +28,7 @@ endstruc
 %endmacro
 
 
-; mSemSetVal - set semaphore value
+; mSemSetVal - set semaphore value to EAX.
 ; Parameter: address of semaphore structure
 %macro mSemSetVal 1
 %if %0>0
@@ -45,7 +45,9 @@ endstruc
 ; mSemEnq - enqueue a thread to semaphore wait queue
 %macro mSemEnq 2
 %if %0=2
-	mEnqueue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB
+	push	ecx
+	mEnqueue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB, ecx
+	pop	ecx
 %else
 %error mSemEnq: invalid number of arguments
 %endif
@@ -55,7 +57,9 @@ endstruc
 ; mSemDeq - dequeue a thread from semaphore wait queue
 %macro mSemDeq 2
 %if %0=2
-	mDequeue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB
+	push	ecx
+	mDequeue dword [%1+tSemaphore.WaitQ], SemNext, SemPrev, %2, tTCB, ecx
+	pop	ecx
 %else
 %error mSemDeq: invalid number of arguments
 %endif

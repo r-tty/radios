@@ -1,3 +1,6 @@
+;-------------------------------------------------------------------------------
+; mbr.ah - definitions of data structures used in legacy master boot record.
+;-------------------------------------------------------------------------------
 
 struc tPartitionEntry
 .BootFlag	RESB	1

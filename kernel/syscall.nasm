@@ -112,10 +112,10 @@ mSyscallTabEntry 0				; 3D (reserved)
 mSyscallTabEntry 0				; 3E (reserved)
 mSyscallTabEntry 0				; 3F (reserved)
 mSyscallTabEntry 0				; 40 (reserved)
-mSyscallTabEntry ClockTime, 3			; 41
-mSyscallTabEntry ClockAdjust, 3			; 42
-mSyscallTabEntry ClockPeriod, 3			; 43
-mSyscallTabEntry ClockId, 2  			; 44
+mSyscallTabEntry 0				; 41 ClockTime
+mSyscallTabEntry 0				; 42 ClockAdjust
+mSyscallTabEntry 0				; 43 ClockPeriod
+mSyscallTabEntry 0	  			; 44 ClockId
 mSyscallTabEntry 0				; 45 (reserved)
 mSyscallTabEntry 0				; 46 TimerCreate
 mSyscallTabEntry 0				; 47 TimerDestroy

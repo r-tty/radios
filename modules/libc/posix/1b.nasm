@@ -1,21 +1,17 @@
+;-------------------------------------------------------------------------------
+; posix/1b.nasm - routines described by "POSIX Realtime Extensions" (1003.1b).
+;-------------------------------------------------------------------------------
 
-module libc.unistd
+module libc.posix1b
 
 %include "tm/memman.ah"
 %include "tm/memmsg.ah"
 
 exportproc _mmap64, _exit
-publicproc libc_init_unistd
 
 extern _MsgSendnc
 
 section .text
-
-		; Initialization
-proc libc_init_unistd
-		ret
-endp		;---------------------------------------------------------------
-
 
 		; void *mmap64(void *addr, size_t len, int prot, 
 		;		int flags, int fd, off64_t off);

@@ -11,7 +11,8 @@ subgroup = _ring0
 include ../../../Build/header.mk
 
 # Change variables here
-OBJS = ring0init.$(O) connection.$(O) thread.$(O) timers.$(O) sigevent.$(O)
+OBJS = ring0init.$(O) connection.$(O) thread.$(O) clock.$(O) \
+       timers.$(O) sigevent.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

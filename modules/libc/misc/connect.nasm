@@ -9,7 +9,7 @@ module libc.connect
 %include "rm/iomsg.ah"
 %include "connect.ah"
 
-publicproc ConnectControl
+publicproc ConnectControl, vopen
 
 externproc _memset
 externproc _MsgSendv, _MsgSendvnc
@@ -21,7 +21,27 @@ section .text
 		;		const struct _io_connect_entry *entry);
 proc ConnectIO
 		arg	ctrl, fd, prefix, prefixlen, path, buffer, entry
+		locauto	siov, 5*tIOV_size
+		locauto	riov, 2*tIOV_size
+		locals	retval, tryagain
 		prologue
+
+		mov	edi,[%$ctrl]
+		mov	ebx,[edi+tConnectCtrl.Msg]
+		lea	edx,[edi+tConnectCtrl.Link]
+
+		; If our entries don't match, then try and resolve it to a link
+		; to find a match by sending an COMBINE_CLOSE message to the
+		; handler to see if it will resolve into a bigger link.
+		; If we do find a match (later on as we recursed through the
+		; entries in the process) then actually sent the message that
+		; we originally were supposed to send. See rename() to see
+		; how this is used.
+		; This functionality is also used to resolve links "magically"
+		; by switching the message type to be an open if the intial
+		; request fails. This means that we don't have to fill proc
+		; with all the resolution.
+
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -139,4 +159,13 @@ proc ConnectControl
 
 .InvPath:	mSetErrno EINVAL, edx
 		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; int vopen(const char *path, int oflag, int sflag, va_list ap);
+proc vopen
+		arg	path, oflag, sflag, ap
+		prologue
+		epilogue
+		ret
 endp		;---------------------------------------------------------------

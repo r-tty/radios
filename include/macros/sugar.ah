@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; sugar.ah - various useful macros.
+; sugar.ah - various useful macros.
 ;-------------------------------------------------------------------------------
 
 ;*** These are needed for mResMax and unions ***
@@ -10,14 +10,14 @@ Qword_size	EQU	8
 
 ; *** Calculate maximum value and reserve it ***
 %macro mResMax 1-*
-%assign %$m %1_size
+%assign %%m %1_size
 %rep %0
-    %if %1_size > %$m
-	%assign %$m %1_size
+    %if %1_size > %%m
+	%assign %%m %1_size
     %endif
     %rotate 1
 %endrep
-    RESB   %$m
+    RESB   %%m
 %endmacro
 
 ; *** Declaring a union ***
@@ -43,7 +43,7 @@ Qword_size	EQU	8
 %macro endunion 0
 %ifnctx union
     %error Unexpected 'endunion'
-%else
+%else
     %ifndef %$unionsize
     	%error Zero union size (no members)
     %endif
@@ -59,7 +59,7 @@ Qword_size	EQU	8
 
 
 
-;*** Start a procedure ***
+;*** Start a procedure ***
 %macro proc 1
 %push proc
 %1:
@@ -75,7 +75,7 @@ Qword_size	EQU	8
 %endmacro
 
 
-;*** mpush/mpop pair ***
+;*** mpush/mpop pair ***
 %macro mpush 1-*
 %rep %0
 		push	%1
@@ -91,7 +91,7 @@ Qword_size	EQU	8
 %endmacro
 
 
-;*** push immediate ***
+;*** push immediate ***
 %macro pushimm 1
 %if %1<128
 		push	byte %1
@@ -101,7 +101,7 @@ Qword_size	EQU	8
 %endmacro
 
 
-;*** C-like prologue and epilogue ***
+;*** C-like prologue ***
 %macro prologue 0-1 
 %push enter
 		push	ebp
@@ -123,21 +123,76 @@ Qword_size	EQU	8
 %endif
 %endmacro
 
+
+;*** C-like epilogue. Takes care about preserved registers too ***
 %macro epilogue 0
+%ifctx reg_stop
+    %pop
+    %rep 8
+
+	%ifctx eax
+		pop	eax
+	%pop
+	%endif
+
+	%ifctx ebx
+		pop	ebx
+	%pop
+	%endif
+
+	%ifctx ecx
+		pop	ecx
+	%pop
+	%endif
+
+	%ifctx edx
+		pop	edx
+	%pop
+	%endif
+
+	%ifctx esi
+		pop	esi
+	%pop
+	%endif
+
+	%ifctx edi
+		pop	eax
+	%pop
+	%endif
+
+	%ifctx reg_start
+	%pop
+	%exitrep
+	%endif
+
+    %endrep
+%endif
+
 %ifnctx enter
 %error Mismatched EPILOGUE
 %else
 %pop
 %endif
-		mov	esp,ebp
-		pop	ebp
+	mov	esp,ebp
+	pop	ebp
 %endmacro
 
+
+; *** For preserving registers (epilogue takes care of restore) ***
+%macro savereg 1-*
+%push reg_start
+%rep %0
+		push	%1
+%push %1
+%rotate 1
+%endrep
+%push reg_stop
+%endmacro
 
 ; *** For declaring many GLOBAL procedures at the same time ***
 %macro publicproc 1-*
 %rep %0
-    [GLOBAL %1 %+ :proc]
+    [GLOBAL %1 %+ :proc]
     %rotate 1
 %endrep
 %endmacro
@@ -145,7 +200,7 @@ Qword_size	EQU	8
 ; *** For declaring many GLOBAL data at the same time ***
 %macro publicdata 1-*
 %rep %0
-    [GLOBAL %1 %+ :data]
+    [GLOBAL %1 %+ :data]
     %rotate 1
 %endrep
 %endmacro
@@ -154,7 +209,7 @@ Qword_size	EQU	8
 ; *** For exporting many GLOBAL procedures at the same time ***
 %macro exportproc 1-*
 %rep %0
-    [GLOBAL %1 %+ :export proc]
+    [GLOBAL %1 %+ :export proc]
     %rotate 1
 %endrep
 %endmacro
@@ -162,7 +217,7 @@ Qword_size	EQU	8
 ; *** For exporting many GLOBAL data at the same time ***
 %macro exportdata 1-*
 %rep %0
-    [GLOBAL %1 %+ :export data]
+    [GLOBAL %1 %+ :export data]
     %rotate 1
 %endrep
 %endmacro
@@ -171,7 +226,7 @@ Qword_size	EQU	8
 ; *** Declare external procedure ***
 %macro externproc 1-*
 %rep %0
-    [EXTERN %1 %+ :proc]
+    [EXTERN %1 %+ :proc]
     %rotate 1
 %endrep
 %endmacro
@@ -179,7 +234,7 @@ Qword_size	EQU	8
 ; *** Declare external data ***
 %macro externdata 1-*
 %rep %0
-    [EXTERN %1 %+ :data]
+    [EXTERN %1 %+ :data]
     %rotate 1
 %endrep
 %endmacro
@@ -187,7 +242,7 @@ Qword_size	EQU	8
 ; *** Import the procedure ***
 %macro importproc 1-*
 %rep %0
-    [EXTERN %1 %+ :import proc]
+    [EXTERN %1 %+ :import proc]
     %rotate 1
 %endrep
 %endmacro
@@ -195,7 +250,7 @@ Qword_size	EQU	8
 ; *** Import the data ***
 %macro importdata 1-*
 %rep %0
-    [EXTERN %1 %+ :import data]
+    [EXTERN %1 %+ :import data]
     %rotate 1
 %endrep
 %endmacro
@@ -221,6 +276,25 @@ Qword_size	EQU	8
 %endif
     %assign %$lc %$lc+%2
     %xdefine %$%1 ebp-%$lc
+%endmacro
+
+; *** For declaring a union as the automatic variable ***
+; Parameters: %1 - name, %2... - field types.
+%macro locunion 2-*
+%define %$un %1
+%rotate 1
+%assign %%m %1_size
+%rep %0-1
+    %if %1_size > %%m
+	%assign %%m %1_size
+    %endif
+    %rotate 1
+%endrep
+%ifndef %$lc
+    %assign %$lc 0
+%endif
+    %assign %$lc %$lc+%%m
+    %xdefine %$%$un ebp-%$lc
 %endmacro
 
 ; *** For referencing arguments that were put on the stack
@@ -253,6 +327,21 @@ Qword_size	EQU	8
     add esp,byte 4*(%0-1)
 %endif
 %endmacro
+
+
+; *** For accessing vararg-like arguments ***
+; Parameters:	%1 - address of argument list pointer,
+;		%2 - type of the argument being accessed,
+;		%3 - register where to put the value (default is EAX).
+%macro GetArg 2-3
+%if %0 == 3
+	mov	%3,[%1]
+%else
+	mov	eax,[%1]
+%endif
+	add	dword [%1],%2_size
+%endmacro
+
 
 ; *** For declaring structure instances, nicer than AT ***
 %macro instance 1

@@ -213,7 +213,7 @@ struc tProcGetSetIDreply
 .Cred		RESB	tCredInfo
 endstruc
 
-union tMsg_ProcGetSetIDreply
+union tMsg_ProcGetSetID
 	unimemb tProcGetSetIDrequest
 	unimemb	tProcGetSetIDreply
 endunion

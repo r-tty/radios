@@ -123,7 +123,7 @@ endstruc
 %define	CPU_586		5
 %define CPU_686plus	6
 
-; Exception number
+; Exception numbers
 %define CPU_EXC_DIV0	0
 %define CPU_EXC_SSTEP	1
 %define CPU_EXC_NMI	2

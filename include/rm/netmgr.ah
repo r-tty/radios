@@ -1,0 +1,22 @@
+;-------------------------------------------------------------------------------
+; netmgr.ah - definitions for interaction with network manager.
+;-------------------------------------------------------------------------------
+
+%ifndef _netmgr_ah
+%define _netmgr_ah
+
+ND_LOCAL_NODE	 EQU	0
+ND_NODE_BITS	 EQU	16
+
+ND2S_DIR_SHOW	 EQU	1	; Returned value will be a usable path (ending in slash)
+ND2S_DIR_HIDE	 EQU	2	; Never show the directory (default)
+ND2S_QOS_SHOW	 EQU	4	; Always show QOS string even if it is the default QOS
+ND2S_QOS_HIDE	 EQU	8	; Never show the QOS
+ND2S_NAME_SHOW	 EQU	10h	; Always show the node name (default)
+ND2S_NAME_HIDE	 EQU	20h	; Never show the node name
+ND2S_DOMAIN_SHOW EQU	40h	; Always show the domain even if it is the default domain
+ND2S_DOMAIN_HIDE EQU	80h	; Never show the domain
+ND2S_LOCAL_STR	 EQU	1000h	; Used to return smaller string for displaying localy
+ND2S_SEP_FORCE	 EQU	2000h	; Always return a seperator even if it is the first thing returned
+
+%endif

@@ -7,7 +7,7 @@
 include ../Build/header.mk
 
 # Change variables here
-SUBDIRS = monitor libc libm librm taskman dev x-ray
+SUBDIRS = monitor libc libm librm taskman dev #x-ray
 
 # Build in subdirs
 include ../Build/subdirs.mk

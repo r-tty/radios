@@ -260,7 +260,7 @@ endstruc
 
 
 ; --- Message of IOM_STAT ---
-struc tIOM_stat
+struc tIOMstat
 .Type		RESW	1
 .CombineLen	RESW	1
 .Zero		RESD	1
@@ -426,18 +426,18 @@ endunion
 
 ; --- Message of IOM_DUP ---
 
-struc tIOM_dup
+struc tIOMdup
 .Type		RESW	1
 .CombineLen	RESW	1
 .Info		RESB	tMsgInfo_size
 .Reserved	RESD	1
-.key		RESD	1
+.Key		RESD	1
 endstruc
 
 
 ; --- Message of IOM_MSG ---
 
-struc tIOM_msg
+struc tIOMmsg
 .Type		RESW	1
 .CombineLen	RESW	1
 .MgrID		RESW	1	; Manager ID (iomgr.ah)

@@ -10,8 +10,6 @@ module hw.genhd
 %include "hw/partids.ah"
 %include "mbr.ah"
 %include "hw/ddb.ah"
-%include "driver.ah"
-%include "drvctrl.ah"
 
 %define	SECTORSHIFT	9
 
@@ -20,16 +18,6 @@ module hw.genhd
 global HD_Init, HD_Open, HD_Close, HD_Read, HD_Write
 global HD_GetPartParams, HD_GetPartInfoStr
 global HD_LBA2CHS
-
-
-; --- Imports ---
-
-library kernel.driver
-extern DRV_CallDriver:near
-
-library kernel.misc
-extern StrEnd:near, StrCopy:near, StrAppend:near
-extern HexB2Str:near, DecD2Str:near
 
 
 ; --- Data ---

@@ -23,8 +23,8 @@ publicdata ?BootModsArr, ?KernPCB
 ; --- Imports ---
 
 externproc TM_Main, TM_InitTimerPool, MapArea
-externdata SignalSyscallTable, TimerSyscallTable
-externdata ThreadSyscallTable, ConnectSyscallTable
+externdata ClockSyscallTable, TimerSyscallTable
+externdata SignalSyscallTable, ThreadSyscallTable, ConnectSyscallTable
 externdata ?ProcListPtr, ?MaxNumOfProc, ?ProcessPool
 
 library $rmk
@@ -41,6 +41,7 @@ importdata ?UpperMemSize
 section .data
 
 SyscallTables	DD	SignalSyscallTable
+		DD	ClockSyscallTable
 		DD	TimerSyscallTable
 		DD	ThreadSyscallTable
 		DD	ConnectSyscallTable

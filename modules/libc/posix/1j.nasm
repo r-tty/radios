@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; posix1j.nasm - POSIX real-time routines.
+; posix1j.nasm - POSIX advanced realtime extensions (1003.1j).
 ;-------------------------------------------------------------------------------
 
 module libc.posix1j

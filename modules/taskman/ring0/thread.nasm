@@ -14,7 +14,6 @@ publicdata ThreadSyscallTable
 
 externproc R0_Pid2PCBaddr
 
-library $rmk
 importproc K_PoolChunkAddr, MT_CreateThread
 
 section .data

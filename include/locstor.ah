@@ -23,7 +23,7 @@ struc tTLS
 .Spare		RESD	3
 .HheadPtr	RESD	1		; Pointer to first allocated block
 .HheadSize	RESD	1		; Size of first allocated block
-.HlastPtr	RESD	1		; Ponter to last allocated block
+.HlastPtr	RESD	1		; Pointer to last allocated block
 endstruc
 
 ; Macro to get a pointer to TLS

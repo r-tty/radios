@@ -62,6 +62,7 @@ TxtKernDone	DB	NL,"There is no work left for the kernel - bye.",0
 TxtRAM		DB	"RAM: ", 0
 TxtKB		DB	" KB", NL, 0
 TxtCPU		DB	"CPU: ",0
+TxtFamily	DB	"family ",0
 TxtSpeedIndex	DB	", speed index=", 0
 TxtInitKExtMods	DB	"Initializing kernel extension modules...", NL, 0
 
@@ -165,7 +166,8 @@ proc Start
 		je	.NoModel
 		kPrintStr
 		jmp	.1
-.NoModel:	movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
+.NoModel:	kPrintStr TxtFamily
+		movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
 		kPrintDec
 		kPrintStr TxtSpeedIndex
 		kPrintDec [?CPUspeed]

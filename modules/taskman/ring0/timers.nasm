@@ -38,6 +38,7 @@ section .bss
 ; --- Code ---
 
 section .text
+
 		; Initialize timer pool.
 		; Input: EAX=maximum number of timers.
 		; Output: CF=0 - OK;

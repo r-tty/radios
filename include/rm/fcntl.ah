@@ -1,0 +1,38 @@
+;-------------------------------------------------------------------------------
+; fcntl.ah - definitions for fcntl().
+;-------------------------------------------------------------------------------
+
+%ifndef _fcntl_ah
+%define _fcntl_ah
+
+F_DUPFD		EQU	0		; Duplicate file descriptor
+F_GETFD		EQU	1		; Get file descriptor flags
+F_SETFD		EQU	2		; Set file descriptor flags
+F_GETFL		EQU	3		; Get file status flags
+F_SETFL		EQU	4		; Set file status flags
+F_SETLK		EQU	6		; Set record locking info
+F_SETLKW	EQU	7
+F_CHKFL		EQU	8
+F_ALLOCSP	EQU	10
+F_FREESP	EQU	11
+F_ISSTREAM	EQU	13
+F_GETLK		EQU	14		; Get record locking info
+F_PRIV		EQU	15
+F_NPRIV		EQU	16
+F_QUOTACTL	EQU	17
+F_BLOCKS	EQU	18
+F_BLKSIZE	EQU	19
+F_RSETLK	EQU	20
+F_RGETLK	EQU	21
+F_RSETLKW	EQU	22
+F_GETOWN	EQU	35		; Get SIGIO/SIGURG proc/pgrp
+F_SETOWN	EQU	36		; Set SIGIO/SIGURG proc/pgrp
+
+; 64-bit file offset
+F_SETLK64	EQU	106
+F_SETLKW64	EQU	107
+F_ALLOCSP64	EQU	110
+F_FREESP64	EQU	111
+F_GETLK64	EQU	114
+
+%endif

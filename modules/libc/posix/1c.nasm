@@ -1,4 +1,7 @@
 ;-------------------------------------------------------------------------------
-; ata.ah - ATA disk controller definitions.
+; posix/1c.nasm - POSIX thread routines (1003.1c).
 ;-------------------------------------------------------------------------------
 
+module libc.posix1c
+
+section .text

@@ -7,7 +7,7 @@
 include ../../etc/header.mk
 
 # Change variables here
-OBJS = event.rdm
+OBJS = event.rdm msg.rdm
 modnamesfile = $(OUTPATH)/.ipc-modules
 
 # This part shouldn't be changed

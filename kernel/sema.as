@@ -1,7 +1,7 @@
 ;*******************************************************************************
 ;  sema.as - semaphore operations.
-;  Based upon the TINOS Operating System (c) 1996-1998 Bart Sekura.
-;  RadiOS porting by Yuri Zaporogets.
+;  Copyright (c) 2000 RET & COM Research.
+;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
 module kernel.semaphore

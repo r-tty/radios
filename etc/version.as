@@ -2,9 +2,9 @@
 ;  version.as - only contains a current version.
 ;-------------------------------------------------------------------------------
 
-global RADIOS_VERSION
+global RadiOS_Version
 
 section .data
 
-RADIOS_VERSION	DB	"0.01-cvs007"
+RadiOS_Version	DB	"0.01-cvs008"
 

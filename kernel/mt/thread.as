@@ -1,6 +1,8 @@
-;-------------------------------------------------------------------------------
-;  thread.as - thread management routines.
-;-------------------------------------------------------------------------------
+;*******************************************************************************
+;  thread.as - RadiOS thread management.
+;  Copyright (c) 2000 RET & COM Research.
+;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
+;*******************************************************************************
 
 %include "thread.ah"
 
@@ -19,6 +21,9 @@ extern K_PoolAllocChunk:near, K_PoolFreeChunk:near
 
 library kernel.mm
 extern MM_AllocBlock:near
+
+library kernel.paging
+extern PG_AllocContBlock:near
 
 
 ; --- Data ---
@@ -54,6 +59,7 @@ proc MT_InitTCBpool
 		mov	[?MaxThreads],eax
 		mov	ebx,?ThreadPool
 		mov	ecx,tTCB_size
+		xor	dl,dl
 		call	K_PoolInit
 .Done:		mpop	ecx,ebx
 		ret
@@ -280,13 +286,12 @@ proc MT_CreateThread
 		; entering kernel mode (its state is pushed on it).
 		; For kernel threads, this is actual working stack
 		; NOTE: kernel stack is only one page long, there is no
-		; mechanism to grow kernel stack at the moment
-		; therefore kernel threads mustn't be stack hungry
-.SetKStack:	mov	ecx,PageSize
-.SetKStack2:	mov	dl,1				; Don't load CR3
-		mov	dh,PG_WRITEABLE
-		call	MM_AllocBlock			; Get kernel stack
-		jc	.Err2
+		; mechanism to grow kernel stack at the moment.
+		; Therefore kernel threads mustn't be stack hungry.
+.SetKStack:	mov	ecx,PAGESIZE
+.SetKStack2:	xor	dl,dl
+		call	PG_AllocContBlock		; Get kernel stack
+		jc	short .Err2
 		call	BZero
 		lea	ebx,[ebx+ecx-4]
 		mov	[edi+tTCB.KStack],ebx
@@ -416,7 +421,7 @@ global MT_DumpReadyThreads
 section .data
 
 MsgNoReady	DB	10,"no ready threads.",10,0
-MsgDumpHdr	DB	10,"TCB       S    Ticks   Cnt     Prio    BPrio  Preempt  Sem     Stamp",10,0
+MsgDumpHdr	DB	10,"TCB       S     Ticks  Cnt     Prio    BPrio  Preempt  Sem     Stamp",10,0
   
 section .text
 

@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  memman.as - RadiOS memory management routines.
+;  memman.as - RadiOS memory management.
 ;  Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
@@ -28,14 +28,12 @@ global MM_AllocRegion, MM_FreeRegion
 
 library kernel
 extern K_DescriptorAddress:near, K_GetDescriptorBase:near
-extern HeapBegin, TotalMemPages
-
-library kernel.kheap
-extern KH_Top
+extern ?HeapBegin, ?TotalMemPages
 
 library kernel.paging
 extern PG_Prepare:near, PG_GetPTEaddr:near
 extern PG_Alloc:near, PG_Dealloc:near
+extern ?KernPgPoolEnd
 
 library kernel.mt
 extern ?ProcListPtr
@@ -69,13 +67,13 @@ proc MM_Init
 		; Initialize kernel MCB area
 		call	MM_PrepareMCBarea
 		mov	ebx,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE/PageSize
+		mov	ecx,MM_MCBAREASIZE/PAGESIZE
 		xor	eax,eax
 
 .Loop:		call	PG_GetPTEaddr
 		jc	short .Exit
 		or	dword [edi],PG_ALLOCATED
-		add	ebx,PageSize
+		add	ebx,PAGESIZE
 		loop	.Loop
 
 		; Initialize kernel process region
@@ -88,7 +86,7 @@ proc MM_Init
 		mov	word [ebx+tMCB.Count],1
 		mov	eax,1000h
 		mov	[ebx+tMCB.Addr],eax
-		mov	ecx,[KH_Top]
+		mov	ecx,[?KernPgPoolEnd]
 		sub	ecx,eax
 		mov	[ebx+tMCB.Len],ecx
 
@@ -132,7 +130,7 @@ proc MM_AllocBlock
 		mov	edi,ebx
 
 		mov	[ebx+tMCB.Len],ecx		; Keep block length
-		add	ecx,PageSize-1			; Calculate number of
+		add	ecx,PAGESIZE-1			; Calculate number of
 		and	ecx,~ADDR_OFSMASK		; pages to hold the data
 
 
@@ -154,7 +152,7 @@ proc MM_AllocBlock
 		or	edx,PG_ALLOCATED
 		or	dl,[.flags+1]
 		mov	[edi],edx
-		add	ebx,PageSize
+		add	ebx,PAGESIZE
 		loop	.Loop
 
 		mov	eax,[.mcbaddr]
@@ -186,7 +184,7 @@ proc MM_AllocBlock
 		mov	ebx,[.mcbaddr]
 		mov	eax,ecx
 		mov	ecx,[ebx+tMCB.Len]
-		add	ecx,PageSize-1
+		add	ecx,PAGESIZE-1
 		shr	ecx,PAGESHIFT
 		sub	ecx,eax
 		jecxz	.NoDeall
@@ -197,7 +195,7 @@ proc MM_AllocBlock
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
 		call	PG_Dealloc
-		add	ebx,PageSize
+		add	ebx,PAGESIZE
 		loop	.DeallLoop
 .NoDeall:	pop	eax				; Restore error code
 		jmp	.FreeMCB
@@ -243,7 +241,7 @@ proc MM_FreeBlock
 		jnz	short .Err
 		mov	[.mcbaddr],ebx
 		mov	ecx,[ebx+tMCB.Len]
-		add	ecx,PageSize-1
+		add	ecx,PAGESIZE-1
 		shr	ecx,PAGESHIFT
 		mov	ebx,edi				; EBX=block address
 
@@ -253,7 +251,7 @@ proc MM_FreeBlock
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
 		call	PG_Dealloc
-		add	ebx,PageSize
+		add	ebx,PAGESIZE
 		loop	.Loop
 
 		mov	ebx,[.mcbaddr]
@@ -327,7 +325,7 @@ endp		;---------------------------------------------------------------
 		; Note: CR3 must be set to user pages directory.
 proc MM_AllocEnoughPages
 		mpush	ecx,edi
-		add	eax,PageSize-1		; Calculate number of pages
+		add	eax,PAGESIZE-1		; Calculate number of pages
 		shr	eax,PAGESHIFT
 		mpop	edi,ecx
 		ret
@@ -347,12 +345,12 @@ proc MM_FindRegion
 
 		mov	dword [.regionsize],0
 
-		mov	ebx,[HeapBegin]
+		mov	ebx,[?HeapBegin]
 		or	ebx,ebx
 		jz	short .Empty
 		mov	edx,ebx
 
-.Loop:		mov	eax,[TotalMemPages]
+.Loop:		mov	eax,[?TotalMemPages]
 		shl	eax,PAGESHIFT
 		add	eax,StartOfExtMem
 		cmp	ebx,eax
@@ -364,13 +362,13 @@ proc MM_FindRegion
 		je	short .Err
 		test	dword [edi],PG_ALLOCATED
 		jnz	short .Used
-		add	dword [.regionsize],PageSize
+		add	dword [.regionsize],PAGESIZE
 		cmp	[.regionsize],ecx
 		jae	short .Found
-		add	ebx,PageSize
+		add	ebx,PAGESIZE
 		jmp	.Loop
 
-.Used:		add	ebx,PageSize
+.Used:		add	ebx,PAGESIZE
 		mov	edx,ebx
 		mov	dword [.regionsize],0
 		jmp	.Loop
@@ -502,7 +500,7 @@ endp		;---------------------------------------------------------------
 proc MM_FreeMCBarea
 		mpush	ebx,ecx,edi
 		mov	ebx,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE/PageSize
+		mov	ecx,MM_MCBAREASIZE/PAGESIZE
 
 .Loop:		mov	eax,[esi+tProcDesc.PID]
 		call	PG_GetPTEaddr
@@ -513,7 +511,7 @@ proc MM_FreeMCBarea
 		and	eax,~ADDR_OFSMASK
 		call	PG_Dealloc
 		mov	dword [edi],(~ADDR_OFSMASK)+PG_PRESENT
-.Next:		add	ebx,PageSize
+.Next:		add	ebx,PAGESIZE
 		loop	.Loop
 
 .OK:		clc

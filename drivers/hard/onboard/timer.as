@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  timer.asm - Programmable interval timer control routines.
+;  timer.as - Programmable interval timer control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---

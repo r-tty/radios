@@ -27,6 +27,7 @@ global CPU_GetType, SPK_Sound, SPK_Beep, SPK_Tick
 
 library kernel.misc
 extern K_TTDelay:near
+extern BCDB2Dec:near
 
 
 ;  CPU types

@@ -9,14 +9,17 @@ export DEBUG = 1
 MULTIBOOT = 1
 
 # Subdirs
-SUBDIRS = kernel drivers/hard drivers/soft fs monitor init loader
+SUBDIRS = kernel drivers/hard drivers/soft monitor init loader
 
-# Modules
-TARGET_DEP = version.rdm kernel.rdl hardware.rdl softdrivers.rdl \
-             fs.rdl monitor.rdl init.rdm
+# Kernel objects and libraries
+TARGET_DEP = version.rdm syscall.rdm kernel.rdl hardware.rdl softdrivers.rdl \
+             monitor.rdl init.rdm
 ifdef DEBUG
 TARGET_DEP += rkdt.rdm
 endif
+
+# Boot-time modules
+BOOTMODULES = mouse.rdm
 
 # Kernel file name
 KERNEL_RDX = main.rdx
@@ -49,6 +52,15 @@ endif
 endif
 
 dummy:
+
+#--- Boot-time modules ---------------------------------------------------------
+
+modules-install: $(BOOTMODULES)
+	@echo -n "Installing modules: "
+	@for m in $(BOOTMODULES) ; do \
+		gzip -c $(OUTPATH)/$$m >$(INSTALLPATH)/sys/$$m.gz ; \
+		echo $$m " " ; \
+	 done
 
 #--- Individual dependencies ---------------------------------------------------
 

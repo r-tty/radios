@@ -1,0 +1,26 @@
+;-------------------------------------------------------------------------------
+;  msg.ah - messaging definitions.
+;-------------------------------------------------------------------------------
+
+%define	MSGBUF_MAX	32
+
+struc tMessage
+.Flags		RESD	1
+.Qref		RESD	1			; Queue reference count
+.ID		RESD	1
+.DataPtr	RESD	1			; Address of data
+.Length		RESD	1			; Length of data
+.Buf		RESB	MSGBUF_MAX
+.Lock		RESB	tSemaphore_size 	; Message is still on the queue
+.Next		RESD	1			; Message queue under the port
+.NextFree	RESD	1
+endstruc
+
+struc tIPCport
+.Flags		RESD	1
+.Head		RESD	1			; Message queue: head
+.Tail		RESD	1			; message queue: tail
+.Lock		RESB	tSemaphore_size 	; To manipulate port safely
+.Recv		RESB	tSemaphore_size 	; Serializing receive requests
+.FreeList	RESD	1			; A list of free messages
+endstruc

@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  cmosrtc.asm - CMOS memory and real-time clock control routines.
+;  cmosrtc.as - CMOS memory and real-time clock control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
@@ -50,6 +50,7 @@
 global CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
 global CMOS_ReadFDDTypes
 global CMOS_EnableInt, CMOS_DisableInt, CMOS_HandleInt
+global CMOS_GetDate, CMOS_GetTime
 
 
 ; --- Procedures ---
@@ -150,5 +151,53 @@ proc CMOS_HandleInt
 		mov	al,RTCREG_StatusC
 		call	CMOS_Read
 		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; CMOS_GetDate - get current date.
+		; Input: none.
+		; Output: DH=month,
+		;	  DL=day,
+		;	  CX=year.
+proc CMOS_GetDate
+		mov	al,RTCREG_Month
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	dh,al
+		mov	al,RTCREG_Day
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	dl,al
+		mov	al,RTCREG_YearHi
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	ch,al
+		mov	al,RTCREG_YearLo
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	cl,al
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; CMOS_GetTime - get current time.
+		; Input: none.
+		; Output: CH=hours,
+		;	  CL=minutes,
+		;	  DH=seconds.
+proc CMOS_GetTime
+		mov	al,RTCREG_Hour
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	ch,al
+		mov	al,RTCREG_Min
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	cl,al
+		mov	al,RTCREG_Sec
+		call	CMOS_Read
+		call	BCDB2Dec
+		mov	dh,al
 		ret
 endp		;---------------------------------------------------------------

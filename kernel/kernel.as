@@ -14,6 +14,7 @@ module kernel
 %include "process.ah"
 %include "i386/descript.ah"
 %include "i386/tss.ah"
+%include "i386/paging.ah"
 %include "hw/ports.ah"
 %include "hw/pic.ah"
 %include "asciictl.ah"
@@ -22,7 +23,7 @@ module kernel
 ; --- Exports ---
 
 global DrvNULL, KernelEventHandler
-global K_CheckCPU, K_InitFPU, K_InitMem
+global K_CheckCPU, K_InitFPU 
 global K_GetCPUtypeStr, K_GetFPUtypeStr
 
 global K_DescriptorAddress
@@ -37,19 +38,19 @@ global K_RemapToSystem, K_MapStackToSystem, K_UnmapStack
 
 global KernTSS, DrvTSS
 global IDTaddr
-global CPUtype, CPUspeed
+global ?CPUtype, ?CPUspeed
 global DrvId_Con, DrvId_BIOS32, DrvId_RD, DrvId_RFS
-global TimerTicksLo, TimerTicksHi
-global BaseMemSz, ExtMemSz
-global ExtMemPages, VirtMemPages, TotalMemPages
-global HeapBegin, HeapEnd
-global DHlpSymAddr, UAPIsymAddr
+global ?TimerTicksLo, ?TimerTicksHi
+global ?BaseMemSz, ?ExtMemSz
+global ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
+global ?HeapBegin, ?HeapEnd
+global ?DHlpSymAddr, ?UAPIsymAddr
 
 
 ; --- Imports ---
 
 library init
-extern SysReset:near
+extern SysReboot:near
 
 library kernel.driver
 extern DRV_CallDriver:near
@@ -66,7 +67,7 @@ extern SPK_Tick:near
 
 library kernel.misc
 extern StrEnd:near, StrCopy:near, StrAppend:near
-extern K_DecD2Str:near
+extern DecD2Str:near
 extern K_LDelayMs:near
 
 
@@ -126,26 +127,26 @@ ExcPrintPos	RESB	1
 FPU_ExcFlags	RESB	1			; FPU exception flags
 
 ; CPU and FPU type & CPU speed index
-CPUtype		RESB	1
-FPUtype		RESB	1
-CPUspeed	RESD	1
+?CPUtype	RESB	1
+?FPUtype	RESB	1
+?CPUspeed	RESD	1
 
 ; Memory sizes (in kilobytes)
-BaseMemSz	RESD	1
-ExtMemSz	RESD	1
+?BaseMemSz	RESD	1
+?ExtMemSz	RESD	1
 
 ; Number of extended memory pages
-ExtMemPages	RESD	1			; Number of ext. mem. pages
-VirtMemPages	RESD	1			; Virtual memory pages
-TotalMemPages	RESD	1			; Total number of pages (Ext+VM)
+?PhysMemPages	RESD	1			; Number of ext. mem. pages
+?VirtMemPages	RESD	1			; Virtual memory pages
+?TotalMemPages	RESD	1			; Total number of pages (Ext+VM)
 
 ; Heap (user segment) begin and end address
-HeapBegin	RESD	1
-HeapEnd		RESD	1
+?HeapBegin	RESD	1
+?HeapEnd	RESD	1
 
 ; Timer ticks counter
-TimerTicksLo	RESD	1			; Low dword
-TimerTicksHi	RESD	1			; High dword
+?TimerTicksLo	RESD	1			; Low dword
+?TimerTicksHi	RESD	1			; High dword
 
 ; Installed drivers IDs
 DrvId_Con	RESD	1
@@ -154,8 +155,8 @@ DrvId_RD	RESD	1
 DrvId_RFS	RESD	1
 
 ; API symbol tables addresses
-DHlpSymAddr	RESD	1
-UAPIsymAddr	RESD	1
+?DHlpSymAddr	RESD	1
+?UAPIsymAddr	RESD	1
 
 
 ; --- Procedures ---
@@ -163,6 +164,7 @@ UAPIsymAddr	RESD	1
 section .text
 
 %include "ints.as"
+%include "memdet.as"
 
 		; K_DescriptorAddress - get address of descriptor.
 		; Input: DX=descriptor.
@@ -229,7 +231,7 @@ proc K_GetDescriptorLimit
 		test	byte [ebx+tDesc.LimHiMode],AR_Granlr
 		jz	.Exit
 		shl	eax,12
-		or	eax,PageSize-1
+		or	eax,PAGESIZE-1
 .Exit:		ret
 endp		;---------------------------------------------------------------
 
@@ -367,9 +369,9 @@ endp		;---------------------------------------------------------------
 proc K_CheckCPU
 		push	ecx
 		call	CPU_GetType
-		mov	[CPUtype],al
+		mov	[?CPUtype],al
 		call	TMR_CountCPUspeed
-		mov	[CPUspeed],ecx
+		mov	[?CPUspeed],ecx
 		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
@@ -384,32 +386,32 @@ proc K_GetCPUtypeStr
 		mov	esi,CPUinitMsg
 		call	StrCopy
 
-		mov	al,[CPUtype]
+		mov	al,[?CPUtype]
 		cmp	al,3
 		je	.386
 		cmp	al,4
 		je	.486
 		cmp	al,5
 		je	.586
-		mov	esi,offset Msg_Unknown
+		mov	esi,Msg_Unknown
 		jmp	short .BldStr
 
-.386:		mov	esi,offset Msg_CPU386
+.386:		mov	esi,Msg_CPU386
 		jmp	short .BldStr
-.486:		mov	esi,offset Msg_CPU486
+.486:		mov	esi,Msg_CPU486
 		jmp	short .BldStr
-.586:		mov	esi,offset Msg_CPUPENT
+.586:		mov	esi,Msg_CPUPENT
 		jmp	short .BldStr
 
 
 .BldStr:	call	StrAppend
-		mov	esi,offset Msg_SpdInd
+		mov	esi,Msg_SpdInd
 		call	StrAppend
 		mov	esi,edi
 		call	StrEnd
 		mov	esi,edi
-		mov	eax,[CPUspeed]
-		call	K_DecD2Str
+		mov	eax,[?CPUspeed]
+		call	DecD2Str
 
 		mpop	edi,esi
 		ret
@@ -426,7 +428,7 @@ proc K_InitFPU
 		prologue 8
 		push	ecx
 
-		mov	[FPUtype],al
+		mov	[?FPUtype],al
 		test	byte [BIOSDA_Begin+tBIOSDA.Hardware],2	; FPU installed?
 		jnz	short .Test387
 		cmp	al,1				; Use emulation lib?
@@ -458,7 +460,7 @@ proc K_InitFPU
 		call	K_LDelayMs
 		test	byte [FPU_ExcFlags],1		; IRQ13 happened?
 		jz	short .Test487
-		mov	byte [FPUtype],3
+		mov	byte [?FPUtype],3
 		jmp	short .Exit
 
 .Test487:	fninit
@@ -473,10 +475,10 @@ proc K_InitFPU
 
 		cmp	dword [.fdiv_bug],0
 		jne	.FdivBug
-		mov	byte [FPUtype],4
+		mov	byte [?FPUtype],4
 		jmp	short .Exit
 
-.FdivBug:	mov	byte [FPUtype],0
+.FdivBug:	mov	byte [?FPUtype],0
 
 .Exit:		pop	ecx
 		epilogue
@@ -503,7 +505,7 @@ proc K_GetFPUtypeStr
 		call	StrCopy
 		call	StrEnd
 		xor	eax,eax
-		mov	al,[FPUtype]
+		mov	al,[?FPUtype]
 		mov	esi,[FPUtypeStrs+eax*4]
 		call	StrCopy
 		mpop	edi,esi
@@ -519,98 +521,6 @@ proc FPU_InitEmuLib
 		ret
 endp		;---------------------------------------------------------------
 
-
-		; K_InitMem - get memory size from CMOS and test
-		;	      the extended memory.
-		; Input: ESI=buffer for init status string.
-		; Output: CF=0 - OK:
-		;		 EAX=0;
-		;		 ECX=size of extended memory in KB;
-		;	  CF=1 - error, AX=error code.
-proc K_InitMem
-		push	edi
-		mov	edi,esi
-		xor	ecx,ecx
-		mov	cl,5				; Read from CMOS
-.Loop1:		call	CMOS_ReadBaseMemSz		; 5 times
-		cmp	ax,640
-		je	short .BaseOK
-		loop	.Loop1
-		jmp	.Err1
-
-.BaseOK:	movzx	eax,ax
-		mov	[BaseMemSz],eax
-
-		call	CMOS_ReadExtMemSz		; Get ext. mem. size
-		movzx	eax,ax
-		mov	[ExtMemSz],eax			; Store (<=64 MB)
-
-		xor	eax,eax				; Prepare to test
-		mov	[ExtMemPages],eax		; extended memory
-		mov	esi,StartOfExtMem
-
-.Loop2:		mov	ah,[esi]		; Get byte
-		mov	byte [esi],0AAh		; Replace it with this
-		cmp	byte [esi],0AAh		; Make sure it stuck
-		mov	[esi],ah		; Restore byte
-		jne	short .StopScan		; Quit if failed
-		mov	byte [esi],055h		; Otherwise replace it with this
-		cmp	byte [esi],055h		; Make sure it stuck
-		mov	[esi],ah		; Restore original value
-		jne	short .StopScan		; Quit if failed
-		inc	dword [ExtMemPages]	; Found a page
-		add	esi,PageSize		; Go to next page
-		jmp	.Loop2
-
-.StopScan:	mov	eax,[ExtMemPages]
-		shl	eax,2
-		cmp	dword [ExtMemSz],32768
-		jae	short .SizeOK
-		cmp	eax,[ExtMemSz]
-		jne	short .Err3
-.SizeOK:	mov	[ExtMemSz],eax
-		mov	ecx,eax
-
-.CrStr:		mov	esi,edi
-		call	K_GetMemInitStr
-		clc
-.Exit:		pop	edi
-		ret
-
-.Err1:		mov	ax,ERR_MEM_InvBaseSz
-		jmp	short .Err
-.Err2:		mov	ax,ERR_MEM_ExtTestErr
-		jmp	short .Err
-.Err3:		mov	ax,ERR_MEM_InvCMOSExtMemSz
-.Err:		stc
-		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
-		; K_GetMemInitStr - get memory initialization status string.
-		; Input: ESI=pointer to buffer for string.
-		; Output: none.
-proc K_GetMemInitStr
-		mpush	esi,edi
-		mov	edi,esi
-		mov	esi,MemInitMsg
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		mov	eax,[BaseMemSz]
-		call	K_DecD2Str
-		mov	esi,MemDISSbase
-		call	StrAppend
-		call	StrEnd
-		mov	esi,edi
-		mov	eax,[ExtMemSz]
-		call	K_DecD2Str
-		mov	esi,MemDISSext
-		call	StrAppend
-		clc
-		mpop	edi,esi
-		ret
-endp		;---------------------------------------------------------------
 
 
 ; --- Kernel event handler ---
@@ -634,7 +544,7 @@ proc KernelEventHandler
 
 .Reboot:	mPICACK 0
 		sti
-		jmp	SysReset
+		jmp	SysReboot
 endp		;---------------------------------------------------------------
 
 

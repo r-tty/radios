@@ -154,16 +154,12 @@ mISR2 K_Interrupt, 15
 		; IRQ0: system timer.
 proc IRQ0Handler
 		mTrapEntry 0
-		mov	eax,[TimerTicksLo]
-		inc	eax
-		mov	[TimerTicksLo],eax
-		or	eax,eax
-		jz	.SetTTHi
-		jmp	short .1
-.SetTTHi:	inc	dword [TimerTicksHi]
-
+		inc	dword [?TimerTicksLo]
+		cmp	dword [?TimerTicksLo],0
+		jne	short .1
+		inc	dword [?TimerTicksHi]
 .1:		mPICACK 0
-		call	K_SwitchTask
+;		call	K_SwitchTask
 		mTrapLeave
 endp		;---------------------------------------------------------------
 

@@ -5,9 +5,11 @@
 ; --- General definitions ---
 
 %define	BIOSDAsize		1000h		; Size of BIOS data area
-%define	InitESP			80000h		; Initial stack pointer value
 %define	StartCfgTblAddr		500h		; Startup config table address
-%define	BaseMemReservedSz	10000h		; Reserved block of base mem. sz
+%define	BootModulesList		1000h		; Boot modules list
+%define	BootModCmdLines		1200h		; Boot modules command lines
+
+%define	Init_StackSize		32768		; Size of initial kernel stack
 
 %define	Init_MaxNumDrivers	64
 %define	Init_NumFSlinkPoints	26
@@ -25,31 +27,3 @@
 %define	Init_SerInpBufSize	2048		; Serial input buffer size
 %define	Init_SerOutBufSize	2048		; Serial output buffer size
 
-; --- Startup configuration table definitions ---
-
-; Table signature
-%define	SCFG_Signature		00435352h
-
-; Table structure
-struc tStartConfig
-.Signature	RESD	1
-.NumOfItems	RESW	1
-.ItemOffsets	RESW	1
-endstruc
-
-; Item numbers
-%define	SCFG_BootDev		0
-%define	SCFG_PrimFS_LP		1
-%define	SCFG_RAMdiskSz		2
-%define	SCFG_BuffersMem		3
-%define	SCFG_SwapDev		4
-%define	SCFG_SwapSize		5
-
-
-; --- External variables (initialized by system loader) ---
-
-%define DrvAPIsTableAddr	700h
-%define UserAPIsTableAddr	704h
-%define	KHeapBeginAddr		708h
-%define KHeapTopAddr		70Ch
-%define BootModulesInfoAddr	710h

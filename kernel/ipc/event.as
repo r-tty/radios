@@ -1,15 +1,22 @@
+;*******************************************************************************
+;  event.as - RadiOS IPC "events" primitives.
+;  Copyright (c) 2000 RET & COM Research.
+;*******************************************************************************
 
 module kernel.ipc.event
 
 %include "sys.ah"
 %include "errors.ah"
-
 %include "process.ah"
 
+
+; --- Exports ---
 global K_HandleEvent
 
+; --- Imports ---
 extern ?ProcListPtr
 
+; --- Code ---
 section .text
 
 		; K_HandleEvent - immediate event handling.
@@ -43,4 +50,3 @@ proc K_HandleEvent
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
-

@@ -19,5 +19,8 @@ struc tMasterPool
 .Hint		RESD	1		; Hint to avoid list traversal
 .Count		RESD	1		; How many pools we allocated
 .Size		RESD	1		; Chunk size
+.Flags		RESD	1		; Flags
 .SemLock	RESB	tSemaphore_size	; Serializing semaphore
 endstruc
+
+%define	POOLFL_USERSPACE	1	; Pool is allocated in the user space

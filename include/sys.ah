@@ -32,20 +32,12 @@
 %define	NULL		0
 %define	FALSE		0
 %define	TRUE		1
-%define	KrnlMemSz	100000h			; Size of kernel segment
-%define	PageSize	1000h
-%define	PAGESHIFT	12
-%define	P32MemSz	PageSize*100000h	; Size of all linear memory
 
 %define	ADDR_PDEMASK	0FFC00000h
 %define	ADDR_PTEMASK	3FF000h
 %define	ADDR_OFSMASK	0FFFh
 
 %define	StartOfExtMem	100000h			; Start address of ext. mem.
-
-%define	MaxLocalDescr	32			; Max. num. of local descriptors
-
-%define	HZ		100
 
 
 ; --- Event classes ---
@@ -62,10 +54,6 @@
 
 
 ; --- System timer definitions ---
+%define	HZ		100		; Timer ticks per seecond
 %define	TIMER_InpFreq	1193180		; Timer input frequency (Hz)
-%define	TIMER_OutFreq	100		; Channel 0 output freq (Hz)
-
-
-; --- Disk sector size ---
-%define	SECTORSIZE	512
-%define	SECTORSHIFT	9
+%define	TIMER_OutFreq	HZ		; Channel 0 output freq (Hz)

@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ;  init.as - RadiOS initializer.
-;  Copyright (c) 1998,99 RET & COM research.
+;  Copyright (c) 1999,2000 RET & COM research.
 ;*******************************************************************************
 
 module init
@@ -8,10 +8,12 @@ module init
 %include "sys.ah"
 %include "errors.ah"
 %include "initdefs.ah"
+%include "boot/bootdefs.ah"
 %include "biosdata.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
 %include "i386/descript.ah"
+%include "i386/paging.ah"
 %include "process.ah"
 %include "commonfs.ah"
 %include "kconio.ah"
@@ -19,12 +21,12 @@ module init
 %include "hw/partids.ah"
 
 %define	DEBUG
-%define LOADRDIMAGE
+;%define LOADRDIMAGE
 
 
 ; --- Exports ---
 
-global Start, SysReset
+global Start, SysReboot
 
 
 ; --- Imports ---
@@ -32,24 +34,22 @@ global Start, SysReset
 ; Built-in drivers
 extern DrvBIOS32:near, DrvKeyboard:near,
 extern DrvVTX:near, DrvVGAGR:near
-extern DrvAudio:near
-;extern DrvNetwork:near
 extern DrvSerial:near, DrvParport:near
 extern DrvFDD:near, DrvIDE:near
-extern DrvRD:near, DrvRFS:near
+extern DrvRD:near
 extern DrvRDM:near, DrvCOFF:near
 extern DrvConsole:near
 
 ; Kernel variables and data
 library kernel
 extern GDTaddrLim, IDTaddr, IntHandlersArr
-extern DrvId_Con, DrvId_RD, DrvId_RFS, DrvId_BIOS32
-extern HeapBegin, HeapEnd
-extern BaseMemSz, ExtMemSz
-extern TotalMemPages, VirtMemPages
+extern DrvId_Con, DrvId_RD, DrvId_BIOS32
+extern ?HeapBegin, ?HeapEnd
+extern ?BaseMemSz, ?ExtMemSz
+extern ?TotalMemPages, ?VirtMemPages
 
 ; Kernel procedures
-extern K_CheckCPU:near, K_InitFPU:near, K_InitMem:near
+extern K_CheckCPU:near, K_InitFPU:near, K_InitMem:near, K_GetMemInitStr:near
 extern K_GetCPUtypeStr:near, K_GetFPUtypeStr:near
 extern KernelEventHandler:near
 extern K_DescriptorAddress:near
@@ -57,29 +57,24 @@ extern K_GetDescriptorBase:near, K_GetDescriptorLimit:near
 extern K_GetDescriptorAR:near
 extern K_SetDescriptorBase:near, K_SetDescriptorLimit:near
 
-library kernel.kheap
-extern KH_Init:near, KH_Alloc:near
-
 library kernel.driver
 extern DRV_InitTable:near, DRV_InstallNew:near
 extern DRV_CallDriver:near, DRV_GetName:near, DRV_FindName:near
 extern EDRV_FixDrvSegLimit:near, EDRV_InitCodeAlloc:near
 
 library kernel.mm
-extern MM_Init:near, PG_Init:near
+extern MM_Init:near
+
+library kernel.paging
+extern PG_Init:near, PG_InitPageTables:near
 
 library kernel.mt
-extern MT_Init:near, MT_InitProc:near, MT_InitKernelProc:near
+extern MT_Init:near, MT_InitKernelProc:near
 extern MT_CreateThread:near, MT_ThreadExec:near
 
 library kernel.module
 extern MOD_InitMem:near, MOD_InitKernelMod:near
 extern MOD_Register:near
-
-library kernel.fs
-extern BUF_InitMem:near, CFS_Init:near
-extern CFS_LinkFS:near
-extern CFS_GetLPbyName:near, CFS_SetCurrentLP:near
 
 library kernel.misc
 extern StrLComp:near
@@ -104,28 +99,23 @@ extern MonitorInit:near
 library rkdt
 extern RKDT_Main:near
 
+library version
+extern RadiOS_Version
+
 ; --- Data ---
 
 section .data
 
 Msg_A20Fail	DB "A20 line opening failure.",0
 Msg_Bytes	DB " bytes.",NL,0
-Msg_RadiOS	DB NL
-		DB "ษอออออออออออออออออออออออออออออออออออออออออออออออออออออออออป",NL
-		DB "บ Radiant Operating System (RadiOS), kernel version d0.01 บ",NL
-		DB "บ This is a first GPLed release by Yuri Zaporogets.       บ",NL
-		DB "ศอออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ",NL,0
+Msg_RVersion	DB NL,"Radiant Operating System (RadiOS), kernel version ",0
+Msg_RCopyright	DB NL,"Copyright (c) 2000 RET & COM Research.",NL
+		DB "RadiOS is free software, covered by the GNU General Public License, and you are",NL
+		DB "welcome to change it and/or distribute copies of it under certain conditions.",NL,0
 
 Msg_InitDskDr	DB NL,NL,"Initializing disk drivers"
 Msg_Dots	DB "...",NL,0
-Msg_DiskBuf	DB " KB allocated for disk buffers",NL,0
-Msg_InitFSDRV	DB NL,"Initializing file system drivers...",NL,0
 Msg_SearchPart	DB NL,"Searching partitions on ",0
-Msg_LinkPrimFS	DB NL,"Linking primary file system: ",0
-Msg_Arrow	DB " <-> ",0
-Msg_At		DB " at ",0
-Msg_UnknFS	DB "failed, unknown file system on ",0
-Msg_TryCrFS	DB NL,"Try to create file system manually :)",NL,0
 Msg_TotMem	DB NL,"Total memory size: ",0
 Msg_KB		DB " KB",NL,0
 Msg_MemKrnl	DB " Kernel:  ",0
@@ -133,7 +123,6 @@ Msg_MemDrv	DB " Drivers: ",0
 Msg_MemFree	DB " Free:    ",0
 Msg_MemVirt	DB " Virtual: ",0
 Msg_InitChDr	DB NL,"Initializing character device drivers...",NL,0
-Msg_InitAudio	DB NL,"Initializing audio device driver...",NL,0
 Msg_InitErr	DB ": init error ",0
 
 Msg_SysReset1	DB ASC_BEL,NL,NL,"Main process completed (exit code=",0
@@ -153,7 +142,7 @@ InternalDriversTable	DD	0
 			DD	DrvKeyboard
 			DD	DrvVTX
 			DD	DrvVGAGR
-			DD	DrvAudio
+			DD	0
 			DD	0
 			DD	DrvSerial
 			DD	DrvParport
@@ -177,8 +166,6 @@ InitStringBuf	RESB	256
 section .text
 
 %include "buildxdt.as"
-%include "parsecfg.as"
-%include "launcher.as"
 
 
 ; --- Initialization procedures ---
@@ -369,7 +356,7 @@ proc INIT_InitRAMdisk
 		jc	short .Exit
 		mov	[DrvId_RD],eax			; Keep driver ID
 
-		mov	esi,offset InitStringBuf
+		mov	esi,InitStringBuf
 		mCallDriver dword [DrvId_RD], byte DRVF_Init
 		jc	short .Exit
 		mPrintChar NL
@@ -383,59 +370,12 @@ endp		;---------------------------------------------------------------
 
 		; INIT_LoadRDimage - load RAM-disk image.
 proc INIT_LoadRDimage
-%ifdef DEBUG
-extern RKDT_CreateRDimage
+%ifdef LOADRDIMAGE
+	extern RKDT_CreateRDimage
 	call	RKDT_CreateRDimage
 %endif
 		ret
 endp		;---------------------------------------------------------------
-
-
-		; INIT_InitDiskBuffers - initialize disk buffers
-proc INIT_InitDiskBuffers
-		mov	al,SCFG_BuffersMem		; Read config item
-		call	INIT_GetStCfgItem		; (buffers memory in KB)
-		xor	ecx,ecx
-		mov	cx,[ebx]			; ECX=buffers memory
-		cmp	cx,8192
-		cmc
-		jb	short .Exit
-		call	BUF_InitMem
-		jc	short .Exit
-		mPrintChar NL
-		mov	eax,ecx				; Print message
-		call	PrintDwordDec
-		mPrintString Msg_DiskBuf
-		clc
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_InitFileSystems - install and initialize all
-		;			 file system drivers.
-proc INIT_InitFileSystems
-
-		; RFS driver
-		mov	ebx,offset DrvRFS
-		xor	edx,edx
-		call	DRV_InstallNew
-		jc	short .Exit
-		mov	[DrvId_RFS],eax
-
-		mov	al,26				; Max. number of LPs
-		mov	cl,48				; Max. number of FCBs
-		mov	esi,InitStringBuf		; Buffer for status string
-		mCallDriver dword [DrvId_RFS], byte DRVF_Init
-		jc	short .Exit
-		mPrintChar ' '
-		mPrintString
-
-		; MDOSFS driver
-
-		clc
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
 
 
 		; INIT_PrintPartTbl - open boot disk device and print its
@@ -446,13 +386,13 @@ proc INIT_PrintPartTbl
 		jc	near .Exit
 
 		mov	esi,ebx				; Check for %hd or %sd
-		mov	edi,offset BootDev_HD
+		mov	edi,BootDev_HD
 		xor	ecx,ecx
 		mov	cl,3
 		call	StrLComp			; "%hd"?
 		or	al,al
 		jz	short .Do
-		mov	edi,offset BootDev_SD
+		mov	edi,BootDev_SD
 		call	StrLComp			; "%sd"?
 		or	al,al
 		jz	short .Do
@@ -481,7 +421,7 @@ proc INIT_PrintPartTbl
 
 		mov	dl,1
 		mov	edi,DRVF_Control+256*DRVCTL_GetInitStatStr
-		mov	esi,offset InitStringBuf
+		mov	esi,InitStringBuf
 .Loop:		push	ebx
 		mov	[esp+3],dl
 		push	edi
@@ -497,97 +437,6 @@ proc INIT_PrintPartTbl
 		jmp	.Loop
 .OK:		clc
 .Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_GetFSdrvIDfromCode - get file system driver ID from
-		;			    partition system code.
-		; Input: AL=partition system code.
-		; Output: CF=0 - OK, EDX=driver ID;
-		;	  CF=1 - error (unknown code).
-proc INIT_GetFSdrvIDfromCode
-		mov	edx,[DrvId_RFS]
-		cmp	al,FS_ID_RFSNATIVE
-		je	short .OK
-;		mov	edx,[DrvId_MDOSFS]
-;		cmp	al,CFS_ID_DOSFAT16SMALL
-;		je	short .OK
-;		cmp	al,CFS_ID_DOSFAT16LARGE
-;		je	short .OK
-;		mov	edx,[DrvId_HPFS]
-;		cmp	al,CFS_ID_OS2HPFS
-;		je	short .OK
-
-		stc
-		ret
-
-.OK:		clc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_LinkPrimFS - link primary file system.
-proc INIT_LinkPrimFS
-%define	.devicestr	ebp-4
-%define	.fsdrvstr	ebp-8
-%define	.fslpstr	ebp-12
-
-		prologue 12				; Save space
-		mPrintString Msg_LinkPrimFS
-
-		mov	al,SCFG_BootDev			; Get config item
-		call	INIT_GetStCfgItem		; (boot device string)
-		jc	near .Exit
-		mov	[.devicestr],ebx		; Keep it
-
-		mov	esi,ebx
-		call	DRV_FindName			; Get boot device ID
-		jc	near .Exit
-		mov	edi,eax				; Keep it in EDI
-		mCallDriverCtrl edi,DRVCTL_GetParams	; Get partition type
-		or	al,al				; Known file system?
-		jnz	short .KnownFS			; Yes, continue
-		mPrintString Msg_UnknFS			; Else print error msg
-		mov	esi,ebx
-		mPrintString
-		mPrintString Msg_TryCrFS
-		stc					; and exit with error
-		jmp	.Exit
-
-.KnownFS:	call	INIT_GetFSdrvIDfromCode		; Get FS driver ID in EDX
-		jc	near .Exit
-
-		mov	al,SCFG_PrimFS_LP		; Get config item
-		call	INIT_GetStCfgItem		; (primary FSLP string)
-		jc	near .Exit
-		mov	[.fslpstr],ebx			; Keep it
-
-		mov	eax,edx				; Keep FS driver ID
-		call	DRV_GetName			; Get name of FS driver
-		mov	[.fsdrvstr],esi
-		mov	esi,ebx				; ESI=pointer to LP string
-		call	CFS_GetLPbyName			; Get FSLP in DL
-		jc	near .Exit
-		mov	esi,eax				; ESI=FS driver ID
-
-		mov	dh,0				; Linking mode
-		call	CFS_LinkFS			; Do link
-		jc	near .Exit
-		call	CFS_SetCurrentLP		; Set current FSLP
-
-		mov	esi,[.devicestr]		; Print linking status
-		mPrintString
-		mPrintString Msg_Arrow
-		mov	esi,[.fsdrvstr]
-		mPrintString
-		mPrintString Msg_At
-		mov	esi,[.fslpstr]
-		mPrintString
-		mPrintChar NL
-		clc
-
-.Exit:		epilogue
-		ret
 endp		;---------------------------------------------------------------
 
 
@@ -625,7 +474,7 @@ proc INIT_PrepUserSeg
 		call	K_GetDescriptorBase		; Get its base
 		call	K_GetDescriptorAR		; and ARs
 		or	ax,ax				; Allocated?
-		jz	short .SegSetup		; No, begin setup
+		jz	short .SegSetup			; No, begin setup
 		call	K_GetDescriptorLimit		; Else get its limit
 		add	edi,eax				; Count base for
 		inc	edi				; user segment
@@ -636,11 +485,11 @@ proc INIT_PrepUserSeg
 		inc	edi
 		shl	edi,12
 
-.NoAlign:	mov	[HeapBegin],edi
-		mov	eax,[TotalMemPages]		; Count heap size
+.NoAlign:	mov	[?HeapBegin],edi
+		mov	eax,[?TotalMemPages]		; Count heap size
 		shl	eax,PAGESHIFT
 		add	eax,StartOfExtMem
-		mov	[HeapEnd],eax
+		mov	[?HeapEnd],eax
 		sub	eax,edi				; Count limit
 		dec	eax				; of user segment
 
@@ -655,30 +504,30 @@ proc INIT_PrepUserSeg
 
 		; Print memory information
 		mPrintString Msg_TotMem
-		mov	eax,[TotalMemPages]
+		mov	eax,[?TotalMemPages]
 		shl	eax,2
-		add	eax,[BaseMemSz]
+		add	eax,[?BaseMemSz]
 		call	PrintDwordDec
 		mPrintString Msg_KB
 		mPrintString Msg_MemKrnl
-		mov	eax,[BaseMemSz]
+		mov	eax,[?BaseMemSz]
 		call	PrintDwordDec
 		mPrintString Msg_KB
 		mPrintString Msg_MemDrv
-		mov	eax,[HeapBegin]
+		mov	eax,[?HeapBegin]
 		sub	eax,StartOfExtMem
 		shr	eax,10
 		call	PrintDwordDec
 		mPrintString Msg_KB
 		mPrintString Msg_MemFree
-		mov	eax,[ExtMemSz]
-		mov	ebx,[HeapBegin]
+		mov	eax,[?ExtMemSz]
+		mov	ebx,[?HeapBegin]
 		sub	ebx,StartOfExtMem
 		shr	ebx,10
 		sub	eax,ebx
 		call	PrintDwordDec
 		mPrintString Msg_KB
-		mov	eax,[VirtMemPages]
+		mov	eax,[?VirtMemPages]
 		shl	eax,2
 		or	eax,eax
 		jz	short .OK
@@ -734,13 +583,23 @@ proc DrvInitErr
 endp		;---------------------------------------------------------------
 
 
+		; INIT_IdleThread - kernel idle thread.
+		;		    Currently does nothing, only displays its
+		;		    activity.
+		; Input: none.
+		; Output: none.
+proc INIT_IdleThread
+.Infinite:	inc	byte [0xB8000+158]
+		jmp	.Infinite
+endp		;---------------------------------------------------------------
+
+
+
 ; --- Inititialization entry point ---
 
 proc Start
-		; Disable interrupts
-		cli
-		
 		; Initialize GDTR
+		cli
 		lgdt	[GDTaddrLim]
 		jmp	KERNELCODE:.InitSegs
 
@@ -751,15 +610,13 @@ proc Start
 		mov	gs,ax
 		mov	fs,ax
 		mov	ss,ax
-		mov	esp,InitESP
+		mov	edx,[KernelFreeMemEnd]		; EDX=base memory top
+		lea	esp,[edx-4]
 
-		; Initialize kernel heap
-		mov	ebx,[KHeapBeginAddr]		; EBX=kernel heap bottom
-		add	ebx,byte 16			; Align by paragraph
-		and	bl,0F0h
-		mov	edx,[KHeapTopAddr]		; EDX=top
-		sub	edx,BaseMemReservedSz
-		call	KH_Init
+		; Initialize global page pool
+		mov	ebx,[KernelFreeMemStart]	; EBX=begin of 
+		sub	edx,Init_StackSize		; kernel free memory
+		call	PG_Init
 
 		; Build IDT
 		call	INIT_BuildIDT
@@ -780,7 +637,7 @@ proc Start
 .DrvInstLoop:	mov	ebx,[esi]
 		xor	edx,edx
 		call	DRV_InstallNew
-		add	esi,4
+		add	esi,byte 4
 		cmp	eax,DRVID_HDIDE
 		jne	.DrvInstLoop
 
@@ -835,8 +692,11 @@ proc Start
 		mPrintString Msg_A20Fail
 
 		; Initialize memory
-.InitMem:	mov	esi,InitStringBuf
+.InitMem:	mov	eax,[KernelFreeMemEnd]
+		shr	eax,10				; Addr -> KB
 		call	K_InitMem
+		mov	esi,InitStringBuf
+		call	K_GetMemInitStr
 		mPrintChar ' '
 		mPrintString
 		mPrintString NLNL
@@ -850,39 +710,28 @@ proc Start
 		mCallDriver eax, byte DRVF_Init
 		jnc	short .BIOSinitOK
 		call	DrvInitErr
-		jmp	short .InitProc
+		jmp	short .InitMT
 
 .BIOSinitOK:	mPrintChar ' '
 		mPrintString
 
-		; Initialize process management
-.InitProc:	mov	eax,Init_MaxNumOfProcesses
-		call	MT_InitProc
-		jc	near .Monitor
-
-		; Initialize paging
-.InitPaging:	mov	al,SCFG_SwapSize
-		call	INIT_GetStCfgItem
-		mov	ecx,[ebx]
-		call	PG_Init
-		jc	near .Monitor
-
 		; Initialize multitasking memory structures
-.InitMT:	mov	ecx,Init_MaxNumOfThreads
+.InitMT:	mov	eax,Init_MaxNumOfProcesses
+		mov	ecx,Init_MaxNumOfThreads
 		call	MT_Init
-		jc	near .Monitor
-
+		jc	.Monitor
+		
+		; Create page tables and enable paging
+		mov	ecx,Init_MaxNumOfProcesses
+		call	PG_InitPageTables
+		jc	.Monitor
+int3
 		; Create kernel process
 		call	INIT_CreateKernelProcess
-		jc	near .Monitor
+		jc	.Monitor
 
 		; Initialize disk drivers
 		call	INIT_InitDiskDrvs
-
-		; Initialize common file system structures
-		mov	al,Init_NumFSlinkPoints
-		mov	ecx,Init_NumIndexes
-		call	CFS_Init
 
 		; Check startup configuration table signature
 		mov	ebx,StartCfgTblAddr
@@ -893,15 +742,6 @@ proc Start
 		; Initialize RAM-disk
 		call	INIT_InitRAMdisk
 		jc	near .Monitor
-
-		; Initialize disk buffers
-		call	INIT_InitDiskBuffers
-		jc	near .Monitor
-
-		; Install and initialize file system drivers
-;		mPrintString Msg_InitFSDRV
-;		call	INIT_InitFileSystems
-;		jc	near .Monitor
 
 		; Print partition table on boot device
 		call	INIT_PrintPartTbl
@@ -914,32 +754,13 @@ proc Start
 		; Initialize character device drivers
 		call	INIT_InitChDrv
 
-		; Initialize audio device
-		mPrintString Msg_InitAudio
-		mov	esi,offset InitStringBuf
-		mCallDriver byte DRVID_Audio, byte DRVF_Init
-		jc	short .ShowVer
-		mPrintString
-
 		; Show kernel version message
-.ShowVer:	mPrintString Msg_RadiOS
-
-
-		; Load RAM-disk image
-%ifdef LOADRDIMAGE 
-;		call INIT_LoadRDimage
-%endif
-
-		; Link primary file system
-;		call	INIT_LinkPrimFS
-;		jc	near .Monitor
+		mPrintString Msg_RVersion
+		mPrintString RadiOS_Version
+		mPrintString Msg_RCopyright
 
 		; Prepare to use external drivers code segment
 		call	INIT_PrepEDRVcodeSeg
-		jc	near .Monitor
-
-		; Read and parse system configuration file
-		call	INIT_ReadCfgFile
 		jc	near .Monitor
 
 		; Prepare user segment and print memory info
@@ -956,16 +777,16 @@ proc Start
 		jc	near .Monitor
 
 		; Install and initialize binary format drivers
-		call	INIT_InstallBinFmtDrvs
-		jc	FatalError
+;		call	INIT_InstallBinFmtDrvs
+;		jc	FatalError
 
 		; Initialize memory management
 		call	MM_Init
 		jc	FatalError
-
+int3
 		; Create two initial kernel threads
-		; (launcher and RKDT).
-		mov	ebx,INIT_Launcher
+		; (idle and RKDT).
+		mov	ebx,INIT_IdleThread
 		xor	ecx,ecx
 		xor	esi,esi
 		call	MT_CreateThread
@@ -992,7 +813,7 @@ proc Start
 		mPrintString Msg_SysReset2
 		call	ReadChar
 
-SysReset:	call	KBC_HardReset
+SysReboot:	call	KBC_HardReset
 
 		; Fatal error: print error message, error number
 		; and halt the system

@@ -19,7 +19,7 @@ global TabTo, code_address, put2
 ; --- Imports ---
 
 library kernel.misc
-extern K_HexD2Str, K_HexW2Str, K_HexB2Str
+extern HexD2Str, HexW2Str, HexB2Str
 
 
 ; --- Variables ---
@@ -1642,7 +1642,7 @@ proc FSY_SIGNEDOFS
 		add	esi,byte 4
 		mov	eax,[edi + tOperand.ADDRESS]
 		call	ABSX
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1652,7 +1652,7 @@ proc FSY_WORDOFS
 		mov	[esi],eax
 		add	esi,byte 4
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1662,7 +1662,7 @@ proc FSY_BYTEOFS
 		mov	[esi],eax
 		add	esi,byte 4
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1672,7 +1672,7 @@ proc FSY_ABSOLUTE
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1686,7 +1686,7 @@ proc FSY_SIGNEDIMM
 		add	esi,byte 4
 		mov	eax,[edi + tOperand.ADDRESS]
 		call	ABSX
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1696,7 +1696,7 @@ proc FSY_WORDIMM
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1706,7 +1706,7 @@ proc FSY_BYTEIMM
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1716,7 +1716,7 @@ proc FSY_PORT
 		mov	[esi],eax
 		add	esi,byte 2
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1726,7 +1726,7 @@ proc FSY_INTR
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1736,7 +1736,7 @@ proc FSY_RETURN
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexW2Str
+		call	HexW2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1746,7 +1746,7 @@ proc FSY_ABSBRANCH
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1756,7 +1756,7 @@ proc FSY_LONGBRANCH
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1766,7 +1766,7 @@ proc FSY_SHORTBRANCH
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1776,7 +1776,7 @@ proc FSY_SHIFT
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	eax,[edi + tOperand.ADDRESS]
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------
@@ -1786,7 +1786,7 @@ proc FSY_SEGMENT
 		mov	[esi],eax
 		add	esi,byte 3
 		mov	ax,[edi + tOperand.SEG]
-		call	K_HexW2Str
+		call	HexW2Str
 		mov	byte [esi],0
 		ret
 endp		;---------------------------------------------------------------

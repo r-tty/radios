@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  pic.asm - Programmable interrupt controller routines.
+;  pic.as - Programmable interrupt controller routines.
 ;-------------------------------------------------------------------------------
 
 %include "hw/pic.ah"

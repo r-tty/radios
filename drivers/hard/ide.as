@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  ide.asm - IDE driver.
+;  ide.as - IDE driver.
 ;  Ported from Adri Koppes's Minix AT HD driver.
 ;  RadiOS version 1.0 by Yuri Zaporogets.
 ;*******************************************************************************
@@ -29,7 +29,7 @@ extern DSF_Yield:extcall, DSF_Yield1ms:extcall
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern K_DecD2Str:extcall
+extern DecD2Str:extcall
 extern BZero:extcall
 
 library onboard.pic
@@ -530,7 +530,7 @@ proc IDE_GetInitStatStr
 		mov	esi,edi
 		mov	eax,[ebx+tIDEdev.TotalSectors]
 		shr	eax,11
-		call	K_DecD2Str
+		call	DecD2Str
 		mov	esi,offset IDE_MBstr
 		call	StrAppend
 
@@ -543,17 +543,17 @@ proc IDE_GetInitStatStr
 		call	StrEnd
 		mov	esi,edi
 		movzx	eax,word [ebx+tIDEdev.LCyls]
-		call	K_DecD2Str
+		call	DecD2Str
 		call	StrEnd
 		mov	byte [edi],'/'
 		lea	esi,[edi+1]
 		mov	ax,[ebx+tIDEdev.LHeads]
-		call	K_DecD2Str
+		call	DecD2Str
 		call	StrEnd
 		mov	byte [edi],'/'
 		lea	esi,[edi+1]
 		mov	ax,[ebx+tIDEdev.LSectors]
-		call	K_DecD2Str
+		call	DecD2Str
 
 		mov	al,[ebx+tIDEdev.SecPerInt]
 		cmp	al,1
@@ -562,7 +562,7 @@ proc IDE_GetInitStatStr
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
-		call	K_DecD2Str
+		call	DecD2Str
 .OK:		clc
 .Exit:		mpop	edi,esi,ebx,eax
 		ret

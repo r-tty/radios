@@ -1,4 +1,11 @@
-%define PG_SIZE			4096
+;-------------------------------------------------------------------------------
+; paging.ah - definitions for memory paging.
+;-------------------------------------------------------------------------------
+
+%define	MAXMEM			128			; Max. memory size (MB)
+
+%define PAGESIZE		4096
+%define	PAGESHIFT		12
 
 %define	PG_ITEMSPERTABLE	1024
 %define	PG_ITEMSPERTBLSHIFT	10

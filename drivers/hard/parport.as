@@ -22,7 +22,7 @@ global DrvParport
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern K_HexW2Str:extcall, K_DecD2Str:extcall
+extern HexW2Str:extcall, DecD2Str:extcall
 extern K_MicroDelay:extcall
 
 ; --- Definitions ---
@@ -244,7 +244,7 @@ proc PAR_GetInitStatStr
 		call	StrEnd
 		mov	esi,edi
 		mov	ax,[ebx+tPPdevParm.BasePort]
-		call	K_HexW2Str
+		call	HexW2Str
 		mov	edi,esi
 		mov	byte [edi],'h'
 		inc	edi
@@ -254,7 +254,7 @@ proc PAR_GetInitStatStr
 		mov	esi,edi
 		xor	eax,eax
 		mov	al,[ebx+tPPdevParm.IRQ]
-		call	K_DecD2Str
+		call	DecD2Str
 
 .OK:		clc
 .Exit:		mpop	edi,esi,ebx

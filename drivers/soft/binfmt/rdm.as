@@ -26,10 +26,6 @@ global DrvRDM
 library kernel.mm
 extern MM_AllocRegion:extcall
 
-library kernel.fs
-extern CFS_Read:extcall, CFS_SetPos:extcall
-extern CFS_OpenByIndex:extcall
-
 library kernel.misc
 extern StrComp:extcall, StrLComp:extcall, StrLen:extcall
 
@@ -121,14 +117,14 @@ int3
 		; Read the master header
 		lea	esi,[.masterhdr]
 		mov	ecx,tRDMmaster_size
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	near .Exit
 
 		; Seek at begin of the sections
 		mov	ecx,[esi+tRDMmaster.HdrLen]
 		add	ecx,tRDMmaster_size
 		xor	dl,dl
-		call	CFS_SetPos
+	;	call	CFS_SetPos		;XXX
 		jc	near .Exit
 		mov	dword [.codeaddr],-1
 		mov	dword [.dataaddr],-1
@@ -137,7 +133,7 @@ int3
 		; Sections load loop
 .LoadSect:	lea	esi,[.space]			; Load section header
 		mov	ecx,tRDMsegHeader_size
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	near .Exit
 
 		mov	ecx,[esi+tRDMsegHeader.Length]
@@ -172,7 +168,7 @@ int3
 		mov	[.firstsect],eax
 .NotFirst:	mov	esi,ebx
 		mov	ebx,[.fhandle]
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	near .Exit
 
 		cmp	byte [.sectcount],RDM_MAXSEGS
@@ -194,19 +190,19 @@ int3
 		mov	ecx,tRDMmaster_size
 		xor	dl,dl
 		mov	ebx,[.fhandle]
-		call	CFS_SetPos
+	;	call	CFS_SetPos		;XXX
 		jc	near .Exit
 		lea	esi,[.space]
 
 		; Records loading loop
 .RecScan:	mov	ecx,2					; 2 bytes: type
 		mov	ebx,[.fhandle]				; and length
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	near .Exit
 		sub	[.masterhdr+tRDMmaster.HdrLen],eax
 		mov	dl,[esi]				; DL=record type
 		mov	cl,[esi+1]				; CL=record len
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	near .Exit
 		sub	[.masterhdr+tRDMmaster.HdrLen],eax	; EAX=number of
 		cmp	dl,RDMREC_Reloc				; read bytes
@@ -378,7 +374,7 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc RDM_ResolveLinks
 		mov	ebx,[edi+tKModInfo.Index]
-		call	CFS_OpenByIndex
+	;	call	CFS_OpenByIndex			;XXX
 		jc	.Done
 
 .Done:		ret
@@ -407,7 +403,7 @@ proc RDM_CheckSignature
 
 		lea	esi,[.header]				; Read master
 		mov	ecx,tRDMmaster_size			; header
-		call	CFS_Read
+	;	call	CFS_Read		;XXX
 		jc	short .Exit
 		xor	ecx,ecx
 		cmp	eax,tRDMmaster_size
@@ -427,7 +423,7 @@ proc RDM_CheckSignature
 .Done:		mpush	ecx,edx
 		xor	ecx,ecx					; Set FP to 0
 		xor	dl,dl
-		call	CFS_SetPos
+	;	call	CFS_SetPos		;XXX
 		mpop	edx,ecx
 		jc	short .Exit
 		cmp	ch,2					; CF=1 if error

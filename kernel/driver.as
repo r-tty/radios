@@ -17,9 +17,6 @@ global DRV_InitTable, DRV_ReleaseTable
 global DRV_InstallNew, DRV_GetFlags, DRV_GetName
 global DRV_FindName, DRV_CallDriver
 
-global EDRV_AllocCode, EDRV_AllocData
-global EDRV_InitCodeAlloc, EDRV_FixDrvSegLimit
-
 global DSF_Block, DSF_Run
 global DSF_Yield, DSF_Yield1ms
 
@@ -31,13 +28,13 @@ extern K_DescriptorAddress:near
 extern K_GetDescriptorBase:near
 extern K_SetDescriptorLimit:near, K_SetDescriptorAR:near
 
-library kernel.kheap
-extern KH_Alloc:near, KH_Free:near
-
 library kernel.misc
 extern StrCopy:near, StrComp:near, StrScan:near
 extern ValByteDec:near
 extern K_LDelayMs:near
+
+library kernel.paging
+extern PG_AllocContBlock:near
 
 
 ; --- Definitions ---
@@ -72,10 +69,9 @@ section .bss
 EDRV_CodeFreeBl	RESD	1
 EDRV_DataFreeBl	RESD	1
 
-NumInstDrivers	RESD	1			; Number of installed drivers
-DRV_MaxQuantity	RESD	1			; Maximum number of drivers
-DRV_TableHnd	RESW	1			; Table block handle
-DRV_TableAddr	RESD	1			; Table address
+?NumInstDrivers	RESD	1			; Number of installed drivers
+?MaxDrivers	RESD	1			; Maximum number of drivers
+?TableAddr	RESD	1			; Table address
 
 
 ; --- Procedures ---
@@ -88,14 +84,14 @@ section .text
 		;	  CF=1 - error.
 proc DRV_InitTable
 		mpush	ebx,ecx,edx,esi
-		mov	[DRV_MaxQuantity],eax
+		mov	[?MaxDrivers],eax
 		mov	ecx,tKDriver_size
 		mul	ecx
 		mov	ecx,eax
-		call	KH_Alloc
+		xor	dl,dl
+		call	PG_AllocContBlock
 		jc	short .Exit
-		mov	[DRV_TableHnd],ax
-		mov	[DRV_TableAddr],ebx
+		mov	[?TableAddr],ebx
 
 		xor	eax,eax
 		xor	ebx,ebx
@@ -105,8 +101,8 @@ proc DRV_InitTable
 		mov	esi,DRV_NullName
 		call	DRV_ChangeInfo
 		inc	eax
-		mov	[NumInstDrivers],eax
-		mov	ecx,[DRV_MaxQuantity]
+		mov	[?NumInstDrivers],eax
+		mov	ecx,[?MaxDrivers]
 
 .Loop:		cmp	eax,ecx
 		jae	short .InitEDRV
@@ -124,30 +120,19 @@ proc DRV_InitTable
 endp		;---------------------------------------------------------------
 
 
-		; DRV_ReleaseTable - release drivers table.
+		; DRV_GetFreeID - find a slot for new driver.
 		; Input: none.
-		; Output: CF=0 - OK;
-		;	  CF-1 - error, AX=error code.
-proc DRV_ReleaseTable
-		mov	ax,[DRV_TableHnd]
-		call	KH_Free
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; DRV_GetFreeID - search free driver information structure.
-		; Input: none.
-		; Output: CF=0 - OK, EAX=free ID;
+		; Output: CF=0 - OK, EAX=ID of free slot;
 		;	  CF=1 - error, AX=error code.
 proc DRV_GetFreeID
 		push	edx
-		mov	edx,[DRV_TableAddr]
+		mov	edx,[?TableAddr]
 		xor	eax,eax
 .Loop:		cmp	dword [edx+tKDriver.ID],-1	; Free structure?
 		je	short .OK
 		add	edx,tKDriver_size
 		inc	eax
-		cmp	eax,[DRV_MaxQuantity]
+		cmp	eax,[?MaxDrivers]
 		je	short .Err
 		jmp	.Loop
 
@@ -191,7 +176,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX-error code.
 proc DRV_Uninstall
-		cmp	eax,[DRV_MaxQuantity]
+		cmp	eax,[?MaxDrivers]
 		jae	short .Err
 		mpush	eax,ebx,ecx,edx,esi
 		xor	ebx,ebx
@@ -221,7 +206,7 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK,
 		;	  CF=1 - error, AX=error code.
 proc DRV_ChangeInfo
-		cmp	eax,[DRV_MaxQuantity]
+		cmp	eax,[?MaxDrivers]
 		jae	short .Err
 		mpush	esi,edi,ecx
 
@@ -254,10 +239,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc DRV_GetInfoAddr
 		and	eax,0FFFFh				; Mask minor
-		cmp	eax,[DRV_MaxQuantity]
+		cmp	eax,[?MaxDrivers]
 		jae     short .Err
 		shl	eax,DRVSTRUCSZSHIFT
-		add	eax,[DRV_TableAddr]
+		add	eax,[?TableAddr]
 		clc
 		ret
 .Err:		mov	ax,ERR_DRV_BadID
@@ -323,7 +308,7 @@ proc DRV_FindName
 		call	DRV_GetMinor			; Get minor number
 		jc	short .Exit
 		mov	esi,edi
-		mov	edx,[DRV_TableAddr]
+		mov	edx,[?TableAddr]
 		xor	ecx,ecx
 .Loop:		cmp	dword [edx+tKDriver.ID],-1	; Free structure?
 		je	short .Err
@@ -333,7 +318,7 @@ proc DRV_FindName
 		jz	short .OK
 		add	edx,tKDriver_size
 		inc	ecx
-		cmp	ecx,[DRV_MaxQuantity]
+		cmp	ecx,[?MaxDrivers]
 		je	short .Err
 		jmp	.Loop
 .OK:		mov	eax,[edx+tKDriver.ID]	; Major number
@@ -471,158 +456,5 @@ proc DRV_CallDriver
 
 .Exit:		epilogue
 		ret	8
-endp		;---------------------------------------------------------------
-
-
-;---------------------- External driver support functions ----------------------
-
-
-		; EDRV_GetCodeSegAddr - get base address of external drivers'
-		;			code segment.
-		; Input: none.
-		; Output: EDI=address.
-proc EDRV_GetCodeSegAddr
-		mpush	ebx,edx
-		mov	dx,DRVCODE
-		call	K_DescriptorAddress
-		call	K_GetDescriptorBase
-		mpop	edx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_GetDataSegAddr - get base address of external drivers'
-		;			data segment.
-		; Input: none.
-		; Output: EDI=address.
-proc EDRV_GetDataSegAddr
-		mpush	ebx,edx
-		mov	dx,DRVDATA
-		call	K_DescriptorAddress
-		call	K_GetDescriptorBase
-		mpop	edx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_InitCodeAlloc - init code allocation variable.
-		; Input: none.
-		; Output: none.
-proc EDRV_InitCodeAlloc
-		push	edi
-		call	EDRV_GetCodeSegAddr
-		mov	[EDRV_CodeFreeBl],edi
-		pop	edi
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_InitDataAlloc - init data allocation variable.
-		; Input: none.
-		; Output: none.
-proc EDRV_InitDataAlloc
-		push	edi
-		call	EDRV_GetDataSegAddr
-		mov	[EDRV_DataFreeBl],edi
-		pop	edi
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_AllocCode - allocate block in external drivers'
-		;		   code segment.
-		; Input: ECX=block size.
-		; Output: CF=0 - OK, EBX=block address;
-		;	  CF=1 - error.
-proc EDRV_AllocCode
-		mov	ebx,[EDRV_CodeFreeBl]
-		add	[EDRV_CodeFreeBl],ecx
-		clc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_AllocData - allocate block in external drivers'
-		;		   data segment.
-		; Input: ECX=block size.
-		; Output: CF=0 - OK, EBX=block address;
-		;	  CF=1 - error.
-proc EDRV_AllocData
-		mov	ebx,[EDRV_DataFreeBl]
-		add	[EDRV_DataFreeBl],ecx
-		clc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; EDRV_FixDrvSegLimit - fix limit of external drivers' segment
-		;			by setting limit field in descriptor.
-		; Input: AL=0 - fix limit of data segment;
-		;	 AL=1 - fix limit of code segment.
-		; Output: none.
-proc EDRV_FixDrvSegLimit
-		mpush	eax,ebx,edx,edi
-		or	al,al
-		jz	short .DataSeg
-		mov	dx,DRVCODE
-		mov	eax,[EDRV_CodeFreeBl]
-		jmp	short .CountLim
-
-.DataSeg:	mov	dx,DRVDATA
-		mov	eax,[EDRV_DataFreeBl]
-
-.CountLim:	call	K_DescriptorAddress
-		call	K_GetDescriptorBase		; EDI=segment base addr.
-		sub	eax,edi				; Count size of segment
-		or	eax,eax				; Zero size?
-		jnz	short .SetLim			; No, set limit
-		call	K_SetDescriptorAR		; Else mark segment
-		jmp	short .Exit			; as invalid
-
-.SetLim:	dec	eax				; Count limit
-		call	K_SetDescriptorLimit		; Set limit
-
-.Exit:		mpop	edi,edx,ebx,eax
-		ret
-endp		;---------------------------------------------------------------
-
-
-;----------------------- Driver service functions (DSF) ------------------------
-
-		; DSF_Yield - yield execution of driver.
-		; Input: ECX=time interval (in milliseconds).
-		; Output: none.
-proc DSF_Yield
-	call K_LDelayMs
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; DSF_Yield1ms - yield execution of driver thread on 1 ms.
-		; Input: none.
-		; Output: none.
-proc DSF_Yield1ms
-	push ecx
-	xor ecx,ecx
-	inc ecx
-	call K_LDelayMs
-	pop ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; DSF_Block - block thread execution.
-		; Input:
-		; Output:
-proc DSF_Block
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; DSF_Run - resume thread execution.
-		; Input:
-		; Output:
-proc DSF_Run
-		ret
 endp		;---------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  serport.asm - serial port driver.
+;  serport.as - serial port driver.
 ;  (c) 1995 David Lindauer.
 ;  (c) 1999 Yuri Zaporogets.
 ;*******************************************************************************
@@ -28,7 +28,7 @@ extern EDRV_AllocData:extcall
 
 library kernel.misc
 extern StrEnd:extcall, StrCopy:extcall, StrAppend:extcall
-extern K_HexW2Str:extcall, K_DecD2Str:extcall
+extern HexW2Str:extcall, DecD2Str:extcall
 
 library onboard.pic
 extern PIC_EnbIRQ:extcall
@@ -479,7 +479,7 @@ proc SER_GetInitStatStr
 		call	StrEnd
 		mov	esi,edi
 		mov	ax,[ebx+tSPdevParm.BasePort]
-		call	K_HexW2Str
+		call	HexW2Str
 		mov	edi,esi
 		mov	byte [edi],'h'
 		inc	edi
@@ -489,7 +489,7 @@ proc SER_GetInitStatStr
 		mov	esi,edi
 		xor	eax,eax
 		mov	al,[ebx+tSPdevParm.IRQ]
-		call	K_DecD2Str
+		call	DecD2Str
 
 		mov	esi,offset SP_UARTstr
 		call	StrAppend
@@ -507,7 +507,7 @@ proc SER_GetInitStatStr
 		mov	esi,edi
 		xor	eax,eax
 		mov	al,[ebx+tSPdevParm.FIFOsize]
-		call	K_DecD2Str
+		call	DecD2Str
 
 .OK:		clc
 .Exit:		mpop	edi,esi,edx,ebx
@@ -1167,6 +1167,8 @@ proc SER_DumbTTY
 		mpush	ecx,esi
 
 		add	esi,ecx
+		cmp	byte [esi],0
+		je	.Exit
 		inc	esi
 
 		call	DRV_FindName

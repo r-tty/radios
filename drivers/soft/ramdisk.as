@@ -29,7 +29,7 @@ extern DRV_CallDriver:extcall, EDRV_AllocData:extcall
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern K_HexD2Str:extcall, K_DecD2Str:extcall
+extern HexD2Str:extcall, DecD2Str:extcall
 
 
 ; --- Data ---
@@ -230,14 +230,14 @@ proc RD_GetInitStatStr
 		mov	eax,[RDnumSectors]
 		shr	eax,1
 		xchg	esi,edi
-		call	K_DecD2Str
+		call	DecD2Str
 		xchg	esi,edi
 		mov	esi,offset RDmsg
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
 		mov	eax,[RDstart]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	dword [esi],0A68h	; 'h' and NL
 		mpop	edi,esi,eax
 		ret

@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  module.as - common modules support routines.
+;  module.as - RadiOS module primitives.
 ;  Copyright (c) 1999,2000 RET & COM Research.
 ;*******************************************************************************
 
@@ -10,6 +10,26 @@ module kernel.module
 %include "module.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
+
+
+; --- Exports ---
+
+global MOD_InitMem, MOD_InitKernelMod
+global MOD_Register, MOD_Unregister
+global MOD_Load, MOD_Unload
+global MOD_GetType, MOD_GetIDbyName
+
+
+; --- Imports ---
+
+library kernel.misc
+extern StrCopy:near, BZero:near
+
+library kernel.driver
+extern DRV_CallDriver:near, DRV_GetFlags:near
+
+library kernel.paging
+extern PG_AllocContBlock:near
 
 ; --- Definitions ---
 
@@ -34,29 +54,6 @@ ModTableAddr	RESD	1			; Module table address
 BinFmtDrivers	RESD	MOD_MAXBINFORMATS	; Binfmt drivers IDs
 
 
-; --- Exports ---
-
-global MOD_InitMem, MOD_InitKernelMod
-global MOD_Register, MOD_Unregister
-global MOD_Load, MOD_Unload
-global MOD_GetType, MOD_GetIDbyName
-
-
-; --- Imports ---
-
-library kernel.kheap
-extern KH_Alloc:near
-
-library kernel.misc
-extern StrCopy:near, BZero:near
-
-library kernel.driver
-extern DRV_CallDriver:near, DRV_GetFlags:near
-
-library kernel.fs
-extern CFS_Open:near, CFS_Close:near
-
-
 ; --- Procedures ---
 
 section .text
@@ -71,7 +68,8 @@ proc MOD_InitMem
 		mov	ecx,tKModInfo_size
 		mul	ecx
 		mov	ecx,eax
-		call	KH_Alloc
+		xor	dl,dl
+		call	PG_AllocContBlock
 		jc	short .Exit
 		mov	[ModTableAddr],ebx
 		call	BZero
@@ -189,13 +187,13 @@ proc MOD_Load
 		mov	eax,[.pid]
 		mov	[edi+tKModInfo.PID],eax			; Keep PID
 
-		call	CFS_Close
+	;	call	CFS_Close	;XXX
 .Exit:		mpop	edi,edx,ebx
 		epilogue
 		ret
 
 .CloseAndExit:	push	eax					; If failed-
-		call	CFS_Close				; close file
+	;	call	CFS_Close	;XXX			; close file
 		pop	eax					; and keep
 		stc						; error code
 		jmp	.Exit
@@ -307,7 +305,7 @@ endp		;---------------------------------------------------------------
 proc MOD_CheckSignature
 		push	ecx
 		xor	dx,dx					; Open file
-		call	CFS_Open
+	;	call	CFS_Open		;XXX
 		jc	short .Exit
 
 		xor	ecx,ecx
@@ -326,7 +324,7 @@ proc MOD_CheckSignature
 .Exit:		pop	ecx
 		ret
 
-.Err1:		call	CFS_Close				; Close file
+.Err1:	;	call	CFS_Close	;XXX			; Close file
 		jc	.Exit
 		mov	ax,ERR_MOD_UnknownSignature
 		stc

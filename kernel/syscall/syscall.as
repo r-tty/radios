@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  syscall.as - RadiOS System Calls.
-;  (c) 2000 RET & COM Research.
+;  syscall.as - RadiOS system calls.
+;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.syscall

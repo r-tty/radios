@@ -29,7 +29,7 @@ library kernel.driver
 extern DRV_FindName:extcall, DRV_CallDriver:extcall
 
 library kernel.init
-extern SysReset:extcall
+extern SysReboot:extcall
 
 library kenel.misc
 extern StrScan:extcall, BCDW2Dec:extcall
@@ -151,7 +151,7 @@ proc InputHandler
 		jmp     .WaitCmd
 
 .Reset:		mov	eax,[rEAX]			; Load exit code
-		jmp	SysReset
+		jmp	SysReboot
 endp		;---------------------------------------------------------------
 
 

@@ -1,6 +1,7 @@
 ;-------------------------------------------------------------------------------
 ;  sched.as - RadiOS scheduler.
-;  This code is based on the TINOS Operating System (c) 1998 Bart Sekura.
+;  Copyright (c) 2000 RET & COM Research.
+;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;-------------------------------------------------------------------------------
 
 %include "timeout.ah"

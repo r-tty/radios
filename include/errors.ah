@@ -17,12 +17,6 @@
 ; Misc kernel errors
 %define	ERR_KPoolFreeNoHead		0280h
 
-; Kernel heap errors
-%define	ERR_KH_Empty			0300h
-%define	ERR_KH_Destroyed		0301h
-%define	ERR_KH_BlNotFound		0302h
-%define	ERR_KH_NoHandles		0303h
-
 ; Drivers control errors
 %define	ERR_DRV_NoIDs			0320h
 %define	ERR_DRV_BadID			0321h
@@ -50,6 +44,7 @@
 
 %define	ERR_PG_NoFreePage		0358h
 %define	ERR_PG_BadLinearAddr		0359h
+%define	ERR_PG_BadDirNum		035Ah
 
 ; Task manager errors
 %define	ERR_MT_NoPIDs			0360h

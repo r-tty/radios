@@ -1,0 +1,48 @@
+;-------------------------------------------------------------------------------
+;  bootdefs.ah - constants and variables used by kernel loader.
+;-------------------------------------------------------------------------------
+
+; --- Loader variables ---
+
+%define	LoaderServiceEntryPoint	700h		; For debugging
+%define	KernelCodeStart		704h		; Kernel code section start
+%define DrvHlpTableAddr		708h		; Driver helpers table
+%define	UserAPIsTableAddr	70Ch		; User APIs table
+%define	KernelFreeMemStart	710h		; Begin of free kernel memory
+%define	KernelFreeMemEnd	714h		; End of free kernel memory
+%define BootModulesCount	718h		; Number of loaded boot modules
+%define BootModulesListAddr	71Ch		; Address of boot modules list
+%define BootModulesCmdLines	720h		; Boot modules commandline buf.
+%define	BIOSMemMapAddr		724h		; BIOS memory map address
+%define	BIOSMemMapSize		728h		; BIOS memory map size
+
+
+; --- Startup configuration table definitions ---
+
+; Table signature
+%define	SCFG_Signature		00435352h
+
+; Table structure
+struc tStartConfig
+.Signature	RESD	1
+.NumOfItems	RESW	1
+.ItemOffsets	RESW	1
+endstruc
+
+; Item numbers
+%define	SCFG_BootDev		0
+%define	SCFG_PrimFS_LP		1
+%define	SCFG_RAMdiskSz		2
+%define	SCFG_BuffersMem		3
+%define	SCFG_SwapDev		4
+%define	SCFG_SwapSize		5
+
+
+; --- Debugging macros ---
+
+%macro mDebugPrintDword 1
+	mov	eax,%1
+	push	byte 2
+	call	dword [LoaderServiceEntryPoint]
+	add	esp,byte 4
+%endmacro

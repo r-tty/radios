@@ -26,7 +26,7 @@ global DrvKeyboard
 library kernel.misc
 extern K_LDelay:extcall
 extern StrCopy:extcall, StrAppend:extcall
-extern K_HexW2Str:extcall
+extern HexW2Str:extcall
 
 library kernel.mt
 extern MT_Schedule:extcall
@@ -331,7 +331,8 @@ endp		;---------------------------------------------------------------
 		; KB_ReadKey - wait until a key will be pressed and read it.
 		; Input: none.
 		; Output: AX=pressed key code.
-proc KB_ReadKey
+KB_ReadKey: jmp near KB_ReadKeyNoSched
+proc _KB_ReadKey
 		call	KB_GetKeyNoWait
 		jnz	short .Done
 .Loop:		push	ebx
@@ -344,7 +345,6 @@ proc KB_ReadKey
 		call	MT_Schedule
 		pop	ebx
 		call	KB_GetKeyNoWait
-	;	jz	.Loop
 .Done:		ret
 endp		;---------------------------------------------------------------
 
@@ -358,7 +358,7 @@ proc KB_GetInitStatStr
 		mov	ax,[?InternalID]
 		mov	edi,KBInfoStr
 		lea	esi,[edi+35]			; Convert ID
-		call	K_HexW2Str			; into string
+		call	HexW2Str			; into string
 		mov	word [esi],'h'
 		pop	edi
 		mov	esi,DrvKeyboard

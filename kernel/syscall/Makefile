@@ -7,6 +7,7 @@
 include ../../etc/header.mk
 
 # Change variables here
+TARGET_LIB = NONE
 OBJS = syscall.rdm
 modnamesfile = $(OUTPATH)/.syscall-modules
 

@@ -33,7 +33,7 @@ extern EDRV_AllocData:extcall
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern K_DecD2Str:extcall
+extern DecD2Str:extcall
 
 
 
@@ -191,7 +191,7 @@ proc RFS_GetISS
 		stosd
 		movzx	eax,byte [NumOfFCBs]
 		xchg	esi,edi
-		call	K_DecD2Str
+		call	DecD2Str
 		xchg	esi,edi
 		mov	esi,Str_FCBs
 		call	StrAppend

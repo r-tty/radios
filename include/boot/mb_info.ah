@@ -10,6 +10,8 @@ struc tModList
 .Pad		RESD	1		; Padding to take it to 16 bytes
 endstruc				;  (must be zero)
 
+%define	MODLIST_SHIFT	4
+
 
 ; INT-15, AX=E820 style "AddressRangeDescriptor"
 ; ...with a "size" parameter on the front which is the structure size - 4,

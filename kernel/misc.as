@@ -15,8 +15,8 @@ module kernel.misc
 global K_TTDelay, K_LDelay, K_LDelayMs, K_MicroDelay
 global K_GetDate, K_GetTime
 
-global K_HexB2Str, K_HexW2Str
-global K_HexD2Str, K_DecD2Str
+global HexB2Str, HexW2Str
+global HexD2Str, DecD2Str
 
 global ValByteDec, ValDwordDec, ValDwordHex
 global BCDB2Dec, BCDW2Dec
@@ -32,7 +32,7 @@ global MemSet, BZero
 ; --- Imports ---
 
 library kernel
-extern TimerTicksLo, CPUspeed
+extern ?TimerTicksLo, ?CPUspeed
 
 library kernel.driver
 extern DRV_CallDriver:near, DRV_GetFlags:near
@@ -53,9 +53,9 @@ section .text
 proc K_TTDelay
 		push	eax
 		push	ecx
-		mov	eax,[TimerTicksLo]
+		mov	eax,[?TimerTicksLo]
 		lea	ecx,[eax+ecx]
-.Loop:		mov	eax,[TimerTicksLo]
+.Loop:		mov	eax,[?TimerTicksLo]
 		cmp	eax,ecx
 		jb	.Loop
 		mpop	ecx,eax
@@ -66,11 +66,11 @@ endp		;---------------------------------------------------------------
 		; K_LDelay - kernel delay (using LOOP).
 		; Input: ECX=number of repeats in loop.
 		; Output: none.
-		; Note: uses CPUspeed variable.
+		; Note: uses ?CPUspeed variable.
 proc K_LDelay
 		mpush	eax,ecx,edx
 		xor	edx,edx
-		mov	eax,[CPUspeed]
+		mov	eax,[?CPUspeed]
 		mul	ecx
 		mov	ecx,eax
 		align 4
@@ -128,30 +128,42 @@ proc K_GetTime
 endp		;---------------------------------------------------------------
 
 
+		; K_SetSysDate - set system date.
+		; Input: AH=seconds,
+		;	 BL=minutes,
+		;	 BH=hours,
+		;	 DL=day,
+		;	 DH=month,
+		;	 CX=year.
+		; Output:
+proc K_SetSysDate
+		ret
+endp		;---------------------------------------------------------------
+
 ; =================== Dec/hex write and convert procedures =====================
 
 
 
-		; K_HexD2Str - convert dword (EAX) to string in hex;
-		; K_HexW2Str - convert word (AX) to string in hex;
-		; K_HexB2Str - convert byte (AL) to string in hex.
-		; K_HexN2Str - convert nibble (AL) to string in hex.
+		; HexD2Str - convert dword (EAX) to string in hex;
+		; HexW2Str - convert word (AX) to string in hex;
+		; HexB2Str - convert byte (AL) to string in hex.
+		; HexN2Str - convert nibble (AL) to string in hex.
 		; Note: string address in ESI;
 		;	returns pointer to last character+1 (ESI).
-proc K_HexD2Str
+proc HexD2Str
 		push	eax		; To print a dword
 		shr	eax,16		; Print the high 16 bits
-		call	K_HexW2Str
+		call	HexW2Str
 		pop	eax		; And the low 16 bits
-K_HexW2Str:	push	eax		; To print a word
+HexW2Str:	push	eax		; To print a word
 		mov	al,ah		; Print the high byte
-		call	K_HexB2Str
+		call	HexB2Str
 		pop	eax		; And the low byte
-K_HexB2Str:	push	eax		; To print a byte
+HexB2Str:	push	eax		; To print a byte
 		shr	eax,4		; Print the high nibble
-		call	K_HexN2Str
+		call	HexN2Str
 		pop	eax		; And the low nibble
-K_HexN2Str:	and	al,0Fh		; Get a nibble
+HexN2Str:	and	al,0Fh		; Get a nibble
 		add	al,'0'		; Make it numeric
 		cmp	al,'9'		; If supposed to be alphabetic
 		jle	.Numeric
@@ -162,11 +174,11 @@ K_HexN2Str:	and	al,0Fh		; Get a nibble
 endp		;---------------------------------------------------------------
 
 
-		; K_DecD2Str - convert dword to string in decimal.
+		; DecD2Str - convert dword to string in decimal.
 		; Input: EAX=dword,
 		;	 ESI=buffer address.
 		; Output: none.
-proc K_DecD2Str
+proc DecD2Str
 		mpush	esi,edi
 		mov	edi,Dig2StrProc
 		call	K_WrDecD

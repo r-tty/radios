@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  bios32.asm - BIOS 32-bit services support driver.
-;  Copyright (c) 1999 RET & COM research.
+;  bios32.as - BIOS 32-bit services driver.
+;  Copyright (c) 2000 RET & COM research.
 ;*******************************************************************************
 
 module hw.bios32
@@ -20,7 +20,7 @@ global DrvBIOS32
 
 library kernel.misc
 extern StrCopy:extcall, StrEnd:extcall
-extern K_HexD2Str:extcall
+extern HexD2Str:extcall
 
 
 ; --- Definitions ---
@@ -124,7 +124,7 @@ proc B32_GetInitStatStr
 		call	StrEnd
 		mov	esi,edi
 		mov	eax,[B32_Entry]
-		call	K_HexD2Str
+		call	HexD2Str
 		mov	word [esi],'h'
 		jmp	short .Exit
 

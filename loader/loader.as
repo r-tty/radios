@@ -1,23 +1,17 @@
 ;*******************************************************************************
-;  loader.as - load kernel in base memory and parse kernel options.
+;  loader.as - RadiOS boot-time loader and linker.
 ;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
+%include "boot/bootdefs.ah"
+%include "boot/mb_info.ah"
 %include "rdm.ah"
-%include "mb_info.ah"
 
-%define DrvHlpTableAddr		700h
-%define	UserAPIsTableAddr	704h
-%define	KernelHeapBegin		708h
-%define	KernelHeapEnd		70Ch
-%define BootModulesListAddr	710h
 
 %define	KIMGADDR		110000h
 %define	BUFADDR			800h
-%define	KERNELCODEADDR		1000h
-
-%define MODLIST			600h			; Module list begin addr
-%define MAXMODULES		16			; Max. number of modules
+%define	KERNELCODEADDR		4000h
+%define	MMAPADDR		2000h
 
 section .text
 bits 32
@@ -32,70 +26,49 @@ bits 32
 		mov	gs,eax
 		mov	ss,eax
 		jmp	Start
+
 		
 ;--- Miscellaneous routines ----------------------------------------------------
 
 %include "util.as"
-		
-		; PrintChar - print character (direct in video memory).
-		; Input: AL=character.
-proc PrintChar
-		mpush	ebx,ecx,esi
-		mov	cl,al
-		mov	ebx,0B8000h
-		add	bx,[44Eh]			; BX=Video page offset
-		movzx	esi,byte [462h]			; SI=active video page
-		shl	esi,1
-		cmp	cl,0Ah
-		je	.LF
-		xor	eax,eax
-		mov	al,[esi+450h]			; AL=cursor column
-		cmp	al,80
-		jb	.NoLF
-		inc	byte [esi+451h]
-		xor	al,al
-		mov	byte [esi+450h],al
-.NoLF		shl	al,1
-		add	ebx,eax
-		mov	al,[esi+451h]			; AL=cursor row
-		shl	eax,byte 5
-		lea	eax,[eax*4+eax]			; Row*=160
-		add	ebx,eax
-		mov	ch,15				; White color
-		mov	[ebx],cx
-		inc	byte [esi+450h]
-		jmp	short .Done
-.LF:		inc	byte [esi+451h]
-		mov	byte [esi+450h],0
-.Done:		mpop	esi,ecx,ebx
-		ret
-endp		;---------------------------------------------------------------
 
-
-		; PrintStr - print ASCIIZ string.
-		; Input: ESI=pointer to string.
-proc PrintStr
-		push	esi
+		; CopyMMap - copy BIOS memory map to new location.
+		; Input: none.
+		; Output: none.
+proc CopyMMap
+		mov	ebx,[MBinfoAddr]
+		test	dword [ebx+tMBinfo.Flags],MB_INFO_MEM_MAP
+		jz	short .NoMemMap
+		mov	esi,[ebx+tMBinfo.MMapAddr]
+		mov	edi,MMAPADDR
+		mov	[BIOSMemMapAddr],edi
+		mov	ecx,[ebx+tMBinfo.MMapLength]
+		mov	[BIOSMemMapSize],ecx
 		cld
-.Loop:		lodsb
-		or	al,al
-		jz	.Done
-		call	PrintChar
-		jmp	.Loop
-.Done:		pop	esi
+		rep	movsb
+		ret
+		
+.NoMemMap:	xor	eax,eax
+		mov	[BIOSMemMapAddr],eax
+		mov	[BIOSMemMapSize],eax
 		ret
 endp		;---------------------------------------------------------------
 
 
-;--- Kernel image manipulations ------------------------------------------------
+;--- Module boot-time link procedures ------------------------------------------
 
-		; kimg_read - read from "pseudo-file" of the kernel image.
+%include "module.as"
+
+
+;--- RDM image manipulations ---------------------------------------------------
+
+		; img_read - copy bytes from RDM image.
 		; Input: EDI=target address,
 		;	 ECX=number of bytes to read
 		; Output: none.
-proc kimg_read
+proc ImgRead
 		mpush	ecx,edx,esi,edi
-		mov	esi,[KImgCurrPos]
+		mov	esi,[RImgCurrPos]
 		mov	edx,ecx
 		mov	ecx,10000h
 
@@ -109,7 +82,7 @@ proc kimg_read
 .Even:		cld
 		rep	movsw
 		pop	ecx
-		add	[KImgCurrPos],ecx
+		add	[RImgCurrPos],ecx
 		sub	edx,ecx
 		jnz	.Loop
 .Exit:		mpop	edi,esi,edx,ecx
@@ -119,11 +92,11 @@ endp		;---------------------------------------------------------------
 
 		; Set read position.
 		; Input: EBX=new position (from begin).
-proc kimg_seek
+proc ImgSeek
 		push	edx
-		mov	edx,[KImgStart]
+		mov	edx,[RImgStart]
 		add	edx,ebx
-		mov	[KImgCurrPos],edx
+		mov	[RImgCurrPos],edx
 		pop	edx
 		ret
 endp		;---------------------------------------------------------------
@@ -136,17 +109,17 @@ endp		;---------------------------------------------------------------
 		; 'DrvHlpTableAddr' variable)
 proc DoRelocation
 		mov	ebx,tRDMmaster_size		; Seek to begin
-		call	kimg_seek			; of header
+		call	ImgSeek				; of header
 		xor	edx,edx
 
-.Loop:		cmp	edx,[KImgHeaderLen]		; All records handled?
+.Loop:		cmp	edx,[RImgHeaderLen]		; All records handled?
 		je	near .Done
 		mov	ecx,2				; Read type
 		mov	edi,ebp				; and length of record
-		call	kimg_read
+		call	ImgRead
 		movzx	ecx,byte [ebp+1]		; ECX=length
 		add	edi,byte 2
-		call	kimg_read			; Read rest of record
+		call	ImgRead				; Read rest of record
 		add	edx,byte 2
 		add	edx,ecx
 		mov	al,[ebp]			; AL=type
@@ -193,22 +166,24 @@ endp		;---------------------------------------------------------------
 
 		; Build system calls table.
 proc BuildSysCallTable
-		mov	dword [WhatSysCall],0
+		xor	eax,eax
+		mov	[WhatSysCall],al
+		mov	[SysCallsFound],al
 		mov	eax,[DrvHlpTableAddr]		; Begin address of
 		mov	[SysCallRecAddr],eax		; DrvHlp table
 		
 		mov	ebx,tRDMmaster_size		; Seek to begin
-		call	kimg_seek			; of header
+		call	ImgSeek				; of header
 		xor	edx,edx
 
-.Loop:		cmp	edx,[KImgHeaderLen]		; All records handled?
+.Loop:		cmp	edx,[RImgHeaderLen]		; All records handled?
 		je	near .Done
 		mov	ecx,2				; Read type
 		mov	edi,ebp				; and length of record
-		call	kimg_read
+		call	ImgRead
 		movzx	ecx,byte [ebp+1]		; ECX=length
 		add	edi,byte 2
-		call	kimg_read			; Read rest of record
+		call	ImgRead				; Read rest of record
 		add	edx,byte 2
 		add	edx,ecx
 		mov	al,[ebp]			; AL=record type
@@ -261,6 +236,7 @@ proc BuildSysCallTable
 		je	near .Loop			; No, continue
 		inc	dword [SysCallRecAddr]		; Else mark end of
 		mov	byte [WhatSysCall],0		; syscalls table
+		mov	byte [SysCallsFound],1		; And set flag they here
 		jmp	.Loop
 
 .SysCallModule:	mov	edi,TxtDrvHlp			; Driver helper?
@@ -287,12 +263,17 @@ proc BuildSysCallTable
 .DriverHelper:	mov	byte [WhatSysCall],1		; Set syscall type
 		jmp	.Loop
 
-.Done:		mov	eax,[SysCallRecAddr]
+.Done:		xor	eax,eax
+		cmp	[SysCallsFound],al
+		jne	short .SysCallsBuilt
+		mov	dword [DrvHlpTableAddr],eax
+		mov	dword [UserAPIsTableAddr],eax
+.SysCallsBuilt:	mov	eax,[SysCallRecAddr]
 		inc	eax
-		mov	[KernelHeapBegin],eax
-		mov	ax,[413h]
+		mov	[KernelFreeMemStart],eax
+		movzx	eax,word [BDA_BaseMemSz]	; BIOS size of base mem
 		shl	eax,10
-		mov	[KernelHeapEnd],eax
+		mov	[KernelFreeMemEnd],eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -303,8 +284,8 @@ proc Start
 		mov	esp,BUFADDR+800h		; Stack size = 2K
 		mov	ebp,BUFADDR			; EBP always store BUFADDR
 
-		mov	dword [KImgStart],KIMGADDR	; Set address of kernel
-		mov	dword [KImgCurrPos],KIMGADDR	; image
+		mov	dword [RImgStart],KIMGADDR	; Set address of kernel
+		mov	dword [RImgCurrPos],KIMGADDR	; image
 
 		xor	eax,eax
 		mov	[MBinfoAddr],eax
@@ -312,26 +293,8 @@ proc Start
 		jne	short .CopySCfg
 		mov	[MBinfoAddr],ebx		; Store address of MB info
 		
-		; Check whether bootable modules are loaded
-		test	dword [ebx+tMBinfo.Flags],MB_INFO_MODS
-		jz	short .NoModules
-		mov	al,[ebx+tMBinfo.ModsCount]
-		cmp	al,MAXMODULES			; No more than 16 mods
-		jbe	.NumModsOK
-		mov	al,MAXMODULES
-.NumModsOK:	mov	[sNumMods],al
-		or	al,al
-		jz	.NoModules
-		
-		; Copy module list to new location
-		shl	al,2				; Assumes tModList_size
-		movzx	ecx,al
-		mov	esi,[ebx+tMBinfo.ModsAddr]
-		mov	edi,MODLIST
-		cld
-		rep	movsd
-		
-.NoModules:
+		call	ModPrepare			; Prepare modules
+		call	CopyMMap			; Copy BIOS MMap
 		
 .CopySCfg:	mov	esi,StartupCfg			; Move startup config
 		mov	edi,500h			; table to 500h
@@ -342,22 +305,22 @@ proc Start
 
 		mov	edi,ebp
 		mov	cl,tRDMmaster_size		; Read master header
-		call	kimg_read
+		call	ImgRead
 
-		mov	esi,TxtRDOFF2
+		mov	esi,TxtRDOFF2			; Check its signature
 		mov	cl,6
 		cld
 		repe	cmpsb
-		jnz	near .Err1
+		jnz	near .ErrBadRDM
 
 		mov	ebx,[ebp+tRDMmaster.HdrLen]	; Seek to code header
-		mov	[KImgHeaderLen],ebx
+		mov	[RImgHeaderLen],ebx
 		add	ebx,byte tRDMmaster_size
-		call	kimg_seek
+		call	ImgSeek
 
 		mov	edi,ebp				; Load code section header
 		mov	cl,tRDMsegHeader_size
-		call	kimg_read
+		call	ImgRead
 
 		mov	esi,MsgBuildKrnl		; Print message
 		call	PrintStr
@@ -366,13 +329,14 @@ proc Start
 		call	PrintDwordHex
 
 		mov	[CodeSectAddr],edi
+		mov	[KernelCodeStart],edi
 		mov	ecx,[ebp+tRDMsegHeader.Length]	; Load code section
-		call	kimg_read
+		call	ImgRead
 
 		push	ecx				; Load data header
 		mov	edi,ebp
 		mov	ecx,tRDMsegHeader_size
-		call	kimg_read
+		call	ImgRead
 		pop	edi
 		add	edi,KERNELCODEADDR
 		add	edi,byte 15			; Align by paragraph
@@ -385,7 +349,7 @@ proc Start
 
 		mov	[DataSectAddr],edi
 		mov	ecx,[ebp+tRDMsegHeader.Length]	; Load data section
-		call	kimg_read
+		call	ImgRead
 
 		add	edi,ecx				; Count BSS address
 		mov	[BSSsectAddr],edi
@@ -398,11 +362,15 @@ proc Start
 		
 		call	DoRelocation
 		call	BuildSysCallTable
-
+		
+		call	LinkModules
+		
+		mov	dword [LoaderServiceEntryPoint],ServiceEntry
+		
 		jmp	[KernelEntryPoint]
 .Halt:		jmp	$
 
-.Err1:		mov	si,MsgErrInvKImg
+.ErrBadRDM:	mov	esi,MsgBadRDM
 		call	PrintStr
 		jmp	.Halt
 endp		;---------------------------------------------------------------
@@ -425,9 +393,9 @@ GDT		DD	0,0
 MsgBuildKrnl	DB	"Building kernel: code (",0
 MsgData		DB	"h), data (",0
 MsgBSS		DB	"h), bss (",0
-MsgBracket	DB	"h)",0
+MsgBracket	DB	"h)",10,0
 
-MsgErrInvKImg	DB	"invalid kernel image",0
+MsgBadRDM	DB	" invalid RDM signature",10,0
 
 TxtRDOFF2	DB	"RDOFF2"
 TxtStart	DB	"Start",0
@@ -440,6 +408,7 @@ TxtRootLP	DB	6,"rootlp"
 TxtRDsize	DB	6,"rdsize"
 TxtBufMem	DB	6,"bufmem"
 TxtSwapDev	DB	7,"swapdev"
+TxtSwapSize	DB	8,"swapsize"
 
 ; --- Variables ---
 
@@ -447,18 +416,18 @@ section .bss
 
 MBinfoAddr		RESD	1	; Address of multiboot information
 
-KImgStart		RESD	1	; Address of loaded kernel image
-KImgSize		RESD	1	; Kernel image size
-KImgHeaderLen		RESD	1	; Length of kernel image header
-KImgCurrPos		RESD	1	; Current read position in kernel image
+RImgStart		RESD	1	; Address of loaded RDM image
+RImgSize		RESD	1	; RDM image size
+RImgCurrPos		RESD	1	; Current read position in RDM image
+RImgHeaderLen		RESD	1	; Length of RDM image header
 
-CodeSectAddr		RESD	1	; Address of code (text) section
+CodeSectAddr		RESD	1	; Code section address
 DataSectAddr		RESD	1	; Data section address
-BSSsectAddr		RESD	1	; BSS address
+BSSsectAddr		RESD	1	; BSS section address
 
-KernelEntryPoint	RESD	1
+KernelEntryPoint	RESD	1	; Start entry
 
 ; Used by 'BuildSysCallTable'
-WhatSysCall		RESD	1	; 1=DrvHlp, 2=user
 SysCallRecAddr		RESD	1	; Address of syscall record being built
-
+WhatSysCall		RESB	1	; 1=DrvHlp, 2=user
+SysCallsFound		RESB	1	; 1 if any syscalls found

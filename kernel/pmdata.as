@@ -14,7 +14,7 @@ KernTSS	istruc tTSS
 	 at tTSS.ESP2,		DD	0
 	 at tTSS.SS2,		DD	0
 	 at tTSS.CR3,		DD	0
-	 at tTSS.EIP,		DD	SysReset
+	 at tTSS.EIP,		DD	SysReboot
 	 at tTSS.EFLAGS,	DD	202h
 	 at tTSS.EAX,		DD	0
 	 at tTSS.ECX,		DD	0

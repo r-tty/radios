@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  dma.asm - Direct memory access control routines.
+;  dma.as - Direct memory access control routines.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---

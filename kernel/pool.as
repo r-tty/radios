@@ -1,7 +1,7 @@
 ;*******************************************************************************
 ;  pool.as - routines for manipulations with the memory "pools".
-;  Based upon the TINOS Operating System (c) 1996-1998 Bart Sekura.
-;  RadiOS porting by Yuri Zaporogets.
+;  Copyright (c) 2000 RET & COM Research.
+;  This file is based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
 module kernel.pool
@@ -40,7 +40,9 @@ section .text
 
 		; K_PoolInit - initialize the master pool.
 		; Input: EBX=address of the master pool,
-		;	 ECX=chunk size.
+		;	 ECX=chunk size,
+		;	 DL=0 - kernel-space pool;
+		;	 DL=1 - user-space pool.
 		; Output: none.
 proc K_PoolInit
 		xor	eax,eax
@@ -48,6 +50,7 @@ proc K_PoolInit
 		mov	[ebx+tMasterPool.Hint],eax
 		mov	[ebx+tMasterPool.Count],eax
 		mov	[ebx+tMasterPool.Size],ecx
+		mov	[ebx+tMasterPool.Flags],edx
 		push	ebx
 		lea	ebx,[ebx+tMasterPool.SemLock]
 		mSemInit ebx
@@ -69,16 +72,16 @@ proc K_PoolNew
 		
 		; See how many chunks will fit into a page.
 		; Take into account pool descriptor at the beginning of a page.
-		mov	eax,PG_SIZE-tPoolDesc_size
+		mov	eax,PAGESIZE-tPoolDesc_size
 		mov	ecx,[ebx+tMasterPool.Size]
 		xor	edx,edx
 		div	ecx
 		mov	ecx,eax				; ECX=number of chunks
 
 		; Get a page of memory
-		xor	dl,dl				; Physical memory
+		mov	dl,[ebx+tMasterPool.Flags]	; Kernel or user space
 		call	PG_Alloc
-		jc	.Done
+		jc	short .Done
 		and	eax,PGENTRY_ADDRMASK		; Mask status bits
 		mov	esi,eax				; ESI=address of page
 		

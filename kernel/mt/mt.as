@@ -1,7 +1,6 @@
 ;*******************************************************************************
 ;  mt.as - RadiOS multitasking.
-;  Based upon the TINOS Operating System (c) 1996-1998 Bart Sekura.
-;  RadiOS porting by Yuri Zaporogets.
+;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.mt
@@ -34,10 +33,6 @@ global MT_Init
 
 library kernel
 extern KernTSS, DrvTSS
-
-library kernel.kheap
-extern KH_Alloc:near, KH_Free:near
-extern KH_FillWithFF:near
 
 library kernel.misc
 extern BZero:near
@@ -84,16 +79,19 @@ endp		;---------------------------------------------------------------
 
 
 		; MT_Init - initialize multitasking memory structures.
-		; Input: ECX=maximum number of threads.
+		; Input: EAX=maximum number of processes,
+		;	 ECX=maximum number of threads.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MT_Init
+		call	MT_InitPCBpool
+		jc	short .Done
 		mov	eax,ecx
 		call	MT_InitTCBpool
 		jc	.Done
 		call	MT_InitKTSS		; Initialize PL0 TSS
 		call	MT_InitDTSS		; Initialize PL1 TSS
-		call	MT_InitTimeout		; Initialize shed timeout queue
+		call	MT_InitTimeout		; Initialize sched timeout queue
 .Done		ret
 endp		;---------------------------------------------------------------
 

@@ -1,15 +1,20 @@
 ;-------------------------------------------------------------------------------
-;  buildxdt.asm - building and initializing IDT and LDTs.
+;  buildxdt.as - building and initializing IDT and LDTs.
 ;-------------------------------------------------------------------------------
 
-extern DHlpSymAddr, UAPIsymAddr
+library kernel
+extern ?DHlpSymAddr, ?UAPIsymAddr
+
+library kernel.paging
+extern PG_AllocContBlock:near
 
 ; --- Code ---
 
 		; INIT_BuildIDT - build and initialize IDT.
 proc INIT_BuildIDT
 		mov	ecx,IDT_size
-		call	KH_Alloc
+		xor	dl,dl
+		call	PG_AllocContBlock
 		mov	[IDTaddr],ebx
 		mov	esi,IntHandlersArr
 		mov	ecx,IDT_size/tGateDesc_size
@@ -54,7 +59,7 @@ endp		;---------------------------------------------------------------
 		; INIT_BuildDriversLDT - build the drivers LDT.
 		; Input: EBX=address of memory block for LDT.
 proc INIT_BuildDriversLDT
-		mov	esi,[DrvAPIsTableAddr]
+		mov	esi,[DrvHlpTableAddr]
 		cld
 .Loop:		lodsb					; AL=RDF record type
 		or	al,al				; Export?
@@ -78,12 +83,13 @@ endp		;---------------------------------------------------------------
 		; INIT_InitLDTs - initialize the LDTs.
 proc INIT_InitLDTs
 		mov	esi,[UserAPIsTableAddr]
-		mov	[UAPIsymAddr],esi
+		mov	[?UAPIsymAddr],esi
 		call	.GetDDarrLen
 		jecxz	.Exit
 		shl	ecx,3
 		push	ecx
-		call	KH_Alloc
+		xor	dl,dl
+		call	PG_AllocContBlock
 		push	ebx
 		call	INIT_BuildUserLDT
 		mpop	edi,ecx
@@ -93,13 +99,14 @@ proc INIT_InitLDTs
 		dec	ecx
 		call	K_SetDescriptorLimit
 
-		mov	esi,[DrvAPIsTableAddr]
-		mov	[DHlpSymAddr],esi
+		mov	esi,[DrvHlpTableAddr]
+		mov	[?DHlpSymAddr],esi
 		call	.GetDDarrLen
 		jecxz	.Exit
 		shl	ecx,3
 		push	ecx
-		call	KH_Alloc
+		xor	dl,dl
+		call	PG_AllocContBlock
 		push	ebx
 		call	INIT_BuildDriversLDT
 		mpop	edi,ecx

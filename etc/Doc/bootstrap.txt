@@ -1,0 +1,44 @@
+
+ RadiOS bootstrap process
+ ------------------------
+ 
+1) Multiboot-compilant loader loads RadiOS kernel at address 110000h.
+   Optionally up to 16 boot-time modules can be loaded after a kernel.
+   
+2) Multiboot-compilant loader passes execution to kernel at address 110030h.
+   There is a small "mover" at this address (embedded into RDM by a linker,
+   see docs to "ldrdf"). "Mover" just moves a kernel loader (which is the
+   last 4096 bytes of kernel image) to a new location (unused video page - 
+   0BF000h) and passes execution to loader.
+   
+3) Loader/linker does following:
+    a) moves kernel code and data sections to lower memory (start of code
+       section is 1000h, data section follows after code, it aligns on a
+       paragraph boundary);
+    b) does relocation using relocation records stored in RDM file;
+    c) clears kernel BSS space;
+    d) builds two tables of system call entries. First table is for "driver
+       helpers" (syscalls used by loadable drivers), second one is for
+       user programs;
+    e) relocates and links to kernel all loaded modules (using already bulit
+       driver helper and user API tables);
+    f) passes execution to kernel (entry point is determined by label 'Start').
+    
+    
+ Memory layout after kernel startup
+ ----------------------------------
+ 
+ 0      - 3FFh		  Unused
+ 400h   - 4FFh		  BIOS data area
+ 500h   - 5FFh		  Startup configuration table
+ 600h   - 6FFh		  Boot modules list (up to 16 modules)
+ 700h   - 7FFh		  Boot-time kernel variables (initialized by loader)
+ 800h   - FFFh		  Unused (loader buffers and stack)
+ 1000h  - [KernelData]-1  Kernel code section
+ [KernelData] - [KernelBSS]-1	Kernel data section
+ [KernelBSS] - [DrvHlpTbl]-1	Kernel BSS
+ [DrvHlpTbl] - [UAPITbl]-1	Driver helpers table (RDM export records)
+ [UAPITbl] - [KPagePool]-1	User APIs table (RDM export records)
+ [KPagePool] - 87FFFh		Kernel page pool
+ 88000h - 9FFFFh		Kernel init stack
+ 

@@ -13,6 +13,7 @@ module hw.genhd
 %include "driver.ah"
 %include "drvctrl.ah"
 
+%define	SECTORSHIFT	9
 
 ; --- Exports ---
 
@@ -28,7 +29,7 @@ extern DRV_CallDriver:near
 
 library kernel.misc
 extern StrEnd:near, StrCopy:near, StrAppend:near
-extern K_HexB2Str:near, K_DecD2Str:near
+extern HexB2Str:near, DecD2Str:near
 
 
 ; --- Data ---
@@ -319,7 +320,7 @@ proc HD_GetPartInfoStr
 		call	StrCopy
 		call	StrEnd
 		mov	esi,edi
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	edi,esi
 		mov	dword [edi],202C68h		; Paste "h, "
 		mov	esi,offset HDstr_Size
@@ -328,7 +329,7 @@ proc HD_GetPartInfoStr
 		mov	esi,edi
 		mov	eax,ecx
 		shr	eax,11
-		call	K_DecD2Str
+		call	DecD2Str
 		mov	esi,offset HDstr_MB
 		call	StrAppend
 

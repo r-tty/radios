@@ -1,6 +1,6 @@
 ;*******************************************************************************
-;  channel.as - channel support routines.
-;  Copyright (c) 1999 RET & COM Research.
+;  channel.as - RadiOS IPC "channels" primitives.
+;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
-module kernel.channel
+module kernel.ipc.channel

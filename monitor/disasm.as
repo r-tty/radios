@@ -15,7 +15,7 @@ library kernel
 extern K_DescriptorAddress:extcall, K_GetDescriptorLimit:extcall
 
 library kernel.misc
-extern K_HexB2Str:extcall, K_HexW2Str:extcall, K_HexD2Str:extcall
+extern HexB2Str:extcall, HexW2Str:extcall, HexD2Str:extcall
 extern CharToUpper:extcall
 
 library monitor.opcodes
@@ -80,11 +80,11 @@ proc GetCodeLine
 		xchg	esi,edi			; esi = buffer
 		push	esi
 		mov	eax,gs
-		call	K_HexW2Str		; Put segment
+		call	HexW2Str		; Put segment
 		mov	byte [esi],':'		; Print ':'
 		inc	esi
 		mov	eax,[code_address]	; Get code address
-		call	K_HexD2Str		; Print it out
+		call	HexD2Str		; Print it out
 		mov	byte [esi],' '		; Put a space
 		inc	esi
 		mov	byte [esi],0		; Put an end-of-buffer
@@ -106,7 +106,7 @@ proc GetCodeLine
 		call	TabTo
 		mov	al,[gs:edi]		; Put the byte out
 		inc	edi			; Point to next byte
-		call	K_HexB2Str
+		call	HexB2Str
 		mov	byte [esi],0		; End the buffer
 		xchg	esi,edi
 		pop	edi
@@ -141,7 +141,7 @@ proc GetCodeLine
 		mov	ecx,[.BytesToMove]	; Get bytes to move
 
 .PutLoop:	mov	al,[gs:edi]		; Get a byte
-		call	K_HexB2Str		; Expand to ASCII
+		call	HexB2Str		; Expand to ASCII
 		mov	byte [esi],' '		; Put in a space
 		inc	esi			; Next buffer pos
 		inc	edi			; Next code pos

@@ -103,12 +103,12 @@ proc TM_Main
 		; Install procmgr message handlers as well
 		mov	esi,ProcMsgHandlers
 		call	TM_SetMHfromTable
-int 20h
+
 		; Create the IPC channel that we will use for communications
 		Ccall	_ChannelCreate_r, 0
 		test	eax,eax
 		js	near HaltFatal
-		
+
 		; Create a connection to our channel. It will be inherited
 		; by all child processes.
 		Ccall	_ConnectAttach_r, 0, SYSMGR_PID, eax, SYSMGR_COID, 0

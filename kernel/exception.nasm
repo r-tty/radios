@@ -42,7 +42,7 @@ TxtPgAllocated	DB	"Alloc OK @ ",0
 Txt~HandleViol	DB	"No abort() yet",0 
 Txt~AllocPage	DB	"Cannot allocate new page",0
 Txt~PageDir	DB	"Page directory absent",0
-TxtHalt		DB	" - kernel halted",10,0
+TxtHalt		DB	", kernel halted",10,0
 
 
 section .text

@@ -268,7 +268,7 @@ proc TM_CopyConnections
 		; Put it into the list and hash
 		mEnqueue dword [ebx+tProcDesc.ConnList], Next, Prev, edi, tConnDesc, esi
 		mov	eax,[edi+tConnDesc.ID]
-		mov	esi,?ConnHash
+		mov	esi,[?ConnHash]
 		call	HashAdd
 		jc	.Exit
 

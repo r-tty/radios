@@ -42,11 +42,43 @@ corresponding bit in the page bitmap, thus marking a page as free.
 \textit{PG\_AllocAreaTables}
 \\
 
+\subsection{Hash functions}
+
+RadiOS microkernel has a centralized mechanism for building and using the
+hash tables.
+\\
+\textit{K\_CreateHashTab}
+\\
+\textit{K\_HashAdd}
+\\
+\textit{K\_HashRelease}
+\\
+\textit{K\_HashLookup}
+\\
+
 \subsection{Pools}
 
-\subsection{Accessing user address space}
+\textit{K\_PoolInit}
+\textit{K\_PoolAllocChunk}
+\textit{K\_PoolFreeChunk}
+\textit{K\_PoolChunkNumber}
+\textit{K\_PoolChunkAddr}
+
+\subsection{Thread management}
 
 \subsection{Overview of system calls}
+
+There are five groups of system calls in RadiOS:
+
+\begin{itemize}
+\item{Channels and connections management}
+\item{Message passing primitives}
+\item{Synchronization primitives}
+\item{Interrupt handling}
+\item{Clock services}
+\end{itemize}
+
+\subsection{Channels and connections management}
 
 \subsection{Message passing primitives}
 
@@ -55,3 +87,5 @@ corresponding bit in the page bitmap, thus marking a page as free.
 \subsection{Exception and interrupt handling}
 
 \subsection{Clock services}
+
+\subsection{Task manager private system calls}

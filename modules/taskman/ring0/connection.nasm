@@ -53,12 +53,76 @@ proc FindConnByNum
 endp		;---------------------------------------------------------------
 
 
+		; Create a server connection descriptor.
+		; Input: EDX=address of channel descriptor,
+		;	 EDI=client PCB address,
+		;	 ECX=ScoId index (base).
+		; Output: CF=0 - OK, EAX=SCoID;
+		;	  CF=1 - error, EAX=errno.
+proc CreateSConnDesc
+		mpush	ebx,esi,edi
+
+		; Allocate a new descriptor and clear it
+		mov	ebx,?ConnPool
+		call	K_PoolAllocChunk
+		jc	near .Again
+		mov	ebx,esi
+		push	ecx
+		mov	ecx,tConnDesc_size
+		call	BZero
+		pop	ecx
+
+		; Allocate an ID from the bitmap, check the index
+		mov	esi,[edx+tChanDesc.PCB]
+		push	ebx
+		lea	ebx,[esi+tProcDesc.MaxConn]
+		call	K_AllocateID
+		pop	ebx
+		jc	near .Again
+		or	ecx,ecx
+		jz	.ScoIndexOK
+		cmp	ecx,SIDE_CHANNEL
+		jne	near .BadIndex
+.ScoIndexOK:	add	eax,ecx
+		mov	[ebx+tConnDesc.ID],eax
+		mov	[ebx+tConnDesc.ClientPCB],edi
+		mov	[ebx+tConnDesc.ChanDesc],edx
+
+		; Use connection ID as identifier and PCB address as hash key
+		mov	edi,ebx
+		mov	ebx,esi
+		mov	esi,[?ConnHash]
+		call	K_HashAdd
+		jc	.Again
+
+		; Put connection descriptor to the list
+.ScoDescFound:	mov	esi,[edx+tChanDesc.PCB]
+		mLockCB esi, tProcDesc
+		mEnqueue dword [edi+tProcDesc.ConnList], Next, Prev, edi, tConnDesc, ebx
+		mUnlockCB esi, tProcDesc
+
+		; Return SCoID
+		mov	eax,[edi+tConnDesc.ID]
+		clc
+
+.Exit:		mpop	edi,esi,ebx
+		ret
+
+.BadIndex:	mov	eax,-EBADF
+		jmp	.Exit
+
+.Again:		mov	eax,-EAGAIN
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
 ; --- System calls -------------------------------------------------------------
 
 		; int ConnectAttach(uint nd, pid_t pid, int chid,
 		;			uint index, int flags);
 proc sys_ConnectAttach
 		arg	nd, pid, chid, index, flags
+		locals	sconnlist
 		prologue
 
 		; Attaching to a remote channel is a different story...
@@ -70,7 +134,7 @@ proc sys_ConnectAttach
 		mov	eax,[%$pid]
 		call	R0_Pid2PCBaddr
 		jc	near .Exit
-		mov	ebx,[esi+tProcDesc.ConnList]
+		Mov32	%$sconnlist,esi+tProcDesc.ConnList
 		mov	eax,[%$chid]
 		call	IPC_ChanDescAddr
 		jc	near .Exit
@@ -88,14 +152,28 @@ proc sys_ConnectAttach
 		mov	ecx,tConnDesc_size
 		call	BZero
 
+		; Allocate connection ID
+		lea	ebx,[edi+tProcDesc.MaxConn]
+		call	K_AllocateID
+		jc	near .Again
+		mov	ecx,[%$index]
+		or	ecx,ecx
+		jz	.IndexOK
+		cmp	ecx,SIDE_CHANNEL
+		jne	near .BadIndex
+.IndexOK:	add	eax,ecx
+		mov	[esi+tConnDesc.ID],eax
+
 		; Examine the server's connection list. If there are no
 		; connections from our process - create a new scoid, otherwise
 		; use the existing one.
+		mov	ebx,[%$sconnlist]
 .ScoIdLoop:	or	ebx,ebx
 		jz	.NewScoDesc
 		cmp	[ebx+tConnDesc.ClientPCB],edi
 		jne	.Next
 		cmp	[ebx+tConnDesc.ChanDesc],edx
+		mov	eax,[ebx+tConnDesc.ID]
 		je	.ScoDescFound
 .Next:		mov	eax,ebx
 		mov	ebx,[ebx+tConnDesc.Next]
@@ -103,54 +181,21 @@ proc sys_ConnectAttach
 		jne	.ScoIdLoop
 
 		; Allocate a new server connection descriptor
-.NewScoDesc:	push	esi
-		mov	ebx,?ConnPool
-		call	K_PoolAllocChunk
-		mov	ebx,esi
-		pop	esi
-		jc	near .Again
-		mov	ecx,tConnDesc_size
-		call	BZero
-		push	ebx
-		mov	eax,[edx+tChanDesc.PCB]
-		lea	ebx,[eax+tProcDesc.MaxConn]
-		call	K_AllocateID
-		pop	ebx
-		jc	near .Again
-		mov	ecx,[%$index]
-		or	ecx,ecx
-		jz	.ScoIndexOK
-		cmp	ecx,SIDE_CHANNEL
-		jne	near .BadIndex
-.ScoIndexOK:	add	eax,ecx
-		mov	[ebx+tConnDesc.ID],eax
-		mov	[ebx+tConnDesc.ClientPCB],edi
-		mov	[esi+tConnDesc.ChanDesc],edx
+.NewScoDesc:	call	CreateSConnDesc
+		jc	.Exit
 
 		; Update channel information and put the connection to the list
-.ScoDescFound:	Mov32	esi+tConnDesc.ScoID,ebx+tConnDesc.ID
-		inc	dword [edx+tChanDesc.NumConn]
+.ScoDescFound:	mov	[esi+tConnDesc.ScoID],eax
 		mov	[esi+tConnDesc.ChanDesc],edx
+		inc	dword [edx+tChanDesc.NumConn]
 		mLockCB edi, tProcDesc
 		mEnqueue dword [edi+tProcDesc.ConnList], Next, Prev, esi, tConnDesc, ebx
 		mUnlockCB edi, tProcDesc
 
-		; Update connection ID
-		lea	ebx,[edi+tProcDesc.MaxConn]
-		call	K_AllocateID
-		jc	.Again
-		mov	ecx,[%$index]
-		or	ecx,ecx
-		jz	.IndexOK
-		cmp	ecx,SIDE_CHANNEL
-		jne	.BadIndex
-.IndexOK:	add	eax,ecx
-		mov	[esi+tConnDesc.ID],eax
-
 		; Use connection ID as identifier and PCB address as hash key
 		mov	ebx,edi
 		mov	edi,esi
-		mov	esi,?ConnHash
+		mov	esi,[?ConnHash]
 		call	K_HashAdd
 		jc	.Again
 		mov	eax,[edi+tConnDesc.ID]

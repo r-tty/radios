@@ -75,7 +75,7 @@ endp		;---------------------------------------------------------------
 proc IPC_ChanDescAddr
 		push	ebx
 		mov	ebx,esi
-		mov	esi,?ChanHash
+		mov	esi,[?ChanHash]
 		call	K_HashLookup
 		jc	.BadID
 		mov	esi,[edi+tHashElem.Data]
@@ -97,7 +97,7 @@ endp		;---------------------------------------------------------------
 proc IPC_ConnDescAddr
 		mpush	ebx,esi
 		mov	ebx,esi
-		mov	esi,?ConnHash
+		mov	esi,[?ConnHash]
 		call	K_HashLookup
 		jc	.Invalid
 		mov	edi,[edi+tHashElem.Data]
@@ -144,7 +144,7 @@ proc sys_ChannelCreate
 		; PCB address will be a hash key
 		mov	ebx,edi
 		mov	edi,esi
-		mov	esi,?ChanHash
+		mov	esi,[?ChanHash]
 		call	K_HashAdd
 		jc	.Again
 		mov	eax,[edi+tChanDesc.ID]
@@ -170,6 +170,7 @@ proc sys_ChannelDestroy
 		jc	.Invalid
 
 		; Free the hash element
+		call	K_HashRelease
 
 		; Remove this channel descriptor from the list
 		mLockCB edx, tProcDesc

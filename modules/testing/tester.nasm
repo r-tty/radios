@@ -61,7 +61,7 @@ TxtHelp		DB	NL,"Commands:",NL
 		
 TxtDbgPrompt	DB	NL,"tester> ",0
 TxtErr		DB	NL,"Function returned an error %Xh",0
-TxtGotReply	DB	"x-ray got reply: ",0
+TxtGotReply	DB	"tester got reply: ",0
 TxtNeg		DB	" (-%d)",0
 TxtTLSinfo	DB	NL,"My TID is %d, and PID is %d",NL,0
 TxtBlockAddr	DB	NL,"Block address: %Xh",NL,0

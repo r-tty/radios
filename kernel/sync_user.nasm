@@ -1,33 +1,26 @@
 ;*******************************************************************************
-; sync.nasm - synchronization primitives (semaphores, mutexes, condvars, etc).
+; sync_user.nasm - synchronization system calls implementation.
 ; Copyright (c) 2003 RET & COM Research.
-; Portions are based on the TINOS Operating System (c) 1998 Bart Sekura.
 ;*******************************************************************************
 
-module kernel.sync
+module kernel.sync.user
 
 %include "sys.ah"
 %include "errors.ah"
-%include "sync.ah"
 %include "pool.ah"
 %include "hash.ah"
 %include "thread.ah"
 %include "tm/process.ah"
 
-exportproc K_SemP, K_SemV
 publicproc K_SyncInit
 publicproc sys_SyncTypeCreate, sys_SyncDestroy, sys_SyncCtl
 publicproc sys_SyncMutexLock, sys_SyncMutexUnlock, sys_SyncMutexRevive
 publicproc sys_SyncCondvarWait, sys_SyncCondvarSignal
 publicproc sys_SyncSemPost, sys_SyncSemWait
 
-externproc MT_ThreadSleep, MT_ThreadWakeup
-externproc MT_Schedule
-externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
+externproc K_PoolInit, K_PoolAllocChunk
 externproc K_CreateHashTab, K_HashAdd, K_HashLookup, K_HashRelease
 externproc BZero
-externdata ?CurrThread
-
 
 section .bss
 
@@ -35,7 +28,6 @@ section .bss
 ?MaxSyncObjs	RESD	1
 ?SyncObjCount	RESD	1
 ?SyncPool	RESB	tMasterPool_size
-
 
 section .text
 
@@ -57,61 +49,6 @@ proc K_SyncInit
 		mov	[?SyncHashPtr],esi
 .Ret:		ret
 endp		;---------------------------------------------------------------
-
-
-		; K_SemP - the "P" operation (decrement and sleep if negative).
-		; Input: EAX=address of semaphore structure.
-		; Output: none.
-proc K_SemP
-		pushfd
-		cli
-
-		; Check the optimistic case first
-		dec	dword [eax+tSemaphore.Count]
-		js	.Sleep
-		popfd
-		ret
-
-		; Enqueue current thread under the semaphore and suspend it
-.Sleep:		push	ebx
-		mov	ebx,[?CurrThread]
-		mSemEnq eax,ebx
-		mov	al,THRSTATE_SEM
-		call	MT_ThreadSleep
-		inc	dword [ebx+tTCB.SemWait]
-		pop	ebx
-		popfd
-		call	MT_Schedule
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_SemV - the "V" operation (increase and wake up waiting thread).
-		; Input: EAX=address of semaphore structure.
-		; Output: none.
-proc K_SemV
-		pushfd
-		cli
-
-		; If no threads kept, quickly bail out
-		inc	dword [eax+tSemaphore.Count]
-		cmp	dword [eax+tSemaphore.WaitQ],0
-		je	.Done
-
-		; Dequeue thread from under the semaphore
-		; and let it be woken up next timeslice
-		push	ebx
-		mov	ebx,[eax+tSemaphore.WaitQ]
-		mSemDeq eax,ebx
-		call	MT_ThreadWakeup
-		pop	ebx
-		
-.Done:		popfd
-		ret
-endp		;---------------------------------------------------------------
-
-
-; --- Synchronizaton system calls ----------------------------------------------
 
 
 		; int SyncTypeCreate(uint type, sync_t *sync,
@@ -212,7 +149,7 @@ endp		;---------------------------------------------------------------
 proc sys_SyncDestroy
 		arg	sync
 		prologue
-int3
+
 		; Find a descriptor in the hash table
 		mCurrThread
 		mov	eax,[eax+tTCB.PCB]
@@ -221,6 +158,8 @@ int3
 		call	K_HashLookup
 		jc	.Invalid
 
+		; If this object is in use (busy) - exit with error
+		
 .Exit:		epilogue
 		ret
 

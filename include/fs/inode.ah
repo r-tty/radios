@@ -1,0 +1,41 @@
+;-------------------------------------------------------------------------------
+;  inode.ah - inode definitions
+;-------------------------------------------------------------------------------
+
+%define	NR_INODE	2048
+
+; Structure of inode attributes
+struc tInodeAttr
+.UserID		RESD	1				; User ID
+.GroupID	RESD	1				; Group ID
+.Links		RESW	1				; Number of links
+.Type		RESW	1				; File type
+.LRtime		RESD	1				; Time of last read
+.LWtime		RESD	1				; Time of last change
+.ICtime		RESD	1				; Inode correction time
+endstruc
+
+%define	IFL_DIRTY	128
+%define	IFL_FREE	64
+%define	IFL_LOCKED	32
+
+struc tInode
+.Flags		RESW	1
+.Stamp		RESW	1
+.Dev		RESD	1
+.Block		RESD	1
+.Mount		RESD	1
+.Attr		RESB	tInodeAttr_size
+.AR             RESW	1
+.Count		RESW	1
+.NLinks		RESD	1
+
+.Next		RESD	1
+.Prev		RESD	1
+.HashNext	RESD	1
+.HashPrev	RESD	1
+
+.WaitQ		RESD	1
+
+.Sem		RESB	tSemaphore_size
+endstruc

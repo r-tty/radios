@@ -193,7 +193,7 @@ proc SER_Init
 		cmp	al,8
 		ja	near .Err
 		mov	cl,al
-		mov	edi,offset SerPortBases
+		mov	edi,SerPortBases
 		jmp	short .InitParams
 
 .FromBIOS:	mov	cx,[BIOSDA_Begin+tBIOSDA.Hardware]
@@ -458,7 +458,7 @@ proc SER_GetInitStatStr
 
 		test	edx,0FFFF0000h			; Minor present?
 		jnz	short .Minor
-		mov	esi,offset SP_InitStatStr
+		mov	esi,SP_InitStatStr
 		call	StrCopy
 		mov	al,[NumOfSerPorts]
 		add	al,30h
@@ -472,11 +472,11 @@ proc SER_GetInitStatStr
 		inc	edi
 		cmp	word [ebx+tSPdevParm.BasePort],0
 		jne	short .Present
-		mov	esi,offset SP_NotPresent
+		mov	esi,SP_NotPresent
 		call	StrCopy
 		jmp	short .OK
 
-.Present:	mov	esi,offset SP_BaseStr
+.Present:	mov	esi,SP_BaseStr
 		call	StrCopy
 		call	StrEnd
 		mov	esi,edi
@@ -485,7 +485,7 @@ proc SER_GetInitStatStr
 		mov	edi,esi
 		mov	byte [edi],'h'
 		inc	edi
-		mov	esi,offset SP_IRQstr
+		mov	esi,SP_IRQstr
 		call	StrCopy
 		call	StrEnd
 		mov	esi,edi
@@ -493,7 +493,7 @@ proc SER_GetInitStatStr
 		mov	al,[ebx+tSPdevParm.IRQ]
 		call	DecD2Str
 
-		mov	esi,offset SP_UARTstr
+		mov	esi,SP_UARTstr
 		call	StrAppend
 		xor	eax,eax
 		mov	al,[ebx+tSPdevParm.Type]
@@ -503,7 +503,7 @@ proc SER_GetInitStatStr
 		pop	eax
 		cmp	al,UART_16550A
 		jb	short .OK
-		mov	esi,offset SP_FIFOstr
+		mov	esi,SP_FIFOstr
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
@@ -876,8 +876,9 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc SER_AllocBuffer
-		push	ebx
+		mpush	ebx,edx
 		and	ecx,0FFFFh
+		mov	dl,1
 		call	AllocPhysMem
 		jc	short .Exit
 		mov	[esi+tSerialBuf.Size],cx
@@ -885,7 +886,7 @@ proc SER_AllocBuffer
 		mov	[esi+tSerialBuf.BufAddr],ebx
 		mov	[esi+tSerialBuf.CQin],ebx
 		mov	[esi+tSerialBuf.CQout],ebx
-.Exit:		pop	ebx
+.Exit:		mpop	edx,ebx
 		ret
 endp		;---------------------------------------------------------------
 

@@ -32,7 +32,7 @@
 %define	CMOSREG_ExtDrCtype	19h
 %define	CMOSREG_ExtDrDtype	20h
 %define	CMOSREG_RExtMemLo	30h
-%define	CMOSREG_RRExtMemHi	31h
+%define	CMOSREG_RExtMemHi	31h
 
 ; Bits of RTC status register B
 %define	RTC_STB_StopTmr		128
@@ -48,7 +48,7 @@
 ; --- Exports ---
 
 global CMOS_ReadBaseMemSz, CMOS_ReadExtMemSz
-global CMOS_ReadFDDTypes
+global CMOS_ReadFDDTypes, CMOS_ReadHDDTypes
 global CMOS_EnableInt, CMOS_DisableInt, CMOS_HandleInt
 global CMOS_GetDate, CMOS_GetTime
 
@@ -116,7 +116,25 @@ proc CMOS_ReadFDDTypes
 		ret
 endp		;---------------------------------------------------------------
 
+
+		; CMOS_ReadHDDTypes - read a number and types of hard disk
+		;		      drives (C: and D:) from CMOS.
+		; Input: none.
+		; Output: AL=HDD types byte,
+		;	  CL=number of drives.
+proc CMOS_ReadHDDTypes
+		mov	al,CMOSREG_HDDtype
+		xor	cl,cl
+		test	al,0Fh
+		jz	short .Exit
+		inc	cl
+		test	al,0F0h
+		jz	short .Exit
+		inc	cl		
+.Exit:		ret
+endp		;---------------------------------------------------------------
 		
+
 		; CMOS_EnableInt - enable CMOS interrupt (IRQ8)
 proc CMOS_EnableInt
 		push	eax

@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  path.as - path to inode conversion routines, etc.
+;  buffer.as - disk buffer-cache routines.
 ;-------------------------------------------------------------------------------
 
-module cfs.path
+module cfs.buffer

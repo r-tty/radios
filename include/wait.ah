@@ -1,0 +1,26 @@
+;-------------------------------------------------------------------------------
+;  thread.ah - definitions of wait queue.
+;-------------------------------------------------------------------------------
+
+; Thread wait queue
+struc tWaitQueue
+.WaitingTCB	RESD	1
+.Next		RESD	1
+.Prev		RESD	1
+endstruc
+
+; Add an entry to a wait queue
+; Parameters: head,what
+%macro mAddToWaitQ 2
+%define @head %1
+%define @what %2
+		mEnqueue @head,Next,Prev,@what,tWaitQueue
+%endmacro
+
+; Remove an entry from a wait queue
+; Parameters: head, what
+%macro mRemoveFromWaitQ 2
+%define @head %1
+%define @what %2
+		mDequeue @head,Next,Prev,@what,tWaitQueue
+%endmacro

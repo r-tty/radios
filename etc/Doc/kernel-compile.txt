@@ -2,7 +2,7 @@
  Tools whcih are needed for compiling RadiOS kernel
  --------------------------------------------------
  
- a) The Netwide Assembler (NASM), version 0.98.07-1. OTHER VERSIONS WON'T WORK! 
+ a) The Netwide Assembler (NASM), version 0.98.07-2. OTHER VERSIONS WON'T WORK! 
     URL: ftp://ftp.host.kr.ua/pub/lang/asm/nasm
     
  b) GNU make, version 3.79 or newer.

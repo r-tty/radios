@@ -33,11 +33,10 @@ endstruc
 
 ; Item numbers
 %define	SCFG_BootDev		0
-%define	SCFG_PrimFS_LP		1
-%define	SCFG_RAMdiskSz		2
-%define	SCFG_BuffersMem		3
-%define	SCFG_SwapDev		4
-%define	SCFG_SwapSize		5
+%define	SCFG_RAMdiskSz		1
+%define	SCFG_BuffersMem		2
+%define	SCFG_SwapDev		3
+%define	SCFG_SwapSize		4
 
 
 ; --- Debugging macros ---

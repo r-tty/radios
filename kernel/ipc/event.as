@@ -12,8 +12,10 @@ module kernel.ipc.event
 ; --- Exports ---
 global K_HandleEvent
 
+
 ; --- Imports ---
 extern KernelEventHandler:near
+extern SysReboot:near
 
 ; --- Code ---
 section .text
@@ -24,10 +26,10 @@ section .text
 		; Output: CF=0 - OK;
 		;	  CF=1 - return.
 proc K_HandleEvent
+	;XXX
+	jmp SysReboot
 		or	edx,edx				; Kernel process?
 		jz	short .Kernel
-		
-	jmp short .Exit ;XXX
 		
 .Kernel:	xchg	eax,edx
 		call	KernelEventHandler

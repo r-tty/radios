@@ -2,7 +2,7 @@
 ;  pmdata.as - descriptor tables.
 ;-------------------------------------------------------------------------------
 
-global GDTaddrLim, IntHandlersArr
+global GDTaddrLim, TrapHandlersArr
 
 ; Kernel TSS
 KernTSS	istruc tTSS
@@ -91,39 +91,39 @@ GDT	istruc tDesc					; NULL descriptor
 	iend
 
 	istruc tDesc					; Drivers code
-	 at tDesc.LimitLo,	DW	0
+	 at tDesc.LimitLo,	DW	0EFFFh
 	 at tDesc.BaseLW,	DW	0
-	 at tDesc.BaseHLB,	DB	11h
+	 at tDesc.BaseHLB,	DB	0
 	 at tDesc.AR,		DB	ARsegment+AR_CS_X+AR_DPL1
-	 at tDesc.LimHiMode,	DB	AR_DfltSz
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.LimHiMode,	DB	AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	1		; 1000000h (16M)
 	iend
 
 	istruc tDesc					; Drivers data
-	 at tDesc.LimitLo,	DW	0
+	 at tDesc.LimitLo,	DW	0EFFFh
 	 at tDesc.BaseLW,	DW	0
-	 at tDesc.BaseHLB,	DB	11h
+	 at tDesc.BaseHLB,	DB	0
 	 at tDesc.AR,		DB	ARsegment+AR_DS_RW+AR_DPL1
 	 at tDesc.LimHiMode,	DB	AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.BaseHHB,	DB	1
 	iend
 
 	istruc tDesc					; User code
-	 at tDesc.LimitLo,	DW	0
+	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
 	 at tDesc.BaseHLB,	DB	0
 	 at tDesc.AR,		DB	ARsegment+AR_CS_X+AR_DPL3
-	 at tDesc.LimHiMode,	DB	AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	80h		; 80000000h (2G)
 	iend
 
 	istruc tDesc					; User data
-	 at tDesc.LimitLo,	DW	0
+	 at tDesc.LimitLo,	DW	0FFFFh
 	 at tDesc.BaseLW,	DW	0
 	 at tDesc.BaseHLB,	DB	0
 	 at tDesc.AR,		DB	ARsegment+AR_DS_RW+AR_DPL3
-	 at tDesc.LimHiMode,	DB	AR_DfltSz+AR_Granlr
-	 at tDesc.BaseHHB,	DB	0
+	 at tDesc.LimHiMode,	DB	7+AR_DfltSz+AR_Granlr
+	 at tDesc.BaseHHB,	DB	80h
 	iend
 
 	istruc tDesc					; Kernel TSS
@@ -172,26 +172,26 @@ GDT	istruc tDesc					; NULL descriptor
 	iend
 
 
-%macro mDefineOffset 2
-		DD	%1%2Handler
+%macro mDefineOffset 2-3
+		DD	%1%2%3
 %endmacro
 
 
-; --- Interrupt handlers address array ---
+; --- Trap handlers ---
 
-IntHandlersArr:
+TrapHandlersArr:
 
 %assign i 0
 %rep 18							; Exception handlers
-		mDefineOffset Int,i
+		mDefineOffset Trap,i,Handler
 %assign i i+1
 %endrep
 
-		TIMES	14 DD IntReservedHandler	; Reserved by Intel
+		TIMES	14 DD TrapReservedHandler	; Reserved by Intel
 
 %assign i 0
 %rep 16							; IRQ handlers
-		mDefineOffset IRQ,i
+		mDefineOffset K_ISR,i
 %assign i i+1
 %endrep
 

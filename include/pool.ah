@@ -23,4 +23,6 @@ struc tMasterPool
 .SemLock	RESB	tSemaphore_size	; Serializing semaphore
 endstruc
 
-%define	POOLFL_USERSPACE	1	; Pool is allocated in the user space
+%define	POOLFL_HIMEM		1	; Pool is allocated in the user space
+%define POOLFL_BUCKETALLOC	100h	; Allocate as many chunks as fit into
+					; a page

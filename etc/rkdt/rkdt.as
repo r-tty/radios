@@ -14,7 +14,7 @@ module rkdt
 %include "drvctrl.ah"
 %include "kconio.ah"
 %include "asciictl.ah"
-%include "commonfs.ah"
+%include "fs/cfs.ah"
 %include "memman.ah"
 
 global RKDT_CreateRDimage, RKDT_ErrorHandler, RKDT_Main
@@ -86,61 +86,59 @@ msg_Err		DB NL,NL,7,"ERROR ",0
 msg_Debugging	DB NL,"DEBUGGING: ",0
 msg_Rebooting	DB NL,"...rebooting...",0
 
-cmdQuestion	DB 1,"?"				; Must be first
+CommandTable	DB 1,"?"
 		DD	RKDT_Help
-cmdHelp		DB 4,"help"
+		DB 4,"help"
 		DD	RKDT_Help
-cmdMon		DB 1,"S"
+		DB 1,"S"
 		DD	RKDT_CallMonitor
-cmdNewTxtFile	DB 2,"cf"
+		DB 2,"cf"
 		DD	0
-cmdRmFile	DB 2,"rm"
+		DB 2,"rm"
 		DD	0
-cmdLs		DB 2,"ls"
+		DB 2,"ls"
 		DD	0
-cmdView		DB 2,"vw"
+		DB 2,"vw"
 		DD	0
-cmdRm		DB 2,"rm"
+		DB 2,"rm"
 		DD	0
-cmdMv		DB 2,"mv"
+		DB 2,"mv"
 		DD	0
-cmdCM		DB 2,"CM"
+		DB 2,"CM"
 		DD	0
-cmdCL		DB 2,"CL"
+		DB 2,"CL"
 		DD	0
-cmdMd		DB 2,"md"
+		DB 2,"md"
 		DD	0
-cmdCd		DB 2,"cd"
+		DB 2,"cd"
 		DD	0
-cmdRd		DB 2,"rd"
+		DB 2,"rd"
 		DD	0
 
-cmdFlushBuffers	DB 5,"flush"
+		DB 5,"flush"
 		DD	0
-cmdSerial	DB 10,"testserial"
+		DB 10,"testserial"
 		DD	SER_DumbTTY
-cmdProbe	DB 5,"probe"
+		DB 7,"cpuinfo"
+		DD	RKDT_CPUinfo
+		DB 4,"exec"
 		DD	0
-cmdExec		DB 4,"exec"
-		DD	0
-cmdAllocMem	DB 8,"allocmem"
+		DB 8,"allocmem"
 		DD	MM_DebugAllocMem
-cmdFreeMem	DB 7,"freemem"
+		DB 7,"freemem"
 		DD	MM_DebugFreeMem
-cmdMemStat	DB 7,"memstat"
+		DB 7,"memstat"
 		DD	MM_PrintStat
-cmdFreeMCBs	DB 8,"freemcbs"
+		DB 8,"freemcbs"
 		DD	MM_DebugFreeMCBs
-cmdGrabFile	DB 8,"grabfile"
-		DD	0
-cmdGetISS	DB 6,"getiss"
+		DB 6,"getiss"
 		DD	RKDT_GetISS
 
-cmdSchedStat	DB	4,"stat"
+		DB	4,"stat"
 		DD	MT_PrintSchedStat
-cmdThreadStat	DB	2,"ts"
+		DB	2,"ts"
 		DD	MT_DumpReadyThreads
-cmdReboot	DB	6,"reboot"
+		DB	6,"reboot"
 		DD	RKDT_Reboot
 		DB	0
 
@@ -162,7 +160,7 @@ section .text
 proc RKDT_DispatchCmd
 		push	edi
 		xor	ecx,ecx
-		mov	edi,cmdQuestion
+		mov	edi,CommandTable
 		
 .Loop:		mov	cl,[edi]			; Command length
 		or	cl,cl
@@ -222,8 +220,8 @@ proc RKDT_Reboot
 endp		;---------------------------------------------------------------
 
 
-		; RKDT_Probe - misc probing calls.
-proc RKDT_Probe
+		; RKDT_CPUinfo - print CPU information.
+proc RKDT_CPUinfo
 		mpush	ecx,esi
 
 		add	esi,ecx
@@ -232,12 +230,13 @@ proc RKDT_Probe
 		call	TMR_CountCPUspeed
 		mPrintChar NL
 		mov	eax,ecx
-		call	PrintDwordDec
-
+		push	eax
 		cli					; 10 sec test
 		mov	ecx,10000
 		call	K_LDelayMs
 		sti
+		pop	eax
+		call	PrintDwordDec
 
 .Exit:		mpop	esi,ecx
 		ret

@@ -332,6 +332,9 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: AX=pressed key code.
 proc KB_ReadKey
+		cmp	dword [?CurrThread],0
+		jz	KB_ReadKeyNoSched
+		
 		call	KB_GetKeyNoWait
 		jnz	short .Done
 .Loop:		push	ebx

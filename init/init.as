@@ -3,7 +3,7 @@
 ;  Copyright (c) 1999,2000 RET & COM research.
 ;*******************************************************************************
 
-module init
+module $init
 
 %include "sys.ah"
 %include "errors.ah"
@@ -14,18 +14,17 @@ module init
 %include "drvctrl.ah"
 %include "x86/descript.ah"
 %include "x86/paging.ah"
-%include "commonfs.ah"
 %include "kconio.ah"
 %include "asciictl.ah"
 %include "hw/partids.ah"
 
 %define	DEBUG
-;%define LOADRDIMAGE
 
 
 ; --- Exports ---
 
-global Start, SysReboot
+global Start:export proc
+global SysReboot
 
 
 ; --- Imports ---
@@ -41,10 +40,8 @@ extern DrvConsole:near
 
 ; Kernel variables and data
 library kernel
-extern GDTaddrLim, IDTaddr, IntHandlersArr
+extern GDTaddrLim, IDTaddr, TrapHandlersArr
 extern DrvId_Con, DrvId_RD, DrvId_BIOS32
-extern ?HeapBegin, ?HeapEnd
-extern ?BaseMemSz, ?ExtMemSz
 
 ; Kernel procedures
 extern K_CheckCPU:near, K_InitFPU:near, K_InitMem:near, K_GetMemInitStr:near
@@ -86,6 +83,9 @@ extern PIC_Init:near, PIC_SetIRQmask:near, PIC_EnbIRQ:near
 extern TMR_InitCounter:near
 extern KBC_A20Control:near, KBC_HardReset:near
 extern CMOS_EnableInt:near
+
+library cfs.init
+extern CFS_Init:near
 
 library hardware.genhd
 extern HD_Init:near
@@ -206,7 +206,7 @@ proc INIT_InitDiskDrvs
 		mov	esi,InitStringBuf
 
 		; Initialize DIHD structures
-		mov	al,16				; 16 hard disks
+		mov	al,16				; Max. 16 drives
 		call	HD_Init
 
 		; Initialize FDD driver
@@ -240,7 +240,7 @@ proc INIT_InitDiskDrvs
 
 
 		; Initialize HD IDE driver
-.InitIDE:	mov	dl,1
+.InitIDE:	mov	dl,4				; Max # of drives to search
 		mCallDriver byte DRVID_HDIDE, byte DRVF_Init
 		jnc	short .IDEinitOK
 		mov	ebx,DRVID_HDIDE
@@ -254,6 +254,7 @@ proc INIT_InitDiskDrvs
 		jz	short .Exit
 
 		; Print model of all hard disks found
+		mov	dl,4
 		mov	ebx,DRVID_HDIDE				; Major number
 		mov	edi,DRVF_Control+256*DRVCTL_GetInitStatStr ; Function
 		xor	cl,cl
@@ -263,10 +264,11 @@ proc INIT_InitDiskDrvs
 		or	[esp+2],cl
 		push	edi
 		call	DRV_CallDriver
+		jc	short .NoDrive
 		mPrintChar NL
 		mPrintChar ' '
 		mPrintString
-		inc	cl
+.NoDrive:	inc	cl
 		cmp	cl,dl
 		jbe	.Loop1
 
@@ -290,9 +292,7 @@ proc INIT_InitChDrv
 		mPrintChar NL
 
 .InitSerial:	xor	al,al
-		mov	cx,Init_SerOutBufSize
-		shl	ecx,16
-		mov	cx,Init_SerInpBufSize
+		mov	ecx,(Init_SerOutBufSize << 16) + Init_SerInpBufSize
 		mCallDriver byte DRVID_Serial, byte DRVF_Init
 		jnc	short .PrintSerSt
 		mov	ebx,DRVID_Serial
@@ -579,20 +579,22 @@ proc Start
 		call	DRV_InstallNew
 		mov	[DrvId_BIOS32],eax
 		mov	ebx,eax
-		mCallDriver eax, byte DRVF_Init
-		jnc	short .BIOSinitOK
-		call	DrvInitErr
-		jmp	short .InitMT
-
-.BIOSinitOK:	mPrintChar ' '
+		mCallDriver eax, byte DRVF_Init		
+		jc	short .B32err
+		mov	esi,InitStringBuf
+		mCallDriverCtrl ebx,DRVCTL_GetInitStatStr
+		mPrintChar ' '
 		mPrintString
-
+		jmp	short .InitMT
+		
+.B32err:	call	DrvInitErr
+		
 		; Initialize multitasking memory structures
 .InitMT:	mov	eax,Init_MaxNumOfProcesses
 		mov	ecx,Init_MaxNumOfThreads
 		call	MT_Init
 		jc	.Monitor
-		
+
 		; Enable paging
 		call	PG_StartPaging
 		jc	.Monitor
@@ -624,6 +626,10 @@ proc Start
 
 		; Initialize character device drivers
 		call	INIT_InitChDrv
+		
+		; Initialize CFS
+		call	CFS_Init
+		jc	.Monitor
 
 		; Show kernel version message
 		mPrintString Msg_RVersion
@@ -636,17 +642,17 @@ proc Start
 		jc	near .Monitor
 
 		; Initialize kernel module
-;		call	MOD_InitKernelMod
-;		jc	near .Monitor
+		call	MOD_InitKernelMod
+		jc	near .Monitor
 
 		; Install and initialize binary format drivers
-;		call	INIT_InstallBinFmtDrvs
-;		jc	FatalError
+		call	INIT_InstallBinFmtDrvs
+		jc	FatalError
 
 		; Initialize memory management
 ;		call	MM_Init
 ;		jc	FatalError
-		
+
 		; Create two initial kernel threads
 		; (idle and RKDT).
 		mov	ebx,INIT_IdleThread

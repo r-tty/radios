@@ -65,6 +65,7 @@ endstruc
 struc tRDMexport
 .Type		RESB	1			; ==3
 .RecLen		RESB	1			; Content length
+.Flags		RESB	1			; Flags
 .Seg		RESB	1			; Segment referred to (0/1/2)
 .Ofs		RESD	1			; Offset within segment
 .Lbl		RESB	33			; Zero terminated as above.
@@ -103,6 +104,12 @@ struc tRDMgeneric
 .RecLen		RESB	1
 .Data		RESB	128
 endstruc
+
+
+; --- Export record flags ---
+%define	RDMEXPORT_DATA		1
+%define	RDMEXPORT_FUNCTION	2
+%define	RDMEXPORT_GLOBAL	4
 
 
 ; --- Segment types ---

@@ -6,6 +6,7 @@
 struc tProcResource
 .Class		RESD	1			; Resource class
 .ResPtr		RESD	1			; Pointer to resource
+.ResSize	RESD	1			; Size of resource
 .Next		RESD	1			; List links
 .Prev		RESD	1
 endstruc

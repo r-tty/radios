@@ -9,8 +9,10 @@
 
 ; --- Exports ---
 
-global MT_ThreadSleep, MT_ThreadWakeup, MT_ThreadExec
-global MT_CreateThread
+global MT_ThreadSleep, MT_ThreadWakeup
+global MT_SleepTQ, MT_WakeupTQ
+global MT_CreateThread, MT_ThreadExec
+
 
 
 ; --- Imports ---
@@ -30,7 +32,7 @@ extern PG_AllocContBlock:near
 
 section .data
 
-MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread is already sleeps",0
+MsgThrSleep	DB	":THREAD:MT_ThreadSleep: warning: this thread already sleeps",0
 MsgThrRunning	DB	":THREAD:MT_ThreadWakeup: warning: this thread is already running",0
 
 ; --- Variables ---
@@ -59,7 +61,7 @@ proc MT_InitTCBpool
 		mov	[?MaxThreads],eax
 		mov	ebx,?ThreadPool
 		mov	ecx,tTCB_size
-		xor	dl,dl
+		xor	edx,edx
 		call	K_PoolInit
 .Done:		mpop	ecx,ebx
 		ret
@@ -210,6 +212,24 @@ proc MT_ThreadWakeup
 		call	MT_ThrRLink
 		inc	dword [?ReadyThrCnt]
 		popfd
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_SleepTQ - add a thread to a sleep queue and sleep it.
+		; Input: EBX=address of pointer to a wait queue.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MT_SleepTQ
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; MT_WakeupTQ - wake up all threads waiting in a queue.
+		; Input: EBX=address of pointer to a wait queue.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc MT_WakeupTQ
 		ret
 endp		;---------------------------------------------------------------
 

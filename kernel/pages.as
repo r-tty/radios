@@ -1,5 +1,5 @@
 ;*******************************************************************************
-;  paging.as - RadiOS memory paging primitives.
+;  pages.as - RadiOS memory paging primitives.
 ;  Copyright (c) 2000 RET & COM Research.
 ;*******************************************************************************
 
@@ -133,13 +133,14 @@ proc PG_StartPaging
 		prologue 4
 
 		; First, mark all physical pages except those which belong
-		; to boot modules as free.
+		; to boot modules and reserved area (HMA) as free.
 		mov	edi,[?PgBitmapAddr]
 		mov	ecx,StartOfExtMem / PAGESIZE
 		mov	eax,[?TotalMemPages]
 		add	eax,ecx
 		mov	[.AllPages],eax
-		
+		add	ecx,65536 / PAGESIZE		; # of pages in HMA
+
 .FreeLoop:	cmp	ecx,[.AllPages]
 		je	short .BuildTables
 		cmp	dword [BootModulesCount],0
@@ -168,7 +169,7 @@ proc PG_StartPaging
 		mov	[?PTsPerProc],eax		; per directory
 		inc	eax				; +page directory
 		shl	eax,PG_ITEMSPERTBLSHIFT+2	; EAX=bytes in dir & tables
-		
+
 		mov	ecx,eax
 		mov	dl,1				; Allocate block
 		call	PG_AllocContBlock		; above 1 MB
@@ -209,7 +210,7 @@ proc PG_StartPaging
 		mov	eax,[?KernPageDir]
 		mov	cr3,eax
 		mPagingOn
-
+		
 .Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -370,18 +371,22 @@ endp		;---------------------------------------------------------------
 		; PG_AllocDir - allocate a new page directory and its page
 		;		tables.
 		; Input: none.
-		; Output: CF=0 - OK, EBX=directory address;
+		; Output: CF=0 - OK, EDX=directory address;
 		;	  CF=1 - error, AX=error code.
 		; Note: This routine allocates memory for page dir and
 		;	[?PTsPerProc] page tables. It initializes the
 		;	addresses in PTEs to provide physical mapping.
 proc PG_AllocDir
-		mpush	ecx,edx,esi,edi
+%define .pgdir	ebp-4
+
+		prologue 4
+		mpush	ebx,ecx,esi,edi
 		mov	edx,1				; Allocate a page
 		call	PG_Alloc			; for page directory
 		jc	short .Exit
 		and	eax,PGENTRY_ADDRMASK
 		mov	esi,eax				; ESI=its address
+		mov	[.pgdir],eax
 
 		xor	ecx,ecx
 
@@ -389,8 +394,8 @@ proc PG_AllocDir
 		jae	short .Absent
 		call	PG_Alloc			; Allocate a page
 		jc	short .Exit			; for page table
-		mov	[esi+4*ecx],ebx
-		or	byte [esi+4*ecx],PG_PRESENT	; Mark as present
+		or	eax,PG_PRESENT			; Mark as present
+		mov	[esi+4*ecx],eax
 		jmp	short .ChkPDENum
 .Absent:	mov	dword [esi+4*ecx],PG_DISABLE
 .ChkPDENum:	inc	ecx
@@ -398,11 +403,11 @@ proc PG_AllocDir
 		jb	.FillPageDir
 
 		; Fill in all page tables with physical addresses.
+		xor	eax,eax
 .CheckPT:	mov	ebx,[esi]			; EBX=table addr
-		test	ebx,PG_DISABLE			; Present?
-		jnz	short .Exit
+		test	ebx,PG_PRESENT			; Present?
+		jz	short .OK
 		and	ebx,PGENTRY_ADDRMASK
-		xor	eax,eax		
 		xor	ecx,ecx
 .FillPT:	mov	[ebx+4*ecx],eax
 		add	eax,PAGESIZE
@@ -418,8 +423,12 @@ proc PG_AllocDir
 		
 		add	esi,byte 4			; Next PDE
 		jmp	.CheckPT
+		
+.OK:		mov	edx,[.pgdir]
+		clc
 
-.Exit:		mpop	edi,esi,edx,ecx
+.Exit:		mpop	edi,esi,ecx,ebx
+		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -431,9 +440,7 @@ proc PG_DeallocDir
 		push	ecx
 		xor	ecx,ecx
 .ChkPDE:	mov	eax,[ebx+ecx*4]			; First we free all
-		test	eax,PG_DISABLE			;  page tables
-		jnz	short .NextPDE
-		test	eax,PG_PRESENT
+		test	eax,PG_PRESENT			;  page tables
 		jz	short .NextPDE
 		call	PG_Dealloc
 		
@@ -449,22 +456,48 @@ proc PG_DeallocDir
 endp		;---------------------------------------------------------------
 
 
+		; PG_AllocAreaTables - allocate tables for mapping specific area
+		;		       (user, drivers, etc.)
+		; Input: EBX=area start address,
+		;	 EDX=directory address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+		; Note: this routine allocates [?PTsPerProc] page tables
+		; for mapping specific region.
+proc PG_AllocAreaTables
+		mpush	ebx,ecx,edx,edi
+		mov	edi,edx
+		shr	ebx,22					; EBX=PDE#
+		mov	ecx,[?PTsPerProc]
+		mov	dl,1
+.Loop:		call	PG_Alloc
+		jc	short .Exit
+		and	eax,~(PG_ALLOCATED+PG_PRESENT)
+		or	eax,PG_PRESENT
+		mov	[edi+ebx*4],eax
+		inc	ebx
+		loop	.Loop
+.Exit:		mpop	edi,edx,ecx,ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; PG_GetPTEaddr - get physical address of PTE.
-		; Input: EBX=directory address,
-		;	 EDX=linear address.
+		; Input: EBX=linear address,
+		;	 EDX=directory address.
 		; Output: CF=0 - OK, EDI=physical address of PTE;
 		;	  CF=1 - error, AX=error code.
 proc PG_GetPTEaddr
 		mpush	ebx,edx
-		mov	eax,edx
+		mov	eax,ebx
 		shr	eax,22				; EAX=PDE number
-		mov	ebx,[ebx+eax*4]			; EBX=page table addr.
-		cmp	ebx,PG_DISABLE			; Page table present?
+		mov	edx,[edx+eax*4]			; EDX=page table addr.
+		cmp	edx,PG_DISABLE			; Page table present?
 		je	short .Err			; No, bad address
-		and	ebx,PGENTRY_ADDRMASK		; Mask control bits
-		and	edx,ADDR_PTEMASK
-		shr	edx,12				; EDX=PTE number
-		lea	edi,[ebx+edx*4]			; EDI=PTE address
+		and	edx,PGENTRY_ADDRMASK		; Mask control bits
+		and	ebx,ADDR_PTEMASK
+		shr	ebx,12				; EBX=PTE number
+		lea	edi,[edx+ebx*4]			; EDI=PTE address
 		clc
 .Exit:		mpop	edx,ebx
 		ret
@@ -495,3 +528,21 @@ proc PG_FaultHandler
 .Violation:
 		ret
 endp		;---------------------------------------------------------------
+
+
+; --- Debugging stuff ---
+
+%ifdef DEBUG
+
+extern ?UserAreaStart
+
+		; PG_Test1 - allocate a directory and user page tables.
+proc PG_Test1
+		call	PG_AllocDir
+		jc	short .Exit
+		mov	ebx,[?UserAreaStart]
+		call	PG_AllocAreaTables
+.Exit:		ret
+endp		;---------------------------------------------------------------
+
+%endif

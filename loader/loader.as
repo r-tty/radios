@@ -211,24 +211,23 @@ proc BuildSysCallTable
 		add	[ebp+tRDMexport.Ofs],eax	; code section
 
 		sub	byte [ebp+tRDMexport.RecLen],5	; Adjust record length
-		sub	ecx,byte 10			; because function name
+		sub	ecx,byte 11			; because function name
 		mov	esi,ebp				; will be cut
 		mov	edi,[SysCallRecAddr]		; (5 bytes is a length
-		push	ecx				; of 'xxxx_' and 5 bytes
-		movsd					; seg & offset occupy)
-		movsd					; Copy type,reclen,seg
-		dec	edi				; and offset
-		add	esi,byte 4			; Copy function name
+		push	ecx				; of 'xxxx_' and 6 bytes
+		movsd					; flags+seg+offset occupy)
+		movsd					; Copy type,reclen,flags, and offset
+		add	esi,byte 5			; Copy function name
 		rep	movsb				; without 'xxxx_'
 		mov	byte [edi],0
 		pop	ecx
-		add	ecx,byte 7			; +type, reclen, seg
+		add	ecx,byte 8			; +type, reclen, flags, seg
 		add	[SysCallRecAddr],ecx		; and offset length
 		jmp	.Loop
 
 .ModName:	lea	esi,[ebp+tRDM_ModName.ModName]	; Analyse module name
-		mov	edi,TxtSyscall			; Begins with "syscall"?
-		mov	cl,7
+		mov	edi,TxtSyscall			; Begins with "$syscall"?
+		mov	cl,8
 		cld
 		repe	cmpsb
 		jz	.SysCallModule			; Yes, handle record
@@ -379,12 +378,25 @@ proc Start
 		
 		mov	dword [LoaderServiceEntryPoint],ServiceEntry
 		
-		jmp	[KernelEntryPoint]
-.Halt:		jmp	$
+		mov	eax,[KernelEntryPoint]
+		or	eax,eax
+		jz	short .ErrNoStart
+		jmp	eax
+		
 
 .ErrBadRDM:	mov	esi,MsgBadRDM
+		jmp	.FatalErr
+		
+.ErrNoStart:	mov	esi,MsgNoKernStart
+		jmp	.FatalErr
+		
+.FatalErr:	mov	byte [Color],12
+		push	esi
+		mov	esi,MsgFatal
 		call	PrintStr
-		jmp	.Halt
+		pop	esi
+		call	PrintStr
+.Halt:		jmp	$		
 endp		;---------------------------------------------------------------
 
 
@@ -407,16 +419,17 @@ MsgData		DB	"h), data (",0
 MsgBSS		DB	"h), bss (",0
 MsgBracket	DB	"h)",10,0
 
+MsgFatal	DB	"FATAL:",0
 MsgBadRDM	DB	" invalid RDM signature",10,0
+MsgNoKernStart	DB	" no kernel start entry",10,0
 
 TxtRDOFF2	DB	"RDOFF2"
 TxtStart	DB	"Start",0
-TxtSyscall	DB	"syscall"
+TxtSyscall	DB	"$syscall"
 TxtDrvHlp	DB	".drvhlp"
 TxtUser		DB	".user"
 
-TxtRootDev	DB	7,"rootdev"
-TxtRootLP	DB	6,"rootlp"
+TxtRootDev	DB	4,"root"
 TxtRDsize	DB	6,"rdsize"
 TxtBufMem	DB	6,"bufmem"
 TxtSwapDev	DB	7,"swapdev"

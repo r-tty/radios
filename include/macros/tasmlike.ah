@@ -1,7 +1,5 @@
 ; This file defines various TASM-like macros
 
-%define offset
-
 ; proc/endproc pair
 %macro proc 1
 %push proc

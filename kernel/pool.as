@@ -30,8 +30,8 @@ extern K_SemP:near, K_SemV:near
 
 section .bss
 
-K_PoolCount	RESD	1
-K_PoolPageCount	RESD	1		; Count total pages used by pools
+?PoolCount	RESD	1
+?PoolPageCount	RESD	1		; Count total pages used by pools
 
 
 ; --- Code ---
@@ -41,8 +41,7 @@ section .text
 		; K_PoolInit - initialize the master pool.
 		; Input: EBX=address of the master pool,
 		;	 ECX=chunk size,
-		;	 DL=0 - kernel-space pool;
-		;	 DL=1 - user-space pool.
+		;	 EDX=flags.
 		; Output: none.
 proc K_PoolInit
 		xor	eax,eax
@@ -55,7 +54,7 @@ proc K_PoolInit
 		lea	ebx,[ebx+tMasterPool.SemLock]
 		mSemInit ebx
 		pop	ebx
-		inc	dword [K_PoolCount]
+		inc	dword [?PoolCount]
 		clc
 		ret
 endp		;---------------------------------------------------------------
@@ -79,13 +78,14 @@ proc K_PoolNew
 		mov	ecx,eax				; ECX=number of chunks
 
 		; Get a page of memory
-		mov	dl,[ebx+tMasterPool.Flags]	; Kernel or user space
+		mov	dl,[ebx+tMasterPool.Flags]	; Low or high memory?
+		and	dl,POOLFL_HIMEM			; Mask unused flags
 		call	PG_Alloc
 		jc	short .Done
 		and	eax,PGENTRY_ADDRMASK		; Mask status bits
 		mov	esi,eax				; ESI=address of page
 		
-		inc	dword [K_PoolPageCount]		; Global page counter
+		inc	dword [?PoolPageCount]		; Global page counter
 
 		; Initialize pool descriptor
 		mov	[esi+tPoolDesc.Master],ebx
@@ -107,7 +107,7 @@ proc K_PoolNew
 		; trailing with null.
 		pop	esi				; ESI=free list head
 		dec	ecx				; ECX=chunks-1
-		jz	.TrailNULL
+		jz	short .TrailNULL
 .Loop:		lea	ebx,[esi+edx]
 		mov	[esi],ebx
 		add	esi,edx
@@ -126,38 +126,45 @@ endp		;---------------------------------------------------------------
 		; Input: EBX=master pool address.
 		; Output: CF=0 - OK, ESI=chunk address;
 		;	  CF=1 - error, AX=error code.
+		; Note: if pool was initialized for "bucket allocation", ECX
+		;	will return number of chunks fit in one page.
 proc K_PoolAllocChunk
 		mpush	ebx,edx
 		mov	esi,ebx
 
 		lea	ebx,[esi+tMasterPool.SemLock]	; Lock master pool
 		call	K_SemP
+		
+		; First check if "bucket alloc" flag is set. If so - 
+		; immediately allocate new pool.
+		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
+		jnz	short .AllocPool
 
-		; First check if hint is valid. If not, go through pool list
+		; Now check if hint is valid. If not, go through pool list
 		; to find one containing some free chunks
 		; If no pools with free space, get a new one.
 		; Always update hint for future use
 		mov	edx,[esi+tMasterPool.Hint]
 		or	edx,edx
-		jz	.FindHint
+		jz	short .FindHint
 		cmp	dword [edx+tPoolDesc.FreeHead],0
-		jnz	.HintOK
+		jnz	short .HintOK
 
 .FindHint:	mov	ebx,[esi+tMasterPool.Pools]
 .FindHintLoop:	or	ebx,ebx
-		jz	.AllocPool
+		jz	short .AllocPool
 		cmp	dword [ebx+tPoolDesc.FreeHead],0
-		jne	.GotHint
+		jne	short .GotHint
 		mov	ebx,[ebx+tPoolDesc.Next]
 		jmp	short .FindHintLoop
 .GotHint:	mov	[esi+tMasterPool.Hint],ebx
 		mov	edx,ebx
-		jmp	.HintOK
+		jmp	short .HintOK
 
 .AllocPool:	mov	ebx,esi
 		mov	edx,esi				; Save master pool addr
 		call	K_PoolNew
-		jc	.Done
+		jc	short .Done
 		xchg	edx,esi
 		mov	[esi+tMasterPool.Hint],edx
 
@@ -167,8 +174,15 @@ proc K_PoolAllocChunk
 		mov	[edx+tPoolDesc.FreeHead],eax
 		inc	dword [edx+tPoolDesc.RefCount]
 		dec	dword [edx+tPoolDesc.ChunksFree]
-		mov	edx,ebx
-
+		
+		; Return number of chunks in ECX if the pool is marked
+		; for "bucket alloc"
+		test	dword [esi+tMasterPool.Flags],POOLFL_BUCKETALLOC
+		jz	short .Finish
+		mov	ecx,[edx+tPoolDesc.ChunksFree]
+		inc	ecx
+		
+.Finish:	mov	edx,ebx
 		lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV
 
@@ -238,7 +252,7 @@ proc K_PoolFreeChunk
 .FreePage:	dec	dword [esi+tMasterPool.Count]
 		mov	eax,edx
 		call	PG_Dealloc
-		dec	dword [K_PoolPageCount]
+		dec	dword [?PoolPageCount]
 
 .Unlock:	lea	ebx,[esi+tMasterPool.SemLock]	; Unlock master pool
 		call	K_SemV

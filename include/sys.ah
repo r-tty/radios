@@ -54,6 +54,6 @@
 
 
 ; --- System timer definitions ---
-%define	HZ		100		; Timer ticks per seecond
+%define	HZ		100		; Timer ticks per second
 %define	TIMER_InpFreq	1193180		; Timer input frequency (Hz)
 %define	TIMER_OutFreq	HZ		; Channel 0 output freq (Hz)

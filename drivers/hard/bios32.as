@@ -76,7 +76,7 @@ B32_Entry	RESD	1
 section .text
 
 		; B32_Init - search and initialize BIOS32.
-		; Input: ESI=buffer for init status string.
+		; Input: none.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc B32_Init
@@ -92,10 +92,8 @@ proc B32_Init
 		mov	[B32_DirStruct],edi
 		mov	eax,[edi+tB32dir.Entry]
 		mov	[B32_Entry],eax
-
-		call	B32_GetInitStatStr
-
-.Found:		clc
+		clc
+		
 .Exit:		mpop	edi,ecx
 		ret
 

@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  path.as - path to inode conversion routines, etc.
+;  open.as - open/close routines.
 ;-------------------------------------------------------------------------------
 
-module cfs.path
+module cfs.open

@@ -42,10 +42,9 @@ global KernTSS, DrvTSS
 global IDTaddr
 global ?CPUtype, ?CPUspeed
 global DrvId_Con, DrvId_BIOS32, DrvId_RD, DrvId_RFS
-global ?TimerTicksLo, ?TimerTicksHi
 global ?BaseMemSz, ?ExtMemSz
 global ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
-global ?HeapBegin, ?HeapEnd
+global ?DrvrAreaStart, ?UserAreaStart
 global ?DHlpSymAddr, ?UAPIsymAddr
 
 
@@ -134,17 +133,13 @@ FPU_ExcFlags	RESB	1			; FPU exception flags
 ?ExtMemSz	RESD	1
 
 ; Number of extended memory pages
-?PhysMemPages	RESD	1			; Number of ext. mem. pages
+?PhysMemPages	RESD	1			; Number of upper memory pages
 ?VirtMemPages	RESD	1			; Virtual memory pages
-?TotalMemPages	RESD	1			; Total number of pages (Ext+VM)
+?TotalMemPages	RESD	1			; Total pages (upper+virtual)
 
-; Heap (user segment) begin and end address
-?HeapBegin	RESD	1
-?HeapEnd	RESD	1
-
-; Timer ticks counter
-?TimerTicksLo	RESD	1			; Low dword
-?TimerTicksHi	RESD	1			; High dword
+; Driver and user area start addresses
+?DrvrAreaStart	RESD	1
+?UserAreaStart	RESD	1
 
 ; Installed drivers IDs
 DrvId_Con	RESD	1

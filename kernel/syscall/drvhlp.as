@@ -2,9 +2,10 @@
 ;  drvhlp.as - driver helper functions.
 ;-------------------------------------------------------------------------------
 
-module syscall.drvhlp
+module $syscall.drvhlp
 
-global DHlp_Suspend, DHlp_Resume
+global DHlp_Suspend:export proc
+global DHlp_Resume:export proc
 
 section .text
 

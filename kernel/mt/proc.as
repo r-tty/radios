@@ -45,7 +45,7 @@ proc MT_InitPCBpool
 		mov	[?MaxNumOfProc],eax
 		mov	ebx,?ProcessPool
 		mov	ecx,tProcDesc_size
-		xor	dl,dl
+		xor	edx,edx
 		call	K_PoolInit
 		jc	short .Exit
 		
@@ -78,7 +78,7 @@ proc MT_NewProcess
 		jc	short .Exit
 
 		mov	ecx,tProcDesc_size		; Zero PCB body
-		mov	ebx,ecx
+		mov	ebx,esi
 		call	BZero
 
 		call	MT_GetNewPID
@@ -87,21 +87,7 @@ proc MT_NewProcess
 
 		mov	[esi+tProcDesc.Parent],edx
 		
-		; Initialize process resource master pool
-		lea	ebx,[esi+tProcDesc.ResMP]
-		mov	ecx,tProcResource_size
-		xor	dl,dl
-		call	K_PoolInit
-		jc	short .Exit
-		
-		; Allocate each registered resource descriptor
-		mov	ecx,[?ResCount]
-		jecxz	.EnqProc
-.AllocRes:	call	K_PoolAllocChunk
-		jc	short .Exit
-		loop	.AllocRes
-
-.EnqProc:	mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
+		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
 
 .Exit:		mpop	edx,ecx,ebx
 		ret

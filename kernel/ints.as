@@ -30,8 +30,8 @@ extern PG_FaultHandler:near
 %endmacro
 
 ; Macro for temporary trap stubs
-%macro mIntHandler 2
-Int%1Handler:
+%macro mTrapHandler 2
+Trap%1Handler:
 %if %2 != 0
 	mov	byte [ExceptionNum],%1
 	call	%2
@@ -87,9 +87,10 @@ section .text
 
 		; K_Interrupt - routine to serve all hardware interrupts.
 		; Note: stack frame (with interrupt number as the error code)
-		;	must be on the stack.
+		;	must be on the stack (together with caller's return
+		;	address of course).
 proc K_Interrupt
-		mov	eax,[esp+tStackFrame.Err]	; EAX=IRQ number
+		mov	eax,[esp+4+tStackFrame.Err]	; EAX=IRQ number
 		mov	ebx,[IRQdrivers+eax*4]		; EAX=driver ID
 		or	ebx,ebx
 		jz	short .Done
@@ -121,26 +122,26 @@ proc K_PageFaultEntry
 endp		;---------------------------------------------------------------
 
 
-; Exception handler stubs
-mIntHandler Reserved,0
-mIntHandler 0,K_TmpExcHandler
-mIntHandler 1,K_TmpExcHandler
-mIntHandler 2,K_TmpExcHandler
-mIntHandler 3,K_TmpExcHandler
-mIntHandler 4,K_TmpExcHandler
-mIntHandler 5,K_TmpExcHandler
-mIntHandler 6,K_TmpExcHandler
-mIntHandler 7,K_TmpExcHandler
-mIntHandler 8,K_TmpExcHandler
-mIntHandler 9,K_TmpExcHandler
-mIntHandler 10,K_TmpExcHandler
-mIntHandler 11,K_TmpExcHandler
-mIntHandler 12,K_TmpExcHandler
-mIntHandler 13,K_TmpExcHandler
-mIntHandler 14,K_PageFaultEntry
-mIntHandler 15,K_TmpExcHandler
-mIntHandler 16,K_TmpExcHandler
-mIntHandler 17,K_TmpExcHandler
+; Exception handlers
+mTrapHandler Reserved,0
+mTrapHandler 0,K_TmpExcHandler
+mTrapHandler 1,K_TmpExcHandler
+mTrapHandler 2,K_TmpExcHandler
+mTrapHandler 3,K_TmpExcHandler
+mTrapHandler 4,K_TmpExcHandler
+mTrapHandler 5,K_TmpExcHandler
+mTrapHandler 6,K_TmpExcHandler
+mTrapHandler 7,K_TmpExcHandler
+mTrapHandler 8,K_TmpExcHandler
+mTrapHandler 9,K_TmpExcHandler
+mTrapHandler 10,K_TmpExcHandler
+mTrapHandler 11,K_TmpExcHandler
+mTrapHandler 12,K_TmpExcHandler
+mTrapHandler 13,K_TmpExcHandler
+mTrapHandler 14,K_PageFaultEntry
+mTrapHandler 15,K_TmpExcHandler
+mTrapHandler 16,K_TmpExcHandler
+mTrapHandler 17,K_TmpExcHandler
 
 ; Interrupt service routines (ISRs)
 
@@ -160,181 +161,3 @@ mISR2 K_Interrupt, 12
 mISR2 K_Interrupt, 13
 mISR2 K_Interrupt, 14
 mISR2 K_Interrupt, 15
-
-		; IRQ0: system timer.
-proc IRQ0Handler
-		mTrapEntry 0
-		inc	dword [?TimerTicksLo]
-		cmp	dword [?TimerTicksLo],0
-		jne	short .1
-		inc	dword [?TimerTicksHi]
-.1:		mPICACK 0
-		call	K_SwitchTask
-		mTrapLeave
-endp		;---------------------------------------------------------------
-
-
-		; IRQ1: keyboard.
-proc IRQ1Handler
-		mTrapEntry 1
-		mPICACK 0
-		mov	eax,(EV_IRQ << 16)+1
-		push	dword [IRQdrivers+4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		mTrapLeave
-endp		;---------------------------------------------------------------
-
-
-proc IRQ2Handler
-		push	eax
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-		; IRQ 3: serial ports #2 & #4
-proc IRQ3Handler
-		mpush	eax,edx
-		mov	eax,(EV_IRQ << 16)+3
-		push	dword [IRQdrivers+3*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-		; IRQ 4: serial ports #1 & #3
-proc IRQ4Handler
-		mpush	eax,edx
-		mov	eax,(EV_IRQ << 16)+4
-		push	dword [IRQdrivers+4*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-		; IRQ 5: audio device.
-proc IRQ5Handler
-		mpush	eax,edx
-		mov	eax,(EV_IRQ << 16)+5
-		push	dword [IRQdrivers+5*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-		; IRQ 6: FDD.
-proc IRQ6Handler
-		mpush	eax,edx
-		mov	eax,(EV_IRQ << 16)+6
-		push	dword [IRQdrivers+6*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-		; IRQ 7: parallel port #1.
-proc IRQ7Handler
-		mpush	eax,edx
-		mov	eax,(EV_IRQ << 16)+7
-		push	dword [IRQdrivers+7*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		pop	edx
-		mPICACK 0
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-
-		; IRQ 8: CMOS real-time clock.
-proc IRQ8Handler
-		push	eax
-		call	CMOS_HandleInt
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ9Handler
-		push	eax
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ10Handler
-		push	eax
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ11Handler
-		push	eax
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ12Handler
-		push	eax
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ13Handler
-		push	eax
-		call	FPU_HandleEvents
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ14Handler
-		push	eax
-		mov	eax,(EV_IRQ << 16)+0			; Interface 0
-		push	dword [IRQdrivers+14*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------
-
-
-proc IRQ15Handler
-		push	eax
-		mov	eax,(EV_IRQ << 16)+1			; Interface 1
-		push	dword [IRQdrivers+15*4]
-		push	byte DRVF_HandleEv
-		call	DRV_CallDriver
-		mPICACK 1
-		pop	eax
-		iret
-endp		;---------------------------------------------------------------

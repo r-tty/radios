@@ -94,4 +94,3 @@ proc MT_Init
 		call	MT_InitTimeout		; Initialize sched timeout queue
 .Done		ret
 endp		;---------------------------------------------------------------
-

@@ -12,6 +12,7 @@ module hw.ide
 %include "errors.ah"
 %include "driver.ah"
 %include "drvctrl.ah"
+%include "sema.ah"
 %include "hw/ports.ah"
 %include "hd.ah"
 
@@ -115,7 +116,8 @@ extern HD_LBA2CHS:extcall
 %define	IRQ_IDE4	12		; Default IRQ for interface 4
 
 ; Miscellaneous
-%define	IDE_MAXDRIVES		8	; Maximum number of supported drives
+%define	IDE_MAXDRIVES	8		; Maximum number of supported drives
+%define	IDE_MAXCHANNELS	IDE_MAXDRIVES/2	; Max. 2 drives/channel
 
 ; Time intervals (in milliseconds)
 %define	IDE_MAXTIMEOUT		32000	; Controller maximum timeout
@@ -141,7 +143,7 @@ endstruc
 
 ; Structure of IDE device parameters
 struc tIDEdev
-.BasePort	RESW	1	; Controller base port address
+.BasePort	RESW	1	; Interface base port
 .IRQ		RESB	1	; IRQ line number
 .State		RESB	1	; State flags
 .LCyls		RESW	1	; Logical (BIOS-compatible) parameters
@@ -158,8 +160,10 @@ struc tIDEdev
 .DriveNum	RESB	1	; Drive number
 .SecPerInt	RESB	1	; Sectors per interrupt (R/W multiple)
 .CommonDesc	RESD	1	; Common HD descriptor (for DIHD routines)
+.LockSem	RESB	tSemaphore_size
+.BusySem	RESB	tSemaphore_size
 .ModelStr	RESB	40
-.Reserved	RESB	57	; Pad to 128 bytes
+.Reserved	RESB	41	; Pad to 128 bytes
 endstruc
 
 ; Structure of identify drive information
@@ -215,7 +219,7 @@ DrvIDE_Ctrl	DD	IDE_GetInitStatStr
 		DD	IDE_GetParameters
 
 ; Init status string pieces
-IDE_InitStatStr	DB	9,9,": IDE ATA, 0 controller(s), 0 drive(s)",0
+IDE_InitStatStr	DB	9,9,": IDE ATA, 0 channel(s), 0 drive(s)",0
 IDE_MBstr	DB	" MB",0
 IDE_LBAstr	DB	", LBA",0
 IDE_CHSstr	DB	", CHS=",0
@@ -228,16 +232,16 @@ section .bss
 
 IDE_DevTable	RESB	tIDEdev_size*IDE_MAXDRIVES		; IDE devices table
 
-IDE_BasePorts	RESW	4		; Controller base ports
+IDE_BasePorts	RESW	IDE_MAXCHANNELS	; Controller base ports
 
-IDE_IRQlines	RESB	4		; IRQ lines
+IDE_IRQlines	RESB	IDE_MAXCHANNELS	; IRQ lines
 
-IDE_Command	RESB	4		; Current command in execution
+IDE_Command	RESB	IDE_MAXCHANNELS	; Current command in execution
 
-IDE_Status	RESB	4		; Status after interrupt
+IDE_Status	RESB	IDE_MAXCHANNELS	; Status after interrupt
 
 IDE_NumInstDevs	RESB	1		; Number of found hard disk drives
-IDE_NumCntrlrs	RESB	1		; Number of found IDE interfaces
+IDE_NumChannels	RESB	1		; Number of found IDE channels
 
 ?WaiterThread	RESD	1
 
@@ -255,7 +259,8 @@ section .text
 		;	  CF=1 - error.
 		; Action: 1. if memory blocks not allocated, allocate them;
 		;	  2. initialize IDE interfaces;
-		;	  3. search drives and fill parameters structure.
+		;	  3. search for drives and fill in their
+		;	     parameter structures.
 proc IDE_Init
 		; Initialize port addresses and IRQs
 		mov	dword [IDE_BasePorts],PORT_HDC_IDE1 + (PORT_HDC_IDE2 << 16)
@@ -265,28 +270,30 @@ proc IDE_Init
 		push	ebx
 		mov	dh,dl
 		xor	dl,dl
-		xor	ebx,ebx
-		dec	bh
+		xor	bh,bh
 
-.Loop:		inc	bh
-		call	IDE_Probe
+.Loop:		call	IDE_Probe
 		jc	short .1
 		inc	dl
-		cmp	dl,dh
-		jae	short .2
-.1:		cmp	bh,IDE_MAXDRIVES-1
-		jb	.Loop
+.1:		inc	bh
+		inc	bh			; Kluge
+		cmp	bh,dh
+		jc	.Loop
 
-.2:		mov	dh,dl			; Count number of interfaces
-		or	dh,dh
-		jz	short .GetStr
-		dec	dh
-		shr	dh,1
+.2:		mov	[IDE_NumInstDevs],dl	; Store number of drives found
+
+		; Count number of IDE channels
+		xor	dh,dh
+		xor	ecx,ecx
+.CountChannels:	cmp	byte [ecx+IDE_Status],0
+		je	short .NextChan
 		inc	dh
-		mov	[IDE_NumInstDevs],dl	; Store number of drives found
-		mov	[IDE_NumCntrlrs],dh
+.NextChan:	inc	cl
+		cmp	cl,IDE_MAXCHANNELS
+		jne	short .CountChannels
+		mov	[IDE_NumChannels],dh
 
-.GetStr:	movzx	edx,dx
+		movzx	edx,dx
 		call	IDE_GetInitStatStr
 		clc
 		pop	ebx
@@ -295,7 +302,7 @@ endp		;---------------------------------------------------------------
 
 
 		; IDE_HandleEvent - handle all hardware interrupts.
-		; Input: EAX=event code.
+		; Input: EAX=event code (EV_IRQ<<16 + IRQ#)
 		; Output: none.
 proc IDE_HandleEvent
 		ror	eax,16
@@ -303,22 +310,27 @@ proc IDE_HandleEvent
 		je	short .HandleIRQ
 		stc
 		ret
-.HandleIRQ:	mpush	ebx,edx
-		ror	eax,16
-		and	eax,3				; EAX=interface number
-		mov	ebx,eax
-		add	eax,IDE_BasePorts
-		mov	dx,[eax]
+.HandleIRQ:	mpush	ebx,ecx,edx
+		shr	eax,16				; AL=IRQ#
+		
+		xor	ecx,ecx
+.FindChannel:	cmp	al,[IDE_IRQlines+ecx]
+		je	short .GotChannel
+		inc	ecx
+		cmp	ecx,IDE_MAXCHANNELS
+		jne	.FindChannel
+		jmp	short .Exit			; No channel found
+		
+.GotChannel:	mov	dx,[IDE_BasePorts+ecx*2]
 		add	dx,REG_STATUS
 		in	al,dx
-		add	ebx,IDE_Status
-		mov	[ebx],al
+		mov	[IDE_Status+ecx],al
 .OK:		mov	ebx,[?WaiterThread]
 		or	ebx,ebx
 		jz	short .Exit
 		call	MT_ThreadWakeup
 		mov	dword [?WaiterThread],0
-.Exit:		mpop	edx,ebx
+.Exit:		mpop	edx,ecx,ebx
 		clc
 		ret
 endp		;---------------------------------------------------------------
@@ -473,26 +485,36 @@ endp		;---------------------------------------------------------------
 		;	information and number of drives found.
 proc IDE_GetInitStatStr
 		mpush	eax,ebx,esi,edi
-		mov	edi,esi
+		
+		mov	edi,esi		
 		mov	esi,DrvIDE			; Copy "%hd"
 		call	StrCopy
 		call	StrEnd
+		mov	esi,edi
+		
+		test	edx,0FF0000h			; Minor present?
+		jz	short .NoMinor
 
-		test	edx,0FFFF0000h			; Minor present?
-		jnz	short .ChkSubMinor
+		; Check whether the device is initialized
+		call	IDE_Minor2HDN
+		jc	.Exit
+		cmp	word [edi+tIDEdev.BasePort],0
+		jne	short .ChkSubMinor
+		stc
+		jmp	.Exit
 
-		mov	esi,IDE_InitStatStr
+.NoMinor:	mov	esi,IDE_InitStatStr
 		call	StrCopy
+		mov	ah,[IDE_NumChannels]
 		mov	al,[IDE_NumInstDevs]
-		mov	ah,[IDE_NumCntrlrs]
 		add	ax,3030h
-		mov	[edi+13],al
-		mov	[edi+30],ah
-		mov	esi,ebx
+		mov	[edi+13],ah
+		mov	[edi+27],al
                 jmp	.Exit
 
-.ChkSubMinor:	cld
-		test	edx,0FF000000h
+.ChkSubMinor:	mov	edi,esi
+		cld
+		or	bl,bl
 		jz	short .DriveModel
 		mov	ebx,edx
 		shr	ebx,16
@@ -609,11 +631,13 @@ endp		;---------------------------------------------------------------
 
 ; --- Internal procedures ---
 
-		; IDE_Probe - check of drive presence and read its parameters.
+		; IDE_Probe - check for drive presence and read its parameters.
 		; Input: BH=drive number (0..IDE_MAXDRIVES).
 		; Output: CF=0 - OK, drive present;
 		;	  CF=1 - drive not found.
 proc IDE_Probe
+%define	.secbuf	ebp-512
+
 		cmp	bh,IDE_MAXDRIVES
 		jb	short .Do
 		stc
@@ -627,9 +651,9 @@ proc IDE_Probe
 		; Get base port (DX) and IRQ (CL)
 		xor	eax,eax
 		mov	al,bh
-		and	al,254
-		mov	dx,[eax+IDE_BasePorts]
-		mov	cl,[eax+IDE_IRQlines]
+		shr	al,1				; AL=channel number
+		mov	cl,[IDE_IRQlines+eax]
+		mov	dx,[IDE_BasePorts+eax*2]
 
 		; Check if the one of the registers exists
 		add	dx,REG_CYL_LO
@@ -642,7 +666,7 @@ proc IDE_Probe
 		cmp	al,ah
 		je	near .NotExist
 
-		; Fill device parameters structure
+		; Fill in the device parameters structure
 		call	IDE_GetDPSaddr			; Get structure address
 		mov	[edi+tIDEdev.DriveNum],bh
 		mov	[edi+tIDEdev.BasePort],dx
@@ -663,13 +687,13 @@ proc IDE_Probe
 		; Intelligent drive: read identify drive information
 		or	byte [edi+tIDEdev.State],IDE_INTELLIGENT
 		mov	ebx,edi				; Keep structure address
-		lea	edi,[ebp-512]			; Buffer address
+		lea	edi,[.secbuf]			; Buffer address
 		mov	cx,256				; 256 words
 		cld
 		rep	insw				; DX at data reg now
 
 		; Fill another fields of parameters structure
-		lea	esi,[ebp-512]
+		lea	esi,[.secbuf]
 		mov	edi,ebx
 		mov	ax,[esi+tIDE_IDinfo.NumHardCyls]
 		mov	[edi+tIDEdev.PCyls],ax
@@ -882,7 +906,7 @@ proc IDE_OutCmdSimple
 		push	eax				; Keep error code
 		xor	eax,eax
 		mov	al,[edi+tIDEdev.DriveNum]	; Get controller number
-		shr	al,1				; in EBX
+		shr	al,1				; in EAX
 		mov	byte [eax+IDE_Command],CMD_IDLE
 		pop	eax
 		popfd

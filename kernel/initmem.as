@@ -1,7 +1,6 @@
 ;*******************************************************************************
 ;  initmem.as - routines for memory initialization.
 ;  Copyright (c) 2001 RET & COM Research.
-;  BIOS memory map routines are based on the sources by Alexey Frounze.
 ;*******************************************************************************
 
 module kernel.initmem
@@ -21,11 +20,13 @@ module kernel.initmem
 
 global K_InitMem, K_GetMemInitStr
 
+
 ; --- Imports ---
 
 library kernel
 extern ?BaseMemSz, ?ExtMemSz
 extern ?PhysMemPages, ?TotalMemPages
+extern ?UserAreaStart, ?DrvrAreaStart
 
 library kernel.misc
 extern StrEnd:near, StrCopy:near, StrAppend:near
@@ -66,8 +67,11 @@ section .text
 proc K_InitMem
 		mov	[?BaseMemSz],eax
 		mov	ecx,[UpperMemSizeKB]		; Memory map present?
-		or	ecx,ecx
-		jnz	short .MemSizOK
+		cmp	ecx,65536
+		jae	short .MemSizOK
+		call	CMOS_ReadExtMemSz		; Kluge (my buggy BIOS)
+		movzx	ecx,ax				; :)
+		jmp	short .MemSizOK
 		call	K_ProbeMem			; If no map - probe mem
 		jc	short .Exit
 .MemSizOK:	mov	[?ExtMemSz],ecx
@@ -83,7 +87,9 @@ proc K_InitMem
 		call	K_DumpBMM
 	%endif
 	
-.OK:		clc
+.OK:		mov	dword [?DrvrAreaStart],1000000h
+		mov	dword [?UserAreaStart],80000000h
+		clc
 		
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -98,7 +104,7 @@ endp		;---------------------------------------------------------------
 
 
 		; K_ProbeMem - get memory size from CMOS and test upper memory.
-		;	      This routine is called if there's no BIOS memmap.
+		;	       This routine is called if there's no BIOS memmap.
 		; Input: none.
 		; Output: CF=0 - OK, ECX=size of extended memory in KB;
 		;	  CF=1 - error, AX=error code.

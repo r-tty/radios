@@ -4,16 +4,11 @@
 ################################################################################
 
 # Standard header
-include ../etc/header.mk
+include ../../etc/header.mk
 
 # Change variables here
-export TARGET_LIB = fs.rdl
-OBJS = buffer.rdm inode.rdm open.rdm rw.rdm path.rdm cfs_init.rdm
-modnamesfile = $(OUTPATH)/.fs-modules
-SUBDIRS = vstafs tarfs
-
-# Make in subdirs
-include ../etc/subdirs.mk
+OBJS = tarfs.rdm
+modnamesfile = $(OUTPATH)/.tarfs-modules
 
 # This part shouldn't be changed
-include ../etc/common.mk
+include ../../etc/common.mk

@@ -54,7 +54,7 @@ endstruc
 %define FREE_SEC	2
 
 ; A free list sector
-%define NALLOC		(SECSZ-8) / tFSalloc_size)
+%define NALLOC		((SECSZ-8) / tFSalloc_size)
 struc tFSfree
 .Next		RESD	1		; Next sector of free list 
 .Nfree		RESD	1		; # free in this sector 
@@ -69,7 +69,7 @@ endstruc
 
 ; The first part of a file is a description of the file and its
 ; block allocation. The file's contents follows.
-struct tFSfile
+struc tFSfile
 .PrevVersion	RESD	1		; Previous version of this file 
 .Rev		RESD	1		; Revision # 
 .Len		RESD	1		; File length in bytes 
@@ -95,7 +95,7 @@ endstruc
 %define OFF_SEC1 (SECSZ - ((int)(((struct fs_file *)0)->fs_data)))
 
 ; Structure of an open file in the filesystem
-struct tFSopenfile {
+struc tFSopenfile
 .File		RESD	1	; 1st sector of file 
 .Len		RESD	1	;  ...first extent's length 
 .HiWrite	RESD	1	; Highest file position written 
@@ -108,12 +108,12 @@ endstruc
 %define O_HASHED	2	; Might be hashed (hint) 
 
 ; Our per-client data structure
-struct tFSfile
+struc tFile
 .File		RESD	1	; Current file open (ptr to tFSopenfile)
 .Pos		RESD	1	; Current file offset 
 .Perms		RESB	tPerm_size*PROCPERMS	; Things we're allowed to do 
 .Nperm		RESD	1
 .Perm		RESD	1	;  ...for the current .File 
 .RenameID	RESD	1	; Transaction # for rename() 
-.RenameMsg	RESB	tMsg_size ;  ...message for that transaction 
+.RenameMsg	RESB	tMessage_size ;  ...message for that transaction 
 endstruc

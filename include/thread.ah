@@ -6,7 +6,8 @@
 %define	THRST_FREE	0
 %define	THRST_READY	1
 %define	THRST_WAITING	2
-%define	THRST_DEAD	3
+%define THRST_UNINTERRUPTIBLE	3
+%define	THRST_DEAD	4
 
 ; Priority classes
 %define	THRPRCL_CRIT	1			; Real-time tasks (fixed priority)
@@ -69,4 +70,3 @@ endstruc
 	mov	al,[%1+tStackFrame.ECS]
 	and	al,3
 %endmacro
-

@@ -2,9 +2,9 @@
 ;  userapi.as - user APIs (system calls).
 ;-------------------------------------------------------------------------------
 
-module syscall.user
+module $syscall.user
 
-global UAPI_Exit
+global UAPI_Exit:export proc
 
 
 section .text

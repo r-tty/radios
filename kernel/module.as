@@ -70,7 +70,7 @@ proc MOD_InitMem
 		mov	[?MaxModules],eax
 		mov	ebx,?ModulePool
 		mov	ecx,tKModInfo_size
-		xor	dl,dl
+		xor	edx,edx
 		call	K_PoolInit
 		ret
 endp		;---------------------------------------------------------------
@@ -82,19 +82,20 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc MOD_InitKernelMod
 		mpush	esi,edi
-		call	MOD_AllocStruc
+		mov	ebx,?ModulePool
+		call	K_PoolAllocChunk
 		jc	short .Exit
-		mov	dword [edi+tKModInfo.Driver],0
-		mov	dword [edi+tKModInfo.PID],0
+		mov	dword [esi+tKModInfo.Driver],0
+		mov	dword [esi+tKModInfo.PID],0
 		mov	eax,100000h
-		mov	[edi+tKModInfo.Sections],eax
-		mov	dword [edi+tKModInfo.StackSize],8000h
-		mov	byte [edi+tKModInfo.Type],MODTYPE_LIBRARY
+		mov	[esi+tKModInfo.Sections],eax
+		mov	dword [esi+tKModInfo.StackSize],8000h
+		mov	byte [esi+tKModInfo.Type],MODTYPE_LIBRARY
+		lea	edi,[esi+tKModInfo.ModName]
 		mov	esi,KernelModName
-		lea	edi,[edi+tKModInfo.ModName]
 		call	StrCopy
-		mpop	edi,esi
-.Exit:		ret
+.Exit:		mpop	edi,esi
+		ret
 endp		;---------------------------------------------------------------
 
 
@@ -173,8 +174,10 @@ proc MOD_Load
 		call	MOD_CheckSignature
 		jc	short .Exit
 
-		call	MOD_AllocStruc
+		mov	ebx,?ModulePool
+		call	K_PoolAllocChunk
 		jc	short .CloseAndExit
+		mov	edi,esi
 
 		mCallDriver edx, byte DRVF_Open			; Load module
 		jc	short .CloseAndExit
@@ -202,12 +205,13 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MOD_Unload
-		push	edx
+		mpush	edx,esi
                 mov	edx,[edi+tKModInfo.Driver]
 		mCallDriver edx, byte DRVF_Close		; Unload module
 		jc	short .Exit				; and free its
-		call	MOD_FreeStruc				; structure
-.Exit:		pop	edx
+		mov	esi,edi					; structure
+		call	K_PoolFreeChunk
+.Exit:		mpop	esi,edx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -231,35 +235,6 @@ endp		;---------------------------------------------------------------
 
 
 ; --- Implementation routines ---
-
-		; MOD_AllocStruc - allocate module information structure.
-		; Input: none.
-		; Output: CF=0 - OK, EDI=address of allocated structure;
-		;	  CF=1 - error, AX=error code.
-proc MOD_AllocStruc
-		mpush	ebx,edx,esi
-		mov	ebx,?ModulePool
-		xor	dl,dl
-		call	K_PoolAllocChunk
-		jc	short .Exit
-		mov	edi,esi
-
-.Exit:		mpop	esi,edx,ebx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MOD_FreeStruc - free module information structure.
-		; Input: EDI=address of structure.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc MOD_FreeStruc
-		push	esi
-		mov	esi,edi
-		call	K_PoolFreeChunk
-		pop	esi
-		ret
-endp		;---------------------------------------------------------------
 
 
 		; MOD_CheckSignature - determine module format by its signature.

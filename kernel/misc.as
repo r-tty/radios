@@ -32,7 +32,7 @@ global MemSet, BZero
 ; --- Imports ---
 
 library kernel
-extern ?TimerTicksLo, ?CPUspeed
+extern ?TicksCounter, ?CPUspeed
 
 library kernel.driver
 extern DRV_CallDriver:near, DRV_GetFlags:near
@@ -53,9 +53,9 @@ section .text
 proc K_TTDelay
 		push	eax
 		push	ecx
-		mov	eax,[?TimerTicksLo]
+		mov	eax,[?TicksCounter]
 		lea	ecx,[eax+ecx]
-.Loop:		mov	eax,[?TimerTicksLo]
+.Loop:		mov	eax,[?TicksCounter]
 		cmp	eax,ecx
 		jb	.Loop
 		mpop	ecx,eax

@@ -6,13 +6,13 @@
 %define PERMLEN	7		; Max levels of permission discrimination
 %define	PROCPERMS 6		; # permissions per process
 
-struct tPerm
+struc tPerm
 .Len	RESB	1		; # slots valid
 .ID	RESB	PERMLEN		; Permission values
 .UI	RESD	1		; UID for this ability
 endstruc
 
-struct tProt
+struc tProt
 .Len		RESB	1		; # slots valid
 .Default	RESB	1		; Capabilities available to all
 .ID		RESB	PERMLEN		; Permission values

@@ -7,7 +7,7 @@ SUFFIXES = .as .rdm .rdx
 
 # Rule to make RDM from NASM source
 %.rdm : %.as
-	@echo Assembling $@
+	@echo Assembling $<
 	@$(AS) $(ASFLAGS) $(OUTPATH)/$@ $<
 	
 # Paths
@@ -33,7 +33,7 @@ ASFLAGS = -DDEBUG -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 else
 ASFLAGS = -f rdf -p$(STDINCLPATH)/tasmlike.ah -i$(INCLPATH)/ -s -o
 endif
-LDFLAGS = -2 -xe -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx
+LDFLAGS = -2 -xe -s -mbh -j $(OUTPATH)/ -L $(OUTPATH)/ -o main.rdx
 
 # Command to generate dependencies file
 GENDEPS = ndepgen -M

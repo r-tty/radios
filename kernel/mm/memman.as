@@ -30,15 +30,18 @@ global MM_AllocRegion, MM_FreeRegion
 
 library kernel
 extern K_DescriptorAddress:near, K_GetDescriptorBase:near
-extern ?HeapBegin, ?TotalMemPages
+extern ?UserAreaStart, ?TotalMemPages
 
 library kernel.paging
 extern PG_GetPTEaddr:near
 extern PG_Alloc:near, PG_Dealloc:near
-extern ?KernPgPoolEnd
+extern ?KernPageDir, ?KernPgPoolEnd
 
 library kernel.mt
 extern ?ProcListPtr
+
+library kernel.misc
+extern BZero:near
 
 
 ; --- Variables ---
@@ -59,19 +62,15 @@ section .text
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_Init
-		mpush	ebx,ecx,edx,edi
-		mov	dx,USERCODE
-		call	K_DescriptorAddress
-		call	K_GetDescriptorBase
-
 		; Initialize kernel MCB area
-		call	MM_PrepareMCBarea
 		mov	ebx,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE/PAGESIZE
-		xor	eax,eax
+		mov	ecx,MM_MCBAREASIZE
+		call	BZero
+		
+		shr	ecx,PAGESHIFT			; ECX=# of pages in MCB
+		mov	edx,[?KernPageDir]
 
 .Loop:		call	PG_GetPTEaddr
-		jc	short .Exit
 		or	dword [edi],PG_ALLOCATED
 		add	ebx,PAGESIZE
 		loop	.Loop
@@ -89,10 +88,8 @@ proc MM_Init
 		mov	ecx,[?KernPgPoolEnd]
 		sub	ecx,eax
 		mov	[ebx+tMCB.Len],ecx
-
 		clc
-.Exit:		mpop	edi,edx,ecx,ebx
-		ret
+.Exit:		ret
 endp		;---------------------------------------------------------------
 
 
@@ -145,13 +142,13 @@ proc MM_AllocBlock
 .Loop:		mov	dl,1				; Allocate one page
 		call	PG_Alloc			; of physical or virtual
 		jc	short .FreePages		; memory
-		mov	edx,eax				; Keep its physical addr
-		mov	eax,[esi+tProcDesc.PID]
-		call	PG_GetPTEaddr			; Store physical address
-		jc	short .FreePages		; in PTE
-		or	edx,PG_ALLOCATED
-		or	dl,[.flags+1]
-		mov	[edi],edx
+		push	eax				; Save its physical addr
+		mov	edx,[esi+tProcDesc.PageDir]
+		call	PG_GetPTEaddr
+		pop	eax
+		or	eax,PG_ALLOCATED		
+		or	al,[.flags+1]			; Store physical address
+		mov	[edi],eax			; in PTE
 		add	ebx,PAGESIZE
 		loop	.Loop
 
@@ -190,8 +187,8 @@ proc MM_AllocBlock
 		jecxz	.NoDeall
 		mov	ebx,[ebx+tMCB.Addr]
 
-.DeallLoop:	mov	eax,[esi+tProcDesc.PID]
-		call	PG_GetPTEaddr
+		mov	edx,[esi+tProcDesc.PageDir]
+.DeallLoop:	call	PG_GetPTEaddr
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
 		call	PG_Dealloc
@@ -245,9 +242,8 @@ proc MM_FreeBlock
 		shr	ecx,PAGESHIFT
 		mov	ebx,edi				; EBX=block address
 
-.Loop:		mov	eax,[esi+tProcDesc.PID]
-		call	PG_GetPTEaddr
-		jc	short .Exit
+		mov	edx,[esi+tProcDesc.PageDir]
+.Loop:		call	PG_GetPTEaddr
 		and	dword [edi],~PG_ALLOCATED
 		mov	eax,[edi]
 		call	PG_Dealloc
@@ -339,25 +335,25 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc MM_FindRegion
 %define	.regionsize	ebp-4
+%define .regionaddr	ebp-8
 
-		prologue 4
+		prologue 8
 		mpush	edx,edi
 
 		mov	dword [.regionsize],0
 
-		mov	ebx,[?HeapBegin]
+		mov	ebx,[?UserAreaStart]
 		or	ebx,ebx
 		jz	short .Empty
-		mov	edx,ebx
+		mov	[.regionaddr],ebx
+		mov	edx,[esi+tProcDesc.PageDir]		; For PG_GetPTEaddr
 
 .Loop:		mov	eax,[?TotalMemPages]
 		shl	eax,PAGESHIFT
 		add	eax,StartOfExtMem
 		cmp	ebx,eax
 		jae	short .Err
-		mov	eax,[esi+tProcDesc.PID]
 		call	PG_GetPTEaddr
-		jc	short .Exit
 		cmp	dword [edi],PG_DISABLE
 		je	short .Err
 		test	dword [edi],PG_ALLOCATED
@@ -369,11 +365,11 @@ proc MM_FindRegion
 		jmp	.Loop
 
 .Used:		add	ebx,PAGESIZE
-		mov	edx,ebx
+		mov	[.regionaddr],ebx
 		mov	dword [.regionsize],0
 		jmp	.Loop
 
-.Found:		mov	ebx,edx
+.Found:		mov	ebx,[.regionaddr]
 		clc
 
 .Exit:		mpop	edi,edx
@@ -401,13 +397,13 @@ proc MM_GetMCB
 
 .Scan:		cmp	ecx,MM_MCBAREASIZE
 		jae	short .Err
-		mov	eax,[esi+tProcDesc.PID]
+		mov	edx,[esi+tProcDesc.PageDir]
 		call	PG_GetPTEaddr
 		jc	short .Exit
 		test	dword [edi],PG_ALLOCATED	; MCB page allocated?
 		jnz	short .CheckMCB			; Yes, check MCB
 
-		xor	edx,edx
+		mov	dl,1
 		call	PG_Alloc			; Else allocate one page
 		jc	short .Exit			; of physical memory
 		or	eax,PG_ALLOCATED		; Store address of page
@@ -477,33 +473,17 @@ proc MM_FreeMCB
 endp		;---------------------------------------------------------------
 
 
-		; MM_PrepareMCBarea - prepare MCB area to use.
-		; Input: none.
-		; Output: none.
-proc MM_PrepareMCBarea
-		mpush	ecx,edi
-		mov	edi,MM_MCBAREABEG
-		mov	ecx,MM_MCBAREASIZE/4
-		xor	eax,eax
-		cld
-		rep	stosd
-		mpop	edi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; MM_FreeMCBarea - free MCB area of process.
 		; Input: ESI=address of PCB.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 		; Note: CR3 must be set on the process page directory.
 proc MM_FreeMCBarea
-		mpush	ebx,ecx,edi
+		mpush	ebx,ecx,edx,edi
 		mov	ebx,MM_MCBAREABEG
 		mov	ecx,MM_MCBAREASIZE/PAGESIZE
-
-.Loop:		mov	eax,[esi+tProcDesc.PID]
-		call	PG_GetPTEaddr
+		mov	edx,[esi+tProcDesc.PageDir]
+.Loop:		call	PG_GetPTEaddr
 		jc	short .Exit
 		mov	eax,[edi]
 		test	eax,PG_ALLOCATED
@@ -515,7 +495,7 @@ proc MM_FreeMCBarea
 		loop	.Loop
 
 .OK:		clc
-.Exit:		mpop	edi,ecx,ebx
+.Exit:		mpop	edi,edx,ecx,ebx
 		ret
 endp		;---------------------------------------------------------------
 

@@ -10,7 +10,7 @@
 
 global K_SwitchTask
 global MT_Schedule
-global ?CurrThread
+global ?CurrThread, ?TicksCounter
 global MT_SuspendCurr, MT_SuspendCurr1ms
 
 
@@ -30,6 +30,9 @@ extern K_SetJmp:near, K_LongJmp:near
 
 library kernel.semaphore
 extern K_SemP:near, K_SemV: near
+
+library kernel.misc
+extern K_LDelayMs:near
 
 ; --- Data ---
 
@@ -269,11 +272,15 @@ proc K_SwitchTask
 		push	ebp
 		mov	ebp,esp
 		
+		; If multitasking isn't yet initialized - just leave
+		cmp	dword [?CurrThread],0
+		je	short .Exit
+		
 		; Bail out if reentered
 		cmp	dword [?SchedInClock],0
 		je	short .CntTicks
 		inc	dword [?NestedClocks]
-		ret
+		jmp	short .Exit
 
 		; Count the ticks
 .CntTicks:	inc	dword [?TicksCounter]
@@ -305,7 +312,7 @@ proc K_SwitchTask
 
 .Done		cli
 		mov	dword [?SchedInClock],0
-		leave
+.Exit:		leave
 		ret
 endp		;---------------------------------------------------------------
 
@@ -429,6 +436,7 @@ endp		;---------------------------------------------------------------
 		; Output:none.
 proc MT_SuspendCurr
 		push	ecx
+		call	K_LDelayMs
 		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
@@ -438,6 +446,10 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output:none.
 proc MT_SuspendCurr1ms
+		push	ecx
+		mov	ecx,1
+		call	K_LDelayMs
+		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
 

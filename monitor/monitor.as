@@ -62,7 +62,7 @@ MsgHelp		DB NL,"Monitor commands:",NL
 		DB " q",9,9,"  - quit",NL
 		DB " r [reg]",9,"  - view/modify registers",NL
 		DB " t",9,9,"  - single step",NL
-		DB " u [addr]",9,"  - dissassemble",NL,0
+		DB " u [addr]",9,"  - disassemble",NL,0
 
 
 

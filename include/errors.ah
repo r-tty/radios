@@ -67,28 +67,23 @@
 %define	ERR_MOD_BadID			0375h
 
 ; File system errors
-%define	ERR_FS_InitTooManyLP		0380h
-%define	ERR_FS_InitTooManyKFH		0381h
-%define	ERR_FS_BadLP			0382h
-%define	ERR_FS_InvFSLPname		0383h
-%define	ERR_FS_NoFSdriver		0384h
-%define	ERR_FS_NoBlockDev		0385h
-%define	ERR_FS_NotLinked		0386h
-%define	ERR_FS_DevLinked		0387h
+%define	ERR_FS_NoFSdriver		0380h
+%define	ERR_FS_NoBlockDev		0381h
+%define	ERR_FS_NotMounted		0382h
+%define	ERR_FS_DevMounted		0383h
 
 %define	ERR_FS_FileNotFound		0390h
 %define	ERR_FS_FileExists		0391h
 %define	ERR_FS_DiskFull			0392h
 %define	ERR_FS_CrossDev			0393h
 %define	ERR_FS_InvRWLen			0394h
-%define	ERR_FS_InvFileHandle		0395h
-%define	ERR_FS_NoFreeHandles		0396h
-%define	ERR_FS_BadFHandleTable		0397h
-%define	ERR_FS_FileNotOpened		0398h
-%define	ERR_FS_InvDirName		0399h
-%define	ERR_FS_DirExists		039Ah
-%define	ERR_FS_DirNotEmpty		039Bh
-%define	ERR_FS_NotDirectory		039Ch
+%define	ERR_FS_InvFileDesc		0395h
+%define	ERR_FS_NoFreeFD			0396h
+%define	ERR_FS_FileNotOpened		0397h
+%define	ERR_FS_InvDirName		0398h
+%define	ERR_FS_DirExists		0399h
+%define	ERR_FS_DirNotEmpty		039Ah
+%define	ERR_FS_NotDirectory		039Bh
 
 
 ; Transport Layer Interface (TLI) errors

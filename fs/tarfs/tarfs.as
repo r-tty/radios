@@ -1,7 +1,6 @@
 ;*******************************************************************************
-;  main.as - VSTa FS main loop.
+;  tarfs.as - read-only TAR (tape archiver) filesystem.
 ;  Copyright (c) 2001 RET & COM Research.
-;  This file is based on the VSTa Operatin System (c) 1996-2001 Andy Valencia.
 ;*******************************************************************************
 
-%include "fs/vstafs.ah"
+%include "fs/tar.ah"

@@ -13,7 +13,7 @@ SUBDIRS = kernel drivers/hard drivers/soft fs monitor init loader
 
 # Kernel objects and libraries
 TARGET_DEP = version.rdm syscall.rdm kernel.rdl hardware.rdl softdrivers.rdl \
-             monitor.rdl init.rdm
+             fs.rdl monitor.rdl init.rdm
 ifdef DEBUG
 TARGET_DEP += rkdt.rdm
 endif

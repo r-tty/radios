@@ -2,19 +2,15 @@
 ;  scfg.as - RadiOS startup configuration table.
 ;-------------------------------------------------------------------------------
 
-%define	SCFG_Signature	00435352h
-
 StartupCfg	DD	SCFG_Signature
 		DW	6				; Number of items
 		DW	sRootDev-StartupCfg		; Item addresses
-		DW	sRootLP-StartupCfg
 		DW	sRDsize-StartupCfg
 		DW	sBufMem-StartupCfg
 		DW	sSwapDev-StartupCfg
 		DW	sSwapSize-StartupCfg
 
-sRootDev	DB	"%ramdisk",0		; Root device
-sRootLP		DB	"F:",0			; Root linkpoint
+sRootDev	DB	"%hd1.1",0		; Root device
 sRDsize		DW	1440			; RAM-disk size
 sBufMem		DW	512			; Buffers memory (KB)
 sSwapDev	DD	0			; Swap device

@@ -16,7 +16,7 @@ proc INIT_BuildIDT
 		xor	dl,dl
 		call	PG_AllocContBlock
 		mov	[IDTaddr],ebx
-		mov	esi,IntHandlersArr
+		mov	esi,TrapHandlersArr
 		mov	ecx,IDT_size/tGateDesc_size
 		cld
 

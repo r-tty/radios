@@ -46,7 +46,7 @@ proc SetBreak
 		add	eax,eax
 		add	eax,ecx
 		add	eax,eax
-		add	eax,offset BreakList
+		add	eax,BreakList
 		mov	[eax],ebx
 		mov	[eax + 4],dx
 		ret
@@ -78,7 +78,7 @@ proc DisplayBreak
 		add	ebx,ebx			; breakpoint address list
 		add	ebx,eax
 		add	ebx,ebx
-		add	ebx,offset BreakList
+		add	ebx,BreakList
 		movzx	eax,word [ebx+4]	; Print segment
 		call	PrintWordHex
 		mPrintChar ':'			; Print ':'

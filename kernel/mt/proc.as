@@ -6,7 +6,7 @@
 ; --- Exports ---
 
 global ?ProcListPtr, ?MaxNumOfProc
-global MT_InitProc, MT_InitKernelProc
+global MT_InitProc, MT_InitKernelProc, MT_PID2PCB
 
 
 ; --- Imports ---
@@ -28,7 +28,6 @@ section .bss
 ?ProcListPtr	RESD	1			; Address of process list
 ?MaxNumOfProc	RESD	1			; Max. number of processes
 ?ProcessPool	RESB	tMasterPool_size	; Process master pool
-?ResCount	RESD	1			; Resource count
 ?PIDsBitmap	RESD	1			; Address of PIDs bitmap
 
 
@@ -86,7 +85,6 @@ proc MT_NewProcess
 		mov	[esi+tProcDesc.PID],eax
 
 		mov	[esi+tProcDesc.Parent],edx
-		
 		mEnqueue dword [?ProcListPtr], Next, Prev, esi, tProcDesc
 
 .Exit:		mpop	edx,ecx,ebx
@@ -135,17 +133,6 @@ proc MT_ProcDetachThread
 		
 .Error:		mov	ax,ERR_MT_UnableDetachThread
 		stc
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MT_RegisterProcResource - register a process resource.
-		; Input: EAX=resource class.
-		; Output: CF=0 - OK, EAX=resource ID;
-		;	  CF=1 - error, AX=error code.
-proc MT_RegisterProcResource
-		inc	dword [?ResCount]
-		mov	eax,[?ResCount]
 		ret
 endp		;---------------------------------------------------------------
 
@@ -212,4 +199,22 @@ proc MT_ReleasePID
 .Err:		mov	ax,ERR_MT_BadPID
 		stc
 		ret
+endp		;--------------------------------------------------------------
+
+
+		; MT_PID2PCB - get an address of PCB by a PID.
+		; Input: EAX=PID.
+		; Output: CF=0 - OK, ESI=address of PCB;
+		;	  CF=1 - error, AX=error code.
+proc MT_PID2PCB
+		mov	esi,[?ProcListPtr]
+.Loop:		cmp	eax,[esi+tProcDesc.PID]
+		je	short .Exit
+		mov	esi,[esi+tProcDesc.Next]
+		cmp	esi,[?ProcListPtr]
+		jne	.Loop
+		
+		mov	ax,ERR_MT_BadPID
+		stc
+.Exit:		ret
 endp		;--------------------------------------------------------------

@@ -233,7 +233,7 @@ proc VTX_Init
 		jb	.ClearLoop
 
 		push	esi
-		mov	esi,offset DefaultFont8x16	; Load internal font
+		mov	esi,DefaultFont8x16		; Load internal font
 		call	VTX_LoadFont
 		pop	esi
 

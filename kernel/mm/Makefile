@@ -7,7 +7,7 @@
 include ../../etc/header.mk
 
 # Change variables here
-OBJS = memman.rdm
+OBJS = memman.rdm mm_debug.rdm
 modnamesfile = $(OUTPATH)/.memman-modules
 
 # This part shouldn't be changed

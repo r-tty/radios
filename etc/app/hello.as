@@ -8,7 +8,7 @@ module hello					; Module name
 library kernel.mt				; Export from 'kernel.mt'
 extern Exit					; Exit procedure
 
-library kernel.misc				; Export from 'KERNEL.MISC'
+library kernel.misc				; Export from 'kernel.misc'
 extern WrString					; Write string procedure
 
 

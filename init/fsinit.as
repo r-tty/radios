@@ -75,7 +75,7 @@ endp		;---------------------------------------------------------------
 proc INIT_InitFileSystems
 
 		; RFS driver
-		mov	ebx,offset DrvRFS
+		mov	ebx,DrvRFS
 		xor	edx,edx
 		call	DRV_InstallNew
 		jc	short .Exit

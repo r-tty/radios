@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  rdf.ah - Relocatable Dynamic Module (RDM) definitions.
+;  rdm.ah - Relocatable Dynamic Module (RDM) definitions.
 ;-------------------------------------------------------------------------------
 
 ; --- Common definitions ---

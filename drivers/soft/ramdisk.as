@@ -223,7 +223,7 @@ proc RD_GetInitStatStr
 		xchg	esi,edi
 		call	DecD2Str
 		xchg	esi,edi
-		mov	esi,offset RDmsg
+		mov	esi,RDmsg
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi

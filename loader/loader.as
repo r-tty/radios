@@ -14,8 +14,8 @@
 %define	MMAPADDR		2000h
 
 section .text
-bits 32
 
+		; Loader entry point
 		lgdt	[GDTaddrLim]
 		mov	edx,eax				; Keep MB magic value
 		xor	eax,eax
@@ -62,7 +62,7 @@ endp		;---------------------------------------------------------------
 
 ;--- RDM image manipulations ---------------------------------------------------
 
-		; img_read - copy bytes from RDM image.
+		; ImgRead - copy bytes from RDM image.
 		; Input: EDI=target address,
 		;	 ECX=number of bytes to read
 		; Output: none.

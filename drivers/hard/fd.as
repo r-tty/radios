@@ -536,7 +536,7 @@ proc FD_GetInitStatStr
 		mov	al,[FDC_Type]
 		mov	esi,[FDCtypeStrs+eax*4]
 		call	StrCopy
-		mov	esi,offset FDCstr_FDC
+		mov	esi,FDCstr_FDC
 		call	StrAppend
 		call	StrEnd
 
@@ -869,7 +869,7 @@ proc FDC_ReadStatus
 		push	edx
 		mov	dx,PORT_FDC_Data
 		in	al,dx
-		mov	[ebx+offset FDC_Results],al
+		mov	[ebx+FDC_Results],al
 		pop	edx
 		inc	bl
 		mov	ecx,FD_Timeout			; Restore timeout
@@ -950,7 +950,7 @@ proc FD_Minor2Drv
 		dec	bl
 		mov	dl,bl
 		xor	bh,bh
-		add	ebx,offset FD_DrvTable
+		add	ebx,FD_DrvTable
 		clc
 		ret
 .Err:		mov	ax,ERR_DRV_NoMinor

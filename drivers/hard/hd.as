@@ -316,21 +316,21 @@ proc HD_GetPartInfoStr
 		jz	short .Exit
 
 		mov	edi,esi
-		mov	esi,offset HDstr_Type
+		mov	esi,HDstr_Type
 		call	StrCopy
 		call	StrEnd
 		mov	esi,edi
 		call	HexB2Str
 		mov	edi,esi
 		mov	dword [edi],202C68h		; Paste "h, "
-		mov	esi,offset HDstr_Size
+		mov	esi,HDstr_Size
 		call	StrAppend
 		call	StrEnd
 		mov	esi,edi
 		mov	eax,ecx
 		shr	eax,11
 		call	DecD2Str
-		mov	esi,offset HDstr_MB
+		mov	esi,HDstr_MB
 		call	StrAppend
 
 .OK:		clc

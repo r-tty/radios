@@ -109,12 +109,12 @@ proc MON_Registers
 .GotEnd:	pop	esi			; Then we have the length of reg name
 		cmp	cl,2			; If 2
 		jne	.Check3
-		mov	ebx,offset pDS		; Read in a segment reg
+		mov	ebx,pDS			; Read in a segment reg
 		call	ReadReg
 		jmp	short .Exit		; End
 .Check3:	cmp	cl,3			; If not 3
 		jne	.Err			; Bad reg name
-		mov	ebx,offset pEAX		; Read in a general purpose reg
+		mov	ebx,pEAX		; Read in a general purpose reg
 		call	ReadReg
 		jmp	short .Exit
 .Err:		stc				; Error
@@ -132,7 +132,7 @@ proc DisplayRegisters
 		mPrintChar ' '
 		mov	ebx,[rEFLAGS]		; Print flags in char. form
 		shl	bx,4
-		mov	esi,offset FlagChars
+		mov	esi,FlagChars
 		mov	cl,12
 .Loop:		shl	bx,1
 		jnc	short .Space
@@ -185,7 +185,7 @@ proc ReadReg
 		jne	.GotInput
 		push	ecx
 		mPrintString RegPrompt
-		mov	esi,offset InputBuffer
+		mov	esi,InputBuffer
 		mov	cl,8
 		call	ReadString		; Get input line
 		movzx	ecx,cl

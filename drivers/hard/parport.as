@@ -227,7 +227,7 @@ proc PAR_GetInitStatStr
 
 		test	edx,0FFFF0000h			; Minor present?
 		jnz	short .Minor
-		mov	esi,offset PP_InitStatStr
+		mov	esi,PP_InitStatStr
 		call	StrCopy
 		mov	al,[NumOfParPorts]
 		add	al,30h

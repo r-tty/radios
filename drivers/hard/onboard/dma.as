@@ -94,7 +94,7 @@ proc DMA_InitChannel
 		mov	dl,al				; Keep channel number
 		shl	edx,16				; in high word of EDX
 		push	ebx
-		mov	ebx,offset DMA1_PageRegs
+		mov	ebx,DMA1_PageRegs
 		xlatb
 		pop	ebx
 		mov     dl,al				; DX=page reg. addr.

@@ -439,7 +439,8 @@ endp		;---------------------------------------------------------------
 		; Output: EDI=pointer to first occurrence of char in string
 		;	  or 0, if char doesn't occur.
 proc StrScan
-		mpush	ecx,esi,eax
+		mpush	ecx,esi
+		push	eax
 		mov	esi,edi
 		mov	ecx,-1
 		xor	al,al

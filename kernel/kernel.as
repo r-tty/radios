@@ -169,11 +169,11 @@ proc K_DescriptorAddress
 		xor	ebx,ebx			; If so get LDT selector
 		sldt	bx
 		and	ebx,~SELECTOR_STATUS	; Strip off RPL and TI
-		add	ebx,offset GDT		; Find position in GDT
+		add	ebx,GDT			; Find position in GDT
 		call	K_GetDescriptorBase	; Load up the LDT base address
 		mov	ebx,edi
 		jmp	short .GotLDT
-.GetGDT:	mov	ebx,offset GDT		; Otherwise just get the GDT table
+.GetGDT:	mov	ebx,GDT			; Otherwise just get the GDT table
 .GotLDT:	and	edx,~SELECTOR_STATUS	; Strip off RPL and TI of descriptor
 		add	ebx,edx			; Add in to table base
 		pop	edi

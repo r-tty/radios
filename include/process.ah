@@ -2,15 +2,6 @@
 ;  process.ah - process definitions.
 ;-------------------------------------------------------------------------------
 
-; Process resource
-struc tProcResource
-.Class		RESD	1			; Resource class
-.ResPtr		RESD	1			; Pointer to resource
-.ResSize	RESD	1			; Size of resource
-.Next		RESD	1			; List links
-.Prev		RESD	1
-endstruc
-
 ; Process descriptor structure
 struc tProcDesc
 .PID		RESD	1			; PID
@@ -23,9 +14,11 @@ struc tProcDesc
 .ThreadList	RESD	1			; Thread list head
 .Next		RESD	1			; Next PCB in list
 .Prev		RESD	1			; Previous PCB in list
-.ResMP		RESB	tMasterPool_size	; Resource master pool
 .Flags		RESD	1			; Misc flags
-.Reserved	RESD	14			; Complement to 128 bytes
+
+.Files		RESD	1			; Address of open files
+
+.Reserved	RESD	20			; Complement to 128 bytes
 endstruc
 
 %define	PROCDESCSHIFT	7			; log2(tProcDesc_size)

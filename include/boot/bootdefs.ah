@@ -41,8 +41,10 @@ endstruc
 
 ; --- Debugging macros ---
 
-%macro mDebugPrintDword 1
+%macro mDebugPrintDword 0-1
+%if %0==1
 	mov	eax,%1
+%endif
 	push	byte 2
 	call	dword [LoaderServiceEntryPoint]
 	add	esp,byte 4

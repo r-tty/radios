@@ -485,7 +485,7 @@ proc Start
 		lea	esp,[edx-4]
 
 		; Initialize global page pool
-		mov	ebx,[KernelFreeMemStart]	; EBX=begin of 
+		mov	ebx,[KernelFreeMemStart]	; EBX=begin of
 		sub	edx,Init_StackSize		; kernel free memory
 		mov	ecx,[UpperMemSizeKB]		; Upper memory size
 		call	PG_Init
@@ -572,7 +572,7 @@ proc Start
 		mPrintChar ' '
 		mPrintString
 		mPrintString NLNL
-
+call ReadChar
 		; Install and initialize BIOS32 driver
 		mov	ebx,DrvBIOS32
 		xor	edx,edx
@@ -650,8 +650,8 @@ proc Start
 		jc	FatalError
 
 		; Initialize memory management
-;		call	MM_Init
-;		jc	FatalError
+		call	MM_Init
+		jc	FatalError
 
 		; Create two initial kernel threads
 		; (idle and RKDT).

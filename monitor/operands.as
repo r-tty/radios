@@ -177,7 +177,7 @@ endp
 proc CopyExtra
 	push	esi
 	push	edi
-	mov	esi,offset extraoperand
+	mov	esi,extraoperand
 	xchg	esi,edi
 	push	es
 	push	ds
@@ -365,7 +365,7 @@ endp		;---------------------------------------------------------------
 
 proc MnemonicChar
 		push	edi
-		mov	edi,offset mnemonic
+		mov	edi,mnemonic
 mc2:
 		inc	edi
 		cmp	byte [edi-1],0
@@ -847,7 +847,7 @@ proc op31
 	mov	edi,ebx
 	call	ReadRM
 	mov	ecx,eax
-	mov	edi,offset extraoperand
+	mov	edi,extraoperand
 	bts	word [edi + tOperand.FLAGS],OMF_BYTE
 	bt	dword [gs:esi],1
 	jc	short op31byte
@@ -904,7 +904,7 @@ proc op33
 	REG	esi
 	mov	edi,ebx
 	call	SetReg
-	mov	edi,offset extraoperand
+	mov	edi,extraoperand
 	mov	byte [edi + tOperand.CODE],OM_SHIFT
 	bt	dword [gs:esi],0
 	jnc	short getofs
@@ -1069,7 +1069,7 @@ proc op43
 		bt	word [edi + tOperand.FLAGS],OMF_OP32
 		jnc	short .NoChange
 		push	esi
-		mov	esi,offset mnemonic + 1
+		mov	esi,mnemonic + 1
 		mov	eax,"wde"
 		mov	[esi],eax
 		pop	esi
@@ -1115,7 +1115,7 @@ endp		;---------------------------------------------------------------
 
 proc DispatchOperands
 		push	ebx
-		mov	edi,offset mnemonic
+		mov	edi,mnemonic
 		push	esi
 		mov	esi,[ebx + tOpCode.MNEMONIC]
 		call	strcpy
@@ -1123,14 +1123,14 @@ proc DispatchOperands
 		mov	byte [strict],TRUE
 		movzx	eax,byte [ebx + tOpCode.OPERANDS]
 		push	eax
-		mov	edi,offset dest
-		mov	ebx,offset source
+		mov	edi,dest
+		mov	ebx,source
 		cmp	byte [gs:esi],0fh
 		jnz	short notwobyte
 		or	dword [segs],SG_TWOBYTEOP
 		inc	esi
 notwobyte:
-		mov	eax,offset extraoperand
+		mov	eax,extraoperand
 		mov	byte [eax + tOperand.CODE],0
 		mov	byte [edi + tOperand.CODE],0
 		mov	byte [ebx + tOperand.CODE],0
@@ -1175,16 +1175,16 @@ proc DoStrict
 	bt	word [edi + tOperand.FLAGS],OMF_BYTE
 	jnc	chkdwptr
 	mov	edi,esi
-	mov	esi,offset byptr
+	mov	esi,byptr
 	jmp	short strictend
 chkdwptr:
 	bt	word [edi + tOperand.FLAGS],OMF_OP32
 	mov	edi,esi
 	jnc	mkwordptr
-	mov	esi,offset dwptr
+	mov	esi,dwptr
 	jmp	short strictend
 mkwordptr:
-	mov	esi,offset woptr
+	mov	esi,woptr
   	jmp	short strictend
 floatstrict:
 	bt	word [edi + tOperand.FLAGS],OMF_FSTTAB
@@ -1194,7 +1194,7 @@ floatstrict:
 	and	eax,7
 	mov	edi,esi
 	push	edi
-	mov	esi,offset sts
+	mov	esi,sts
 	mov	esi,[esi + eax * 4]
 	call	strcat
 	pop	edi
@@ -1235,7 +1235,7 @@ endp
 proc GetST
 		mov	al,[edi + tOperand.THEREG]
 		mov	edi,esi
-		mov	esi,offset stsreg
+		mov	esi,stsreg
 		push	eax
 		call	strcpy
 		pop	eax
@@ -1256,7 +1256,7 @@ proc GetStdReg
 	mov	byte [esi],'e'
 	inc	esi
 gsrnoe:
-	mov	edi,offset regs
+	mov	edi,regs
 	mov	ax,[edi + ecx *2]
 	mov	[esi],al
 	inc	esi
@@ -1305,7 +1305,7 @@ endp 		;---------------------------------------------------------------
 proc GetSeg
 		push	edi
 		push	eax
-		mov	edi,offset psegs
+		mov	edi,psegs
 		mov	ax,[edi + ecx *2]
 		mov	[esi],al
 		inc	esi
@@ -1374,7 +1374,7 @@ notbased:
 	mov	eax,ecx
 	add	ecx,ecx
 	add	ecx,eax
-	add	ecx,offset scales
+	add	ecx,scales
 	mov	eax,[ecx]
 	call	put3
 	or	al,1
@@ -1387,28 +1387,28 @@ endp
 
 proc FOM_FSTREG
 		mov	edi,esi
-		mov	esi,offset stalone
+		mov	esi,stalone
 		call	strcat
 		ret
 endp 		;---------------------------------------------------------------
 
 proc FOM_CRX
-	mov	ebx,offset crreg
+	mov	ebx,crreg
 	call	GetSpecial
 	ret
 endp
 proc FOM_DRX
-	mov	ebx,offset drreg
+	mov	ebx,drreg
 	call	GetSpecial
 	ret
 endp
 proc FOM_TRX
-	mov	ebx,offset trreg
+	mov	ebx,trreg
 	call	GetSpecial
 	ret
 endp
 proc FOM_SUD
-	mov	ebx,offset sudreg
+	mov	ebx,sudreg
 	call	GetSpecial
 	ret
 endp
@@ -1522,7 +1522,7 @@ fob_notscaled:
 	push	esi
 	movzx	eax,byte [edi + tOperand.THEREG]
 	xchg	esi,edi
-	mov	esi,offset based
+	mov	esi,based
 	mov	esi,[esi + eax * 4]
 	call	strcpy
 	pop	esi
@@ -1575,12 +1575,12 @@ proc FormatDisassembly
 		test	dword [segs],SG_REPZ
 		push	edi
 		jz	fd_notrepz
-		mov	esi,offset st_repz
+		mov	esi,st_repz
 		call	strcpy
 fd_notrepz:
 		test	dword [segs],SG_REPNZ
 		jz	fd_notrepnz
-		mov	esi,offset st_repnz
+		mov	esi,st_repnz
 		call	strcpy
 fd_notrepnz:
 		pop	edi
@@ -1588,15 +1588,15 @@ fd_notrepnz:
 		call	strlen
 		add	esi,eax
 		xchg	esi,edi
-		mov	esi,offset mnemonic
+		mov	esi,mnemonic
 		call	strcat
 		lea	esi,[ebp-256]
 		sub	eax,eax
 		mov	al,TAB_ARGPOS
 		call	TabTo
-		mov	edi,offset dest
+		mov	edi,dest
 		call	PutOperand
-		mov	edi,offset source
+		mov	edi,source
 		test	byte [edi + tOperand.CODE],-1
 		jz	short nosource
 		mov	byte [esi],','
@@ -1604,7 +1604,7 @@ fd_notrepnz:
 		mov	byte [esi],0
 		call	PutOperand
 nosource:
-		mov	edi,offset extraoperand
+		mov	edi,extraoperand
 		test	byte [edi + tOperand.CODE],-1
 		jz	short noextra
 		mov	byte [esi],','

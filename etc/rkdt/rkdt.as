@@ -23,10 +23,10 @@ library kernel
 extern DrvId_RD, DrvId_RFS
 
 library kernel.driver
-extern DRV_CallDriver, DRV_FindName
+extern DRV_CallDriver:near, DRV_FindName:near
 
 library kernel.paging
-extern PG_GetNumFreePages
+extern PG_GetNumFreePages:near
 
 library kernel.mm
 extern MM_AllocBlock:near, MM_FreeBlock:near
@@ -44,19 +44,19 @@ extern K_LDelayMs:near
 
 library kernel.kconio
 extern PrintChar:near, PrintString:near
-extern PrintDwordDec, PrintByteHex, PrintWordHex, PrintDwordHex
-extern ReadString
-extern DecD2Str
-extern ValDwordDec, ValDwordHex
+extern PrintDwordDec:near,
+extern PrintByteHex:near, PrintWordHex:near, PrintDwordHex:near
+extern ReadString:near
+extern DecD2Str:near
 
 library init
-extern SysReboot
+extern SysReboot:near
 
 library hw.onboard
-extern TMR_CountCPUspeed
+extern TMR_CountCPUspeed:near
 
 library hw.serport
-extern SER_DumbTTY
+extern SER_DumbTTY:near
 
 
 ; --- Macros ---
@@ -187,7 +187,7 @@ endp		;---------------------------------------------------------------
 proc RKDT_Main
 		mPrintString msg_Banner
 .Loop:		mPrintString msg_DbgPrompt
-		mov	esi,offset SBuffer
+		mov	esi,SBuffer
 		mov	cl,48
 		call	ReadString
 		and	ecx,0FFh

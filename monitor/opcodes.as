@@ -2259,7 +2259,7 @@ proc FindOpcode
 		cmp	byte [gs:esi-1],0Fh	; Is it?
 		je	short .GoTable		; Yes, go parse second byte
 		dec	esi			; Else point back to first byte
-		mov	ebx,offset floats	; Assume floating
+		mov	ebx,floats		; Assume floating
 		xor	eax,eax			;
 		mov	al,[gs:esi]		; Get the opcode
 		and	al,0F8h			; Apply the FLOAT mask

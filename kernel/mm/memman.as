@@ -30,10 +30,10 @@ global MM_AllocRegion, MM_FreeRegion
 
 library kernel
 extern K_DescriptorAddress:near, K_GetDescriptorBase:near
-extern ?UserAreaStart, ?TotalMemPages
+extern ?DrvrAreaStart, ?UserAreaStart, ?TotalMemPages
 
 library kernel.paging
-extern PG_GetPTEaddr:near
+extern PG_GetPTEaddr:near, PG_AllocAreaTables:near
 extern PG_Alloc:near, PG_Dealloc:near
 extern ?KernPageDir, ?KernPgPoolEnd
 
@@ -74,7 +74,15 @@ proc MM_Init
 		or	dword [edi],PG_ALLOCATED
 		add	ebx,PAGESIZE
 		loop	.Loop
-
+		
+		; Allocate page tables for mapping Driver and User area
+		mov	ebx,[?DrvrAreaStart]
+		call	PG_AllocAreaTables
+		jc	short .Exit
+		mov	ebx,[?UserAreaStart]
+		call	PG_AllocAreaTables
+		jc	short .Exit
+		
 		; Initialize kernel process region
 		mov	esi,[?ProcListPtr]
 		call	MM_GetMCB
@@ -96,12 +104,12 @@ endp		;---------------------------------------------------------------
 		; MM_AllocBlock - allocate memory block.
 		; Input: ESI=PCB address,
 		;	 ECX=block size,
-		;	 DL=0 - load CR3 with process page directory,
-		;	 DL=1 - don't load CR3;
+		;	 DL=0 - allocate in Driver area,
+		;	 DL=1 - allocate in User area;
 		;	 DH=block attributes (PG_USERMODE or/and PG_WRITEABLE).
 		; Output: CF=0 - OK:
 		;		     EAX=address of MCB,
-		;		     EBX=block physical address;
+		;		     EBX=block address;
 		;	  CF=1 - error, AX=error code.
 proc MM_AllocBlock
 %define	.mcbaddr	ebp-4
@@ -111,17 +119,9 @@ proc MM_AllocBlock
 		mpush	ecx,edx,esi,edi
 
 		mIsKernProc esi				; ESI=PCB address
-		mov	[.flags],edx			; Keep attributes
+		mov	[.flags],edx			; Save attributes
 
-		or	dl,dl
-		jnz	short .CR3Loaded
-		mov	eax,cr3
-		push	eax
-		mov	eax,[ebx+tProcDesc.PageDir]
-		mov	cr3,eax
-		jmp	short $+2
-
-.CR3Loaded:	call	MM_GetMCB			; Get a MCB
+		call	MM_GetMCB			; Get a MCB
 		jc	short .Exit			; and keep its address
 		mov	[.mcbaddr],ebx
 		mov	edi,ebx
@@ -129,7 +129,6 @@ proc MM_AllocBlock
 		mov	[ebx+tMCB.Len],ecx		; Keep block length
 		add	ecx,PAGESIZE-1			; Calculate number of
 		and	ecx,~ADDR_OFSMASK		; pages to hold the data
-
 
 		call	MM_FindRegion			; Search a region
 		jc	short .FreeMCB			; If OK - EBX=linear
@@ -156,17 +155,7 @@ proc MM_AllocBlock
 		mov	ebx,[eax+tMCB.Addr]
 		clc
 
-.Exit:		mov	edx,eax
-		lahf
-		cmp	byte [.flags],0
-		jne	short .Exit1
-		pop	ecx				; Restore CR3
-		mov	cr3,ecx
-		jmp	short $+2
-
-.Exit1:		sahf					; Restore error code
-		mov	eax,edx
-.Exit2:		mpop	edi,esi,edx,ecx
+.Exit:		mpop	edi,esi,edx,ecx
 		epilogue
 		ret
 
@@ -202,34 +191,20 @@ endp		;---------------------------------------------------------------
 		; MM_FreeBlock - free memory block.
 		; Input: ESI=PCB address,
 		;	 EBX=block address (if EDI=0),
-		;	 DL=0 - load CR3 with process page directory,
-		;	 DL=1 - don't load CR3;
 		;	 EDI=0 - use block address in EBX,
 		;	 EDI!=0 - EDI=MCB address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MM_FreeBlock
 %define	.mcbaddr	ebp-4
-%define	.loadcr3	ebp-8
 
-		prologue 8
+		prologue 4
 		mpush	ebx,edx,esi,edi
 		
 		mIsKernProc esi				; ESI=PCB address
-
-		mov	[.loadcr3],dl
 		xchg	edi,ebx
-
-		or	dl,dl				; Load CR3?
-		jnz	short .CR3Loaded
-		mov	eax,cr3
-		push	eax
-		mov	eax,[esi+tProcDesc.PageDir]
-		mov	cr3,eax
-		jmp	short $+2
-
-.CR3Loaded:	or	ebx,ebx				; Got MCB address?
-		jz	short .GotMCBaddr
+		or	ebx,ebx				; Got MCB address?
+		jnz	short .GotMCBaddr
 		mov	ebx,edi				; Find the MCB by addr
 		call	MM_FindMCB
 		jc	short .Exit
@@ -253,17 +228,7 @@ proc MM_FreeBlock
 		mov	ebx,[.mcbaddr]
 		call	MM_FreeMCB
 
-.Exit:		mov	edx,eax				; Save error code
-		lahf
-		cmp	byte [.loadcr3],0
-		jne	short .Exit1
-		pop	ecx				; Restore CR3
-		mov	cr3,ecx
-		jmp	short $+2
-
-.Exit1:		sahf					; Restore error code
-		mov	eax,edx
-		mpop	edi,esi,edx,ebx
+.Exit:		mpop	edi,esi,edx,ebx
 		epilogue
 		ret
 
@@ -313,45 +278,38 @@ endp		;---------------------------------------------------------------
 
 ; --- Implementation routines ---
 
-		; MM_AllocEnoughPages - allocate enough pages
-		;			to hold the data.
-		; Input: EAX=block size.
-		; Output: CF=0 - OK, EAX=number of allocated pages;
-		;	  CF=1 - error, AX=error code.
-		; Note: CR3 must be set to user pages directory.
-proc MM_AllocEnoughPages
-		mpush	ecx,edi
-		add	eax,PAGESIZE-1		; Calculate number of pages
-		shr	eax,PAGESHIFT
-		mpop	edi,ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
 		; MM_FindRegion - find a linear memory region.
 		; Input: ESI=address of PCB,
-		;	 ECX=required size.
+		;	 ECX=required size,
+		;	 DL=region location (driver/user).
 		; Output: CF=0 - OK, EBX=region address;
 		;	  CF=1 - error, AX=error code.
 proc MM_FindRegion
 %define	.regionsize	ebp-4
 %define .regionaddr	ebp-8
+%define .linearend	ebp-12
 
-		prologue 8
+		prologue 12
 		mpush	edx,edi
 
 		mov	dword [.regionsize],0
 
+		or	dl,dl
+		jz	short .DriverLoc
 		mov	ebx,[?UserAreaStart]
-		or	ebx,ebx
+		jmp	short .1
+.DriverLoc:	mov	ebx,[?DrvrAreaStart]		
+		
+.1:		or	ebx,ebx
 		jz	short .Empty
 		mov	[.regionaddr],ebx
+		mov	eax,[?TotalMemPages]
+		shl	eax,PAGESHIFT
+		add	eax,ebx
+		mov	[.linearend],eax
 		mov	edx,[esi+tProcDesc.PageDir]		; For PG_GetPTEaddr
 
-.Loop:		mov	eax,[?TotalMemPages]
-		shl	eax,PAGESHIFT
-		add	eax,StartOfExtMem
-		cmp	ebx,eax
+.Loop:		cmp	ebx,[.linearend]
 		jae	short .Err
 		call	PG_GetPTEaddr
 		cmp	dword [edi],PG_DISABLE
@@ -447,7 +405,6 @@ endp		;---------------------------------------------------------------
 		;	 ESI=PCB address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-		; Note: CR3 must be set on the process page directory.
 proc MM_FreeMCB
 		push	edx
 		mov	word [ebx+tMCB.Signature],0
@@ -477,7 +434,6 @@ endp		;---------------------------------------------------------------
 		; Input: ESI=address of PCB.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
-		; Note: CR3 must be set on the process page directory.
 proc MM_FreeMCBarea
 		mpush	ebx,ecx,edx,edi
 		mov	ebx,MM_MCBAREABEG
@@ -505,7 +461,6 @@ endp		;---------------------------------------------------------------
 		;	 ESI=address of PCB.
 		; Output: CF=0 - OK, EBX=MCB address;
 		;	  CF=1 - error, AX=error code.
-		; Note: CR3 must be set on the process page directory.
 proc MM_FindMCB
 		mpush	ecx,edx
 		mov	edx,ebx
@@ -524,8 +479,3 @@ proc MM_FindMCB
 .Exit:		mpop	edx,ecx
 		ret
 endp		;---------------------------------------------------------------
-
-
-%ifdef DEBUG
-%include "mm_debug.as"
-%endif

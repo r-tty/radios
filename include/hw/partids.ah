@@ -24,6 +24,7 @@
 %define	FS_ID_LINUXSWAP		082h
 %define	FS_ID_LINUXNATIVE	083h
 %define	FS_ID_LINUXEXT		085h
+%define	FS_ID_VSTAFS		09Eh
 %define	FS_ID_FREEBSD		0A5h
 %define	FS_ID_OPENBSD		0A6h
 %define	FS_ID_NETBSD		0A9h

@@ -1,6 +1,6 @@
 ;*******************************************************************************
 ;  pages.as - RadiOS memory paging primitives.
-;  Copyright (c) 2000 RET & COM Research.
+;  Copyright (c) 2001 RET & COM Research.
 ;*******************************************************************************
 
 module kernel.paging
@@ -15,8 +15,8 @@ module kernel.paging
 ; --- Exports ---
 
 global PG_Init, PG_StartPaging, PG_Alloc, PG_Dealloc
-global PG_AllocContBlock, PG_GetNumFreePages
-global PG_GetPTEaddr, PG_FaultHandler
+global PG_AllocAreaTables, PG_NewDir,PG_AllocContBlock
+global PG_GetNumFreePages, PG_GetPTEaddr, PG_FaultHandler
 global AllocPhysMem
 global ?KernPagePool, ?KernPgPoolEnd
 global ?KernPageDir
@@ -65,8 +65,8 @@ proc PG_Init
 		; Calculate the size of page bitmap
 		; Size := max. memory in kilobytes / 4 KB per page / 8 bits
 		mov	eax,ecx
-		add	eax,PG_BMAPSPARE * 1000000h
-		shr	eax,PAGESHIFT+3
+		add	eax,PG_BMAPSPARE * 1024
+		shr	eax,5					; >>2 and >>3
 		mov	[?PgBitmapSize],eax
 		
 		; Store start and end addresses of kernel page pool
@@ -113,7 +113,7 @@ proc PG_Init
 		; BZero kernel page pool.
 		mov	edi,[?KernPagePool]
 		mov	ecx,[?NumPgsKernPool]
-		shl	ecx,(PAGESHIFT >> 2)
+		shl	ecx,PAGESHIFT-2
 		xor	eax,eax
 		cld
 		rep	stosd
@@ -352,7 +352,7 @@ proc PG_GetNumFreePages
 		mpush	edx,esi
 		mov	esi,[?PgBitmapAddr]
 		mov	ecx,[?PgBitmapSize]
-		shr	ecx,3				; 8 bits per byte
+		shl	ecx,3				; 8 bits per byte
 		xor	eax,eax
 		xor	edx,edx
 .Loop:		bt	[esi],edx
@@ -368,78 +368,59 @@ proc PG_GetNumFreePages
 endp		;---------------------------------------------------------------
 
 
-		; PG_AllocDir - allocate a new page directory and its page
-		;		tables.
+		; PG_NewDir - allocate a new page directory and page table
+		;	      for mapping first 4 MB.
 		; Input: none.
-		; Output: CF=0 - OK, EDX=directory address;
+		; Output: CF=0 - OK, EDX=new directory address;
 		;	  CF=1 - error, AX=error code.
-		; Note: This routine allocates memory for page dir and
-		;	[?PTsPerProc] page tables. It initializes the
-		;	addresses in PTEs to provide physical mapping.
-proc PG_AllocDir
-%define .pgdir	ebp-4
-
-		prologue 4
+		; Note: This routine copies first kernel's page table into
+		;	newly created one.
+proc PG_NewDir
 		mpush	ebx,ecx,esi,edi
-		mov	edx,1				; Allocate a page
-		call	PG_Alloc			; for page directory
+		
+		; Allocate a page for a new directory
+		xor	edx,edx				; From kernel pool
+		call	PG_Alloc
 		jc	short .Exit
 		and	eax,PGENTRY_ADDRMASK
-		mov	esi,eax				; ESI=its address
-		mov	[.pgdir],eax
-
-		xor	ecx,ecx
-
-.FillPageDir:	cmp	ecx,[?PTsPerProc]
-		jae	short .Absent
-		call	PG_Alloc			; Allocate a page
-		jc	short .Exit			; for page table
-		or	eax,PG_PRESENT			; Mark as present
-		mov	[esi+4*ecx],eax
-		jmp	short .ChkPDENum
-.Absent:	mov	dword [esi+4*ecx],PG_DISABLE
-.ChkPDENum:	inc	ecx
-		cmp	ecx,PG_ITEMSPERTABLE
-		jb	.FillPageDir
-
-		; Fill in all page tables with physical addresses.
-		xor	eax,eax
-.CheckPT:	mov	ebx,[esi]			; EBX=table addr
-		test	ebx,PG_PRESENT			; Present?
-		jz	short .OK
-		and	ebx,PGENTRY_ADDRMASK
-		xor	ecx,ecx
-.FillPT:	mov	[ebx+4*ecx],eax
-		add	eax,PAGESIZE
-		mov	edi,[?PhysMemPages]
-		add	edi,StartOfExtMem / PAGESIZE	; Add number of pages
-		cmp	ecx,edi				; in first megabyte
-		jae	short .Virtual
-		or	byte [ebx+4*ecx],PG_PRESENT	; Mark as present
-.Virtual:	inc	ecx
-		add	edi,[?VirtMemPages]
-		cmp	ecx,edi
-		jne	.FillPT
+		mov	ebx,eax				; EBX=new dir addr
 		
-		add	esi,byte 4			; Next PDE
-		jmp	.CheckPT
+		; Fill in the directory with PG_DISABLE values
+		mov	edi,ebx
+		mov	ecx,PG_ITEMSPERTABLE
+		mov	eax,PG_DISABLE
+		cld
+		rep	stosd
 		
-.OK:		mov	edx,[.pgdir]
+		; Allocate a new page table (0-4M)
+		call	PG_Alloc
+		jc	short .Exit
+		mov	[ebx],eax
+		and	eax,PGENTRY_ADDRMASK
+		
+		; Copy first kernel page table
+		mov	edi,eax
+		mov	esi,[?KernPageDir]
+		mov	esi,[esi]
+		and	esi,PGENTRY_ADDRMASK
+		mov	ecx,PG_ITEMSPERTABLE
+		rep	movsd
+
+		mov	edx,ebx
 		clc
 
 .Exit:		mpop	edi,esi,ecx,ebx
-		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; PG_DeallocDir - free a page directory with its page tables.
-		; Input: EBX=directory address.
+		; Input: EDX=directory address.
 		; Output: none.
 proc PG_DeallocDir
 		push	ecx
 		xor	ecx,ecx
-.ChkPDE:	mov	eax,[ebx+ecx*4]			; First we free all
+.ChkPDE:	mov	eax,[edx+ecx*4]			; First we free all
 		test	eax,PG_PRESENT			;  page tables
 		jz	short .NextPDE
 		call	PG_Dealloc
@@ -448,7 +429,7 @@ proc PG_DeallocDir
 		cmp	ecx,PG_ITEMSPERTABLE
 		jb	.ChkPDE
 		
-		mov	eax,ebx				; Free directory page
+		mov	eax,edx				; Free directory page
 		call	PG_Dealloc
 		
 		pop	ecx
@@ -463,21 +444,35 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 		; Note: this routine allocates [?PTsPerProc] page tables
-		; for mapping specific region.
+		;	for mapping a specific region and initializes PTEs
+		;	to provide physical mapping.
 proc PG_AllocAreaTables
-		mpush	ebx,ecx,edx,edi
+		mpush	ebx,ecx,edx,esi,edi
+		mov	esi,ebx
 		mov	edi,edx
 		shr	ebx,22					; EBX=PDE#
 		mov	ecx,[?PTsPerProc]
 		mov	dl,1
 .Loop:		call	PG_Alloc
 		jc	short .Exit
-		and	eax,~(PG_ALLOCATED+PG_PRESENT)
 		or	eax,PG_PRESENT
 		mov	[edi+ebx*4],eax
+		call	.InitPTattrs
 		inc	ebx
 		loop	.Loop
-.Exit:		mpop	edi,edx,ecx,ebx
+.Exit:		mpop	edi,esi,edx,ecx,ebx
+		ret
+		
+		; Subroutine: initialize page table attributes
+.InitPTattrs:	push	ecx
+		xor	ecx,ecx
+.InitAttrLoop:	and	eax,PGENTRY_ADDRMASK
+		mov	dword [eax+ecx*4],esi
+		add	esi,PAGESIZE
+		inc	ecx
+		cmp	ecx,PG_ITEMSPERTABLE
+		jne	.InitAttrLoop
+		pop	ecx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -528,21 +523,3 @@ proc PG_FaultHandler
 .Violation:
 		ret
 endp		;---------------------------------------------------------------
-
-
-; --- Debugging stuff ---
-
-%ifdef DEBUG
-
-extern ?UserAreaStart
-
-		; PG_Test1 - allocate a directory and user page tables.
-proc PG_Test1
-		call	PG_AllocDir
-		jc	short .Exit
-		mov	ebx,[?UserAreaStart]
-		call	PG_AllocAreaTables
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-%endif

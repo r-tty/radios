@@ -3,7 +3,7 @@
 ;-------------------------------------------------------------------------------
 
 StartupCfg	DD	SCFG_Signature
-		DW	6				; Number of items
+		DW	5				; Number of items
 		DW	sRootDev-StartupCfg		; Item addresses
 		DW	sRDsize-StartupCfg
 		DW	sBufMem-StartupCfg

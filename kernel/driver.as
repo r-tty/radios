@@ -175,7 +175,7 @@ proc DRV_Uninstall
 		xor	ebx,ebx
 		mov	edx,ebx
 		mov	ecx,ebx
-		mov	esi,offset DRV_EmptyName
+		mov	esi,DRV_EmptyName
 		call	DRV_ChangeInfo
 		call	DRV_GetInfoAddr
 		xor	ecx,ecx

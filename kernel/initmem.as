@@ -67,11 +67,11 @@ section .text
 proc K_InitMem
 		mov	[?BaseMemSz],eax
 		mov	ecx,[UpperMemSizeKB]		; Memory map present?
-		cmp	ecx,65536
-		jae	short .MemSizOK
-		call	CMOS_ReadExtMemSz		; Kluge (my buggy BIOS)
-		movzx	ecx,ax				; :)
-		jmp	short .MemSizOK
+		or	ecx,ecx
+		jnz	short .MemSizOK
+;		call	CMOS_ReadExtMemSz		; Kluge (my buggy BIOS)
+;		movzx	ecx,ax				; :)
+;		jmp	short .MemSizOK
 		call	K_ProbeMem			; If no map - probe mem
 		jc	short .Exit
 .MemSizOK:	mov	[?ExtMemSz],ecx
@@ -92,14 +92,6 @@ proc K_InitMem
 		clc
 		
 .Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; K_ArrangeBMM - arrange BIOS memory map blocks.
-		; Input: none.
-		; Output: none.
-proc K_ArrangeBMM
-		ret
 endp		;---------------------------------------------------------------
 
 

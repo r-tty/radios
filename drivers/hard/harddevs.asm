@@ -1,12 +1,14 @@
 ;*******************************************************************************
-;  hardctl.asm - RadiOS internal hardware  .
+;  hardctl.asm - RadiOS internal hardware drivers.
 ;  Copyright (c) 1998 RET & COM research. All rights reserved.
 ;*******************************************************************************
 
 .386p
 ideal
 
-segment RADIOSKRNLSEG public 'code' use16
+DEBUG=1
+
+segment RADIOSKRNLSEG public 'code' use32
 assume CS:RADIOSKRNLSEG, DS:RADIOSKRNLSEG
 
 include "errdefs.ah"

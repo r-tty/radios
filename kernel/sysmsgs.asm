@@ -39,9 +39,13 @@ INFO_CPUK62	DB "AMD K6-2",0
 INFO_CPUM1	DB "Cyrix/IBM 6x86",0
 INFO_CPUM2	DB "Cyrix/IBM 6x86-MX",0
 INFO_CPUIDT	DB "IDT C6",0
+INFO_Unknown	DB "Unknown",0
 
-INFO_RadiOS	DB NL,NL
-		DB "ษออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป",NL
-		DB "บ RET & COM RadiOS, developer version 0.01                   บ",NL
-		DB "บ Copyright (c) 1998 RET & COM reseach. All rights reserved. บ",NL
-		DB "ศออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ",NL,NL,0
+INFO_SpdInd	DB ", speed index=",0
+
+INFO_RadiOS	DB NL
+		DB "ษอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป",NL
+		DB "บ RET & COM RadiOS, developer version 0.01                    บ",NL
+		DB "บ Copyright (c) 1998 RET & COM research. All rights reserved. บ",NL
+		DB "ศอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ",NL,NL,0
+

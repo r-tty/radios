@@ -22,6 +22,16 @@ CRTC_R12	EQU	12
 CRTC_R13	EQU	13
 CRTC_R14	EQU	14
 CRTC_R15	EQU	15
+CRTC_R16	EQU	16
+CRTC_R17	EQU	17
+CRTC_R18	EQU	18
+CRTC_R19	EQU	19
+CRTC_R20	EQU	20
+CRTC_R21	EQU	21
+CRTC_R22	EQU	22
+CRTC_R23	EQU	23
+CRTC_R24	EQU	24
+
 
 TxtNumVPages	EQU	8		; Number of video pages
 TxtNumCols	EQU	80		; Number of columns
@@ -33,14 +43,18 @@ include "vgafont.asm"			; Default 8x16 font table
 
 
 ; --- Variables ---
-VGA_TxtMemAddr	DD	CGA_MemAddr
-VGA_CursorPos	DW	0
-VGAtx_TabSize	DB	8			; Unused
+VidMemAddr	DD	CGA_MemAddr	; Video memory base address
+MaxColNum	DB	79		; Maximum column number
+MaxRowNum	DB	24		; Maximum row number
+CharHorSz	DB	8		; Character vertical size (in pixels)
+CharVerSz	DB	16		; Char. horizontal size (in pixels)
+ScanLines	DW	400		; Number of scan lines
+CursorPos	DW	0		; Absolute position of cursor
+TabSize		DB	8		; Tab stops (unused)
 
 
-; --- Routines ---
-
-;---------------------------- Module publics -----------------------------------
+; --- Publics ---
+		public DrvVideoTx
 
 		public VGATX_Detect
 		public VGATX_MoveCursor
@@ -56,46 +70,80 @@ VGAtx_TabSize	DB	8			; Unused
 		public VGATX_ClrLine
 		public VGATX_ClrVidPage
 
-;----------------------------- Routines bodies ---------------------------------
+
+; --- Procedures ---
 
 		; VGATX_Detect - check of presence text-mode VGA.
 		; Input: none
-		; Output: CF=0 - OK, EBX=pointer to VGA information.
+		; Output: CF=0 - OK:
+		;		DL=number of columns,
+		;		DH=number of rows.
 		; 	  CF=1 - checking error.
-		; Note: uses CRTC R15 to detect VGA port;
-		;	moves cursor right on 1 position.
+		; Note: uses CRTC R1 and R6 to detect VGA port.
 proc VGATX_Detect near
 		push	eax
-		push	edx
-		mov	dx,PORT_CGA_CAddr		; Checking VGA ports
-		mov	al,CRTC_R15
+		push	ebx
+		pushfd
+		mov	dx,PORT_CGA_CAddr
+		mov	al,CRTC_R1
+		cli
 		out	dx,al
 		PORTDELAY
 		inc	dx
-		in	al,dx
+		in	al,dx			; AL=maximum column number
+		PORTDELAY
+		mov	[MaxColNum],al
 		dec	dx
-		mov	ah,al
-		inc	ah
-		mov	al,CRTC_R15
-		out	dx,ax
-		PORTDELAY
+		mov	al,CRTC_R9
 		out	dx,al
 		PORTDELAY
 		inc	dx
 		in	al,dx
-		cmp	al,ah
-		jne	vDETECT_Err
-		mov	eax,0BFFFEh		; Checking VGA memory
-		mov	dl,55h
-		mov	[byte eax],dl
-		mov	dh,[byte eax]
-		cmp	dl,dh
+		PORTDELAY
+		and	al,31
+		inc	al				; AL=char vert. size
+		mov	[CharVerSz],al
+		dec	dx
+		mov	al,CRTC_R18
+		out	dx,al
+		PORTDELAY
+		inc	dx
+		in	al,dx
+		PORTDELAY
+		mov	bl,al				; BL=low byte of
+		dec	dx				; number of scan lines
+		mov	al,CRTC_R7
+		out	dx,al
+		PORTDELAY
+		inc	dx
+		in	al,dx
+		popfd					; Restore flags
+		mov	bh,al
+		and	bh,2
+		shr	bh,1
+		and	al,40h
+		shr	al,5
+		add	bh,al				; BH=high byte of
+		inc	bx				; number of scan lines
+		mov	[ScanLines],bx
+
+		mov	ax,bx				; Count number of rows
+		div	[CharVerSz]
+		mov	dh,al
+		mov	dl,[MaxColNum]
+		inc	dl
+
+		mov	eax,0BFFFEh			; Checking VGA memory
+		mov	bl,55h
+		mov	[byte eax],bl
+		mov	bh,[byte eax]
+		cmp	bl,bh
 		jne	vDETECT_Err
 		mov	[byte eax],0
 		clc
 		jmp	short vDETECT_Exit
 vDETECT_Err:	stc
-vDETECT_Exit:	pop	edx
+vDETECT_Exit:	pop	ebx
 		pop	eax
 		ret
 endp		;---------------------------------------------------------------
@@ -133,7 +181,7 @@ proc VGATX_MoveCursor near
 		lea	eax,[eax*4+eax]
 		add	eax,edx			; Now EAX=row*80+column
 		add	eax,ebx			; Add video page address
-		mov	[VGA_CursorPos],ax
+		mov	[CursorPos],ax
 		mov	cx,ax
 
 		mov	dx,PORT_CGA_CAddr
@@ -190,7 +238,7 @@ proc VGATX_GetCurPos near
 		lahf
 		mov	bl,ah
 
-		movzx	edx,[VGA_CursorPos]
+		movzx	edx,[CursorPos]
 		mov	eax,edx
 		shr	dx,11
 		mov	bh,dl			; Now BH=cursor video page.
@@ -240,11 +288,11 @@ proc VGATX_ShowCursor near
 		pushfd
 		mov	dx,PORT_CGA_CAddr
 		mov	al,CRTC_R14
-		mov	ah,[byte high VGA_CursorPos]
+		mov	ah,[byte high CursorPos]
 		cli
 		out	dx,ax
 		mov	al,CRTC_R15
-		mov	ah,[byte low VGA_CursorPos]
+		mov	ah,[byte low CursorPos]
 		out	dx,ax
 		popfd
 		pop	edx
@@ -308,7 +356,7 @@ proc VGATX_Scroll near
 		jae	vScroll_OK
 		movzx	edi,bh			; Begin preparing to scroll up
 		shl	edi,12			; Set EDI to begin of video page
-		add	edi,[VGA_TxtMemAddr]
+		add	edi,[VidMemAddr]
 		movzx	esi,dl
 		shl	esi,5			; Set ESI to address of line
 		lea	esi,[esi*4+esi]		; which must be moved up
@@ -328,7 +376,7 @@ vScroll_Dwn:    cmp	dl,(not TxtNumRows)+2
 		inc	dl
 		movzx	edi,bh
 		shl	edi,12			; Set EDI to end of video page
-		add	edi,[VGA_TxtMemAddr]
+		add	edi,[VidMemAddr]
 		add	edi,TxtNumCols*TxtNumRows*2-4
 		movzx	ecx,dl
 		shl	ecx,5
@@ -387,7 +435,7 @@ proc VGATX_WrCharXY near
 		mov	cx,ax
 		movzx	ebx,bh			; Count offset in video memory
 		shl	ebx,12
-		add	ebx,[VGA_TxtMemAddr]
+		add	ebx,[VidMemAddr]
 		movzx	eax,dl
 		shl	eax,1
 		movzx	edx,dh			; Store column
@@ -545,7 +593,7 @@ proc VGATX_ClrVidPage near
 
 		movzx	edi,bh			; Set EDI to begin of
 		shl	edi,12			; specified video page
-		add	edi,[VGA_TxtMemAddr]
+		add	edi,[VidMemAddr]
 		mov	ecx,TxtNumCols*TxtNumRows
 		xor	al,al
 		test	[byte esp+16],1		; Keep attributes?
@@ -583,8 +631,8 @@ endp		;---------------------------------------------------------------
 
 
 
-		; DrvVideo - video device driver.
+		; DrvVideoTx - video text device driver.
 		; Action: calls video function number EAX.
-proc DrvVideo near
+proc DrvVideoTx near
 		ret
 endp

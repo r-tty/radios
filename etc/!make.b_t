@@ -1,0 +1,5 @@
+@Echo OFF
+\TASM\TD\make DRIVERS\HARD\harddevs.asm
+\TASM\TD\make DRIVERS\SOFT\softdrvs.asm
+\TASM\TD\make main.obj
+\TASM\TD\make main.exe

@@ -11,6 +11,7 @@
 		; DrvMemory - "MEMORY" device entry.
 		; Action:
 proc DrvMemory near
+		clc
 		ret
 endp		;---------------------------------------------------------------
 

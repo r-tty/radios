@@ -24,7 +24,11 @@ TMRCW_CT1		EQU     40h
 TMRCW_CT2		EQU	80h
 
 
-; --- Routines ---
+; --- Publics ---
+		public TMR_CountCPUspeed
+
+
+; --- Procedures ---
 
 		; TMR_InitCounter - initialize counter.
 		; Input: AL=control byte,

@@ -4,17 +4,36 @@
 
 ; --- Kernel errors ---
 
+; Common errors
+ERR_BadFunNum			EQU	0100h
+
 ; Drivers control error
 ERR_DRV_NoIDs			EQU	0320h
 ERR_DRV_BadID			EQU	0321h
 
 
 
-; --- Internal drivers errors ---
+; --- Internal hardware drivers errors ---
+
+; KBC errors
+ERR_KBC_NotRDY			EQU	0801h
 
 ; Counter/timer and RTC errors
 ERR_TMR_BadCNBR			EQU	0A05h
 
+
+; Keyboard errors
+ERR_KB_DetFail			EQU	0B00h
+
 ; VGA errors
 ERR_VID_BadVPage		EQU	1205h
 ERR_VID_BadCurPos		EQU	1206h
+
+
+; --- Internal software drivers errors ---
+
+; --- Consoles driver error ---
+ERR_CON_VidDetFail		EQU	2020h
+ERR_CON_KBDetFail		EQU	2021h
+
+ERR_CON_BadConNum		EQU	2100h

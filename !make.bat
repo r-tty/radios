@@ -1,2 +1,2 @@
 @Echo OFF
-\TASM\BIN\make -s -a
+\TASM\TD\make %1 %2 %3

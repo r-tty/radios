@@ -1,8 +1,8 @@
 ;-------------------------------------------------------------------------------
-;  pic.asm - Programmable interrupt controller control routines.
+;  pic.asm - Programmable interrupt controller control module.
 ;-------------------------------------------------------------------------------
 
-; --- Equates ---
+; --- Definitions ---
 
 ; Initialization command words for PIC #1
 PIC1_ICW1		EQU	10h
@@ -19,7 +19,16 @@ PIC_OCW2_EOI		EQU	20h
 PIC_OCW3		EQU	0Ah
 
 
-; --- Routines ---
+; --- Publics ---
+		public PIC_Init
+		public PIC_SetIRQmask
+		public PIC_DisIRQ
+		public PIC_EnbIRQ
+		public PIC_EOI1
+		public PIC_EOI2
+
+
+; --- Procedures ---
 
 		; PIC_Init - initialize programmable interrupts controller.
 		; Input: AH=0 - PIC #1,
@@ -77,7 +86,7 @@ endp		;---------------------------------------------------------------
 		;	 AH=1 - PIC #2,
 		;	 AL=interrupts mask.
 		; Output: none.
-proc SetIRQmask	near
+proc PIC_SetIRQmask near
 		push	eax
 		pushfd
 		cli
@@ -88,6 +97,50 @@ proc SetIRQmask	near
 SIM1:		out	PORT_PIC1_1,al
 SIM_Exit:	popfd
 		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PIC_DisIRQ - disable IRQ.
+		; Input: AL=IRQ number
+		; Output: none.
+proc PIC_DisIRQ near
+		cmp	al,10h
+		jbe	DisIRQ_Exit
+		push	eax
+		push	ecx
+		pushfd
+		cli
+		mov	cl,al
+		mov	ah,1
+		cmp	al,8
+		jbe	DisIRQ_C2
+		shl	ah,cl
+		not	ah
+		in	al,PORT_PIC1_1
+		PORTDELAY
+		and	al,ah
+		out	PORT_PIC1_1,al
+		jmp	short DisIRQ_OK
+DisIRQ_C2:	sub	cl,8
+		shl	ah,cl
+		not	ah
+		in	al,PORT_PIC2_1
+		PORTDELAY
+		and	al,ah
+		out	PORT_PIC2_1,al
+DisIRQ_OK:	popfd
+		pop	ecx
+		pop	eax
+DisIRQ_Exit:	ret
+endp		;---------------------------------------------------------------
+
+
+
+		; PIC_EnbIRQ - enable IRQ.
+		; Input: AL=IRQ number
+		; Output: none.
+proc PIC_EnbIRQ near
 		ret
 endp		;---------------------------------------------------------------
 

@@ -7,12 +7,10 @@
 extrn PIC_EOI1:	near
 extrn PIC_EOI2:	near
 
-extrn KBC_ReadKBPort:	near
-extrn KBC_ReadPort1:	near
-extrn KBC_WritePort1:	near
-extrn KB_AnalyseKBcode:	near
+extrn KBC_ReadKBPort:	near	; debug
+extrn KB_AnalyseKCode:	near	; debug
 
-; --- Modules bodies ---
+; --- Kernel modules ---
 
 include "errdefs.ah"
 include "sysdata.ah"
@@ -30,3 +28,9 @@ include "KERNEL\UTILS\utils.asm"
 include "KERNEL\drivers.asm"
 
 include "KERNEL\sysdata.asm"
+
+include "KERNEL\debugger.asm"
+
+
+; --- Additional kernel procedures ---
+

@@ -3,7 +3,7 @@
 ;-------------------------------------------------------------------------------
 
 		; IRQ0: system timer.
-proc Int70handler far
+proc Int70handler
 		push	eax
 		push	ebx
 		push	edx
@@ -37,62 +37,85 @@ endp		;---------------------------------------------------------------
 
 
 		; IRQ1: keyboard.
-proc Int71handler far
+proc Int71handler
 		push	eax
-		call	KBC_ReadKBPort
-		shl	eax,16
-		call	KBC_ReadPort1
-		mov	ah,al
-		or	al,80h
-		call	KBC_WritePort1
-		mov	al,ah
-		call	KBC_WritePort1
-		shr	eax,16
-		call	KB_AnalyseKBcode
+		mov	edx,EV_IRQ1
+		mov	eax,DRVID_Keyboard
+		call	DRV_HandleEvent
 		call	PIC_EOI1
 		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc Int72handler far
+proc Int72handler
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 3: serial ports #2 & #4
-proc Int73handler far
+proc Int73handler
+		push	eax
+		mov	edx,EV_IRQ3
+		mov	eax,DRVID_Serial
+		call	DRV_HandleEvent
+		call	PIC_EOI1
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 4: serial ports #1 & #3
-proc Int74handler far
+proc Int74handler
+		push	eax
+		mov	edx,EV_IRQ4
+		mov	eax,DRVID_Serial
+		call	DRV_HandleEvent
+		call	PIC_EOI1
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 5: audio device.
-proc Int75handler far
+proc Int75handler
+		push	eax
+		mov	edx,EV_IRQ5
+		mov	eax,DRVID_Audio
+		call	DRV_HandleEvent
+		call	PIC_EOI1
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 6: FDD.
-proc Int76handler far
+proc Int76handler
+		push	eax
+		mov	edx,EV_IRQ6
+		mov	eax,DRVID_FDD
+		call	DRV_HandleEvent
+		call	PIC_EOI1
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 		; IRQ 7: parallel port #1.
-proc Int77handler far
+proc Int77handler
+		push	eax
+		mov	edx,EV_IRQ7
+		mov	eax,DRVID_Parallel
+		call	DRV_HandleEvent
+		call	PIC_EOI1
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
 
 		; IRQ 8: CMOS real-time clock.
-proc Int78handler far
+proc Int78handler
 		push	eax
 		mov	eax,0B8030h
 		mov	[byte eax],'*'
@@ -102,37 +125,54 @@ proc Int78handler far
 endp		;---------------------------------------------------------------
 
 
-proc Int79handler far
+proc Int79handler
+		call	PIC_EOI2
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Ahandler	far
+proc Int7Ahandler
+		call	PIC_EOI2
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Bhandler	far
+proc Int7Bhandler
+		call	PIC_EOI2
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Chandler	far
+proc Int7Chandler
+		call	PIC_EOI2
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Dhandler	far
+proc Int7Dhandler
+		call	PIC_EOI2
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Ehandler	far
+proc Int7Ehandler
+		push	eax
+		mov	edx,EV_IRQ14
+		mov	eax,DRVID_HDD
+		call	DRV_HandleEvent
+		call	PIC_EOI2
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 
 
-proc		Int7Fhandler	far
+proc Int7Fhandler
+		push	eax
+		mov	edx,EV_IRQ15
+		mov	eax,DRVID_HDD
+		call	DRV_HandleEvent
+		call	PIC_EOI2
+		pop	eax
 		iret
 endp		;---------------------------------------------------------------
 

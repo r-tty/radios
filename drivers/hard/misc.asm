@@ -12,7 +12,11 @@ CPU_586			EQU	5
 SpeakerBeepTone		EQU	1200
 
 ; --- External procedures ---
-extrn KDelay: near					; Kernel delay
+		extrn K_TTDelay: near			; Kernel delay
+
+; --- Publics ---
+		public GetCPUtype
+		public SPK_Beep
 
 ; --- Routines ---	
 
@@ -74,7 +78,7 @@ proc SPK_Beep near
 		call	KBC_SpeakerON
 		xor	ecx,ecx
 		mov	cl,3
-		call	KDelay
+		call	K_TTDelay
 		call	KBC_SpeakerOFF
 		pop	eax
 		ret

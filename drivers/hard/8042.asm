@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  8042.asm - system controller (8042) control module.
+;  8042.asm - keyboard controller (8042) control module.
 ;-------------------------------------------------------------------------------
 
 ; --- Definitions ---
@@ -22,7 +22,7 @@ KBC_P4S_KBLock		EQU	10h		; Keyboard locked
 KBC_P4S_Command		EQU	8		; Command/data
 KBC_P4S_ResetOK		EQU	4		; Reset OK/Power ON
 KBC_P4S_KBNRDY		EQU	2		; Keyboard not ready
-KBC_P4S_OutBufOF	EQU	1		; Output buffer overflow
+KBC_P4S_OutBFull	EQU	1		; Output buffer full
 
 ; Port 64h commands (W)
 KBC_P4W_EnA20		EQU	0DFh		; Enable A20
@@ -39,7 +39,145 @@ KBC_P4W_WriteKBC	EQU	60h		; Write to KBC
 KBC_P4W_ReadKBC		EQU	20h		; Read from KBC
 
 
-; --- Routines ---
+; --- Publics ---
+		public KBC_DisableKB
+		public KBC_EnableKB
+		public KBC_SendKBCmd
+		public KBC_ReadKBPort
+
+
+; --- Procedures ---
+
+		; KBC_WaitReady - wait until KBC will be ready for write
+		;		  command/data.
+		; Input: none.
+		; Output: CF=0 - OK,
+		;	  CF=1 - waiting timeout.
+proc KBC_WaitReady near
+		push	eax
+		push	ecx
+		pushfd
+		cli
+		mov	ecx,10000h
+WRDY_Loop1:	PORTDELAY
+		in	al,PORT_KBC_4
+		test	al,KBC_P4S_KBNRDY
+		loopnz	WRDY_Loop1
+		jz	WRDY_OK
+		mov	ecx,10000h
+WRDY_Loop2:	PORTDELAY
+		in	al,PORT_KBC_4
+		test	al,KBC_P4S_KBNRDY
+		loopnz	WRDY_Loop2
+		jz	WRDY_OK
+		popfd
+		stc
+		jmp	WRDY_Exit
+WRDY_OK:	popfd
+		clc
+WRDY_Exit:	pop	ecx
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_WaitKBcode - wait until keyboard send code to 60h
+		; Input: none.
+		; Output: CF=0 - OK,
+		;	  CF=1 - waiting timeout.
+proc KBC_WaitKBcode near
+		push	eax
+		push	ecx
+		mov	ecx,1000000h
+WKBB_Loop1:	PORTDELAY
+		in	al,PORT_KBC_4
+		test	al,KBC_P4S_OutBFull
+		loopz	WKBB_Loop1
+		jnz	WKBB_OK
+		mov	ecx,1000000h
+WKBB_Loop2:	PORTDELAY
+		in	al,PORT_KBC_4
+		test	al,KBC_P4S_OutBFull
+		loopz	WKBB_Loop2
+		jnz	WKBB_OK
+		stc
+		jmp	WKBB_Exit
+WKBB_OK:	clc
+WKBB_Exit:	pop	ecx
+		pop	eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_DisableKB - disable keyboard.
+		; Input: none.
+		; Output: CF=0 - OK,
+		;	  CF=1 - error, AX=error code.
+proc KBC_DisableKB near
+		call	KBC_WaitReady
+		jc	DisKB_Exit
+		push	eax
+		mov	al,KBC_P4W_KBDisable
+		out	PORT_KBC_4,al
+		pop	eax
+		clc
+DisKB_Exit:	ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_EnableKB - enable keyboard.
+		; Input: none.
+		; Output: CF=0 - OK,
+		;	  CF=1 - error, AX=error code.
+proc KBC_EnableKB near
+		call	KBC_WaitReady
+		jc	EnbKB_Exit
+		push	eax
+		mov	al,KBC_P4W_KBEnable
+		out	PORT_KBC_4,al
+		pop	eax
+		clc
+EnbKB_Exit:	ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_SendKBCmd - send command to keyboard.
+		; Input: AL=command code,
+		;	 AH=data byte (if CF=1),
+		;	 CF=0 - don't send data byte,
+		;	 CF=1 - send data byte (AH).
+		; Output: CF=0 - OK,
+		;	  CF=1 - error, AX=error code.
+proc KBC_SendKBCmd near
+		pushfd
+		cli
+		call	KBC_WaitReady
+		jc	SndKBcmd_Err
+		out	PORT_KBC_0,al
+		test	[byte esp],1
+		jz	SndKBcmd_OK
+		call	KBC_WaitReady
+		jc	SndKBcmd_Err
+		mov	al,ah
+		out	PORT_KBC_0,al
+SndKBcmd_OK:	popfd
+		clc
+		jmp	short SndKBcmd_Exit
+SndKBcmd_Err:   mov	ax,ERR_KBC_NotRDY
+		popfd
+		stc
+SndKBcmd_Exit:	ret
+endp		;---------------------------------------------------------------
+
+
+		; KBC_ReadKBPort - read byte from keyboard port
+		; Input: none.
+		; Output: AL=read value.
+proc KBC_ReadKBPort near
+		in	al,PORT_KBC_0
+		ret
+endp		;---------------------------------------------------------------
+
 
 		; KBC_SpeakerON - turn on PC speaker.
 		; Input: none.

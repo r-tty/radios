@@ -6,7 +6,7 @@
 ; --- Definitions ---
 
 MAXNUMDRIVERS		EQU	256		; Maximum number of drivers
-NUMDFLTDRIVERS		EQU	10		; Number of default drivers
+NUMDFLTDRIVERS		EQU	11		; Number of default drivers
 DRVNAMELEN		EQU	16		; Length of driver name
 
 ; Driver information structure
@@ -14,19 +14,21 @@ struc tDRIVERINFO
  ID		DD	?			; Driver ID
  IntName	DB DRVNAMELEN dup (0)		; Internal name
  Entry		DD	?			; Driver entry point
- Flags		DD	?			; Flags & CS (for extern)
+ ExtrnCS	DW	?
+ Flags		DW	?			; Flags & CS (for extern)
  Reserved	DD	?
 ends
 
 ; Driver flags
-DRVFL_Extern		EQU	1000h		; External driver (far call)
+DRVFL_Extern		EQU	1		; External driver (far call)
 
 
 ; --- Externals ---
 
 ; Default hardware drivers entries
 		extrn DrvKeyboard:	near
-		extrn DrvVideo:		near
+		extrn DrvVideoTx:	near
+		extrn DrvVideoGr:	near
 		extrn DrvAudio:		near
 		extrn DrvNet:		near
 		extrn DrvSerial:	near
@@ -47,18 +49,19 @@ NumInstDrivers	DD	NUMDFLTDRIVERS		; Number of installed drivers
 DriversTable	tDRIVERINFO <0,"NULL            ",offset DrvNULL,0,0>
 		tDRIVERINFO <1,"MEMORY          ",offset DrvMemory,0,0>
 		tDRIVERINFO <2,"KEYBOARD        ",offset DrvKeyboard,0,0>
-		tDRIVERINFO <3,"VIDEODEV        ",offset DrvVideo,0,0>
-		tDRIVERINFO <4,"AUDIODEV        ",offset DrvAudio,0,0>
-		tDRIVERINFO <5,"NETDEV          ",offset DrvNet,0,0>
-		tDRIVERINFO <6,"SERIALDEV       ",offset DrvSerial,0,0>
-		tDRIVERINFO <7,"PARALLELDEV     ",offset DrvParallel,0,0>
-		tDRIVERINFO <8,"FLOPPYDISK      ",offset DrvFDD,0,0>
-		tDRIVERINFO <9,"HARDDISK        ",offset DrvHDD,0,0>
+		tDRIVERINFO <3,"VIDEOTXDEV      ",offset DrvVideoTx,0,0>
+		tDRIVERINFO <4,"VIDEOGRDEV      ",offset DrvVideoGr,0,0>
+		tDRIVERINFO <5,"AUDIODEV        ",offset DrvAudio,0,0>
+		tDRIVERINFO <6,"NETDEV          ",offset DrvNet,0,0>
+		tDRIVERINFO <7,"SERIALDEV       ",offset DrvSerial,0,0>
+		tDRIVERINFO <8,"PARALLELDEV     ",offset DrvParallel,0,0>
+		tDRIVERINFO <9,"FLOPPYDISK      ",offset DrvFDD,0,0>
+		tDRIVERINFO <10,"HARDDISK        ",offset DrvHDD,0,0>
 
 		tDRIVERINFO MAXNUMDRIVERS-NUMDFLTDRIVERS dup\
 			   (<-1,"                ",offset DrvNULL,0,0>)
 
-; --- Routines ---
+; --- Procedures ---
 
 		; DRV_GetFreeID - search free driver information structure.
 		; Input: none.
@@ -124,9 +127,7 @@ proc DRV_Uninstall near
 		mov	ecx,ebx
 		mov	esi,offset EMPTYDRVNAME
 		call	DRV_ChangeInfo
-		xor	edx,edx
-		mov	ecx,size tDRIVERINFO
-		mul	ecx
+		call	DRV_GetInfoAddr
 		xor	ecx,ecx
 		not	ecx
 		mov	[(tDRIVERINFO ptr eax).ID],ecx
@@ -159,22 +160,14 @@ proc DRV_ChangeInfo near
 		push	ecx
 
 		push	eax
-		push	ebx
-		push	ecx
-		push	edx
-		xor	edx,edx
-		mov	ecx,size tDRIVERINFO
-		mul	ecx
-		mov	edi,eax			; EDI=driver info address
-		pop	edx
-		pop	ecx
-		pop	ebx
+		call	DRV_GetInfoAddr
+		mov	edi,eax
 		pop	eax
 
 		mov	[(tDRIVERINFO ptr edi).ID],eax
 		mov	[(tDRIVERINFO ptr edi).Entry],ebx
 		mov	[(tDRIVERINFO ptr edi).Reserved],ecx
-		mov	[(tDRIVERINFO ptr edi).Flags],edx
+		mov	[(tDRIVERINFO ptr edi).Flags],dx
 		add	edi,offset (tDRIVERINFO).IntName	; Prepare to
 		mov	ecx,DRVNAMELEN				; copying
 		shr	ecx,2					; driver name
@@ -191,8 +184,72 @@ drChgInfo_Exit:	ret
 endp		;---------------------------------------------------------------
 
 
+		; DRV_GetInfoAddr - get driver information structure address.
+		; Input: EAX=driver ID.
+		; Output: EAX=structure address.
+proc DRV_GetInfoAddr near
+		cmp	eax,MAXNUMDRIVERS
+		jae     drGIA_Err
+		push	ecx
+		push	edx
+		mov	ecx,size tDRIVERINFO
+		xor	edx,edx
+		mul	ecx
+		add	eax,offset DriversTable
+		pop	edx
+		pop	ecx
+		clc
+		jmp	drGIA_Exit
+drGIA_Err:      mov	ax,ERR_DRV_BadID
+		stc
+drGIA_Exit:	ret
+endp		;---------------------------------------------------------------
+
+
+
+		; DRV_CallDriver - call specified driver.
+		; Input: [dword esp]=driver ID.
+		; Output: driver output results.
+		; Note: simply calls driver using drivers table;
+		;	doesn't pop driver ID from stack.
+proc DRV_CallDriver
+		sub	esp,4
+		push	eax
+		mov	eax,[dword esp+16]
+		call	DRV_GetInfoAddr
+		jc	drCall_Exit
+		test	[(tDRIVERINFO ptr eax).Flags],DRVFL_Extern
+		jnz	drCall_Extrn
+		mov	eax,[(tDRIVERINFO ptr eax).Entry]
+		mov	[dword esp+4],eax
+		pop	eax
+		retn
+drCall_Extrn:	;mov	gs,[(tDRIVERINFO ptr eax).ExtrnCS]
+		;mov	eax,[(tDRIVERINFO ptr eax).Entry]
+		;retf
+drCall_Exit:	pop	eax
+		add	esp,4
+		retn
+endp		;---------------------------------------------------------------
+
+
+		; DRV_HandleEvent - call "Handle event" driver function.
+		; Input: EAX=driver ID.
+		;	 EDX=event.
+		; Output: driver output results or CF=1, if driver ID is
+		;	  incorrect.
+		; Note: destroys EAX.
+proc DRV_HandleEvent near
+		push	eax
+		mov	eax,DRVF_HandleEv		; Function number
+		call    DRV_CallDriver
+		add	esp,4
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; DevNULL - NULL device driver.
 		; Action: simply does RET.
 proc DrvNULL near
 		ret
-endp
+endp		;---------------------------------------------------------------

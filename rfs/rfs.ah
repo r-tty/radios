@@ -1,11 +1,11 @@
 ;-------------------------------------------------------------------------------
-;  zfs.ah -  ZFS header file.
+;  rfs.ah -  RFS header file.
 ;-------------------------------------------------------------------------------
 
 ; --- Structure of master block header ---
 struc	MasterBlock
  JmpBoot	DW	?			; Short jump to boot code
- ZFSsignature	DB	"ZEAL FILE SYSTEM"	; ZFS signature
+ RFSsignature	DB	"RADIOS NATIVE FS"	; RFS signature
  DevCode	DB	?			; Device code
  Cyl		DW	?			; Max. number of cylinder
  Heads		DB	?			; Max. number of head

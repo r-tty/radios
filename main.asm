@@ -7,10 +7,11 @@
 ideal
 
 include "initdefs.ah"
+include "biosdata.ah"
+include "DRIVERS\SOFT\consoles.ah"
 
 DEBUGUNDERDOS=1
 DEBUG=1
-
 
 ;*********************** Protected mode starting segment ***********************
 
@@ -23,32 +24,7 @@ segment		PMSTARTSEG 'code' use16
 RMstart:	cli
 
 IFDEF	DEBUGUNDERDOS
-		jmp	ENBLA20
-include "ETC\a20at.asm"
-ENBLA20:	mov	ax,1				; Activating A20
-		call	AT_A20Handler
-		mov	ax,PMSTARTSEG			; Move PM start code
-		mov	ds,ax				; to HMA
-		mov	ax,0FFFFh
-		mov	es,ax
-		mov	si,offset DBG_MOVEKRNL
-		mov	di,si
-		mov	cx,100h
-		cld
-		rep	movsb
-		DB	0EAh				; Far jump in HMA
-		DW	offset DBG_MOVEKRNL
-		DW	0FFFFh
-
-DBG_MOVEKRNL:	mov	ax,RADIOSKRNLSEG		; Move kernel code
-		mov	ds,ax				; to 0:1000h
-		xor	ax,ax
-		mov	es,ax
-		mov	si,1000h
-		mov	di,si
-		mov	cx,0F000h
-		cld
-		rep	movsb
+include "ETC\dbgudos.asm"
 ENDIF
 		mov	ax,cs
 		mov	ds,ax
@@ -77,34 +53,26 @@ segment		RADIOSKRNLSEG public 'code' use32
 
 ;-------------------- External and global procedures and data-------------------
 
-		; Console procedures (consoles.asm)
-		extrn CON_InitAll:	near
-		extrn CON_WrCharTTY:	near
-		extrn CON_ClearCon:	near
-		extrn CON_SetActive:	near
-		extrn CON_MoveCursor:	near
-		extrn CON_HandleCTRL:	near
+		extrn GetCPUtype:	near
 
 		extrn PIC_Init:		near
 		extrn PIC_SetIRQmask:	near
 
-		extrn SPK_Beep:near
+		extrn TMR_CountCPUspeed: near
+
+		extrn SPK_Beep:		near
 
 ;------------------------------ BIOS data area ---------------------------------
 
-include "KERNEL\V86BIOS\biosdata.ah"
+RMIntsTbl	tRMIntsTbl	<>
+BIOSData	tBIOSDA		<>
 
-V86INTSTBL	tRVINTSTBL	<>
-BIOSDATA	tBIOSDA		<>
-
-		DB BIOSDAsize-(size V86INTSTBL)-(size BIOSDATA) dup (?)
-label BIOSstack near
+		DB BIOSDAsize-(size RMIntsTbl)-(size BIOSData) dup (?)
 
 
 ;------------------------------- Kernel body -----------------------------------
 
 include "KERNEL\kernel.asm"
-
 
 ;------------------------- Initialization procedures ---------------------------
 
@@ -146,10 +114,34 @@ INITWS_Exit:	pop	eax
 endp		;---------------------------------------------------------------
 
 
-		; INIT_DetectCPU - detect CPU type and write on screen
-proc INIT_DetectCPU near
+		; INIT_ShowCPUNPU - show CPU & NPU type
+proc INIT_ShowCPUNPU near
 		mov	esi,offset INFO_MainCPU
 		call	INIT_WrString
+		mov	al,[CPUtype]
+		cmp	al,3
+		je	DetCPU_386
+		cmp	al,4
+		je	DetCPU_486
+		cmp	al,5
+		je	DetCPU_586
+		mov	esi,offset INFO_Unknown
+                jmp	DetCPU_WrS
+DetCPU_386:	mov	esi,offset INFO_CPU386
+                jmp	DetCPU_WrS
+DetCPU_486:     mov	esi,offset INFO_CPU486
+                jmp	DetCPU_WrS
+DetCPU_586:     mov	esi,offset INFO_CPUPENT
+                jmp	DetCPU_WrS
+
+
+DetCPU_WrS:	call	INIT_WrString
+		mov	esi,offset INFO_SpdInd
+		call	INIT_WrString
+		mov	eax,[CPUspeed]
+		call	ddecout
+		mov	al,NL
+		call	INIT_WrChar
 		ret
 endp		;---------------------------------------------------------------
 
@@ -169,21 +161,12 @@ label PMinit far
 		mov	ss,ax
 		mov	esp,InitESP
 
-		; Initialize consoles
-		call	CON_InitAll
-		jc	Init_SysHalt
-
-		; Prepare console 0 for output
-		xor	bh,bh
-		call	CON_SetActive
-		mov	ah,7
-		stc
-		call	CON_ClearCon
-		xor	edx,edx
-		call	CON_MoveCursor
-
-		; Detecting CPU type
-		call	INIT_DetectCPU
+		; Detect CPU & NPU type, count CPU speed index
+		call	GetCPUtype
+		mov	[CPUtype],al
+		mov	cx,1024
+		call	TMR_CountCPUspeed
+		mov	[CPUspeed],ecx
 
 		; Initialize interrupt controller (PIC)
 		xor	ah,ah
@@ -196,13 +179,32 @@ label PMinit far
 		call	PIC_SetIRQmask
 		not	eax
 		call	PIC_SetIRQmask
-
-
 		sti
-		mov	al,'}'
-		call	CON_WrCharTTY
 
+		; Detect hardware devices using by consoles
+		call	CON_DetectDevs
+		jc	Init_SysHalt
 
+		; Prepare console 0 for output
+		xor	bh,bh
+		call	CON_SetActive
+		mov	ah,7
+		stc
+		call	CON_ClrScr
+		xor	edx,edx
+		call	CON_MoveCursor
+
+		; Show CPU & NPU type
+		call	INIT_ShowCPUNPU
+
+		; Show kernel version message
+		mov	esi,offset INFO_RadiOS
+		call	INIT_WrString
+
+		; Call debugger
+		call	DebugEntry
+
+		; Halt system
 Init_SysHalt:	call	SPK_Beep
 Init_Halt:	jmp	Init_Halt
 

@@ -1,1 +1,0 @@
-asm:	@C:\TASM\BIN\tasm /m2 /ml !.! | more

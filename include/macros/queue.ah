@@ -1,9 +1,9 @@
 ;-------------------------------------------------------------------------------
-;  queue.ah - macros for manipulating queues.
+; queue.ah - macros for manipulating queues.
 ;-------------------------------------------------------------------------------
 
-%ifndef _queue_ah_
-%define _queue_ah_
+%ifndef _queue_ah
+%define _queue_ah
 
 ; Enqueue
 ; Parameters: head, next, prev, what, type, tmpreg

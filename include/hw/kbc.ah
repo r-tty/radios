@@ -3,40 +3,40 @@
 ;-------------------------------------------------------------------------------
 
 ; Port 61h bits (R/W)
-%define	KBC_P1_PTYCHK		80h		; Parity check
-%define	KBC_P1_IOCHK		40h		; I/O check
-%define	KBC_P1_T20		20h		; Counter 2 output
-%define	KBC_P1_RFD		10h		; Regeneration of RAM
-%define	KBC_P1_EIC		8		; Enable I/O checking
-%define	KBC_P1_ERP		4		; Enable RAM parity checking
-%define	KBC_P1_SPK		2		; Speaker gate
-%define	KBC_P1_T2G		1		; Counter GATE2 input
+KBC_P1_PTYCHK	     	EQU	80h	; Parity check
+KBC_P1_IOCHK 	     	EQU	40h	; I/O check
+KBC_P1_T20   	     	EQU	20h	; Counter 2 output
+KBC_P1_RFD   	     	EQU	10h	; Regeneration of RAM
+KBC_P1_EIC   	     	EQU	8	; Enable I/O checking
+KBC_P1_ERP   	     	EQU	4	; Enable RAM parity checking
+KBC_P1_SPK   	     	EQU	2	; Speaker gate
+KBC_P1_T2G   		EQU	1	; Counter GATE2 input
 
 ; Port 64h status bits (R)
-%define	KBC_P4S_PTYERR		80h		; Parity error
-%define	KBC_P4S_RXTO		40h		; KB receiver timeout
-%define	KBC_P4S_TXTO		20h		; KB transmitter timeout
-%define	KBC_P4S_KBLock		10h		; Keyboard locked
-%define	KBC_P4S_Command		8		; Command/data
-%define	KBC_P4S_ResetOK		4		; Reset OK/Power ON
-%define	KBC_P4S_KBNRDY		2		; Keyboard not ready
-%define	KBC_P4S_OutBFull	1		; Output buffer full
+KBC_P4S_PTYERR	      	EQU	80h	; Parity error
+KBC_P4S_RXTO  	      	EQU	40h	; KB receiver timeout
+KBC_P4S_TXTO  	      	EQU	20h	; KB transmitter timeout
+KBC_P4S_KBLock	      	EQU	10h	; Keyboard locked
+KBC_P4S_Command		EQU	8	; Command/data
+KBC_P4S_ResetOK		EQU	4	; Reset OK/Power ON
+KBC_P4S_KBNRDY		EQU	2	; Keyboard not ready
+KBC_P4S_OutBFull	EQU	1	; Output buffer full
 
 ; Port 64h commands (W)
-%define	KBC_P4W_Pulse		0FFh		; Pulse output line
-%define	KBC_P4W_HardReset	0FEh		; Hardware reset
-%define	KBC_P4W_EnA20		0DFh		; Enable A20
-%define	KBC_P4W_DisA20		0DDh		; Disable A20
-%define	KBC_P4W_Wr8042out	0D1h		; Write to 8042 output port
-%define	KBC_P4W_Rd8042out	0D0h		; Read from 8042 output port
-%define	KBC_P4W_Rd8042in	0C0h		; Read from 8042 input port
-%define	KBC_P4W_KBEnable	0AEh		; Keyboard enable
-%define	KBC_P4W_KBDisable	0ADh		; Keyboard disable
-%define	KBC_P4W_Rd8042RAM	0ACh		; Read KBC RAM
-%define	KBC_P4W_TestSD		0ABh		; Synchronizing and data test
-%define	KBC_P4W_Test8042	0AAh		; Internal test of KBC
-%define	KBC_P4W_WriteKBC	60h		; Write to KBC
-%define	KBC_P4W_ReadKBC		20h		; Read from KBC
+KBC_P4W_Pulse		EQU	0FFh	; Pulse output line
+KBC_P4W_HardReset	EQU	0FEh	; Hardware reset
+KBC_P4W_EnA20		EQU	0DFh	; Enable A20
+KBC_P4W_DisA20		EQU	0DDh	; Disable A20
+KBC_P4W_Wr8042out	EQU	0D1h	; Write to 8042 output port
+KBC_P4W_Rd8042out	EQU	0D0h	; Read from 8042 output port
+KBC_P4W_Rd8042in	EQU	0C0h	; Read from 8042 input port
+KBC_P4W_KBEnable	EQU	0AEh	; Keyboard enable
+KBC_P4W_KBDisable	EQU	0ADh	; Keyboard disable
+KBC_P4W_Rd8042RAM	EQU	0ACh	; Read KBC RAM
+KBC_P4W_TestSD		EQU	0ABh	; Synchronizing and data test
+KBC_P4W_Test8042	EQU	0AAh	; Internal test of KBC
+KBC_P4W_WriteKBC	EQU	60h	; Write to KBC
+KBC_P4W_ReadKBC		EQU	20h	; Read from KBC
 
 ; Macro to control GATE2
 %macro mKBC_Gate2_ctrl 1

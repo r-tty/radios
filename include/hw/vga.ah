@@ -2,6 +2,9 @@
 ; vga.ah - definitions and macros for VGA text mode output.
 ;-------------------------------------------------------------------------------
 
+%ifndef _vga_ah
+%define _vga_ah
+
 ; Video memory base address
 VIDMEMCGA	EQU	0B8000h
 VIDMEMMDA	EQU	0B0000h
@@ -15,16 +18,18 @@ VIDMEMVGASIZE	EQU	10000h
 %define CRTC(REG) REG
 
 ; Sequencer registers
-%define	SQREG_MapMask	2
-%define	SQREG_Memory	4
+SQREG_MapMask	EQU	2
+SQREG_Memory	EQU	4
 
 ; Graphics registers
-%define	GRREG_WrMode	5
-%define	GRREG_Misc	6
+GRREG_WrMode	EQU	5
+GRREG_Misc	EQU	6
 
 ; For modes 3 and 7
-%define	MODE3TXTCOLS	80		; Number of columns
-%define	MODE3TXTROWS	25              ; Number of rows
+MODE3TXTCOLS	EQU	80		; Number of columns
+MODE3TXTROWS	EQU	25              ; Number of rows
 
 ; Other
-%define	VGATXTPAGES	8		; Number of video pages
+VGATXTPAGES	EQU	8		; Number of video pages
+
+%endif

@@ -2,133 +2,139 @@
 ; ports.ah - Hardware ports addresses and PORTDELAY macro.
 ;-------------------------------------------------------------------------------
 
+%ifndef _ports_ah
+%define _ports_ah
+
 ; --- DMA controller ports ---
 
 ; DMA controller #1
-%define	PORT_DMA1_A0		0	; Address
-%define	PORT_DMA1_A1		2	; registers
-%define	PORT_DMA1_A2		4
-%define	PORT_DMA1_A3		6
+PORT_DMA1_A0		EQU	0	; Address
+PORT_DMA1_A1		EQU	2	; registers
+PORT_DMA1_A2		EQU	4
+PORT_DMA1_A3		EQU	6
 
-%define	PORT_DMA1_C0		1	; Counter
-%define	PORT_DMA1_C1		3	; registers
-%define	PORT_DMA1_C2		5
-%define	PORT_DMA1_C3		7
+PORT_DMA1_C0		EQU	1	; Counter
+PORT_DMA1_C1		EQU	3	; registers
+PORT_DMA1_C2		EQU	5
+PORT_DMA1_C3		EQU	7
 
-%define	PORT_DMA1_P0		87h	; Page
-%define	PORT_DMA1_P1		83h	; register
-%define	PORT_DMA1_P2		81h
-%define	PORT_DMA1_P3		82h
+PORT_DMA1_P0		EQU	87h	; Page
+PORT_DMA1_P1		EQU	83h	; register
+PORT_DMA1_P2		EQU	81h
+PORT_DMA1_P3		EQU	82h
 
-%define	PORT_DMA1_CmdStat	8		; Command/status register
-%define	PORT_DMA1_Request	9		; Request register
-%define	PORT_DMA1_SngMask	10		; Single mask registers
-%define	PORT_DMA1_Mode		11              ; Mode register
-%define	PORT_DMA1_ClrBPFF	12		; Clear byte pointer f/f
-%define	PORT_DMA1_MastClr	13		; Master clear
-%define	PORT_DMA1_ClrMask	14		; Clear mask register
-%define	PORT_DMA1_AllMask	15		; All mask register bits
+PORT_DMA1_CmdStat	EQU	8	; Command/status register
+PORT_DMA1_Request	EQU	9	; Request register
+PORT_DMA1_SngMask	EQU	10	; Single mask registers
+PORT_DMA1_Mode		EQU	11	; Mode register
+PORT_DMA1_ClrBPFF	EQU	12	; Clear byte pointer f/f
+PORT_DMA1_MastClr	EQU	13	; Master clear
+PORT_DMA1_ClrMask	EQU	14	; Clear mask register
+PORT_DMA1_AllMask	EQU	15	; All mask register bits
 
 ; DMA controller #2
-%define	PORT_DMA2_A4		0C0h		; Address
-%define	PORT_DMA2_A5		0C4h		; registers
-%define	PORT_DMA2_A6		0C8h
-%define	PORT_DMA2_A7		0CCh
+PORT_DMA2_A4		EQU	0C0h	; Address
+PORT_DMA2_A5		EQU	0C4h	; registers
+PORT_DMA2_A6		EQU	0C8h
+PORT_DMA2_A7		EQU	0CCh
 
-%define	PORT_DMA2_C4		0C2h		; Counter
-%define	PORT_DMA2_C5		0C6h		; registers
-%define	PORT_DMA2_C6		0CAh
-%define	PORT_DMA2_C7		0CEh
+PORT_DMA2_C4		EQU	0C2h	; Counter
+PORT_DMA2_C5		EQU	0C6h	; registers
+PORT_DMA2_C6		EQU	0CAh
+PORT_DMA2_C7		EQU	0CEh
 
-%define	PORT_DMA2_P4		8Fh		; Page
-%define	PORT_DMA2_P5		8Bh		; register
-%define	PORT_DMA2_P6		89h
-%define	PORT_DMA2_P7		87h
+PORT_DMA2_P4		EQU	8Fh	; Page
+PORT_DMA2_P5		EQU	8Bh	; register
+PORT_DMA2_P6		EQU	89h
+PORT_DMA2_P7		EQU	87h
 
-%define	PORT_DMA2_CmdStat	0D0h
-%define	PORT_DMA2_Request	0D2h
-%define	PORT_DMA2_SngMask	0D4h
-%define	PORT_DMA2_Mode		0D6h
-%define	PORT_DMA2_ClrBPFF	0D8h
-%define	PORT_DMA2_MastClr	0DAh
-%define	PORT_DMA2_ClrMask	0DCh
-%define	PORT_DMA2_AllMask	0DEh
+PORT_DMA2_CmdStat	EQU	0D0h
+PORT_DMA2_Request	EQU	0D2h
+PORT_DMA2_SngMask	EQU	0D4h
+PORT_DMA2_Mode		EQU	0D6h
+PORT_DMA2_ClrBPFF	EQU	0D8h
+PORT_DMA2_MastClr	EQU	0DAh
+PORT_DMA2_ClrMask	EQU	0DCh
+PORT_DMA2_AllMask	EQU	0DEh
 
 
 ; --- Interrupts controller addresses ---
 
 ; PIC #1
-%define	PORT_PIC1_0		20h
-%define	PORT_PIC1_1		21h
+PORT_PIC1_0		EQU	20h
+PORT_PIC1_1		EQU	21h
 
 ; PIC #2
-%define	PORT_PIC2_0		0A0h
-%define	PORT_PIC2_1		0A1h
+PORT_PIC2_0		EQU	0A0h
+PORT_PIC2_1		EQU	0A1h
 
 
 ; --- Timer ports ---
-%define	PORT_TIMER_C0		40h
-%define	PORT_TIMER_C1		41h
-%define	PORT_TIMER_C2		42h
-%define	PORT_TIMER_CTL		43h
+PORT_TIMER_C0		EQU	40h
+PORT_TIMER_C1		EQU	41h
+PORT_TIMER_C2		EQU	42h
+PORT_TIMER_CTL		EQU	43h
 
 
 ; --- Keyboard controller ports ---
-%define	PORT_KBC_0		60h
-%define	PORT_KBC_1		61h
-%define	PORT_KBC_4		64h
+PORT_KBC_0		EQU	60h
+PORT_KBC_1		EQU	61h
+PORT_KBC_4		EQU	64h
 
 
 ; --- CMOS and RTC ports ---
-%define	PORT_CMOS_Addr		70h
-%define	PORT_CMOS_Data		71h
+PORT_CMOS_Addr		EQU	70h
+PORT_CMOS_Data		EQU	71h
 
 
 ; --- Diagnostic register ---
-%define	PORT_Diagnostic		80h
+PORT_Diagnostic		EQU	80h
 
 ; --- Idle port (used for I/O delay on fast machines) ---
-%define	PORT_Idle		0EDh
+PORT_Idle		EQU	0EDh
 
 
 ; --- IDE HDC base ports ---
-%define	PORT_HDC_IDE1		1F0h
-%define	PORT_HDC_IDE2		170h
-%define	PORT_HDC_IDE3		1E8h
-%define	PORT_HDC_IDE4		168h
+PORT_HDC_IDE1		EQU	1F0h
+PORT_HDC_IDE2		EQU	170h
+PORT_HDC_IDE3		EQU	1E8h
+PORT_HDC_IDE4		EQU	168h
 
 
 ; --- PnP registers ---
-%define	PORT_PNP_Command	297h
-%define	PORT_PNP_Data		0A79h
-%define	PORT_PNP_Device		203h
+PORT_PNP_Command	EQU	297h
+PORT_PNP_Data		EQU	0A79h
+PORT_PNP_Device		EQU	203h
 
 
 ; --- VGA registers ---
-%define	PORT_CGA_CAddr		3D4h
-%define	PORT_CGA_CData		3D5h
-%define	PORT_CGA_CTL		3D8h
-%define	PORT_CGA_ColorSel	3D9h
-%define	PORT_CGA_Status		3DAh
-%define	PORT_VGA_Sequencer	3C4h
-%define	PORT_VGA_Graphics	3CEh
-%define PORT_MDA_CAddr		3B4h
+PORT_CGA_CAddr		EQU	3D4h
+PORT_CGA_CData		EQU	3D5h
+PORT_CGA_CTL		EQU	3D8h
+PORT_CGA_ColorSel	EQU	3D9h
+PORT_CGA_Status		EQU	3DAh
+PORT_VGA_Sequencer	EQU	3C4h
+PORT_VGA_Graphics	EQU	3CEh
+PORT_MDA_CAddr		EQU	3B4h
 
 ; --- FDC registers ---
-%define	PORT_FDC_DOR		3F2h		; Digital Output Register
-%define	PORT_FDC_Status		3F4h		; Status register
-%define	PORT_FDC_Data		3F5h		; Data register
-%define	PORT_FDC_DIR		3F7h		; Digital Input Register (read)
-%define	PORT_FDC_DCR		3F7h		; Diskette Control Register (write)
+PORT_FDC_DOR		EQU	3F2h	; Digital Output Register
+PORT_FDC_Status		EQU	3F4h	; Status register
+PORT_FDC_Data		EQU	3F5h	; Data register
+PORT_FDC_DIR		EQU	3F7h	; Digital Input Register (read)
+PORT_FDC_DCR		EQU	3F7h	; Diskette Control Register (write)
 
 
 ; --- PCI ports ---
-%define PORT_PCI		0CF8h
-%define	PORT_PCI_BASE		0CFCh
+PORT_PCI		EQU	0CF8h
+PORT_PCI_BASE		EQU	0CFCh
 
 
-; --- Macro ---
+; Dumb delay for slow buses
 %macro PORTDELAY 0
-	jmp	short $+2
-	jmp	short $+2
+	jmp	%%1
+%%1:	jmp	%%2
+%%2:
 %endmacro
+
+%endif

@@ -33,14 +33,14 @@ struc tModule
 endstruc
 
 ; Module types
-%define MODTYPE_EXECUTABLE	0
-%define MODTYPE_LIBRARY		1
-%define MODTYPE_KERNEL		2
-%define MODTYPE_RAW		3
-%define MODTYPE_UNKNOWN		0FFh
+MODTYPE_EXECUTABLE	EQU	0
+MODTYPE_LIBRARY		EQU	1
+MODTYPE_KERNEL		EQU	2
+MODTYPE_RAW		EQU	3
+MODTYPE_UNKNOWN		EQU	0FFh
 
 ; Flags
-%define MODFLAGS_RESMGR		1
+MODFLAGS_RESMGR		EQU		1
 
 ; This optional header may be present in the module file. It gives the
 ; information about module type, CPU type, required OS version etc.
@@ -55,6 +55,6 @@ struc tModInfoTag
 .Entry		RESD	1		; Entry point - alt. to "Start" label
 endstruc
 
-%define RBM_SIGNATURE	004D4252h
+RBM_SIGNATURE	EQU	004D4252h
 
 %endif

@@ -17,6 +17,7 @@
 %define MAXCONNECTIONS	1024		; Max number of connections per process
 %define MAXPULSES	8192		; Max number of pulse descriptors
 %define	MAXSYNCOBJECTS	8192		; Max number of synchronization objects
+%define MAXHASHELEMS	8192		; Max number of hash elements
 
 %define MAXHEAPSIZE	10000000h	; Max user heap size (256M)
 %define INITRDSIZE	1440		; Size of new RAM-disk (in kilobytes)

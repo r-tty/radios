@@ -3,137 +3,139 @@
 ;-------------------------------------------------------------------------------
 
 ; These error codes correspond to <c/errno.h>
-%define EOK              0	; No error
-%define EPERM            1	; Not owner
-%define ENOENT           2	; No such file or directory
-%define ESRCH            3	; No such process
-%define EINTR            4	; Interrupted system call
-%define EIO              5	; I/O error
-%define ENXIO            6	; No such device or address
-%define E2BIG            7	; Arg list too big
-%define ENOEXEC          8	; Exec format error
-%define EBADF            9	; Bad file number
-%define ECHILD          10	; No child processes
-%define EAGAIN          11	; Resource unavailable, try again
-%define ENOMEM          12	; Not enough space
-%define EACCES          13	; Permission denied
-%define EFAULT          14	; Bad address
-%define ENOTBLK         15	; Block device required
-%define EBUSY           16	; Device or resource busy
-%define EEXIST          17	; File exists
-%define EXDEV           18	; Cross-device link
-%define ENODEV          19	; No such device
-%define ENOTDIR         20	; Not a directory
-%define EISDIR          21	; Is a directory
-%define EINVAL          22	; Invalid argument
-%define ENFILE          23	; File table overflow
-%define EMFILE          24	; Too many open files
-%define ENOTTY          25	; Inappropriate I/O control operation
-%define ETXTBSY         26	; Text file busy
-%define EFBIG           27	; File too large
-%define ENOSPC          28	; No space left on device
-%define ESPIPE          29	; Illegal seek
-%define EROFS           30	; Read-only file system
-%define EMLINK          31	; Too many links
-%define EPIPE           32	; Broken pipe
-%define EDOM            33	; Math argument out of domain of function
-%define ERANGE          34	; Result too large
-%define ENOMSG          35	; No message of desired type
-%define EDEADLK         45	; Deadlock avoided
-%define ENOLCK          46	; No locks available in system
-%define ECANCELED       47	; Operation canceled
-%define ENOTSUP         48	; Not supported
-%define ENOSYS          89	; Unknown system call
-%define ELOOP           90	; Too many symbolic link or prefix loops
-%define ERESTART        91	; Restartable system call
-%define ESTRPIPE        92	; If pipe/FIFO, don't sleep in stream head
-%define ENOTEMPTY       93	; Directory not empty
+EOK		EQU	0	; No error
+EPERM		EQU	1	; Not owner
+ENOENT		EQU	2	; No such file or directory
+ESRCH		EQU	3	; No such process
+EINTR		EQU	4	; Interrupted system call
+EIO		EQU	5	; I/O error
+ENXIO		EQU	6	; No such device or address
+E2BIG		EQU	7	; Arg list too big
+ENOEXEC		EQU	8	; Exec format error
+EBADF		EQU	9	; Bad file number
+ECHILD		EQU	10	; No child processes
+EAGAIN		EQU	11	; Resource unavailable, try again
+ENOMEM		EQU	12	; Not enough space
+EACCES		EQU	13	; Permission denied
+EFAULT		EQU	14	; Bad address
+ENOTBLK		EQU	15	; Block device required
+EBUSY		EQU	16	; Device or resource busy
+EEXIST		EQU	17	; File exists
+EXDEV		EQU	18	; Cross-device link
+ENODEV		EQU	19	; No such device
+ENOTDIR		EQU	20	; Not a directory
+EISDIR		EQU	21	; Is a directory
+EINVAL		EQU	22	; Invalid argument
+ENFILE		EQU	23	; File table overflow
+EMFILE		EQU	24	; Too many open files
+ENOTTY		EQU	25	; Inappropriate I/O control operation
+ETXTBSY		EQU	26	; Text file busy
+EFBIG		EQU	27	; File too large
+ENOSPC		EQU	28	; No space left on device
+ESPIPE		EQU	29	; Illegal seek
+EROFS		EQU	30	; Read-only file system
+EMLINK		EQU	31	; Too many links
+EPIPE		EQU	32	; Broken pipe
+EDOM		EQU	33	; Math argument out of domain of function
+ERANGE		EQU	34	; Result too large
+ENOMSG		EQU	35	; No message of desired type
+EDEADLK		EQU	45	; Deadlock avoided
+ENOLCK		EQU	46	; No locks available in system
+ECANCELED	EQU	47	; Operation canceled
+ENOTSUP		EQU	48	; Not supported
+ENOSYS		EQU	89	; Unknown system call
+ELOOP		EQU	90	; Too many symbolic link or prefix loops
+ERESTART	EQU	91	; Restartable system call
+ESTRPIPE	EQU	92	; If pipe/FIFO, don't sleep in stream head
+ENOTEMPTY	EQU	93	; Directory not empty
 
-%define EOPNOTSUPP      103	; Operation not supported
-%define EFPOS		110	; File position error
-%define ESTALE          122	; Potentially recoverable i/o error
+EOPNOTSUPP	EQU	103	; Operation not supported
+EFPOS		EQU	110	; File position error
+ESTALE		EQU	122	; Potentially recoverable i/o error
 
-%define ESRVRFAULT	313	; Error accessing message buffers
+ESRVRFAULT	EQU	313	; Error accessing message buffers
 
 ;--- These error codes are used within the microkernel only --------------------
 
 ; Kernel initialization errors
-%define	ERR_UnknEv			0101h
-%define	ERR_NoGlobDesc			0102h
-%define	ERR_InvGlobDesc			0103h
-%define	ERR_InvLowerMemSize		0104h
-%define	ERR_InvUpperMemSize		0105h
-%define	ERR_MemTestFail			0106h
+ERR_UnknEv		EQU	0101h
+ERR_NoGlobDesc		EQU	0102h
+ERR_InvGlobDesc		EQU	0103h
+ERR_InvLowerMemSize	EQU	0104h
+ERR_InvUpperMemSize	EQU	0105h
+ERR_MemTestFail		EQU	0106h
 
 ; Misc kernel errors
-%define	ERR_PoolFreeNoHead		0280h
-%define ERR_PoolNotFound		0281h
-%define ERR_PoolBadChunkNum		0282h
-%define ERR_NoFreeID			0290h
-%define ERR_BadID			0291h
+ERR_PoolFreeNoHead	EQU	0280h
+ERR_PoolNotFound	EQU	0281h
+ERR_PoolBadChunkNum	EQU	0282h
+ERR_NoFreeID		EQU	0290h
+ERR_BadID		EQU	0291h
+ERR_NoFreeHashElem	EQU	0292h
+ERR_BadHashElemSig	EQU	0293h
 
 ; Paging primitives
-%define	ERR_PG_NoFreePage		02A0h
-%define	ERR_PG_NoFreeDir		02A1h
-%define	ERR_PG_BadLinearAddr		02A2h
-%define	ERR_PG_BadDirNum		02A3h
-%define	ERR_PG_BadBlockSize		02A4h
+ERR_PG_NoFreePage	EQU	02A0h
+ERR_PG_NoFreeDir	EQU	02A1h
+ERR_PG_BadLinearAddr	EQU	02A2h
+ERR_PG_BadDirNum	EQU	02A3h
+ERR_PG_BadBlockSize	EQU	02A4h
 
 ; Basic devices
-%define	ERR_KBC_NotRDY			02B0h
-%define	ERR_TMR_BadCNBR			02B8h
-%define	ERR_DMA_BadChNum		02C0h
-%define	ERR_DMA_BadAddr			02C1h
-%define	ERR_DMA_PageOut			02C2h
-%define	ERR_DMA_AddrOdd			02C3h
+ERR_KBC_NotRDY		EQU	02B0h
+ERR_TMR_BadCNBR		EQU	02B8h
+ERR_DMA_BadChNum	EQU	02C0h
+ERR_DMA_BadAddr		EQU	02C1h
+ERR_DMA_PageOut		EQU	02C2h
+ERR_DMA_AddrOdd		EQU	02C3h
 
 
 ;--- Error codes for different task manager subsystems -------------------------
 
 ; Process manager errors
-%define	ERR_PM_NoParent			0320h
+ERR_PM_NoParent		EQU	0320h
 
 ; Path manager errors
-%define ERR_PTM_InvalidRAMdisk		0330h
-%define ERR_PTM_UnableAllocRD		0331h
+ERR_PTM_InvalidRAMdisk	EQU	0330h
+ERR_PTM_UnableAllocRD	EQU	0331h
 
 ; Memory management errors
-%define	ERR_MEM_BadMCB			0341h
-%define	ERR_MEM_NoMCBs			0342h
-%define	ERR_MEM_EmptyHeap		0343h
-%define	ERR_MEM_NoMemory		0344h
-%define	ERR_MEM_MCBnotFound		0345h
-%define	ERR_MEM_RegionLocked		0346h
-%define	ERR_MEM_BadBlockSize		0347h
-%define	ERR_MEM_InvAreaLoc		0348h
+ERR_MEM_BadMCB		EQU	0341h
+ERR_MEM_NoMCBs		EQU	0342h
+ERR_MEM_EmptyHeap	EQU	0343h
+ERR_MEM_NoMemory	EQU	0344h
+ERR_MEM_MCBnotFound	EQU	0345h
+ERR_MEM_RegionLocked	EQU	0346h
+ERR_MEM_BadBlockSize	EQU	0347h
+ERR_MEM_InvAreaLoc	EQU	0348h
 
 ; Task management errors
-%define	ERR_MT_NoPIDs			0360h
-%define	ERR_MT_BadPID			0361h
-%define	ERR_MT_BadAttr			0362h
-%define	ERR_MT_NoFreeTCB		0363h
-%define	ERR_MT_NoFreeTID		0364h
-%define ERR_MT_CantAllocStack		0365h
-%define ERR_MT_BadUserStack		0366h
-%define ERR_MT_CantAllocKernStk		0367h
-%define	ERR_MT_SwitchToCurrThr		0368h
-%define	ERR_MT_UnableAttachThread	0369h
-%define	ERR_MT_UnableDetachThread	036Ah
+ERR_MT_NoPIDs		EQU	0360h
+ERR_MT_BadPID		EQU	0361h
+ERR_MT_BadAttr		EQU	0362h
+ERR_MT_NoFreeTCB	EQU	0363h
+ERR_MT_NoFreeTID	EQU	0364h
+ERR_MT_CantAllocStack	EQU	0365h
+ERR_MT_BadUserStack	EQU	0366h
+ERR_MT_CantAllocKernStk	EQU	0367h
+ERR_MT_SwitchToCurrThr	EQU	0368h
+ERR_MT_UnableAttachThr	EQU	0369h
+ERR_MT_UnableDetachThr	EQU	036Ah
 
 ; Module management errors
-%define	ERR_MOD_TooManyBinFmts		0370h
-%define	ERR_MOD_BinFmtNotFound		0371h
-%define	ERR_MOD_UnknownSignature	0372h
-%define	ERR_MOD_BadVersion		0373h
-%define	ERR_MOD_BadArchMember		0374h
-%define	ERR_MOD_TooManyModules		0375h
-%define	ERR_MOD_BadID			0376h
-%define ERR_MOD_NotFound		0377h
+ERR_MOD_TooManyBinFmts	EQU	0370h
+ERR_MOD_BinFmtNotFound	EQU	0371h
+ERR_MOD_UnknSignature	EQU	0372h
+ERR_MOD_BadVersion	EQU	0373h
+ERR_MOD_BadArchMember	EQU	0374h
+ERR_MOD_TooManyModules	EQU	0375h
+ERR_MOD_BadID		EQU	0376h
+ERR_MOD_NotFound	EQU	0377h
 
 ; Error codes used by individual binary formats
-%define	ERR_RDM_BadSection		03A0h
-%define	ERR_RDM_TooManySections		03A1h
-%define	ERR_RDM_StackNotInBSS		03A2h
-%define	ERR_RDM_InvLibName		03A3h
-%define	ERR_RDM_NoSection		03A4h
-%define	ERR_RDM_16bitReloc		03A5h
+ERR_RDM_BadSection	EQU	03A0h
+ERR_RDM_TooManySections	EQU	03A1h
+ERR_RDM_StackNotInBSS	EQU	03A2h
+ERR_RDM_InvLibName	EQU	03A3h
+ERR_RDM_NoSection	EQU	03A4h
+ERR_RDM_16bitReloc	EQU	03A5h

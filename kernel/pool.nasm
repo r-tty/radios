@@ -12,30 +12,19 @@ module kernel.pool
 %include "cpu/paging.ah"
 
 
-; --- Exports ---
-
 exportproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 exportproc K_PoolChunkNumber, K_PoolChunkAddr
 
 
-; --- Imports ---
-
-library kernel.paging
 externproc PG_Alloc, PG_Dealloc
-
-library kernel.sync
 externproc K_SemP, K_SemV
 
-
-; --- Variables ---
 
 section .bss
 
 ?PoolCount	RESD	1
 ?PoolPageCount	RESD	1		; Count total pages used by pools
 
-
-; --- Code ---
 
 section .text
 

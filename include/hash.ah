@@ -1,0 +1,40 @@
+;-------------------------------------------------------------------------------
+; hash.ah - definitions for kernel hash table routines.
+;-------------------------------------------------------------------------------
+
+%ifndef _hash_ah
+%define _hash_ah
+
+; Currently we use fixed-size hash tables residing in contigous memory
+HASH_NUMBER		EQU	131
+HASH_ELIST_SIZE		EQU	1024
+HASH_ELIST_SHIFT	EQU	10
+
+; Structure of the hash table element
+struc tHashElem
+.Sig		RESD	1			; Signature
+.Id		RESD	1			; Identifier value
+.Key		RESD	1			; Key value
+.Data		RESP	1			; Pointer to hashed data
+.Next		RESP	1			; List link
+.Prev		RESP	1
+.Spare		RESD	1
+endstruc
+
+; All list elements are marked with signatures
+HASH_SIG_USED	EQU	"HASH"
+HASH_SIG_FREE	EQU	"ha$h"
+
+; Hash macro: returns (parameter1 XOR parameter2) MOD HASH_NUMBER.
+; Input:  EAX=identifier, EBX=key.
+; Output: EDX=result.
+; Note:   doesn't preserve EAX and EBX.
+%macro mHashFunction 0
+	xor	eax,ebx
+	xor	ebx,ebx
+	mov	bl,HASH_NUMBER
+	xor	edx,edx
+	div	ebx
+%endmacro
+
+%endif

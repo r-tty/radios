@@ -27,7 +27,7 @@ externproc TMR_InitCounter, TMR_CountCPUspeed
 externproc PG_Init, PG_StartPaging
 externproc MT_Init, MT_GetNumThreads, MT_CreateThread
 externproc MT_ThrEnqueue, MT_ThreadExec
-externproc K_InitTime, K_SyncInit
+externproc K_InitTime, K_InitHashPool, K_SyncInit
 externproc IPC_ChanInit, IPC_PulseInit
 externdata GDTlimAddr
 externdata ?CPUinfo, ?CPUspeed
@@ -37,7 +37,6 @@ externproc StrComp
 externproc PrintChar, PrintString, PrintDwordDec, ReadChar
 
 %ifdef LINKMONITOR
-library monitor
 externproc MonitorInit
 %endif
 
@@ -194,6 +193,11 @@ proc Start
 		jc	near ExitKernel
 		mov	eax,MAXPULSES
 		call	IPC_PulseInit
+		jc	near ExitKernel
+
+		; Initialize hash elements pool
+		mov	eax,MAXHASHELEMS
+		call	K_InitHashPool
 		jc	near ExitKernel
 
 		; Initialize synchronization object pool

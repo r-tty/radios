@@ -107,22 +107,22 @@ endstruc
 
 
 ; --- Export record flags ---
-%define	SYM_DATA		1
-%define	SYM_FUNCTION		2
-%define	SYM_GLOBAL		4
-%define	SYM_IMPORT		8
+SYM_DATA	EQU	1
+SYM_FUNCTION	EQU	2
+SYM_GLOBAL	EQU	4
+SYM_IMPORT	EQU	8
 
 
 ; --- Segment types ---
-%define	RDFSEG_NULL		0
-%define	RDFSEG_Text		1
-%define	RDFSEG_Data		2
-%define	RDFSEG_ObjComment	3
-%define	RDFSEG_LinkedComment	4
-%define	RDFSEG_LoaderComment	5
-%define	RDFSEG_SymDebug		6
-%define	RDFSEG_LineNumDebug	7
-%define	RDFSEG_Bad		0FFFFh
+RDFSEG_NULL		EQU	0
+RDFSEG_Text		EQU	1
+RDFSEG_Data		EQU	2
+RDFSEG_ObjComment	EQU	3
+RDFSEG_LinkedComment	EQU	4
+RDFSEG_LoaderComment	EQU	5
+RDFSEG_SymDebug		EQU	6
+RDFSEG_LineNumDebug	EQU	7
+RDFSEG_Bad		EQU	0FFFFh
 
 
 ; --- Segment header ---

@@ -15,6 +15,7 @@
 %define	FS_ID_AIX		8
 %define	FS_ID_AIXBOOT		9
 %define	FS_ID_OS2BM		0Ah
+%define	FS_ID_WINLBAEXT		0Fh
 %define	FS_ID_MICROPORT		052h
 %define	FS_ID_UNIX		063h
 %define	FS_ID_NOVELL		064h

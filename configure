@@ -6,8 +6,8 @@
 RADIOSPATH=$HOME/radios
 STDINCLPATH=$RADIOSPATH/include/macros
 INCLPATH=$RADIOSPATH/include
-OBJPATH=/usr/obj/radios
-INSTALLPATH=/boot/RadiOS
+OBJPATH=$RADIOSPATH/etc/obj
+INSTALLPATH=$RADIOSPATH/etc/boot
 
 ReadData() {
     echo -n $3 "[$2]: "

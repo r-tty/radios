@@ -2,14 +2,14 @@
  RadiOS bootstrap process
  ------------------------
  
-1) Multiboot-compilant loader loads RadiOS kernel at address 110000h.
+1) Multiboot-compliant loader loads RadiOS kernel at address 110000h.
    Optionally up to 16 boot-time modules can be loaded after a kernel.
    
-2) Multiboot-compilant loader passes execution to kernel at address 110030h.
+2) Multiboot-compliant loader passes execution to kernel at address 110030h.
    There is a small "mover" at this address (embedded into RDM by a linker,
-   see docs to "ldrdf"). "Mover" just moves a kernel loader (which is the
-   last 4096 bytes of kernel image) to a new location (unused video page - 
-   0BF000h) and passes execution to loader.
+   see docs to "ldrdf"). "Mover" just moves a kernel loader (that consists of
+   last 4096 bytes of kernel image) to a its working location (100000h) 
+   and passes execution to it.
    
 3) Loader/linker does following:
     a) moves kernel code and data sections to lower memory (start of code

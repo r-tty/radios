@@ -179,14 +179,14 @@ proc BaseAndLimit
 endp		;---------------------------------------------------------------
 
 
-		; VerifySelector - check whether selectot exists
+		; VerifySelector - check whether a selector exists
 		;		   and is a memory selector.
 		; Input: AX=selector.
 		; Output: CF=0 - OK,
 		;	  CF=1 - error.
 proc VerifySelector
 		push	eax
-		cmp	ax,GDT_size			; Error if beyod GDT
+		cmp	ax,GDT_size			; Error if beyond GDT
 		jae	.Err
 		push	ebx
 		push	edx

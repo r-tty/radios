@@ -1,0 +1,26 @@
+ip.c ip_control.c  ip_hdr.c ip_i.h ip_input.c were merged
+from david's versions and the version in merge branch  
+on Oct 26th, 1994.
+
+ip_control.c, ip_i.h was copied from merge branch directly.
+
+I ommitted removing the static decl from david's versions
+of some functions.
+
+ip.c: inline get_ident could not be used because inline
+is not supported by ansi C.
+
+ip_input.c: Did not add following lines: (arenet they dependent
+on integer formating per arch? Talk to david.
+     #if 0
+	ph.src = h->source;
+	ph.dst = h->dest;
+        ph.zero = 0;
+        ph.prot = h->prot;
+        ph.len = htons( msgLen(dg) );
+     #else
+        *((int*)&ph.src) = *((int*)&h->source);
+        *((int*)&ph.dst) = *((int*)&h->dest);
+        *((int*)&ph.zero) = (htons(msgLen(dg)) << 16) | (h->prot << 8);
+     #endif
+ip_input.c: Has reference to mapResolve2

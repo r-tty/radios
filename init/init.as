@@ -616,7 +616,7 @@ proc Start
 		; Create kernel process
 		call	MT_InitKernelProc
 		jc	.Monitor
-
+call ReadChar
 		; Initialize disk drivers
 		call	INIT_InitDiskDrvs
 

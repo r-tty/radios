@@ -39,15 +39,17 @@
 %endmacro
 
 ; C-like prologue and epilogue
-%macro prologue 1
+%macro prologue 0-1
 %push enter
 		push	ebp
 		mov	ebp,esp
+%if %0 != 0
 %if %1 > 0
 %if %1 < 128
 		sub	esp, byte %1
 %else
 		sub	esp,%1
+%endif
 %endif
 %endif
 %endmacro

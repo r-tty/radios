@@ -141,11 +141,13 @@ proc HD_Open
 		mov	cl,4				; 4 primary partitions
 .LoopFill:	call	HD_MBR2PartDesc			; Fill it
 		cmp	byte [edi+tPartDesc.SysCode],FS_ID_EXTENDED ; Extended partition?
-		jne	short .NoExt
+		je	short .Ext
 		cmp	byte [edi+tPartDesc.SysCode],FS_ID_LINUXEXT
-		jne	short .NoExt
-		mov	eax,edi
-.NoExt:		add	esi,tPartitionEntry_size
+		je	short .Ext
+		cmp	byte [edi+tPartDesc.SysCode],FS_ID_WINLBAEXT
+		jne	short .1
+.Ext:		mov	eax,edi
+.1:		add	esi,tPartitionEntry_size
 		add	edi,tPartDesc_size		; Next partition
 		dec	cl
 		jnz	.LoopFill
@@ -171,16 +173,19 @@ proc HD_Open
 		or	al,al
 		jz	short .OK
 		cmp	al,FS_ID_EXTENDED		; Extended?
-		jne	short .NotSubExt
+		je	short .SubExt
 		cmp	al,FS_ID_LINUXEXT
+		je	short .SubExt
+		cmp	al,FS_ID_WINLBAEXT
 		jne	short .NotSubExt
-		push	edi
+		
+.SubExt:	push	edi
 		lea	edi,[.buffer2]
 		call	HD_MBR2PartDesc
 		mov	eax,edi
 		pop	edi
 		jmp	short .ExtLoop
-
+		
 .NotSubExt:	call	HD_MBR2PartDesc
 		add	esi,byte tPartitionEntry_size
 		add	edi,byte tPartDesc_size		; Next partition

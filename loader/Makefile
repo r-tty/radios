@@ -7,7 +7,7 @@
 include ../etc/header.mk
 
 # Converter to flat binary
-CONV = rdf2bin -o 0xBF000 -b 4096 -p 1
+CONV = rdf2bin -o 0x100000 -b 4096 -p 1
 
 # Change variables here
 LOADER_BIN = $(OUTPATH)/loader.bin

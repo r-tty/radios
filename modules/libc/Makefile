@@ -9,7 +9,7 @@ group = libc
 include ../../Build/header.mk
 
 # Variables
-SUBDIRS = Posix_1j misc signal stdio stdlib string termios unistd xopen
+SUBDIRS = Posix_1 Posix_1j misc signal stdlib string termios xopen
 export TARGET_LIB = libc.$(L)
 TARGET_RDM = libc.$(M)
 OBJS = libcinit.$(O)

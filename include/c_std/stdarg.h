@@ -1,5 +1,5 @@
 /*
- * stdarg.h - handle varargs
+ * stdarg.h - macros for handling variable-size arguments.
 */
 
 #ifndef _stdarg_h
@@ -11,7 +11,7 @@ typedef char *va_list;
   (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
 
 #define va_start(AP, LASTARG) \
- (AP = ((char *) &(LASTARG) + __va_rounded_size(LASTARG)))
+  (AP = ((char *) &(LASTARG) + __va_rounded_size(LASTARG)))
 
 #define va_end(AP)
 

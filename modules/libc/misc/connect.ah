@@ -2,6 +2,13 @@
 ; connect.ah - definitions used by ConnectControl and friends.
 ;-------------------------------------------------------------------------------
 
+%ifndef _connect_ah
+%define _connect_ah
+
+; Some constants that should be in limits.ah
+SYMLOOP_MAX		EQU	32
+PATH_MAX		EQU	1024
+
 ; Flags used in the connect_ctrl structure
 FLAG_NOCTTY		EQU	1
 FLAG_SET_ENTRY		EQU	2
@@ -20,7 +27,7 @@ struc tConnectCtrl
 .Base		RESD	1
 .Msg		RESP	1		; Pointer to tIOMconnect
 .Link:
-.Ftype:		mResMax tIOMconnectLinkReply_size, tIOMconnectFtypeReply_size
+.Ftype:		mResMax tIOMconnectLinkReply, tIOMconnectFtypeReply
 .Entry		RESP	1
 .Extra		RESP	1
 .Status		RESD	1
@@ -37,3 +44,5 @@ struc tConnectCtrl
 .ResponseLen	RESD	1
 .ND		RESD	1
 endstruc
+
+%endif

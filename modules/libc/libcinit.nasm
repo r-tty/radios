@@ -11,11 +11,9 @@ exportdata ModuleInfo
 
 extern libc_init_syscall
 extern libc_init_signal
-extern libc_init_stdio
 extern libc_init_stdlib
 extern libc_init_string
 extern libc_init_termios
-extern libc_init_unistd
 extern libc_init_posix1j
 extern libc_init_xopen
 
@@ -39,11 +37,9 @@ section .text
 proc libc_initialize
 		call	libc_init_syscall
 		call	libc_init_signal
-		call	libc_init_stdio
 		call	libc_init_stdlib
 		call	libc_init_string
 		call	libc_init_termios
-		call	libc_init_unistd
 		call	libc_init_posix1j
 		call	libc_init_xopen
 		ret

@@ -59,7 +59,7 @@ OBJPATH := $(OBJTOP)/$(group)
 
 # VPATH
 vpath %.$(I) $(INCLPATH)
-vpath %.$(H) $(INCLPATH)/c
+vpath %.$(H) $(INCLPATH)/c_std:$(INCLPATH)/c_ext
 vpath %.$(O) $(OBJPATH)
 vpath %.$(L) $(LIBPATH)
 vpath %.$(B) $(OBJPATH)

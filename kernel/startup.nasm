@@ -59,9 +59,10 @@ TxtSysVersion	DB	RADIOS_VERSION,0
 TxtRCopyright	DB	" (c) 2003 RET & COM Research.",10,10,0
 
 TxtKernDone	DB	NL,"There is no work left for the kernel - bye.",0
-TxtDetected	DB	"Detected ", 0
-TxtKBRAM	DB	" KB RAM", NL, 0
-TxtX86family	DB	"86 family CPU, speed index=", 0
+TxtRAM		DB	"RAM: ", 0
+TxtKB		DB	" KB", NL, 0
+TxtCPU		DB	"CPU: ",0
+TxtSpeedIndex	DB	", speed index=", 0
 TxtInitKExtMods	DB	"Initializing kernel extension modules...", NL, 0
 
 %ifdef VERBOSE
@@ -158,22 +159,27 @@ proc Start
 		call	TMR_CountCPUspeed
 		
 		; Print basic CPU information
-		kPrintStr TxtDetected
-		movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
+		kPrintStr TxtCPU
+		mov	esi,?CPUinfo+tCPUinfo.ModelID
+		cmp	byte [esi],0
+		je	.NoModel
+		kPrintStr
+		jmp	.1
+.NoModel:	movzx	eax,byte [?CPUinfo+tCPUinfo.Family]
 		kPrintDec
-		kPrintStr TxtX86family
+		kPrintStr TxtSpeedIndex
 		kPrintDec [?CPUspeed]
-		kPrintChar NL
+.1:		kPrintChar NL
 
 		; Initialize memory
 		call	K_InitMem
 		
 		; Print how much memory we have
-		kPrintStr TxtDetected
+		kPrintStr TxtRAM
 		kPrintDec [?LowerMemSize]
 		kPrintChar '+'
 		kPrintDec [?UpperMemSize]
-		kPrintStr TxtKBRAM
+		kPrintStr TxtKB
 
 		; Initialize RTC
 		call	K_InitTime

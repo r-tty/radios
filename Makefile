@@ -8,7 +8,7 @@ include Build/header.mk
 # To turn various debugging messages on
 export DEBUG = 1
 # To link monitor with a kernel
-#export LINKMONITOR = 1
+export LINKMONITOR = 1
 
 # Subdirs
 SUBDIRS = kernel btl

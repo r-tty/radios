@@ -96,6 +96,16 @@ struc tIOV
 .Len		RESD	1
 endstruc
 
+; Macro to set an IOV.
+; Parameters:	%1 - address of IOV (register),
+;		%2 - IOV number (starting from 0),
+;		%3 - value of .Base,
+;		%4 - value of .Len.
+%macro mSetIOV 4
+	mov	[%1+%2*tIOV_size+tIOV.Base],%3
+	mov	[%1+%2*tIOV_size+tIOV.Len],%4
+%endmacro
+
 ; Flags for MsgReadiov
 READIOV_SEND	EQU	0
 READIOV_REPLY	EQU	1

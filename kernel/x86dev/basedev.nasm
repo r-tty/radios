@@ -111,6 +111,7 @@ proc CPU_Init
 		mov	[?CPUinfo+tCPUinfo.Family],al
 		
 		call	CPU_InitMSR
+		call	CPU_InitModelName
 		
 .OK:		clc
 		epilogue
@@ -137,6 +138,62 @@ proc CPU_InitMSR
 		mov	ecx,CPU_MSR_SYSENTER_ESP
 		wrmsr
 .Exit:		ret
+endp		;---------------------------------------------------------------
+
+
+		; CPU_InitModelName - fill in model name (if possible).
+		; Input: none.
+		; Output: none.
+proc CPU_InitModelName
+		mov	eax,80000000h
+		cpuid
+		cmp	eax,80000004h
+		jb	.Ret
+
+		mov	edi,?CPUinfo+tCPUinfo.ModelID
+		mov	eax,80000002h
+		cpuid
+		mov	[edi],eax
+		mov	[edi+4],ebx
+		mov	[edi+8],ecx
+		mov	[edi+12],edx
+		add	edi,byte 16
+		mov	eax,80000003h
+		cpuid
+		mov	[edi],eax
+		mov	[edi+4],ebx
+		mov	[edi+8],ecx
+		mov	[edi+12],edx
+		add	edi,byte 16
+		mov	eax,80000004h
+		cpuid
+		mov	[edi],eax
+		mov	[edi+4],ebx
+		mov	[edi+8],ecx
+		mov	[edi+12],edx
+		mov	byte [edi+16],0
+
+		; Intel processors put the text right-adjusted. Not nice.
+		mov	esi,?CPUinfo+tCPUinfo.ModelID
+		mov	edi,esi
+		mov	al,' '
+		cld
+		repe	scasb
+		dec	edi
+		cmp	edi,esi
+		jbe	.Ret
+		xchg	esi,edi
+.Loop:		lodsb
+		or	al,al
+		jz	.PadZero
+		stosb
+		jmp	.Loop
+
+.PadZero:	cmp	edi,?CPUinfo+tCPUinfo.ModelID+64
+		je	.Ret
+		stosb
+		jmp	.PadZero
+.Ret:		ret
 endp		;---------------------------------------------------------------
 
 

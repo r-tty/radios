@@ -33,13 +33,13 @@ endstruc
 ; Parameters:	%1 - new errno value,
 ;		%2 - scratch register
 %macro mSetErrno 2
-	mov	%2,[fs:tTLS.ErrPtr]
-	mov	[%2],%1
+	mov	%2,[fs:4+tTLS.ErrPtr]
+	mov	dword [%2],%1
 %endmacro
 
 ; Macro to get errno value in %1
 %macro mGetErrno 1
-	mov	%1,[fs:tTLS.ErrPtr]
+	mov	%1,[fs:4+tTLS.ErrPtr]
 	mov	%1,[%1]
 %endmacro
 

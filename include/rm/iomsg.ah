@@ -83,7 +83,7 @@ struc tIOMconnect
 .Handle		RESD	1
 .IOflag		RESD	1	; IOM_FLAG_*
 .Mode		RESD	1	; ST_MODE_* in stat.ah
-.Sflag		RESW	1	; SH_* in share.ah
+.Sflag		RESW	1	; SH_* in ftype.ah
 .Access		RESW	1	; ST_ACC_* in stat.ah
 .Zero		RESW	1
 .PathLen	RESW	1
@@ -356,7 +356,7 @@ struc tIOMopenFD
 .type		RESW	1
 .CombineLen	RESW	1
 .IOflag		RESD	1		; IOM_FLAG_*
-.Sflag		RESW	1		; SH_* in share.ah
+.Sflag		RESW	1		; SH_* in ftype.ah
 .xtype		RESW	1
 .Info		RESB	tMsgInfo_size
 .Reserved2	RESD	1

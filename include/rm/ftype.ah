@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; ftype.ah - file types.
+; ftype.ah - file types and sharing modes.
 ;-------------------------------------------------------------------------------
 
 %ifndef _ftype_ah
@@ -21,5 +21,13 @@ FTYPE_NAME	EQU	12
 
 FTYPE_MATCHED	EQU	-1
 FTYPE_ALL	EQU	-1
+
+SH_COMPAT	EQU	0		; compatibility mode
+SH_DENYRW	EQU	10h		; deny read/write mode
+SH_DENYWR	EQU	20h		; deny write mode
+SH_DENYRD	EQU	30h		; deny read mode
+SH_DENYNO	EQU	40h		; deny none mode
+
+SH_MASK		EQU	70h		; mask for standard share modes
 
 %endif

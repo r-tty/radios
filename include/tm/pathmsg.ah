@@ -5,6 +5,8 @@
 %ifndef _pathmsg_ah
 %define _pathmsg_ah
 
+%include "tm/sysmsg.ah"
+
 PATHMGR_PID		EQU	SYSMGR_PID
 PATHMGR_CHID		EQU	SYSMGR_CHID
 PATHMGR_COID		EQU	SYSMGR_COID

@@ -7,6 +7,7 @@
 
 %include "perm.ah"
 %include "resource.ah"
+%include "tm/taskman.ah"
 %include "tm/sysmsg.ah"
 %include "tm/spawn.ah"
 
@@ -164,9 +165,9 @@ struc tSpawnRemote
 .Size	RESD	1
 endstruc
 
-%define SPAWN_REMOTE_FDARRAY_SIZE 10
-%define SPAWN_REMOTE_REMOTEBUF_SIZE tProcSpawnFDinfo_size * SPAWN_REMOTE_FDARRAY_SIZE + PATH_MAX * 2 + tProcSpawnRemote_size
-%define SPAWN_REMOTE_MSGBUF_SIZEEQU tSpawnRemote + SPAWN_REMOTE_REMOTEBUF_SIZE
+SPAWN_REMOTE_FDARRAY_SIZE	EQU	10
+SPAWN_REMOTE_REMOTEBUF_SIZE	EQU	tProcSpawnFDinfo_size * SPAWN_REMOTE_FDARRAY_SIZE + PATH_MAX * 2 + tProcSpawnRemote_size
+SPAWN_REMOTE_MSGBUF_SIZE	EQU	tSpawnRemote_size + SPAWN_REMOTE_REMOTEBUF_SIZE
 
 
 ; --- Message of PROC_SPAWN / PROC_SPAWN_DIR ---
@@ -336,7 +337,7 @@ endstruc
 
 union tMsg_ProcResourceUsage
 	unimemb	tProcResourceUsage
-	unimemb	tRusage
+	unimemb	tResUsage
 endunion
 
 

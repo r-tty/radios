@@ -1,0 +1,49 @@
+;-------------------------------------------------------------------------------
+; signal.ah - signal definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _signal_ah
+%define _signal_ah
+
+SIGHUP		EQU	1	; hangup
+SIGINT		EQU	2	; interrupt
+SIGQUIT		EQU	3	; quit
+SIGILL		EQU	4	; illegal instruction (not reset when caught)
+SIGTRAP		EQU	5	; trace trap (not reset when caught)
+SIGIOT		EQU	6	; IOT instruction
+SIGABRT		EQU	6	; used by abort
+SIGEMT		EQU	7	; EMT instruction
+SIGDEADLK	EQU	7	; mutex deadlock
+SIGFPE		EQU	8	; floating point exception
+SIGKILL		EQU     9	; kill (cannot be caught or ignored)
+SIGBUS		EQU	10	; bus error
+SIGSEGV		EQU	11	; segmentation violation
+SIGSYS		EQU	12	; bad argument to system call
+SIGPIPE		EQU	13	; write on pipe with no reader
+SIGALRM		EQU	14	; real-time alarm clock
+SIGTERM		EQU	15	; software termination signal from kill
+SIGUSR1		EQU	16	; user defined signal 1
+SIGUSR2		EQU	17	; user defined signal 2
+SIGCHLD		EQU	18	; death of child
+SIGPWR		EQU	19	; power-fail restart
+SIGWINCH	EQU	20	; window change
+SIGURG		EQU	21	; urgent condition on I/O channel
+SIGPOLL		EQU	22	; System V name for SIGIO
+SIGSTOP		EQU	23	; sendable stop signal not from tty
+SIGTSTP		EQU	24	; stop signal from tty
+SIGCONT		EQU	25	; continue a stopped process
+SIGTTIN		EQU	26	; attempted background tty read
+SIGTTOU		EQU	27	; attempted background tty write
+SIGVTALRM	EQU	28	; virtual timer expired
+SIGPROF		EQU     29	; profileing timer expired
+SIGXCPU		EQU     30	; exceded cpu limit
+SIGXFSZ		EQU     31	; exceded file size limit
+
+_SIGMIN		EQU	1
+_SIGMAX		EQU	64
+NSIG		EQU	57	; valid user signals range from 1 to NIG-1
+MAXSIG		EQU	64	; for kernel use:  NSIG-1 <= MAXSIG
+SIGRTMIN	EQU	41
+SIGRTMAX	EQU	56
+
+%endif

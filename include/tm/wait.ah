@@ -1,0 +1,27 @@
+;-------------------------------------------------------------------------------
+; wait.ah - system wait types.
+;-------------------------------------------------------------------------------
+
+%ifndef _wait_ah
+%define _wait_ah
+
+; Defined system wait types
+WEXITED		EQU	1	; Wait for processes that have exited
+WTRAPPED	EQU	2	; Process stopped at debugger point of interest
+WSTOPPED	EQU	4	; Processes stopped by signals
+WCONTINUED	EQU	8	; Processes continued by signals
+WNOHANG		EQU	40h	; Do not block waiting
+WNOWAIT		EQU	80h	; Don't free waited on child
+
+WOPTMASK	EQU	WEXITED | WSTOPPED | WCONTINUED | WNOHANG | WNOWAIT | WTRAPPED
+
+WCONTFLG	EQU	0FFFFh
+WCOREFLG	EQU	80h
+WSTOPFLG	EQU	7Fh
+WSIGMASK	EQU	7Fh
+
+P_ALL		EQU	0
+P_PID		EQU	1
+P_PGID		EQU	2
+
+%endif

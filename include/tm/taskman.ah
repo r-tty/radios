@@ -1,0 +1,11 @@
+;-------------------------------------------------------------------------------
+; taskman.ah - miscellaneous definitions for task manager.
+;-------------------------------------------------------------------------------
+
+%ifndef _taskman_ah
+%define _taskman_ah
+
+SYMLOOP_MAX	EQU	32
+PATH_MAX	EQU	1024
+
+%endif

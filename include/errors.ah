@@ -39,6 +39,10 @@
 %define EDOM            33	; Math argument out of domain of function
 %define ERANGE          34	; Result too large
 %define ENOMSG          35	; No message of desired type
+%define EDEADLK         45	; Deadlock avoided
+%define ENOLCK          46	; No locks available in system
+%define ECANCELED       47	; Operation canceled
+%define ENOTSUP         48	; Not supported
 %define ENOSYS          89	; Unknown system call
 %define ELOOP           90	; Too many symbolic link or prefix loops
 %define ERESTART        91	; Restartable system call

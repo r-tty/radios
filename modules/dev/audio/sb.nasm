@@ -1,19 +1,11 @@
 ;*******************************************************************************
-;  sb.nasm - Sound Blaster compatible DSP driver.
-;  Copyright (c) 1999 RET & COM Research.
+; sb.nasm - Sound Blaster compatible DSP driver.
+; Copyright (c) 1999 RET & COM Research.
 ;*******************************************************************************
 
 module hw.audio.sb
 
 %include "sys.ah"
-
-; --- Exports ---
-
-global DrvAudio
-
-
-; --- Imports ---
-
 
 ; --- Definitions ---
 
@@ -28,31 +20,6 @@ global DrvAudio
 
 ; Timeout loop
 %define	DSP_TimeoutLoop		07FFFh
-
-
-; --- Data ---
-
-section .data
-
-; Audio driver main structure
-DrvAudio	DB	"%audio"
-		TIMES	16-$+DrvAudio DB 0
-		DD	DrvAudioET
-		DW	0
-
-; Driver entry points table
-DrvAudioET	DD	SB_Init
-		DD	SB_HandleEvent
-		DD	SB_Open
-		DD	SB_Close
-		DD	SB_Read
-		DD	SB_Write
-		DD	NULL
-		DD	SB_Control
-
-SB_Control	DD	SB_GetInitStatStr
-		DD	SB_GetParameters
-		DD	SB_SetParameters
 
 
 ; --- Variables ---

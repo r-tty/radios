@@ -30,7 +30,7 @@ externproc BZero
 externdata ?RTticks
 
 ; Number of hardware interrupt we can support
-%define MAXIRQ	256
+%define MAXIRQ	64
 
 ; High-level interrupt descriptor
 struc tHLintDesc
@@ -46,37 +46,38 @@ endstruc
 section .data
 
 IntHandlers:
-%assign i 0
-%rep 16							; IRQ handlers
-		mDefineOffset K_ISR,i
-%assign i i+1
-%endrep
-
-%assign i 48
-%rep 16							; Service traps
+%assign i 32
+%rep 16						; Service traps
 		mDefineOffset ServTrap,i,Handler
 %assign i i+1
 %endrep
 
-IDTlimAddr	DW	IDT_limit			; IDT address and limit
+%assign i 0
+%rep 64						; IRQ handlers
+		mDefineOffset K_ISR,i
+%assign i i+1
+%endrep
+
+
+IDTlimAddr	DW	IDT_limit		; IDT address and limit
 		DD	0
 
-ServTrapFunct	DD	0			; INT 30h
-		DD	0			; INT 31h
-		DD	0			; INT 32h
-		DD	0			; INT 33h
-		DD	0			; INT 34h
-		DD	0			; INT 35h
-		DD	0			; INT 36h
-		DD	0			; INT 37h
-		DD	K_SysInt		; INT 38h
-		DD	K_Ring0			; INT 39h
-		DD	0			; INT 3Ah
-		DD	0			; INT 3Bh
-		DD	0			; INT 3Ch
-		DD	0			; INT 3Dh
-		DD	0			; INT 3Eh
-		DD	K_ServEntry		; INT 3Fh
+ServTrapFunct	DD	0			; INT 20h
+		DD	0			; INT 21h
+		DD	0			; INT 22h
+		DD	0			; INT 23h
+		DD	0			; INT 24h
+		DD	0			; INT 25h
+		DD	0			; INT 26h
+		DD	0			; INT 27h
+		DD	K_SysInt		; INT 28h
+		DD	K_Ring0			; INT 29h
+		DD	0			; INT 2Ah
+		DD	0			; INT 2Bh
+		DD	0			; INT 2Ch
+		DD	0			; INT 2Dh
+		DD	0			; INT 2Eh
+		DD	K_ServEntry		; INT 2Fh
 
 
 section .bss
@@ -88,39 +89,44 @@ section .bss
 section .text
 
 ; Hardware Interrupt Service Soutines (ISRs)
+; First 8259 PIC
 mISR 0,K_SwitchTask
-mISR 1,K_HandleIRQ
-mISR 2,K_HandleIRQ
-mISR 3,K_HandleIRQ
-mISR 4,K_HandleIRQ
-mISR 5,K_HandleIRQ
-mISR 6,K_HandleIRQ
-mISR 7,K_HandleIRQ
-mISR2 9,K_HandleIRQ
-mISR2 10,K_HandleIRQ
-mISR2 11,K_HandleIRQ
-mISR2 12,K_HandleIRQ
-mISR2 13,K_HandleIRQ
-mISR2 14,K_HandleIRQ
-mISR2 15,K_HandleIRQ
+%assign i 1
+%rep 7
+mISR i,K_HandleIRQ
+%assign i i+1
+%endrep
+
+; Second 8259 PIC
+%assign i 9
+%rep 7
+mISR2 i,K_HandleIRQ
+%assign i i+1
+%endrep
+
+; For APIC - not used yet
+%rep 48
+mAISR i,K_HandleIRQ
+%assign i i+1
+%endrep
 
 ; Service trap handlers (used by some syscalls)
-mServTrapHandler 48,K_ServTrap
-mServTrapHandler 49,K_ServTrap
-mServTrapHandler 50,K_ServTrap
-mServTrapHandler 51,K_ServTrap
-mServTrapHandler 52,K_ServTrap
-mServTrapHandler 53,K_ServTrap
-mServTrapHandler 54,K_ServTrap
-mServTrapHandler 55,K_ServTrap
-mServTrapHandler 56,K_ServTrap
-mServTrapHandler 57,K_ServTrap
-mServTrapHandler 58,K_ServTrap
-mServTrapHandler 59,K_ServTrap
-mServTrapHandler 60,K_ServTrap
-mServTrapHandler 61,K_ServTrap
-mServTrapHandler 62,K_ServTrap
-mServTrapHandler 63,K_ServTrap
+mServTrapHandler 32,K_ServTrap
+mServTrapHandler 33,K_ServTrap
+mServTrapHandler 34,K_ServTrap
+mServTrapHandler 35,K_ServTrap
+mServTrapHandler 36,K_ServTrap
+mServTrapHandler 37,K_ServTrap
+mServTrapHandler 38,K_ServTrap
+mServTrapHandler 39,K_ServTrap
+mServTrapHandler 40,K_ServTrap
+mServTrapHandler 41,K_ServTrap
+mServTrapHandler 42,K_ServTrap
+mServTrapHandler 43,K_ServTrap
+mServTrapHandler 44,K_ServTrap
+mServTrapHandler 45,K_ServTrap
+mServTrapHandler 46,K_ServTrap
+mServTrapHandler 47,K_ServTrap
 
 
 		; K_InitInterrupts - build IDT, initialize IDTR and initialize
@@ -142,15 +148,15 @@ proc K_InitInterrupts
 		cld
 
 		; Set up descriptors of hardware and software interrupts
-.Loop:		cmp	cl,64
+.Loop:		cmp	cl,MAXIRQ+IRQVECTOR(0)
 		jae	.Absent
 		lodsd
 		mov	[ebx+tGateDesc.OffsetLo],ax
 		mov	word [ebx+tGateDesc.Selector],KERNELCODE
 		shr	eax,16
 		mov	[ebx+tGateDesc.OffsetHi],ax
-		cmp	cl,48
-		jae	.SoftInt
+		cmp	cl,IRQVECTOR(0)
+		jb	.SoftInt
 		mov	byte [ebx+tGateDesc.Type],AR_IntGate+AR_DPL0+ARpresent
 .Next:		add	ebx,byte tGateDesc_size
 		inc	cl
@@ -242,7 +248,7 @@ endp		;---------------------------------------------------------------
 		; (like hardware interrupt handler gets its IRQ).
 proc K_ServTrap
 		mov	eax,[esp+4+tStackFrame.Err]	; EAX=trap number
-		sub	eax,48
+		sub	eax,SOFTINTSTART
 		mov	eax,[ServTrapFunct+eax*4]	; EAX=function number
 		or	eax,eax
 		jz	.Done

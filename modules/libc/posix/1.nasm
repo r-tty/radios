@@ -11,23 +11,37 @@ module libc.posix1
 %include "rm/netmgr.ah"
 %include "rm/iomsg.ah"
 %include "rm/fcntl.ah"
+%include "rm/devctl.ah"
 
-exportproc _open, _close, _read, _write, _fcntl
-exportproc _getpid
+exportproc _creat, _open, _close, _read, _write, _dup, _fcntl
+exportproc _umask
 
-externproc vopen, _MsgSend, _MsgSendnc, _MsgSendv
-externproc _ConnectAttach, _ConnectDetach_r, _ConnectServerInfo
-externproc _netmgr_remote_nd
+externproc _MsgSend, _MsgSendnc, _MsgSendv
+externproc _ConnectAttach, _ConnectDetach_r
+externproc _ConnectServerInfo, _ConnectFlags_r, _ConnectFlags
+externproc _netmgr_remote_nd, _getpid
+externproc Vopen, Devctl
 
 
 section .text
+
+		; int creat(const char *path, mode_t mode);
+proc _creat
+		arg	path, mode
+		prologue
+		Ccall	_open, dword [%$path], O_WRONLY | O_CREAT | O_TRUNC, \
+			dword [%$mode]
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
 
 		; int open(const char *path, int oflag, ...);
 proc _open
 		arg	path, oflag, vararg
 		prologue
 		lea	ebx,[%$vararg]
-		Ccall	vopen, dword [%$path], dword [%$oflag], \
+		Ccall	Vopen, dword [%$path], dword [%$oflag], \
 			dword SH_DENYNO, ebx
 		epilogue
 		ret
@@ -114,6 +128,16 @@ proc _write
 endp		;---------------------------------------------------------------
 
 
+		; int dup(int fd);
+proc _dup
+		arg	fd
+		prologue
+		Ccall	_fcntl, F_DUPFD, byte 0
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; int vfcntl(int fd, int cmd, va_list ap);
 proc vfcntl
 		arg	fd, cmd, ap
@@ -124,9 +148,11 @@ proc vfcntl
 		prologue
 		savereg	ebx,edx,esi,edi
 
+		mov	edx,[%$fd]
 		mov	eax,[%$cmd]
 		cmp	eax,256
 		jae	near .ErrBadFun
+		xor	ecx,ecx
 		cmp	al,F_DUPFD
 		je	near .DupFD
 		cmp	al,F_GETFD
@@ -141,25 +167,29 @@ proc vfcntl
 		je	near .GetOwn
 		cmp	al,F_SETOWN
 		je	near .SetOwn
+		mov	cl,al
 		cmp	al,F_ALLOCSP64
-		je	near .AllocSp64
+		je	near .AllocFreeSp64
 		cmp	al,F_FREESP64
-		je	near .FreeSp64
+		je	near .AllocFreeSp64
 		cmp	al,F_ALLOCSP
 		je	near .AllocSp
 		cmp	al,F_FREESP
 		je	near .FreeSp
-		cmp	al,F_GETLK
-		je	near .Locking
+		xor	ecx,ecx
+		inc	cl
 		cmp	al,F_SETLK
 		je	near .Locking
 		cmp	al,F_SETLKW
 		je	near .Locking
-		cmp	al,F_GETLK64
-		je	near .Locking		
 		cmp	al,F_SETLK64
 		je	near .Locking		
 		cmp	al,F_SETLKW64
+		je	near .Locking
+		inc	cl
+		cmp	al,F_GETLK
+		je	near .Locking
+		cmp	al,F_GETLK64
 		je	near .Locking
 .ErrBadFun:	mSetErrno ENOSYS, eax
 		xor	eax,eax
@@ -167,20 +197,19 @@ proc vfcntl
 		jmp	.Exit
 
 		; Duplicate a file descriptor
-.DupFD:		mov	edx,[%$fd]
-		cmp	edx,-1
+.DupFD:		cmp	edx,-1
 		je	near .ErrBadFile
 		lea	ebx,[%$info]
 		Ccall	_ConnectServerInfo, 0, edx, ebx
 		cmp	edx,eax
-		jne	.ErrBadFile
+		jne	near .ErrBadFile
 
 		GetArg	%$ap, Dword
 		Ccall	_ConnectAttach, dword [ebx+tMsgInfo.ND], \
 			dword [ebx+tMsgInfo.PID], dword [ebx+tMsgInfo.ChID], \
 			eax, byte COF_CLOEXEC
 		cmp	eax,-1
-		je	.FailRet
+		je	near .FailRet
 		mov	[%$fd2],eax
 
 		lea	edi,[%$msg]
@@ -196,8 +225,15 @@ proc vfcntl
 		mov	[edi+tIOMdup.Info+tMsgInfo.ScoID],eax
 		mov	eax,[%$fd]
 		mov	[edi+tIOMdup.Info+tMsgInfo.CoID],eax
-		Ccall	_MsgSendnc, dword [%$fd2], edi, 0, 0,
+		Ccall	_MsgSendnc, dword [%$fd2], edi, tIOMdup_size, 0, 0
+		cmp	eax,-1
+		je	.DetachErr
+		Ccall	_ConnectFlags_r, dword [%$fd2]
+		mov	eax,[%$fd2]
+		jmp	.Exit
 
+.DetachErr:	Ccall	_ConnectDetach_r, dword [%$fd2]
+		jmp	.FailRet
 
 .ErrBadFile:	mSetErrno EBADF, eax
 .FailRet:	xor	eax,eax
@@ -205,33 +241,78 @@ proc vfcntl
 		jmp	.Exit
 
 		; Get file descriptor flags
-.GetFD:
+.GetFD:		Ccall	_ConnectFlags, 0, edx, 0, 0
+		jmp	.Exit
 
 		; Set file descriptor flags
-.SetFD:
+.SetFD:		GetArg	%$ap, Dword
+		Ccall	_ConnectFlags, 0, edx, -1, eax, 0
+		jmp	.Exit
 
 		; Get file status / access modes flags
-.GetFl:
+.GetFl:		lea	eax,[%$arg]
+		Ccall	Devctl, edx, DCMD_ALL_GETFLAGS, eax, Dword_size, 0
+		cmp	eax,-1
+		je	near .Exit
+		mov	eax,[%$arg]
+		jmp	near .Exit
 
-		; Get file status / access modes flags
-.SetFl:
+		; Set file status / access modes flags
+.SetFl:		mov	eax,[%$ap]
+		Ccall	Devctl, edx, DCMD_ALL_SETFLAGS, eax, Dword_size, 0
+		jmp	.Exit
 
 		; DCMD_ALL_GETOWN devctl
-.GetOwn:
+.GetOwn:	lea	eax,[%$arg]
+		Ccall	Devctl, edx, DCMD_ALL_GETOWN, eax, Dword_size, 0
+		cmp	eax,-1
+		je	near .Exit
+		mov	eax,[%$arg]
+		jmp	.Exit
 
 		; DCMD_ALL_SETOWN devctl
-.SetOwn:
+.SetOwn:	mov	eax,[%$ap]
+		Ccall	Devctl, edx, DCMD_ALL_SETOWN, eax, Dword_size, 0
+		jmp	.Exit
 
-		; Extend the file with zeros
-.AllocSp:
-.AllocSp64:
+		; Extend or truncate the file
+.AllocFreeSp64:	lea	ebx,[%$msg]
+		mov	esi,[%$ap]
+		; Use 64-bit values
+		Mov64	ebx+tIOMspace.Start,esi+tFlock.Start
+		Mov64	ebx+tIOMspace.Len,esi+tFlock.Len
+		jmp	.ExtTrCommon
 
-		; Truncate the file
-.FreeSp:
-.FreeSp64:
+.AllocSp:	mov	cl,F_ALLOCSP64
+		jmp	.ExtTrunc32
+
+.FreeSp:	mov	cl,F_FREESP64
+.ExtTrunc32:	lea	ebx,[%$msg]
+		mov	esi,[%$ap]
+		; Use 32-bit values
+		Mov64	ebx+tIOMspace.Start,esi+tFlock.Start
+		Mov64	ebx+tIOMspace.Len,esi+tFlock.Len
+
+.ExtTrCommon:	Mov16	ebx+tIOMspace.Whence,esi+tFlock.Whence
+		mov	word [ebx+tIOMspace.Type],IOM_SPACE
+		mov	word [ebx+tIOMspace.CombineLen],tIOMspace_size
+		mov	[ebx+tIOMspace.Subtype],ecx
+		Ccall	_MsgSend, edx, ebx, byte tIOMspace_size, 0, 0
+		jmp	.Exit
 
 		; Locking functions
-.Locking:
+.Locking:	lea	ebx,[%$msg]
+		mov	word [ebx+tIOMlock.Type],IOM_LOCK
+		mov	word [ebx+tIOMlock.CombineLen],tIOMlock_size
+		mov	[ebx+tIOMlock.Subtype],eax
+		lea	edi,[%$iov]
+		mSetIOV	edi, 0, ebx, tIOMlock_size
+		mSetIOV	edi, 2, ebx, tIOMlock_size
+		mov	esi,[%$arg]
+		mSetIOV	edi, 1, esi, tFlock_size
+		mSetIOV	edi, 3, esi, tFlock_size
+		lea	esi,[%$iov+2*tIOV_size]
+		Ccall	_MsgSendv, edx, edi, 2, esi, ecx
 
 .Exit:		epilogue
 		ret
@@ -249,31 +330,33 @@ proc _fcntl
 endp		;---------------------------------------------------------------
 
 
-		; pid_t getpid(void);
-proc _getpid
-		tlsptr(eax)
-		mov	eax,[eax+tTLS.PID]
+		; mode_t Umask(pid_t pid, mode_t cmask);
+proc Umask
+		arg	pid, cmask
+		locauto	msg, tMsg_ProcUmask_size
+		prologue
+		savereg	edx
+
+		lea	edx,[%$msg]
+		mov	dword [edx],PROC_UMASK + (PROC_UMASK_SET << 16)
+		Mov32	edx+tProcUmaskRequest.Umask,%$cmask
+		Mov32	edx+tProcUmaskRequest.PID,%$pid
+		Ccall	_MsgSendnc, PROCMGR_COID, edx, tProcUmaskRequest_size, \
+			edx, tProcUmaskReply_size
+		cmp	eax,-1
+		je	.Exit
+		mov	eax,[%$msg+tProcUmaskReply.Umask]
+
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
 
-		; pid_t getppid(void);
-proc _getppid
-		locauto	msg, tMsg_ProcGetSetID_size
+		; mode_t umask(mode_t cmask);
+proc _umask
+		arg	cmask
 		prologue
-		savereg	ebx,edx
-
-		lea	ebx,[%$msg]
-		mov	word [ebx+tProcGetSetIDrequest.Type],PROC_GETSETID
-		mov	word [ebx+tProcGetSetIDrequest.Subtype],PROC_ID_GETID
-		xor	eax,eax
-		mov	[ebx+tProcGetSetIDrequest.PID],eax
-		Ccall	_MsgSendnc, dword PROCMGR_COID, ebx, \
-			byte tProcGetSetIDrequest_size, ebx, \
-			byte tProcGetSetIDreply_size
-		cmp	eax,-1
-		je	.Exit
-		mov	eax,[ebx+tProcGetSetIDreply.Ppid]
-.Exit:		epilogue
+		Ccall	Umask, byte 0, dword [%$cmask]
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

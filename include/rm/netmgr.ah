@@ -7,6 +7,7 @@
 
 ND_LOCAL_NODE	 EQU	0
 ND_NODE_BITS	 EQU	16
+ND_NODE_MASK	 EQU	(1<<ND_NODE_BITS)-1
 
 ND2S_DIR_SHOW	 EQU	1	; Returned value will be a usable path (ending in slash)
 ND2S_DIR_HIDE	 EQU	2	; Never show the directory (default)
@@ -17,6 +18,6 @@ ND2S_NAME_HIDE	 EQU	20h	; Never show the node name
 ND2S_DOMAIN_SHOW EQU	40h	; Always show the domain even if it is the default domain
 ND2S_DOMAIN_HIDE EQU	80h	; Never show the domain
 ND2S_LOCAL_STR	 EQU	1000h	; Used to return smaller string for displaying localy
-ND2S_SEP_FORCE	 EQU	2000h	; Always return a seperator even if it is the first thing returned
+ND2S_SEP_FORCE	 EQU	2000h	; Always return a separator even if it is the first thing returned
 
 %endif

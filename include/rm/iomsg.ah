@@ -385,7 +385,7 @@ endstruc
 
 ; --- Message of IOM_SPACE ---
 struc tIOMspace
-.type		RESW	1
+.Type		RESW	1
 .CombineLen	RESW	1
 .Subtype	RESW	1	; F_ALLOCSP or F_FREESP 
 .Whence		RESW	1

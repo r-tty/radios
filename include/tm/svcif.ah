@@ -5,7 +5,7 @@
 %ifndef _svcif_ah
 %define _svcif_ah
 
-%define SVCIFTRAP	39h
+%define SVCIFTRAP	29h
 
 R0_PoolInit		EQU	0
 R0_PoolAllocChunk	EQU	1

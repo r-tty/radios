@@ -36,7 +36,7 @@ endstruc
 RUSAGE_SELF	EQU	0		; Current process
 RUSAGE_CHILDREN	EQU	-1		; Children of current process
 
-struc tRusage
+struc tResUsage
 .Utime		RESB	tTimeVal_size	; User time used
 .Stime		RESB	tTimeVal_size	; System time used
 .MaxRSS		RESD	1		; Max resident set size

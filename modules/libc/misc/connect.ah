@@ -5,9 +5,7 @@
 %ifndef _connect_ah
 %define _connect_ah
 
-; Some constants that should be in limits.ah
-SYMLOOP_MAX		EQU	32
-PATH_MAX		EQU	1024
+%include "tm/taskman.ah"
 
 ; Flags used in the connect_ctrl structure
 FLAG_NOCTTY		EQU	1

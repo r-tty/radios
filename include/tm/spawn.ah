@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; spawn.ah - definitions for spawn.
+; spawn.ah - definitions for spawn*() functions.
 ;-------------------------------------------------------------------------------
 
 %ifndef _spawn_ah
@@ -17,9 +17,10 @@ struc tSpawnInheritance
 .Policy		RESD	1		; SPAWN_EXPLICIT_SCHED must be set in flags
 .ND	   	RESD	1		; SPAWN_SETND must be set in flags
 .Reserved	RESD	1
-.Param		RESB	tSchedParam_size	; SPAWN_EXPLICIT_SCHED must be set in flags
+.Param		RESB	tSchedParam_size ; SPAWN_EXPLICIT_SCHED must be set in flags
 endstruc
 
+; Flags
 SPAWN_SETGROUP		EQU	1	; set process group
 SPAWN_SETSIGMASK	EQU	2	; set mask to sigmask
 SPAWN_SETSIGDEF		EQU	4	; set members of sigdefault to SIG_DFL
@@ -42,5 +43,11 @@ SPAWN_ALIGN_NOFAULT	EQU	2000000h ; Don't fault on misalignment, and attempt to f
 
 SPAWN_FDCLOSED		EQU	-1
 SPAWN_NEWPGROUP		EQU	0
+
+; Spawn modes
+P_WAIT			EQU	0
+P_NOWAIT		EQU	1
+P_OVERLAY		EQU	2
+P_NOWAITO		EQU	3
 
 %endif

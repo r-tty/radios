@@ -1,8 +1,8 @@
 ;-------------------------------------------------------------------------------
-; service.nasm - support routines (non-POSIX).
+; services.nasm - support routines (non-POSIX).
 ;-------------------------------------------------------------------------------
 
-module libc.service
+module libc.services
 
 exportproc _netmgr_remote_nd
 

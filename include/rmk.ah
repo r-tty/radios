@@ -102,8 +102,8 @@ endstruc
 ;		%3 - value of .Base,
 ;		%4 - value of .Len.
 %macro mSetIOV 4
-	mov	[%1+%2*tIOV_size+tIOV.Base],%3
-	mov	[%1+%2*tIOV_size+tIOV.Len],%4
+	mov	dword [%1+%2*tIOV_size+tIOV.Base],%3
+	mov	dword [%1+%2*tIOV_size+tIOV.Len],%4
 %endmacro
 
 ; Flags for MsgReadiov

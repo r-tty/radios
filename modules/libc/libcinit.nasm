@@ -10,12 +10,8 @@ module $libc
 exportdata ModuleInfo
 
 extern libc_init_syscall
-extern libc_init_signal
 extern libc_init_stdlib
 extern libc_init_string
-extern libc_init_termios
-extern libc_init_posix1j
-extern libc_init_xopen
 
 %define SHLIB_BASE 50000000h
 
@@ -36,11 +32,7 @@ section .text
 
 proc libc_initialize
 		call	libc_init_syscall
-		call	libc_init_signal
 		call	libc_init_stdlib
 		call	libc_init_string
-		call	libc_init_termios
-		call	libc_init_posix1j
-		call	libc_init_xopen
 		ret
 endp		;---------------------------------------------------------------

@@ -7,14 +7,17 @@ module libc.connect
 %include "errors.ah"
 %include "locstor.ah"
 %include "rm/iomsg.ah"
+%include "rm/fcntl.ah"
 %include "connect.ah"
 
-publicproc ConnectControl, vopen
+publicproc ConnectControl, Vopen
 
 externproc _memset
 externproc _MsgSendv, _MsgSendvnc
 
+
 section .text
+
 		; int ConnectIO(struct _connect_ctrl const *ctrl, int fd,
 		;		const char *prefix, uint prefix_len,
 		;		const char *path, void *buffer,
@@ -162,10 +165,18 @@ proc ConnectControl
 endp		;---------------------------------------------------------------
 
 
-		; int vopen(const char *path, int oflag, int sflag, va_list ap);
-proc vopen
+		; int Vopen(const char *path, int oflag, int sflag, va_list ap);
+proc Vopen
 		arg	path, oflag, sflag, ap
 		prologue
+
+		test	dword [%$oflag], O_CREAT
+		jz	.1
+		GetArg	%$ap, Dword
+		and	eax,~ST_MODE_IFMT
+.1:		Ccall	ConnectEntry, 0, dword [%$path], eax, dword [%$oflag], \
+			dword [%$sflag], IOM_CONNECT_OPEN, 1, \
+			IOM_FLAG_RD | IOM_FLAG_WR, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

@@ -46,8 +46,8 @@ module libc.kernsyscall
 	push	edx
 	test	eax,eax
 	jns	%%ret
-	tlsptr(edx)
-	mov	[edx+tTLS.ErrVal],eax
+	neg	eax
+	mSetErrno eax,edx
 	xor	eax,eax
 	not	eax
 %%ret:	ret

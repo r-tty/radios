@@ -66,6 +66,14 @@ K_ISR%1:
 	mTrapLeave
 %endmacro
 
+; For APIC (dummy, not used yet)
+%macro mAISR 2
+K_ISR%1:
+	mTrapEntry %1
+	call	%2
+	mTrapLeave
+%endmacro
+
 ; *** Macro for service traps (used by some syscalls)
 ; *** Parameters: %1=trap number, %2=procedure name.
 %macro mServTrapHandler 2

@@ -5,6 +5,42 @@
 %ifndef _fcntl_ah
 %define _fcntl_ah
 
+; File lock structure
+struc tFlock
+.Type		RESW	1
+.Whence		RESW	1
+.Unused		RESD	1
+.Start		RESQ	1
+.Len		RESQ	1
+.PID		RESD	1
+.SysID		RESD	1
+endstruc
+
+; Flag values accessible to both open() and fcntl()
+; (The first three can only be set by open)
+O_RDONLY	EQU	0		; Read-only
+O_WRONLY	EQU	1		; Write-only
+O_RDWR		EQU	2		; Read-Write
+
+; Mask for file access modes
+O_ACCMODE	EQU	3
+
+; File status flags used for open() and fcntl()
+O_APPEND	EQU	8		; Append (writes guaranteed at the end)
+O_NONBLOCK	EQU	80h		; Non-blocking I/O
+O_NDELAY	EQU	O_NONBLOCK
+
+O_DSYNC		EQU     10h		; Data integrity sync
+O_RSYNC		EQU     40h		; Data integrity sync
+O_SYNC		EQU     20h		; File integrity sync
+
+; oflag values for open()
+O_CREAT		EQU	100h		; Opens with file create
+O_TRUNC		EQU	200h		; Open with truncation
+O_EXCL		EQU	400h		; Exclusive open
+O_NOCTTY	EQU	800h		; Don't assign a controlling terminal
+
+; fcntl() requests
 F_DUPFD		EQU	0		; Duplicate file descriptor
 F_GETFD		EQU	1		; Get file descriptor flags
 F_SETFD		EQU	2		; Set file descriptor flags

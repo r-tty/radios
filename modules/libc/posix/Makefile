@@ -1,6 +1,6 @@
 ################################################################################
 # Makefile - universal makefile for RadiOS.
-# Copyright (c) 2000 RET & COM Research.
+# Copyright (c) 2003 RET & COM Research.
 ################################################################################
 
 # This must be defined first
@@ -11,7 +11,7 @@ subgroup = _posix
 include ../../../Build/header.mk
 
 # Change variables here
-OBJS = 1.$(O) 1b.$(O) 1c.$(O) 1j.$(O)
+OBJS = 1.$(O) 1_proc.$(O) 1_signal.$(O) 1a.$(O) 1b.$(O) 1c.$(O) 1j.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

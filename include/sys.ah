@@ -60,7 +60,10 @@
 %define USTACKADDR	(USTACKTOP-UMAXSTACK)
 
 ; To get an interrupt number by IRQ
-%define IRQVECTOR(x)	20h + x			; IRQ0 -> INT 20h
+%define IRQVECTOR(x)	30h + x			; IRQ0 -> INT 30h
+
+; Software interrupts starts from this vector
+%define SOFTINTSTART	20h
 
 ; Structure of ID bitmap descriptor
 struc tIDbmapDesc

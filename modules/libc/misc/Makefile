@@ -1,6 +1,6 @@
 ################################################################################
 # Makefile - universal makefile for RadiOS.
-# Copyright (c) 2000 RET & COM Research.
+# Copyright (c) 2003 RET & COM Research.
 ################################################################################
 
 # This must be defined first
@@ -11,7 +11,7 @@ subgroup = _misc
 include ../../../Build/header.mk
 
 # Change variables here
-OBJS = kernsyscall.$(O) misc.$(O) connect.$(O) service.$(O)
+OBJS = kernsyscall.$(O) misc.$(O) connect.$(O) services.$(O) spawn.$(O)
 
 # This part shouldn't be changed
 include ../../../Build/common.mk

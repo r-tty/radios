@@ -41,6 +41,9 @@ Jul 11, 1999	Version d0.01-PD1.0-build4:
 
 Sep 14, 1999	Version d0.01-PD1.0-build8:
 
+Sep 27, 1999	I got my first full-time job as a Unix Systems Administrator.
+		This had a direct impact on RadiOS (positive and negative).
+
 Nov 13, 1999	Transition to NASM and RDOFF2 completed.
 ------------
 
@@ -95,7 +98,7 @@ Dec 30, 2002	Version 0.0.1-mk5: Basic message passing routines. Task
 Jan 20, 2003	Version 0.0.1-mk6: Message passing primitives - the core of
 		RadiOS microkernel - work (not for multipart messages, though).
 
-May 02, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
+May 24, 2003	Version 0.0.1-mk7: Message passing primitives can deal with
 		multipart data (IOVs). This brings some performance penalty,
 		but.. that's the price of compatibility :) . Synchronization
 		syscalls (mutexes, semaphores and condvars) are implemented.

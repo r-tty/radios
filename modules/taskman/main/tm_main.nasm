@@ -86,7 +86,7 @@ proc TM_Main
 		call	TM_RegisterBinFmt
 		jc	near .Fatal
 
-		; Initialize path managemenyt
+		; Initialize path management
 		call	TM_InitPathman
 		jc	near .Fatal
 
@@ -94,7 +94,7 @@ proc TM_Main
 		mov	esi,SysMsgHandlers
 		call	TM_SetMHfromTable
 
-		; Install process manager message handlers as well
+		; Install procmgr message handlers as well
 		mov	esi,ProcMsgHandlers
 		call	TM_SetMHfromTable
 

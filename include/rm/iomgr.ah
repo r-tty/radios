@@ -8,7 +8,6 @@
 ; Manager types
 IOMGR_FSYS		EQU	02h		; matches DCMD_FSYS
 IOMGR_TCPIP		EQU	06h		; matches DCMD_IP
-IOMGR_PHOTON		EQU	0Bh		; matches DCMD_PHOTON
 IOMGR_CAM		EQU	0Ch		; matches DCMD_CAM
 IOMGR_PCI		EQU	0Dh		; matches DCMD_PCI
 IOMGR_NETMGR		EQU	0Eh		; matches DCMD_NETMGR

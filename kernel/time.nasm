@@ -12,7 +12,7 @@ module kernel.time
 
 publicproc K_InitTime, K_TTDelay, K_LDelay, K_LDelayMs
 publicproc sys_ClockTime, sys_ClockAdjust, sys_ClockPeriod, sys_ClockId
-publicdata ?RTticks
+exportdata ?RTticks
 
 externproc PIC_EnableIRQ, CMOS_EnableInt
 externdata ?TicksCounter, ?CPUspeed

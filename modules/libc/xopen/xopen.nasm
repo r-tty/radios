@@ -4,16 +4,25 @@
 
 module libc.xopen
 
+%include "rmk.ah"
 %include "time.ah"
+%include "tm/procmsg.ah"
 
-; Exports
+; Exports and publics
 
-exportproc _usleep
-publicproc libc_init_xopen
+exportproc _usleep, _waitid
+publicdata _environ
 
 ; Imports
 
-extern _clock_nanosleep
+externproc _clock_nanosleep
+externproc _MsgSendv
+
+; Variables
+
+section .bss
+
+_environ	RESD	1
 
 ; Code
 
@@ -42,7 +51,31 @@ proc _usleep
 endp		;---------------------------------------------------------------
 
 
-		; Initialization
-proc libc_init_xopen
+		; int waitid(idtype_t idtype, id_t id, siginfo_t *infop,
+		;		int options);
+proc _waitid
+		arg	idtype, id, infop, opts
+		locauto	msg, tMsg_ProcWait_size
+		locauto	iov, 2*tIOV_size
+		prologue
+		savereg	ebx,edx
+
+		lea	ebx,[%$msg]
+		mov	word [ebx+tProcWaitRequest.Type],PROC_WAIT
+		Mov16	ebx+tProcWaitRequest.IDtype,%$idtype
+		Mov32	ebx+tProcWaitRequest.ID,%$id
+		Mov32	ebx+tProcWaitRequest.Options,%$opts
+		lea	edx,[%$iov]
+		mSetIOV	edx, 0, ebx, tProcWaitRequest_size
+		mov	eax,[%$infop]
+		mSetIOV	edx, 1, eax, tSigInfo_size
+		lea	ebx,[edx+tIOV_size]
+		or	eax,eax
+		jz	.1
+		xor	eax,eax
+		inc	eax
+.1:		Ccall	_MsgSendv, PROCMGR_COID, edx, byte 1, ebx, eax
+
+		epilogue
 		ret
 endp		;---------------------------------------------------------------

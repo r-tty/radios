@@ -72,7 +72,7 @@ S_SchedYield		EQU	5Ah
 S_SchedInfo		EQU	5Bh
 
 ; Syscall trap
-%define	SYSCALL_TRAP	38h
+%define	SYSCALL_TRAP	28h
 
 ; Macro for performing a system call.
 %macro mDoSyscall 1

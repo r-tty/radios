@@ -1,6 +1,6 @@
 ################################################################################
 # Makefile - universal makefile for RadiOS.
-# Copyright (c) 2000 RET & COM Research.
+# Copyright (c) 2003 RET & COM Research.
 ################################################################################
 
 # Standard header

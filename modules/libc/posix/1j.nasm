@@ -8,7 +8,6 @@ module libc.posix1j
 %include "thread.ah"
 
 exportproc _clock_nanosleep
-publicproc libc_init_posix1j
 
 section .text
 
@@ -24,11 +23,5 @@ proc _clock_nanosleep
 		or	edx,TIMEOUT_NANOSLEEP
 		mpop	edx,ecx
 		epilogue
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; Initialization
-proc libc_init_posix1j
 		ret
 endp		;---------------------------------------------------------------

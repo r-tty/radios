@@ -17,6 +17,9 @@ struc tTimeSpec
 .Nanoseconds	RESD	1
 endstruc
 
+; Kinda Unix98-compatible..
+CLOCKS_PER_SEC	EQU	1000000
+
 ; Clock types
 CLOCK_REALTIME	EQU	0
 CLOCK_SOFTTIME	EQU	1

@@ -72,7 +72,7 @@ endstruc
 	sub	eax,ecx
 	pop	ecx
 	cmp	eax,[edi+tSerialBuf.BufAddr]
-	jc	short %%Done
+	jc	%%Done
 	mov	eax,[edi+tSerialBuf.BufAddr]
 	mov	[edi+tSerialBuf.%1],eax
 %%Done:
@@ -132,7 +132,7 @@ proc SER_Main
 .FillTblLoop:	mov	ax,[edi]
 		mov	[ebx+tSPdevParm.BasePort],ax	; Port base address
 		or	ax,ax				; Present?
-		jz	short .Next
+		jz	.Next
 		call	SER_DetectIRQ			; Detect IRQ
 		sti
 		or	al,al
@@ -147,18 +147,18 @@ proc SER_Main
 		mov	cx,[.bufsizes]
 		call	SER_AllocBuffer			; Allocate input buffer
 		pop	ecx
-		jc	short .Exit
+		jc	.Exit
 		mov	[ebx+tSPdevParm.InpBuf],esi
 		add	esi,tSerialBuf_size
 		push	ecx
 		mov	cx,[.bufsizes+2]
 		call	SER_AllocBuffer			; Allocate output buffer
 		pop	ecx
-		jc	short .Exit
+		jc	.Exit
 		mov	[ebx+tSPdevParm.OutBuf],esi
 
 		call	SER_DetectUART			; Determine UART type
-                jc	short .Exit
+                jc	.Exit
 
 		mov	al,[edx]			; Enable interrupt
 		call	PIC_EnbIRQ
@@ -166,7 +166,7 @@ proc SER_Main
 		call	SER_Disable			; Disable port
 		mov	ecx,9600			; Set it to 9600,n,8,1
 		cmp	byte [ebx+tSPdevParm.Type],UART_16550
-		jb	short .SetMode			; If UART is 16550+
+		jb	.SetMode			; If UART is 16550+
 		mov	ecx,57600			; set it to 57600
 .SetMode:	mov	dx,UART_LCR_PARITYNONE+UART_LCR_WLEN8
 		call	SER_SetMode
@@ -174,7 +174,7 @@ proc SER_Main
 
 .Next:		inc	cl
 		cmp	cl,SER_MAXPORTS
-		je	short .FillString
+		je	.FillString
 		add	ebx,tSPdevParm_size
 		inc	edi
 		inc	edi
@@ -187,7 +187,7 @@ proc SER_Main
 
 .Err:		mov	ax,ERR_SER_BadNumOfPorts
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -197,7 +197,7 @@ endp		;---------------------------------------------------------------
 proc SER_HandleEvent
 		ror	eax,16
 		cmp	ax,EV_IRQ
-		je	short .Do
+		je	.Do
 		stc
 		ret
 .Do:		push	ebx
@@ -208,7 +208,7 @@ proc SER_HandleEvent
 		call	SER_Interrupt
 		mov	ebx,PortParameters+3*tSPdevParm_size	; Service port 4
 		call	SER_Interrupt
-		jmp	short .OK
+		jmp	.OK
 
 .IRQ4:		mov	ebx,PortParameters			; Service port 1
 		call	SER_Interrupt
@@ -229,12 +229,12 @@ endp		;---------------------------------------------------------------
 proc SER_Open
 		mpush	ebx,edx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		mov	ax,[ebx+tSPdevParm.OpenCount]
 		cmp	ax,SER_MAXOPENCOUNT
-		je	short .Err
+		je	.Err
 		or	ax,ax
-		jnz	short .Enabled
+		jnz	.Enabled
 		call	SER_Enable
 .Enabled:	inc	word [ebx+tSPdevParm.OpenCount]
 
@@ -255,14 +255,14 @@ endp		;---------------------------------------------------------------
 proc SER_Close
 		mpush	ebx,edx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		mov	ax,[ebx+tSPdevParm.OpenCount]
 		or	ax,ax
-		je	short .Err
+		je	.Err
                 dec	ax
 		mov	[ebx+tSPdevParm.OpenCount],ax
 		or	ax,ax
-		jnz	short .OK
+		jnz	.OK
 		call	SER_Disable
 
 .OK:		xor	eax,eax
@@ -282,13 +282,13 @@ endp		;---------------------------------------------------------------
 proc SER_Read
 		mpush	ebx,edx,edi
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		cmp	word [ebx+tSPdevParm.BasePort],0
-		je	short .Err1
+		je	.Err1
 
 		mov	edi,[ebx+tSPdevParm.InpBuf]	; Input buffer pointer
 		cmp	word [edi+tSerialBuf.Used],0	; Anything there?
-		je	short .Err2			; No, exit
+		je	.Err2			; No, exit
 		dec	word [edi+tSerialBuf.Used]	; Decrement count
 		push	edi				; Get char
 		mov	edi,[edi+tSerialBuf.CQout]
@@ -319,16 +319,16 @@ proc SER_Write
 		mpush	ebx,ecx,edx
 		mov	cl,al
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
-		jz	short .Err
+		jz	.Err
 
 		push	edi
 		mov	edi,[ebx+tSPdevParm.OutBuf]	; Get output buffer
 		mov	ax,[edi+tSerialBuf.Size]	; See if full
 		cmp	ax,[edi+tSerialBuf.Used]
-		jbe	short .BufOverflow		; Yes, exit
+		jbe	.BufOverflow		; Yes, exit
 		inc	word [edi+tSerialBuf.Used]	; Inc buffer count
 		push	edi				; Put char in buffer
 		mov	edi,[edi+tSerialBuf.CQin]
@@ -336,18 +336,18 @@ proc SER_Write
 		pop	edi
 		mCircleQueue CQin			; Update queue pointer
 		clc					; No errors
-		jmp	short .DidOut
+		jmp	.DidOut
 
 .BufOverflow:	stc
 .DidOut:	pushfd					; Save return status
 		add	dl,UART_LSR			; Index to LSR
 		in	al,dx				; Check THRE bit
 		test	al,UART_LSR_THRE
-		jz	short .Sending			; Not set, send in progress
+		jz	.Sending			; Not set, send in progress
 		call	SER_OutputChar			; Else do the first send
 .Sending:	popfd					; Return status
 		pop	edi
-		jnc	short .Exit
+		jnc	.Exit
 		mov	ax,ERR_SER_OutBufFull		; Error: buffer full
 		stc
 
@@ -370,10 +370,10 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc SER_GetParameters
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
-		jz	short .Err
+		jz	.Err
 		mov	al,[ebx+tSPdevParm.IRQ]
 		mov	ah,[ebx+tSPdevParm.Type]
 		mov	bx,ax
@@ -393,9 +393,9 @@ endp		;---------------------------------------------------------------
 proc SER_ClearReceiveBuffer
 		mpush	ebx,edx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		cmp	word [ebx+tSPdevParm.BasePort],0
-		je	short .Err
+		je	.Err
 
 		mov	ebx,[ebx+tSPdevParm.InpBuf]
 		mov	eax,[ebx+tSerialBuf.BufAddr]
@@ -422,9 +422,9 @@ endp		;---------------------------------------------------------------
 proc SER_ClearTransmitBuffer
 		mpush	ebx,edx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		cmp	word [ebx+tSPdevParm.BasePort],0
-		je	short .Err
+		je	.Err
 
 		mov	ebx,[ebx+tSPdevParm.OutBuf]
 		mov	eax,[ebx+tSerialBuf.BufAddr]
@@ -455,9 +455,9 @@ endp		;---------------------------------------------------------------
 proc SER_GetUARTmode
 		push	edx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		call	SER_GetMode
-		jc	short .Exit
+		jc	.Exit
 		mov	ecx,[ebx+tSPdevParm.Baud]
 		mov	bx,dx
 .Exit:		pop	edx
@@ -476,7 +476,7 @@ proc SER_SetUARTmode
 		mpush	edx,ebx
 		call	SER_Minor2PortNum
 		pop	edx
-		jc	short .Exit
+		jc	.Exit
 		call	SER_SetMode
 .Exit:		pop	edx
 		ret
@@ -493,9 +493,9 @@ endp		;---------------------------------------------------------------
 proc SER_GetRXbufStat
 		push	ebx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		cmp	word [ebx+tSPdevParm.BasePort],0
-		je	short .Err
+		je	.Err
 		mov	ebx,[ebx+tSPdevParm.InpBuf]
 		mov	dx,[ebx+tSerialBuf.Used]
 		mov	cx,[ebx+tSerialBuf.Size]
@@ -520,9 +520,9 @@ endp		;---------------------------------------------------------------
 proc SER_GetTXbufStat
 		push	ebx
 		call	SER_Minor2PortNum
-		jc	short .Exit
+		jc	.Exit
 		cmp	word [ebx+tSPdevParm.BasePort],0
-		je	short .Err
+		je	.Err
 		mov	ebx,[ebx+tSPdevParm.InpBuf]
 		mov	dx,[ebx+tSerialBuf.Size]
 		mov	cx,dx
@@ -649,13 +649,13 @@ proc SER_DetectUART
 		mov	byte [ebx+tSPdevParm.FIFOsize],1
 
 		or	ch,ch
-		jz	short .16450
+		jz	.16450
 		cmp	ch,1
-		je	short .Unknown
+		je	.Unknown
 		cmp	ch,2
-		je	short .16550
+		je	.16550
 		cmp	ch,3
-		jne	short .Unknown
+		jne	.Unknown
 
 		add	dl,UART_LCR-UART_IIR		; 16550A or 16650?
 		mov	al,cl
@@ -664,14 +664,14 @@ proc SER_DetectUART
 		add	dl,UART_FCR-UART_LCR
 		in	al,dx
 		or	al,al
-		jnz	short .16550A
+		jnz	.16550A
 		mov	byte [ebx+tSPdevParm.Type],UART_16650
 		mov	byte [ebx+tSPdevParm.FIFOsize],32
-		jmp	short .OK
+		jmp	.OK
 
 .16550A:	mov	byte [ebx+tSPdevParm.Type],UART_16550A
 		mov	byte [ebx+tSPdevParm.FIFOsize],16
-		jmp	short .OK
+		jmp	.OK
 
 .16450:		add	dl,UART_SCR-UART_IIR
 		in	al,dx
@@ -689,17 +689,17 @@ proc SER_DetectUART
 		mov	al,ah
 		out	dx,al
 		cmp	cl,0A5h
-		jne	short .8250
+		jne	.8250
 		cmp	ch,05Ah
-		jne	short .8250
+		jne	.8250
 		mov	byte [ebx+tSPdevParm.Type],UART_16450
-		jmp	short .OK
+		jmp	.OK
 
 .8250:		mov	byte [ebx+tSPdevParm.Type],UART_8250
-		jmp	short .OK
+		jmp	.OK
 
 .16550:		mov	byte [ebx+tSPdevParm.Type],UART_16550
-		jmp	short .OK
+		jmp	.OK
 
 .Unknown:
 .OK:		clc
@@ -709,7 +709,7 @@ proc SER_DetectUART
 
 .Err:		mov	ax,ERR_SER_PortNotExist
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -723,7 +723,7 @@ proc SER_AllocBuffer
 		and	ecx,0FFFFh
 		mov	dl,1
 		call	AllocPhysMem
-		jc	short .Exit
+		jc	.Exit
 		mov	[esi+tSerialBuf.Size],cx
 		mov	word [esi+tSerialBuf.Used],0
 		mov	[esi+tSerialBuf.BufAddr],ebx
@@ -741,7 +741,7 @@ proc SER_Interrupt
 		push	edx
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
-		jz	short .Exit
+		jz	.Exit
 %ifdef DEBUG_IRQ
 		mPrintChar '!'				; debugging
 %endif
@@ -749,11 +749,11 @@ proc SER_Interrupt
 .Loop:		add	dl,UART_IIR			; Index to IIR
 		in	al,dx				; Get interrupt
 		test	al,UART_IIR_NONE		; Interrupt pending?
-		jnz	short .Exit
+		jnz	.Exit
 		sub	dl,UART_IIR			; Index to buffer
 		and	al,UART_IIR_ID			; Mask out
 		cmp	al,UART_IIR_RDI			; interrupt type bits
-		jne	short .Output			; Check for RDI
+		jne	.Output			; Check for RDI
 .Input:		call	SER_InputChar			; Yes, read a char
 		jmp	.Loop
 
@@ -777,9 +777,9 @@ proc SER_InputChar
 		mov	ax,[edi+tSerialBuf.Used]	; See if full
 		cmp	ax,[edi+tSerialBuf.Size]
 		in	al,dx				; Get input char
-		jb	short .GetChar			; Not full, go put it
+		jb	.GetChar			; Not full, go put it
 		or	word [ebx+tSPdevParm.ErrFlags],SERERR_BUFOVERFLOW ; Buffer full!
-	        jmp	short .ChkPortErr		; Check other erros
+	        jmp	.ChkPortErr		; Check other erros
 
 .GetChar:	inc	word [edi+tSerialBuf.Used]	; Increase used count
 		push	edi				; Put character
@@ -803,7 +803,7 @@ proc SER_OutputChar
 		push	edi
 		mov	edi,[ebx+tSPdevParm.OutBuf]	; Get output buffer
 		cmp	word [edi+tSerialBuf.Used],0	; See if buffer empty
-		je	short .Exit
+		je	.Exit
 
 .1:		dec	word [edi+tSerialBuf.Used]	; Else decrease
 		mpush	edx,edi				; the count
@@ -852,11 +852,11 @@ proc SER_Enable
 		out	dx,al
 		mov	al,[ebx+tSPdevParm.FIFOsize]
 		cmp	al,1
-		je	short .NoFIFO
+		je	.NoFIFO
 		cmp	al,16
-		jne	short .No16
+		jne	.No16
 		mov	al,UART_FCR_TRIGGER_14
-		jmp	short .SetFIFO
+		jmp	.SetFIFO
 .No16:		shl	al,4
 .SetFIFO:	add	dl,UART_FCR-UART_MCR
 		or	al,UART_FCR_ENABLE_FIFO
@@ -880,7 +880,7 @@ proc SER_SetMode
 		mov	eax,edx
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
-		jz	short .Err
+		jz	.Err
 
                 mov	[ebx+tSPdevParm.Baud],ecx
 		mov	ebx,eax				; EBX = modes
@@ -916,7 +916,7 @@ proc SER_SetMode
 
 .Err:		mov	ax,ERR_SER_PortNotExist
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 
@@ -930,7 +930,7 @@ endp		;---------------------------------------------------------------
 proc SER_GetMode
 		mov	dx,[ebx+tSPdevParm.BasePort]
 		or	dx,dx
-		jz	short .Err
+		jz	.Err
 
 		add	dl,UART_MSR			; Point at MSR
 		in	al,dx
@@ -958,10 +958,10 @@ proc SER_Minor2PortNum
 		mov	ebx,edx
 		shr	ebx,16
 		or	bl,bl
-		jz	short .Err1
+		jz	.Err1
 		dec	bl
 		cmp	bl,SER_MAXPORTS
-		jae	short .Err2
+		jae	.Err2
 		mov	dl,bl
 		shl	ebx,SPDstrucShift
 		add	ebx,PortParameters

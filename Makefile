@@ -1,5 +1,5 @@
 #*******************************************************************************
-# Makefile for building everything.
+# Makefile for building, installing and cleaning.
 #*******************************************************************************
 
 include Build/header.mk

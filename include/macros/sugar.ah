@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-; sugar.ah - various useful macros.
+; sugar.ah - various useful macros (OS-independent).
 ;-------------------------------------------------------------------------------
 
 ;*** These are needed for mResMax and unions ***
@@ -57,6 +57,72 @@ Qword_size	EQU	8
 ;*** Declare a pointer - until we add this to NASM.. ***
 %define RESP RESD
 
+
+;*** Copy a 64-bit value in the memory ***
+; Parameters: dest,src
+%macro Mov64 2
+	mov	eax,[%2]
+	mov	[%1],eax
+	mov	eax,[%2+4]
+	mov	[%1+4],eax
+%endmacro
+
+;*** Copy a 32-bit value in the memory ***
+; Parameters: dest,src
+%macro Mov32 2
+	mov	eax,[%2]
+	mov	[%1],eax
+%endmacro
+
+;*** Copy a 16-bit value in the memory ***
+; Parameters: dest,src
+%macro Mov16 2
+	mov	ax,[%2]
+	mov	[%1],ax
+%endmacro
+
+;*** Copy a 8-bit value in the memory ***
+; Parameters: dest,src
+%macro Mov8 2
+	mov	al,[%2]
+	mov	[%1],al
+%endmacro
+
+;*** Push a MMX register to the stack ***
+%macro pushq 1-8
+%rep %0
+		sub	esp,byte 8
+		movq	[esp],%1
+%rotate 1
+%endrep
+%endmacro
+
+;*** Pop a MMX register from the stack ***
+%macro popq 1-8
+%rep %0
+		movq	%1,[esp]
+		add	esp,byte 8
+%rotate 1
+%endrep
+%endmacro
+
+;*** Push a XMM (double quadword) register to the stack ***
+%macro pushdq 1-8
+%rep %0
+		sub	esp,byte 16
+		movdqu	[esp],%1
+%rotate 1
+%endrep
+%endmacro
+
+;*** Pop a XMM register (double quadword) from the stack ***
+%macro popdq 1-8
+%rep %0
+		movdqu	%1,[esp]
+		add	esp,byte 16
+%rotate 1
+%endrep
+%endmacro
 
 
 ;*** Start a procedure ***

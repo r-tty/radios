@@ -1,0 +1,39 @@
+;-------------------------------------------------------------------------------
+; devctl.ah - definitions for devctl().
+;-------------------------------------------------------------------------------
+
+%ifndef _devctl_ah
+%define _devctl_ah
+
+DEVDIR_NONE	EQU	0
+DEVDIR_TO	EQU	80000000h
+DEVDIR_FROM	EQU	40000000h
+DEVDIR_TOFROM	EQU	(DEVDIR_TO | DEVDIR_FROM)
+DEVDIR_CMD_MASK	EQU	0FFFFh
+
+DCMD_ALL	EQU	1
+DCMD_FSYS	EQU	2
+DCMD_CHR	EQU	3
+DCMD_NET	EQU	4
+DCMD_MISC	EQU	5
+DCMD_IP		EQU	6
+DCMD_MIXER	EQU	7
+DCMD_PROC	EQU	8
+DCMD_MEM	EQU	9
+
+%define DION(class, cmd)	(((class)<<8) + (cmd) + DEVDIR_NONE)
+%define DIOF(class, cmd, size)	((size<<16) + ((class)<<8) + (cmd) + DEVDIR_FROM)
+%define DIOT(class, cmd, size)	((size<<16) + ((class)<<8) + (cmd) + DEVDIR_TO)
+%define DIOTF(class, cmd, size)	((size<<16) + ((class)<<8) + (cmd) + DEVDIR_TOFROM)
+
+DEVCTL_FLAG_NORETVAL	EQU	1
+DEVCTL_FLAG_NOTTY	EQU	2
+
+; Common commands
+DCMD_ALL_GETFLAGS	EQU	DIOF(DCMD_ALL, 1, 4)
+DCMD_ALL_SETFLAGS	EQU	DIOT(DCMD_ALL, 2, 4)
+DCMD_ALL_GETMOUNTFLAGS	EQU	DIOF(DCMD_ALL, 3, 4)
+DCMD_ALL_GETOWN		EQU	DIOF(DCMD_ALL, 4, 4)
+DCMD_ALL_SETOWN		EQU	DIOT(DCMD_ALL, 5, 4)
+
+%endif

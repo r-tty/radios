@@ -5,25 +5,20 @@
 
 module kernel.initmem
 
-;%define VERBOSE
+%undef VERBOSE
 
 %include "sys.ah"
 %include "errors.ah"
-%include "x86/paging.ah"
-%include "boot/mb_info.ah"
-%include "boot/bootdefs.ah"
+%include "cpu/paging.ah"
+%include "bootdefs.ah"
 %include "asciictl.ah"
-
-%define DRIVERAREASTART	1000000h
-%define USERAREASTART	80000000h
 
 
 ; --- Exports ---
 
-global K_InitMem:proc
-global ?BaseMemSz:data, ?ExtMemSz:data
-global ?PhysMemPages:data, ?VirtMemPages:data, ?TotalMemPages:data
-global ?DrvrAreaStart:data, ?UserAreaStart:data
+publicproc K_InitMem
+publicdata ?BaseMemSz, ?ExtMemSz
+publicdata ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
 
 ; --- Imports ---
 
@@ -53,22 +48,19 @@ section .bss
 ?VirtMemPages	RESD	1			; Virtual memory pages
 ?TotalMemPages	RESD	1			; Total pages (upper+virtual)
 
-; Driver and user area start addresses
-?DrvrAreaStart	RESD	1
-?UserAreaStart	RESD	1
-
 ; --- Code ---
 
 section .text
 
 		; K_InitMem - find out how much memory we have, and if
 		;	      there is a BIOS memory map - arrange it.
-		; Input: EAX=size of lower memory.
+		; Input: none.
 		; Output: CF=1 - error;
 		;	  CF=0 - OK.
 proc K_InitMem
+		mov	eax,[BOOTPARM(MemLower)]
 		mov	[?BaseMemSz],eax
-		mov	ecx,[UpperMemSizeKB]		; Memory map present?
+		mov	ecx,[BOOTPARM(MemUpper)]	; Memory size supplied?
 		or	ecx,ecx
 		jnz	short .MemSizOK
 		call	K_ProbeMem			; If no map - probe mem
@@ -79,14 +71,9 @@ proc K_InitMem
 		mov	[?TotalMemPages],ecx
 
 	%ifdef VERBOSE
-		; Dump enhanced memory map, if presents
-		cmp	dword [BIOSMemMapSize],0
-		jz	short .OK
 		call	K_DumpBMM
 	%endif
 	
-.OK:		mov	dword [?DrvrAreaStart],DRIVERAREASTART
-		mov	dword [?UserAreaStart],USERAREASTART
 		clc
 .Exit:		ret
 endp		;---------------------------------------------------------------
@@ -104,7 +91,7 @@ proc K_ProbeMem
 
 		xor	eax,eax			; Prepare to test
 		mov	[?PhysMemPages],eax	; extended memory
-		mov	esi,StartOfExtMem
+		mov	esi,UPPERMEMSTART
 
 .Loop2:		mov	ah,[esi]		; Get byte
 		mov	byte [esi],0AAh		; Replace it with this
@@ -145,11 +132,11 @@ endp		;---------------------------------------------------------------
 		; Output: none.
 proc K_DumpBMM
 		mpush	ebx,ecx,esi
-		mServPrintStr MsgDumpHdr
-		mov	ecx,[BIOSMemMapSize]
+		mov	ecx,[BOOTPARM(MemMapSize)]
 		or	ecx,ecx
 		jz	near .Exit
-		mov	ebx,[BIOSMemMapAddr]
+		mServPrintStr MsgDumpHdr
+		mov	ebx,[BOOTPARM(MemMapAddr)]
 .Loop:		mServPrintChar ' '
 		mov	eax,[ebx+tAddrRangeDesc.BaseAddrLow]
 		mServPrint32h

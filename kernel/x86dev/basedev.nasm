@@ -9,7 +9,7 @@ module kernel.x86.basedev
 %include "errors.ah"
 %include "biosdata.ah"
 %include "hw/ports.ah"
-%include "x86/tss.ah"
+%include "cpu/tss.ah"
 
 %include "8042.nasm"
 %include "cmosrtc.nasm"

@@ -2,8 +2,6 @@
 ;  drvhlp.nasm - driver helper functions.
 ;-------------------------------------------------------------------------------
 
-module $syscall.drvhlp
-
 exportproc dhr_Suspend
 exportproc dhr_Resume
 

@@ -3,52 +3,47 @@
 ;  Copyright (c) 2002 RET & COM Research.
 ;*******************************************************************************
 
-module rkdt
+module x-ray
 
 %include "sys.ah"
 %include "errors.ah"
 %include "pool.ah"
-%include "process.ah"
-%include "driver.ah"
-%include "drvctrl.ah"
-%include "kconio.ah"
 %include "asciictl.ah"
-%include "fs/cfs.ah"
 %include "memman.ah"
 
 global XR_ErrorHandler, XR_Main
 
 library kernel.paging
-extern PG_GetNumFreePages:near
+extern PG_GetNumFreePages
 
 library kernel.mm
-extern MM_AllocBlock:near, MM_FreeBlock:near
-extern MM_FreeMCBarea:near
-extern MM_DebugAllocMem:near, MM_DebugFreeMem:near
-extern MM_PrintStat:near, MM_DebugFreeMCBs:near
+extern MM_AllocBlock, MM_FreeBlock
+extern MM_FreeMCBarea
+extern MM_DebugAllocMem, MM_DebugFreeMem
+extern MM_PrintStat, MM_DebugFreeMCBs
 
 library kernel.mt
 extern ?ProcListPtr
-extern MT_DumpReadyThreads:near, MT_PrintSchedStat:near
+extern MT_DumpReadyThreads, MT_PrintSchedStat
 
 library kernel.strutil
-extern StrLComp:near, StrScan:near
+extern StrLComp, StrScan
 
 library kernel.time
-extern K_LDelayMs:near
+extern K_LDelayMs
 
 library kernel.kconio
-extern PrintChar:near, PrintString:near
-extern PrintDwordDec:near,
-extern PrintByteHex:near, PrintWordHex:near, PrintDwordHex:near
-extern ReadString:near
-extern DecD2Str:near
+extern PrintChar, PrintString
+extern PrintDwordDec,
+extern PrintByteHex, PrintWordHex, PrintDwordHex
+extern ReadString
+extern DecD2Str
 
 library init
-extern SysReboot:near
+extern SysReboot
 
 library hw.onboard
-extern TMR_CountCPUspeed:near
+extern TMR_CountCPUspeed
 
 
 ; --- Macros ---

@@ -1,42 +1,37 @@
 ;*******************************************************************************
 ;  kernel.nasm - RadiOS head kernel file.
-;  Copyright (c) 1999,2000 RET & COM research.
+;  Copyright (c) 1999-2002 RET & COM research.
 ;*******************************************************************************
 
 module kernel
 
 %include "sys.ah"
 %include "errors.ah"
-%include "signal.ah"
 %include "biosdata.ah"
 %include "pool.ah"
-%include "process.ah"
-%include "x86/descript.ah"
-%include "x86/tss.ah"
-%include "x86/paging.ah"
+%include "cpu/descript.ah"
+%include "cpu/tss.ah"
+%include "cpu/paging.ah"
 %include "hw/ports.ah"
 %include "hw/pic.ah"
-%include "boot/bootdefs.ah"
+%include "bootdefs.ah"
 %include "asciictl.ah"
 
 
 ; --- Exports ---
 
+publicproc K_DescriptorAddress
+publicproc K_GetDescriptorBase, K_SetDescriptorBase
+publicproc K_GetDescriptorLimit, K_SetDescriptorLimit
+publicproc K_GetDescriptorAR, K_SetDescriptorAR
+publicproc K_GetGateSelector, K_SetGateSelector
+publicproc K_GetGateOffset, K_SetGateOffset, K_SetGateCount
+publicproc K_GetExceptionVec, K_SetExceptionVec
 
+publicproc K_RemapToSystem, K_MapStackToSystem, K_UnmapStack
+publicproc MemSet, BZero
 
-global K_DescriptorAddress
-global K_GetDescriptorBase, K_SetDescriptorBase
-global K_GetDescriptorLimit, K_SetDescriptorLimit
-global K_GetDescriptorAR, K_SetDescriptorAR
-global K_GetGateSelector, K_SetGateSelector
-global K_GetGateOffset, K_SetGateOffset, K_SetGateCount
-global K_GetExceptionVec, K_SetExceptionVec
-
-global K_RemapToSystem, K_MapStackToSystem, K_UnmapStack
-global MemSet, BZero
-
-global KernTSS:data, DrvTSS:data, ?IDTaddr:data
-global ?DHlpSymAddr, ?UAPIsymAddr
+publicdata KernTSS, DrvTSS
 
 
 ; --- Imports ---
@@ -45,34 +40,15 @@ library init
 extern SysReboot
 
 
-; --- Data ---
-
-section .data
+; --- Includes ---
 
 %include "pmdata.nasm"
-
-
-; --- Variables ---
-
-section .bss
-
-?IDTaddr	RESD	1			; IDT address
-
-?ExceptionNum	RESB	1			; Last exception number
-
-
-; Memory sizes (in kilobytes)
-
-; API symbol tables addresses
-?DHlpSymAddr	RESD	1
-?UAPIsymAddr	RESD	1
+%include "ints.nasm"
 
 
 ; --- Procedures ---
 
 section .text
-
-%include "ints.nasm"
 
 		; K_DescriptorAddress - get address of descriptor.
 		; Input: DX=descriptor.
@@ -245,7 +221,7 @@ proc K_GetExceptionVec
 		push	eax
 		movzx	ebx,al
 		shl	ebx,3				; Count gate address
-		add	ebx,[?IDTaddr]
+		add	ebx,[IDTaddrLim+2]
 		call	K_GetGateOffset
 		call	K_GetGateSelector
 		mov	ebx,eax
@@ -262,7 +238,7 @@ proc K_SetExceptionVec
 		mpush	eax,ebx
 		movzx	eax,al
 		shl	eax,3				; Count gate address
-		add	eax,[?IDTaddr]
+		add	eax,[IDTaddrLim+2]
                 xchg	eax,ebx
 		call	K_SetGateOffset
 		call	K_SetGateSelector

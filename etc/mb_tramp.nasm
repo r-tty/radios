@@ -3,9 +3,9 @@
 ;-------------------------------------------------------------------------------
 
 ; Definitions
-%define RDXPOS		110000h		; Kernel image will be loader here
-%define SETUPDEST	100000h		; Target address of 'setup' block
-%define	SETUPSIZE	4096		; Size of 'setup' block
+%define RDXPOS		110000h		; Kernel image will be placed here
+%define BTL_DEST	100000h		; Target address of BTL
+%define	BTL_SIZE	12288		; Size of BTL
 
 ; RDOFF master header
 struc tRDOFFmaster
@@ -49,9 +49,9 @@ MBheader	DD	MBH_MAGIC			; Magic
 ; Execution begins here
 		mov	esi,[RDXPOS+tRDOFFmaster.ModLen]
 		add	esi,RDXPOS+10
-		mov	edi,SETUPDEST
+		mov	edi,BTL_DEST
 		mov	edx,edi
-		mov	ecx,SETUPSIZE
+		mov	ecx,BTL_SIZE / 4
 		cld
-		rep	movsb
+		rep	movsd
 		jmp	edx

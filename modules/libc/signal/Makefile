@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = signal.rdm
+OBJS = signal.$(O)
 modnamesfile = .libc_signal-modules
 
 # This part shouldn't be changed

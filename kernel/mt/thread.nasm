@@ -21,11 +21,8 @@ library kernel.pool
 extern K_PoolInit
 extern K_PoolAllocChunk, K_PoolFreeChunk
 
-library kernel.mm
-extern MM_AllocBlock
-
 library kernel.paging
-extern PG_AllocContBlock
+extern PG_AllocContBlock, ?KernPageDir
 
 
 ; --- Data ---
@@ -230,22 +227,15 @@ endp		;---------------------------------------------------------------
 
 		; MT_CreateThread - create new thread.
 		; Input: EBX=start address,
-		;	 ESI=address of process descriptor (might be 0 for
-		;	     kernel threads),
-		;	 ECX=0:
- 		;	     kernel threads: don't allocate kernel stack;
-		;	     user/drv threads: don't allocate user/drv stack.
-		;	 ECX!=0:
-		;	     kernel threads: ECX=kernel stack size;
-		;	     user/drv threads: ECX=user/drv stack size
-		;			       (kernel stack will be PAGESIZE).
+		;	 ECX=kernel stack size (if 0, default value of PAGESIZE
+		;	     will be used),
+		;	 EDX=page directory address.
 		; Output: CF=0 - OK, EBX=TCB address;
 		;	  CF=1 - error, AX=error code.
-		; Note: CR3 must be set.
 proc MT_CreateThread
 		mpush	ecx,edx,esi,edi
 
-		mov	edx,ebx					; EDX=start addr
+		mov	esi,ebx
 		mov	ebx,?ThreadPool
 		push	esi
 		call	K_PoolAllocChunk			; Allocate TCB
@@ -253,8 +243,9 @@ proc MT_CreateThread
 		pop	esi
 		jc	near .Err1
 
-		; Initialize 'Entry' field
-		mov	[edi+tTCB.Entry],edx
+		; Initialize 'Entry' and 'PageDir' fields
+		mov	[edi+tTCB.Entry],esi
+		mov	[edi+tTCB.PageDir],edx
 
 		; Initial values for typical scheduler fields.
 		mov	dword [edi+tTCB.State],THRST_READY
@@ -265,45 +256,18 @@ proc MT_CreateThread
 		mov	eax,[?SchedTick]
 		mov	dword [edi+tTCB.Stamp],eax
 
-		; Initialize 'PCB' field and check stack size
-		mov	[edi+tTCB.PCB],esi
-		mIsKernProc esi
-		cmp	esi,[?ProcListPtr]		; Kernel thread?
-		je	.KStackCheck
-		mov	dword [edi+tTCB.Stack],0
-		or	ecx,ecx				; Allocate stack?
-		jz	.SetKStack
-
-		; Setup user/driver stack (for non-kernel threads).
-		mov	dl,1				; Don't load CR3
-		mov	dh,PG_WRITEABLE+PG_USERMODE
-		call	MM_AllocBlock
-		jc	.Err1
-		call	BZero
-		add	ebx,ecx
-		and	bl,0FCh				; Align by dword
-		sub	ebx,byte 4
-		mov	[edi+tTCB.Stack],ebx
-		jmp	.SetKStack
-
-.KStackCheck:	or	ecx,ecx				; Allocate kernel stack?
-		jnz	.SetKStack2
-		mov	[edi+tTCB.KStack],esp		; Use current stack
-		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],esp
-		jmp	short .KCtxSet
-
-		; Setup kernel stack.
 		; Every thread has a kernel stack regardless if it
-		; is a kernel thread or regular user/driver mode thread.
+		; is a kernel thread or regular user mode thread.
 		;
 		; For user and driver mode threads, this stack is used when
 		; entering kernel mode (its state is pushed on it).
-		; For kernel threads, this is actual working stack
-		; NOTE: kernel stack is only one page long, there is no
-		; mechanism to grow kernel stack at the moment.
-		; Therefore kernel threads mustn't be stack hungry.
-.SetKStack:	mov	ecx,PAGESIZE
-.SetKStack2:	xor	dl,dl
+		; For kernel threads, this is actual working stack.
+		;
+		; Note: there is no mechanism of kernel stack growing.
+		or	ecx,ecx				; Allocate kernel stack?
+		jnz	.SetKStack
+		mov	ecx,PAGESIZE
+.SetKStack:	xor	dl,dl
 		call	PG_AllocContBlock		; Get kernel stack
 		jc	short .Err2
 		call	BZero
@@ -311,37 +275,33 @@ proc MT_CreateThread
 		mov	[edi+tTCB.KStack],ebx
 		mov	[edi+tTCB.Context+tJmpBuf.R_ESP],ebx
 
-		cmp	dword [edi+tTCB.PCB],0		; Kernel thread?
-		jne	.Attach				; No, attach to process
-.KCtxSet:	mov	eax,[edi+tTCB.Entry]
+		mov	eax,[edi+tTCB.PageDir]
+		cmp	eax,[?KernPageDir]		; Kernel thread?
+		jne	.User
+
+		mov	eax,[edi+tTCB.Entry]
 		mov	[edi+tTCB.Context+tJmpBuf.R_EIP],eax
 		jmp	short .EnqReady
 	
-		; This will add newly created thread to its process
-.Attach:	call	MT_ProcAttachThread
-		jc	.Done
-		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing13
+.User:		mov	dword [edi+tTCB.Context+tJmpBuf.R_EIP],K_GoRing13
 
-.EnqReady:	pushfd
-		cli
+.EnqReady:	cli
 		mov	ebx,edi
 		call	MT_ThrEnqueue
 		inc	dword [?ReadyThrCnt]
 		inc	dword [?NumThreads]
-		popfd
+		clc
 
 .Done:		mpop	edi,esi,edx,ecx
 		ret
 
 .Err1:		mov	ax,ERR_MT_NoFreeTCB
-.Err:		stc
+		stc
 		jmp	short .Done
 
-.Err2:		mov	ax,ERR_MT_CantAllocStack
-		jmp	short .Err
-
-.Err3:		mov	ax,ERR_MT_CantAllocKernStk
-		jmp	short .Err
+.Err2:		mov	ax,ERR_MT_CantAllocKernStk
+		stc
+		jmp	short .Done
 endp		;---------------------------------------------------------------
 
 
@@ -375,53 +335,46 @@ proc MT_ThreadKillCurrent
 endp		;---------------------------------------------------------------
 
 
-		; K_GoRing13 - routine used to switch to driver or user mode.
-		; Input: AL=target mode:
-		;	  AL=1 - driver mode;
-		;	  AL=3 - user mode.
+		; K_GoRing13 - routine used to switch to user mode.
+		; Input: none.
 		; Output: never returns.
 proc K_GoRing13
-%define	.rESDS		ebp-24
-%define .rEIP		ebp-20
-%define	.rECS		ebp-16
-%define	.rEFLAGS	ebp-12
-%define	.rESP		ebp-8
-%define	.rESS		ebp-4
-
-		push	ebp
-		mov	ebp,esp
-		sub	esp,byte 24
+		; This is a layout of what 'iret' pops off the stack
+		locals	rESS, rESP, rEFLAGS, rECS, rEIP, rESDS
+		prologue
 
 		; Setup ring 0 stack
 		cli
 		mov	ebx,[?CurrThread]
 		mov	eax,[ebx+tTCB.KStack]
 		mov	[KernTSS+tTSS.ESP0],eax
+		
+		; Load a process's page directory
+		mov	eax,[ebx+tTCB.PageDir]
+		mov	cr3,eax
 
-		cmp	al,1
-		je	.DriverMode
-		mov	esi,(USER_DSEG << 16) | USER_DSEG
-		mov	edi,(USER_CSEG << 16) | USER_CSEG
-		jmp	short .Prepare
-
-.DriverMode:	mov	esi,(DRV_DSEG << 16) | DRV_DSEG
-		mov	edi,(DRV_CSEG << 16) | DRV_CSEG
-
-		; This is a layout of what 'iret' pops off the stack
-.Prepare:	mov	[.rESDS],esi
+		; Prepare user registers
+		mov	eax,(USER_DSEG << 16) | USER_DSEG
+		mov	[%$rESDS],eax
+		mov	fs,ax
+		mov	gs,ax
 		mov	eax,[ebx+tTCB.Entry]
-		mov	[.rEIP],eax
-		mov	[.rECS],edi
-		mov	dword [.rEFLAGS],FLAG_IOPL | FLAG_IF
+		mov	[%$rEIP],eax
+		mov	dword [%$rECS],USER_CSEG
+		mov	dword [%$rEFLAGS],FLAG_IOPL | FLAG_IF
 		mov	eax,[ebx+tTCB.Stack]
-		mov	[.rESP],eax
-		mov	[.rESS],esi
 
-		; Go to driver/user mode
-		lea	esp,[.rESDS]
-		pop	es
-		pop	ds
+		mov	[%$rESP],eax
+		mov	dword [%$rESS],USER_DSEG
+
+		; Go to user mode
+		lea	esp,[%$rESDS]
+	o16	pop	es
+	o16	pop	ds
 		iret
+
+		; To make assembler happy
+		epilogue
 endp		;---------------------------------------------------------------
 
 
@@ -495,4 +448,3 @@ proc MT_DumpReadyThreads
 endp		;---------------------------------------------------------------
 
 %endif
-

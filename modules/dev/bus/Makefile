@@ -7,7 +7,7 @@
 include ../../../etc/header.mk
 
 # Change variables here
-OBJS = isapnp.rdm pci.rdm
+OBJS = isapnp.$(O) pci.$(O)
 modnamesfile = .bus-modules
 
 # This part shouldn't be changed

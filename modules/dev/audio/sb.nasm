@@ -5,8 +5,6 @@
 
 module hw.audio.sb
 
-%define	extcall near
-
 %include "sys.ah"
 
 ; --- Exports ---

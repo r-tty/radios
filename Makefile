@@ -8,51 +8,45 @@ include build/header.mk
 export DEBUG = 1
 
 # Subdirs
-SUBDIRS = kernel init loader
-ifdef DEBUG
-    SUBDIRS += monitor
-endif
+SUBDIRS = kernel init btl monitor
 
 # Kernel objects and libraries
-TARGET_DEP = syscall.rdm init.rdm kernel.rdl
-ifdef DEBUG
-    TARGET_DEP += monitor.rdl
-endif
+OBJS = init.$(O)
+LIBS = kernel.$(L) monitor.$(L)
+
+LDLIBS = $(addprefix -l,$(LIBS))
 
 # Kernel file name
-KERNEL_RDX = rmk386.rdx
+KERNEL_RDM = rmk586.$(M)
+
+# "Trampoline" file - will be embedded into a kernel header
+TRAMPOLINE = $(OBJPATH)/mb_tramp.bin
 
 # Dependency file
 depfile = .depend
 
-# "Response" file for linker
-response_file = .link
-
 #--- Target kernel module ------------------------------------------------------
 
-all: $(depfile) $(KERNEL_RDX)
+all: $(depfile) $(KERNEL_RDM)
 
 -include $(depfile)
 
 ifdef deps_generated
 
-$(KERNEL_RDX): subdirs $(response_file) mb_tramp.bin
-	@echo -n "Linking kernel..."
-	@$(LD) $(LDFLAGS) -o $(KERNEL_RDX) -g $(OBJPATH)/mb_tramp.bin -@ $(response_file)
-	@cat $(OBJPATH)/loader.bin >>$(KERNEL_RDX)
-	@echo "done."
+$(KERNEL_RDM): subdirs $(TRAMPOLINE)
+	@echo "Linking kernel..."
+	@$(LD) $(LDFLAGS) -xe -o $(KERNEL_RDM) -g $(TRAMPOLINE) $(OBJS) $(LDLIBS)
+	@cat $(OBJPATH)/btl.bin >>$(KERNEL_RDM)
 
-.PHONY: modules
+.PHONY: modules subdirs $(SUBDIRS)
 
 modules:
-	@$(MAKE) -C modules
-
-.PHONY: subdirs $(SUBDIRS)
+	@$(MAKE) -s -C modules
 
 subdirs: $(SUBDIRS) 
 
 $(SUBDIRS):
-	@$(MAKE) -C $@
+	@$(MAKE) -s -C $@
 
 
 endif
@@ -61,46 +55,40 @@ endif
 
 #--- Install kernel and modules -------------------------------------------------
 
-install: $(KERNEL_RDX)
+install: $(KERNEL_RDM)
 	@echo "Installing kernel..."
-	@gzip -c $(KERNEL_RDX) >$(INSTALLPATH)/radios.rdz
+	@gzip -c $(KERNEL_RDM) >$(INSTALLPATH)/$(KERNEL_RDM).gz
 
 modules_install:
-	$(MAKE) -C modules install
+	@$(MAKE) -s -C modules install
 
 
 #--- Individual dependencies ---------------------------------------------------
 
-mb_tramp.bin: etc/mb_tramp.nasm
+$(TRAMPOLINE): etc/mb_tramp.nasm
 	@echo "Assembling $<"
-	@nasm -f bin $(ASFLAGS) -o $(OBJPATH)/mb_tramp.bin etc/mb_tramp.nasm
+	@nasm -f bin $(ASFLAGS) -o $@ $<
 
 #--- Recursive depends ---------------------------------------------------------
 
 dep:
 	@echo "deps_generated = TRUE" >$(depfile)
 	@$(GENDEPS) kernel/version.nasm >>$(depfile)
-	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-dep ; done
-	@$(MAKE) -C modules all-dep
-
-
-#--- Response file -------------------------------------------------------------
-
-$(response_file): Makefile
-	@rm -f $(response_file)
-	@for m in $(TARGET_DEP) ; do echo $$m | sed 's/^.*\.rdl/-l&/' >>$(response_file) ; done
+	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir all-dep ; done
+	@$(MAKE) -s -C modules all-dep
 
 
 #--- Clean ---------------------------------------------------------------------
 .PHONY: clean distclean release
 clean:
-	@rm -f $(KERNEL_RDX)
-	@cd $(OBJPATH) && rm -f *.rdm *.rdl *.rdo *.bin
+	@rm -f $(KERNEL_RDM)
+	@cd $(OBJPATH) && rm -f *.$(O) *.$(M) *.$(X) *.$(B)
+	@rm -f $(LIBPATH)/*.$(L)
 
 distclean: clean
 	@rm -f $(response_file) $(depfile)
-	@for dir in $(SUBDIRS) ; do $(MAKE) -C $$dir all-clean ; done
-	@$(MAKE) -C modules all-clean
+	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir all-clean ; done
+	@$(MAKE) -s -C modules all-clean
 
 #--- Release -------------------------------------------------------------------
 

@@ -7,7 +7,7 @@
 ; --- Imports ---
 
 library kernel
-extern K_GetDate:extcall, K_GetTime:extcall
+extern K_GetDate, K_GetTime
 
 library kernel.fs
 extern CFS_MoveNameToStack:extcall

@@ -6,50 +6,22 @@
 include ../../build/header.mk
 
 # Variables
-staticlib = libc.rdl
+modnamesfile = .libc-modules
 SUBDIRS = misc signal stdio stdlib string termios unistd
-BLM = libc.rdo
-OBJS = libcinit.rdm
+export TARGET_LIB = libc.$(L)
+TARGET_RDM = libc.$(M)
+OBJS = libcinit.$(O)
+LIBS = $(TARGET_LIB)
+
+# Rules for subdirectories
+LINK = all
+include ../../build/subdirs.mk
+
+# For linking the module
+include ../../build/module.mk
 
 # Individual rules
+install:
+	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/modules
 
-srcfiles = $(patsubst %.rdm,%.nasm,$(OBJS))
-depfile = .depend
-
-all-make: $(SUBDIRS) $(BLM)
-
-$(BLM): $(OBJS) $(staticlib)
-	$(LD) $(LDFLAGS) -o $(LIBPATH)/$(BLM) $(OBJS) -l$(staticlib)
-
-$(srcfiles): $(depfile)
-
--include $(depfile)
-
-# Generate dependencies file
-dep:
-	@echo "Generating makefile dependencies..."
-	@echo "deps_generated = TRUE" >$(depfile)
-	@$(GENDEPS) $(srcfiles) >>$(depfile)
-
-ifdef TARGET_LIB
-all: $(TARGET_LIB)
-$(TARGET_LIB): $(BLM) $(LIB_UPDATE)
-	@if [ -f $(LIBPATH)/$(TARGET_LIB) ] ; then \
-	  echo "Updating library $(TARGET_LIB)" ; \
-	 else \
-	  echo "Creating library $(TARGET_LIB)" ; \
-	  $(AR) c $(LIBPATH)/$(TARGET_LIB) ; fi
-	@cd $(OBJPATH); $(AR) r $(LIBPATH)/$(TARGET_LIB) libc $(BLM)
-
-lib-update:
-else
 all:
-endif
-
-clean:
-	@echo "Cleaning up..."
-	@cd $(OBJPATH) && rm -f $(OBJS)
-	@cd $(LIBPATH) && rm -f $(BLM)
-
-# Common standard rules
-include ../../build/subdirs.mk

@@ -7,7 +7,7 @@
 include ../../../etc/header.mk
 
 # Change variables here
-OBJS = sb.rdm
+OBJS = sb.$(O)
 modnamesfile = .audio-modules
 
 # This part shouldn't be changed

@@ -2,12 +2,11 @@
 ;  userapi.nasm - user APIs (system calls).
 ;-------------------------------------------------------------------------------
 
-module $syscall.user
-
 exportproc sys_MsgSend
 exportproc sys_MsgSendnc
 exportproc sys_MsgError
 exportproc sys_MsgReceive
+exportproc sys_MsgReply
 exportproc sys_MsgRead
 exportproc sys_MsgWrite
 exportproc sys_MsgInfo
@@ -85,6 +84,10 @@ endp		;---------------------------------------------------------------
 
 
 proc sys_MsgReceive
+		ret
+endp		;---------------------------------------------------------------
+
+proc sys_MsgReply
 		ret
 endp		;---------------------------------------------------------------
 

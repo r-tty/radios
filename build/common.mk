@@ -1,15 +1,16 @@
 
 #--- Common part of all makefiles ----------------------------------------------
 
-ifndef staticlib
-staticlib = NONE
-endif
-
 ifndef TARGET_LIB
-TARGET_LIB = $(staticlib)
+    TARGET_LIB = NONE
 endif
 
-srcfiles = $(patsubst %.rdm,%.nasm,$(OBJS))
+ifndef SRCS
+    srcfiles = $(patsubst %.$(O),%.nasm,$(OBJS))
+else
+    srcfiles = $(SRCS)
+endif
+
 depfile = .depend
 
 
@@ -33,33 +34,34 @@ $(TARGET_LIB): $(OBJS) $(OBJPATH)/$(modnamesfile) $(LIB_UPDATE)
 	 else \
 	  echo "Creating library $(TARGET_LIB)" ; \
 	  $(AR) c $(LIBPATH)/$(TARGET_LIB) ; fi
-	@cd $(OBJPATH); awk '/^[^#]/ { printf("$(AR) r $(LIBPATH)/$(TARGET_LIB) %s %s\n", $$2, $$1) }' $(modnamesfile) | sh
+	@cd $(OBJPATH); awk '/^[^#]/ { printf("$(AR) r $(LIBPATH)/$(TARGET_LIB) \\%s \\%s\n", $$2, $$1) }' $(modnamesfile) | sh
 
 $(OBJPATH)/$(modnamesfile): $(srcfiles)
 	@echo "# Each line is just a pair of filename and module name" >$(OBJPATH)/$(modnamesfile)
-	@grep -H '^module' $(srcfiles) | sed 's/\.nasm:module/\.rdm/' >>$(OBJPATH)/$(modnamesfile)
+	@grep -H '^module' $(srcfiles) | sed 's/\.nasm:module/\.$(O)/' >>$(OBJPATH)/$(modnamesfile)
 
-endif
-else
+endif # modnamesfile
+
+else # $(TARGET_LIB) == "NONE"
+# Kluge: GNU make doesn't know anything about RDOFF libraries format :-/
 $(TARGET_LIB): $(OBJS)
-endif
+endif # $(TARGET_LIB) != "NONE"
 
-endif
+endif # deps_generated
 
 .PHONY: lib-update
-
 
 #--- Generate dependencies file ------------------------------------------------
 
 dep:
-	@echo "Generating makefile dependencies..."
+	@echo "Generating dependencies in `pwd`"
 	@echo "deps_generated = TRUE" >$(depfile)
 	@$(GENDEPS) $(srcfiles) >>$(depfile)
 
 #--- Clean ---------------------------------------------------------------------
 
 clean:
-	@echo "Cleaning up..."
-	@cd $(OBJPATH) && rm -f $(OBJS) $(modnamesfile)
+	@echo "Cleaning up in `pwd`"
+	@cd $(OBJPATH) && rm -f $(OBJS) $(modnamesfile) $(TARGET_RDM)
 	@cd $(LIBPATH) && rm -f $(TARGET_LIB)
 	@rm -f $(depfile) 

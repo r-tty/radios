@@ -7,19 +7,18 @@ module kernel.paging
 
 %include "sys.ah"
 %include "errors.ah"
-%include "x86/paging.ah"
-%include "boot/bootdefs.ah"
-%include "boot/mb_info.ah"
+%include "cpu/paging.ah"
+%include "bootdefs.ah"
 
 
 ; --- Exports ---
 
-global PG_Init, PG_StartPaging, PG_Alloc, PG_Dealloc
-global PG_AllocAreaTables, PG_NewDir,PG_AllocContBlock
-global PG_GetNumFreePages, PG_GetPTEaddr, PG_FaultHandler
-global AllocPhysMem
-global ?KernPagePool, ?KernPgPoolEnd
-global ?KernPageDir
+publicproc PG_Init, PG_StartPaging, PG_Alloc, PG_Dealloc
+publicproc PG_AllocAreaTables, PG_MapArea, PG_NewDir, PG_AllocContBlock
+publicproc PG_GetNumFreePages, PG_GetPTEaddr, PG_FaultHandler
+publicproc AllocPhysMem
+publicdata ?KernPagePool, ?KernPgPoolEnd
+publicdata ?KernPageDir
 
 
 ; --- Imports ---
@@ -28,15 +27,9 @@ library kernel
 extern ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
 
 
-; Macro to test alignment on page boundary
-%macro mAlignOnPage 1
-	test	%1,PAGESIZE-1
-	jz	short %%1
-	add	%1,PAGESIZE-1
-	and	%1,~ADDR_OFSMASK
-%%1:
-%endmacro
-
+; --- Constants ---
+HMASTART	EQU	UPPERMEMSTART
+HMASIZE		EQU	10000h
 
 ; --- Variables ---
 
@@ -45,7 +38,7 @@ extern ?PhysMemPages, ?VirtMemPages, ?TotalMemPages
 ?KernPagePool	RESD	1			; Start of kernel pages pool
 ?KernPgPoolEnd	RESD	1			; End of kernel pages pool
 ?NumPgsKernPool	RESD	1			; Number of pages in kernel pool
-?KernPageDir	RESD	1			; Start address of page tables
+?KernPageDir	RESD	1			; Kernel page directory address
 ?PTsPerProc	RESD	1			; Page tables per process
 
 ; --- Code ---
@@ -96,7 +89,7 @@ proc PG_Init
 		
 		; Mark all pages above kernel pool up to start of extended
 		; memory as used.
-		mov	ecx,StartOfExtMem / PAGESIZE
+		mov	ecx,UPPERMEMSTART / PAGESIZE
 		sub	ecx,eax
 .ReservedMem:	btr	[ebx],eax
 		inc	eax
@@ -128,35 +121,41 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc PG_StartPaging
-%define	.AllPages	ebp-4
+		locals	AllPages, LastBMDoffset
+		prologue
 
-		prologue 4
+		; Calculate the offset of last BMD
+		mov	eax,[BOOTPARM(NumModules)]
+		dec	eax
+		mov	ecx,tBMD_size
+		mul	ecx
+		mov	[%$LastBMDoffset],eax
 
 		; First, mark all physical pages except those which belong
 		; to boot modules and reserved area (HMA) as free.
 		mov	edi,[?PgBitmapAddr]
-		mov	ecx,StartOfExtMem / PAGESIZE
+		mov	ecx,HMASTART / PAGESIZE
 		mov	eax,[?TotalMemPages]
 		add	eax,ecx
-		mov	[.AllPages],eax
-		add	ecx,65536 / PAGESIZE		; # of pages in HMA
+		mov	[%$AllPages],eax
+		add	ecx,HMASIZE / PAGESIZE		; # of pages in HMA
 
-.FreeLoop:	cmp	ecx,[.AllPages]
+.FreeLoop:	cmp	ecx,[%$AllPages]
 		je	short .BuildTables
-		cmp	dword [BootModulesCount],0
+		cmp	dword [BOOTPARM(NumModules)],0
 		je	short .MarkFree
 		mov	esi,ecx
 		shl	esi,PAGESHIFT			; ESI=current address
-		mov	edx,[BootModulesListAddr]	; Is it within
-		cmp	esi,[edx+tModList.Start]	; modules area?
+		mov	edx,[BOOTPARM(BMDmodules)]	; Is it within
+		cmp	esi,[edx+tBMD.CodeStart]	; modules area?
 		jb	short .MarkFree
-		mov	eax,[BootModulesCount]
-		dec	eax
-		shl	eax,MODLIST_SHIFT
-		cmp	esi,[edx+eax+tModList.End]
+		add	edx,[%$LastBMDoffset]		; EDX=BMD of last module
+		mov	eax,[edx+tBMD.CodeStart]
+		add	eax,[edx+tBMD.Size]
+		cmp	esi,eax
 		ja	short .MarkFree
-		inc	ecx				; Yes, don't mark it
-		jmp	.FreeLoop			; as free
+		inc	ecx
+		jmp	.FreeLoop
 			
 .MarkFree:	bts	[edi],ecx
 		inc	ecx
@@ -197,7 +196,7 @@ proc PG_StartPaging
 .FillPT:	mov	[ebx+4*ecx],eax
 		add	eax,PAGESIZE
 		mov	edi,[?PhysMemPages]
-		add	edi,StartOfExtMem / PAGESIZE	; Add number of pages
+		add	edi,UPPERMEMSTART / PAGESIZE	; Add number of pages
 		cmp	ecx,edi				; in first megabyte
 		jae	short .Virtual
 		or	byte [ebx+4*ecx],PG_PRESENT	; Mark as present
@@ -223,14 +222,14 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EBX=block address;
 		;	  CF=1 - error, AX=error code.
 proc PG_AllocContBlock
-%define	.blockpages	ebp-4
-
-		prologue 4
+		locals	blockpages
+		prologue
 		mpush	ecx,edx,esi,edi
+
 		mAlignOnPage ecx
 		jecxz	.Err1
 		shr	ecx,PAGESHIFT
-		mov	[.blockpages],ecx
+		mov	[%$blockpages],ecx
 		mov	esi,[?PgBitmapAddr]
 		sub	esi,byte 4			; We add 4 later
 		or	dl,dl				; Kernel area?
@@ -239,7 +238,7 @@ proc PG_AllocContBlock
 		shr	ecx,byte 5			; 32 bits in dword
 		jmp	short .FindFirst
 
-.ExtMemory:	add	esi,StartOfExtMem / PAGESIZE / 8
+.ExtMemory:	add	esi,UPPERMEMSTART / PAGESIZE / 8
 		mov	ecx,[?TotalMemPages]
 		shr	ecx,byte 5
 
@@ -250,7 +249,7 @@ proc PG_AllocContBlock
 
 		; We found free page, now check whether the rest of
 		; pages which immediately follow are free
-		mov	edx,[.blockpages]
+		mov	edx,[%$blockpages]
 		mov	edi,eax
 .FindRest:	dec	edx
 		jz	short .GotOK
@@ -261,7 +260,7 @@ proc PG_AllocContBlock
 
 		; Got enough pages, mark them as used
 .GotOK: 	mov	eax,edi
-		mov	edx,[.blockpages]
+		mov	edx,[%$blockpages]
 .MarkUsed:	btr	[esi],eax
 		inc	eax
 		dec	edx
@@ -306,7 +305,7 @@ proc PG_Alloc
 		shr	ecx,byte 5			; 32 bits in dword
 		jmp	short .Loop
 		
-.UserPages:	add	esi,StartOfExtMem/PAGESIZE/8
+.UserPages:	add	esi,UPPERMEMSTART / PAGESIZE / 8
 		mov	ecx,[?TotalMemPages]
 		shr	ecx,byte 5
 
@@ -438,19 +437,18 @@ endp		;---------------------------------------------------------------
 
 
 		; PG_AllocAreaTables - allocate tables for mapping specific area
-		;		       (user, drivers, etc.)
+		;		       (user, shlib, drivers, etc.)
 		; Input: EBX=area start address,
 		;	 EDX=directory address.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 		; Note: this routine allocates [?PTsPerProc] page tables
-		;	for mapping a specific region and initializes PTEs
-		;	to provide physical mapping.
+		;	for mapping a specific region and initializes PTEs.
 proc PG_AllocAreaTables
 		mpush	ebx,ecx,edx,esi,edi
 		mov	esi,ebx
 		mov	edi,edx
-		shr	ebx,22					; EBX=PDE#
+		shr	ebx,PAGEDIRSHIFT			; EBX=PDE#
 		mov	ecx,[?PTsPerProc]
 		mov	dl,1
 .Loop:		call	PG_Alloc
@@ -477,6 +475,82 @@ proc PG_AllocAreaTables
 endp		;---------------------------------------------------------------
 
 
+		; PG_MapArea - map arbitrary area of physical memory.
+		; Input: EAX=page attributes,
+		;	 ECX=area size,
+		;	 EDX=page directory address,
+		;	 ESI=physical address of mapped area,
+		;	 EDI=virtual address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc PG_MapArea
+		locals	pageattr,numpages,pte
+		prologue
+
+		mpush	ebx,ecx,edx,esi,edi
+		or	ecx,ecx
+		jz	near .Exit
+		mov	[%$pageattr],eax
+		mAlignOnPage ecx
+		shr	ecx,PAGESHIFT
+		mov	[%$numpages],ecx
+		shr	ecx,PAGEDIRSHIFT-PAGESHIFT	; Number of page dirs
+
+		and	esi,PGENTRY_ADDRMASK
+		mov	ebx,edx
+		mov	eax,edi
+		and	eax,ADDR_PTEMASK
+		shr	eax,PAGESHIFT			; EBX=PTE#
+		mov	[%$pte],eax
+		shr	edi,PAGEDIRSHIFT		; EBX=PDE#
+		
+.PDloop:	mov	eax,[ebx+edi*4]
+		test	eax,PG_PRESENT
+		jnz	.InitPT
+		mov	dl,1
+		call	PG_Alloc
+		jc	short .Exit
+		or	eax,[%$pageattr]
+		mov	[ebx+edi*4],eax
+		
+		; Do actual mapping and initialize page attributes
+.InitPT:	push	edi
+		mov	edi,eax
+		and	edi,PGENTRY_ADDRMASK
+		or	esi,[%$pageattr]
+		mov	eax,[%$pte]
+.PTloop:	mov	dword [edi+eax*4],esi
+		dec	dword [%$numpages]
+		jz	.InitPTdone
+		add	esi,PAGESIZE
+		inc	eax
+		cmp	eax,PG_ITEMSPERTABLE
+		jne	.PTloop
+		xor	eax,eax				; Next dir - PTE #0
+.InitPTdone:	mov	[%$pte],eax
+		pop	edi
+
+		inc	edi
+		jecxz	.OK
+		loop	.PDloop
+.OK:		clc
+.Exit:		mpop	edi,esi,edx,ecx,ebx
+		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; PG_UnmapArea - unmap memory area.
+		; Input: EDI=virtual address,
+		;	 ECX=area size,
+		;	 EDX=page directory address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error, AX=error code.
+proc PG_UnmapArea
+		ret
+endp		;---------------------------------------------------------------
+
+
 		; PG_GetPTEaddr - get physical address of PTE.
 		; Input: EBX=linear address,
 		;	 EDX=directory address.
@@ -485,7 +559,7 @@ endp		;---------------------------------------------------------------
 proc PG_GetPTEaddr
 		mpush	ebx,edx
 		mov	eax,ebx
-		shr	eax,22				; EAX=PDE number
+		shr	eax,PAGEDIRSHIFT		; EAX=PDE number
 		mov	edx,[edx+eax*4]			; EDX=page table addr.
 		cmp	edx,PG_DISABLE			; Page table present?
 		je	short .Err			; No, bad address

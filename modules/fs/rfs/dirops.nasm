@@ -5,7 +5,7 @@
 ; --- Exports ---
 
 library kernel.misc
-extern StrLComp:extcall
+extern StrLComp
 
 
 section .data

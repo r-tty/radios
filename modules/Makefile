@@ -6,33 +6,18 @@
 # Standard header
 include ../build/header.mk
 
-# File that contains command line arguments for boot modules
-ARGSFILE = args.default
-
 # Change variables here
-staticlib = startup.rdl
-SUBDIRS = libc taskman binfmt
+SUBDIRS = libc taskman
 
-# Common rules
+# Build in subdirs
 include ../build/subdirs.mk
 
-# Individual rules
-all: $(staticlib)
-
-$(staticlib): $(ARGSFILE)
-	@rm -f $(LIBPATH)/$(staticlib)
-	@echo "Creating boot-time modules library..."
-	$(AR) c $(LIBPATH)/$(staticlib)
-#	$(AR) a $(LIBPATH)/$(staticlib) $(ARGSFILE) .args
-
-clean:
-	@echo "Cleaning up..."
-	@cd $(LIBPATH) && rm -f $(staticlib)
-
-dep:
-
 # Install modules
-install: $(staticlib)
-	@echo -n "Installing modules... "
-	@gzip -c $(LIBPATH)/$(staticlib) >$(INSTALLPATH)/$(staticlib).gz
-	@echo "done."
+install: all-make
+	@echo "Installing modules... "
+	@for dir in $(SUBDIRS) ; do $(MAKE) -s -C $$dir install ; done
+
+# Just stubs
+all:
+dep:
+clean:

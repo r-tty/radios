@@ -262,8 +262,9 @@ struc tRMIntsTbl
 .IntFF		RESD	1
 endstruc
 
-; Start address of BIOS data area
+; Start and size of BIOS data area
 %define	BDASTART	400h
+%define	BDASIZE		1000h		; Size of BIOS data area
 
 ; --- Structure of BIOS data area ---
 struc tBIOSDA

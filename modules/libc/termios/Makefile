@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = termios.rdm
+OBJS = termios.$(O)
 modnamesfile = .libc_termios-modules
 
 # This part shouldn't be changed

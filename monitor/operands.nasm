@@ -6,7 +6,7 @@
 module monitor.operands
 
 %include "sys.ah"
-
+%include "monitor.ah"
 %include "opcodes.ah"
 %include "operands.ah"
 

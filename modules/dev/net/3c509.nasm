@@ -8,8 +8,6 @@ module hw.net.3c509
 %include "sys.ah"
 %include "driver.ah"
 
-%define extcall far
-
 global Drv3c509
 
 

@@ -5,59 +5,57 @@
 %ifndef _sys_ah
 %define _sys_ah
 
-%include "x86/cpu.ah"
+%include "cpu/cpu.ah"
+%include "cpu/descript.ah"
+%include "macros/inlines.ah"
 
-; --- Global descriptors ---
+; Global descriptors
 %define	KERNELCODE	8
-%define	KERNELDATA	0x10
-%define	USERCODE	0x18
-%define	USERDATA	0x20
-%define	DRVCODE		0x28
-%define	DRVDATA		0x30
-%define	ABSDS		0x38
-%define	HMADATA		0x40
-%define	KTSS		0x48
-%define	DTSS		0x50
-%define	KLDT		0x58
-%define	DLDT		0x60
-%define	ULDT		0x68
+%define	KERNELDATA	10h
+%define	USERCODE	18h
+%define	USERDATA	20h
+%define	DRVCODE		28h
+%define	DRVDATA		30h
+%define	ABSDS		38h
+%define	HMADATA		40h
+%define	KTSS		48h
+%define	DTSS		50h
+%define	KLDT		58h
+%define	DLDT		60h
+%define	ULDT		68h
 
-%define	DRV_CSEG	DRVCODE | 1
-%define	DRV_DSEG	DRVDATA | 1
-%define	USER_CSEG	USERCODE | 3
-%define	USER_DSEG	USERDATA | 3
+; Selectors
+%define	DRV_CSEG	(DRVCODE | SELECTOR_RPL1)
+%define	DRV_DSEG	(DRVDATA | SELECTOR_RPL1)
+%define	USER_CSEG	(USERCODE | SELECTOR_RPL3)
+%define	USER_DSEG	(USERDATA | SELECTOR_RPL3)
 
+; Size of GDT and IDT (in bytes)
 %define GDT_size	0x70
-%define	IDT_size	0x180
+%define	IDT_size	0x800
 
-; --- Common system definitions ---
-%define	NULL		0
-%define	FALSE		0
-%define	TRUE		1
-
+; Components of the address
 %define	ADDR_PDEMASK	0FFC00000h
 %define	ADDR_PTEMASK	3FF000h
 %define	ADDR_OFSMASK	0FFFh
 
-%define	StartOfExtMem	100000h			; Start address of ext. mem.
+; Upper memory (and HMA) starts here
+%define UPPERMEMSTART	100000h
 
+; From the kernel's linear perspective, the user resides in quandrants 2 and 3
+%define USERAREASTART	80000000h
 
-; --- Event classes ---
-%define	EV_NULL		0			; Empty event
-%define	EV_IRQ		1			; Hardware interrupt
-%define	EV_SIGNAL	2			; Signal
+; Shared libraries are mapped starting from this (from user's perspective)
+%define SHLIBAREASTART	40000000h
 
+; For user, address space is 2G, and his stack resides on the top of it
+%define USTACKTOP	80000000h
 
-; --- Hardware interrupts vectors ---
-%define	IRQ0int		20h
-%define	IRQ2int		22h
-%define	IRQ8int		28h
-%define	IRQ13int	2Ch
+; Base address at which stack starts. ESP will start at the top of this,
+; and grow downwards.
+%define USTACKADDR	(USTACKTOP-UMAXSTACK)
 
-
-; --- System timer definitions ---
-%define	HZ		100		; Timer ticks per second
-%define	TIMER_InpFreq	1193180		; Timer input frequency (Hz)
-%define	TIMER_OutFreq	HZ		; Channel 0 output freq (Hz)
+; To get an interrupt number by IRQ
+%define IRQVECTOR(x)	20h + x			; IRQ0 -> INT 20h
 
 %endif

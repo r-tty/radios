@@ -1,0 +1,41 @@
+;-------------------------------------------------------------------------------
+;  process.ah - process definitions.
+;-------------------------------------------------------------------------------
+
+; Process descriptor structure
+struc tProcDesc
+.PID		RESD	1			; PID
+.Parent		RESD	1			; Parent PCB
+.PageDir	RESD	1			; Page directory address
+.FirstMCB	RESD	1			; First MCB address
+.LastMCB	RESD	1			; Last MCB address
+.EventHandler	RESD	1			; Event handler address
+.Module		RESD	1			; Module descriptor
+.ThreadList	RESD	1			; Thread list head
+.Next		RESD	1			; Next PCB in list
+.Prev		RESD	1			; Previous PCB in list
+.Flags		RESD	1			; Misc flags
+
+.Files		RESD	1			; File table
+
+.Reserved	RESD	20			; Complement to 128 bytes
+endstruc
+
+%define	PROCDESCSHIFT	7			; log2(tProcDesc_size)
+
+; Process descriptor flags
+%define	PDFL_USER	1			; Set = user process
+
+; Zero address of process descriptor is valid - it means kernel process
+; (with PID=0). This macro checks whether its argument (register) is 0
+; and if so - loads there address of kernel PCB
+%macro mIsKernProc 1
+%if %0==1
+	or	%1,%1
+	jnz	short %%Done
+	mov	%1,[?ProcListPtr]
+%%Done:
+%else
+%error mIsKernProc: invalid number of args
+%endif
+%endmacro

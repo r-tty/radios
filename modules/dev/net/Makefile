@@ -7,7 +7,7 @@
 include ../../../etc/header.mk
 
 # Change variables here
-OBJS = 3c509.rdm ne2k-pci.rdm
+OBJS = 3c509.$(O) ne2k-pci.$(O)
 modnamesfile = .network-modules
 
 # This part shouldn't be changed

@@ -20,11 +20,12 @@ section .text
 
 		; void memchr(const void *s, int c, size_t n);
 proc memchr
+		arg	str, char, size
 		prologue
 		push	edi
-		mov	ecx,[ebp+16]
-		mov	eax,[ebp+12]
-		mov	edi,[ebp+8]
+		mov	ecx,[%$size]
+		mov	eax,[%$char]
+		mov	edi,[%$str]
 		cld
 		repne	scasb
 		jne	.Done
@@ -42,24 +43,19 @@ endp		;---------------------------------------------------------------
 proc memcmp
 		prologue
 		mpush	esi,edi
-		mov	edi,[12+ebp]
-		mov	esi,[8+ebp]
-		mov	ecx,[16+ebp]
+		xor	eax,eax
+		mov	esi,[ebp+8]
+		mov	edi,[ebp+12]
+		mov	ecx,[ebp+16]
 		cld
 		repe	cmpsb
-		je	.Zero
+		je	.Done
 		jc	.Neg
-		xor	eax,eax
 		inc	eax
 		jmp	short .Done
-.Zero:
-		xor	eax,eax
-		jmp	.Done
-.Neg:
-		xor	eax,eax
-		not	eax
-.Done:
-		mpop	edi,esi
+
+.Neg:		not	eax
+.Done:		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -67,12 +63,13 @@ endp		;---------------------------------------------------------------
 
 		; void *memcpy(void *to, const void *from, size_t size);
 proc memcpy
+		arg	to, from, size
 		prologue
 		mpush	esi,edi
-		mov	esi,[ebp+12]
-		mov	edi,[ebp+8]
+		mov	esi,[%$from]
+		mov	edi,[%$to]
 		mov	eax,edi
-		mov	ecx,[ebp+16]
+		mov	ecx,[%$size]
 		cld
 		rep	movsb
 		mpop	edi,esi
@@ -180,28 +177,29 @@ endp		;---------------------------------------------------------------
 
 		; int strcmp(const char *s1, const char *s2);
 proc strcmp
+		arg	s1, s2
 		prologue
 		mpush	esi,edi
-		mov	edi,[8+ebp]
+		mov	edi,[%$s1]
 		mov	esi,edi
 		mov	ecx,-1
-		sub	al,al
+		xor	al,al
 		cld
 		repne	scasb
 		not	ecx
-		mov	edi,[12+ebp]
+		mov	edi,[%$s2]
 		repe	cmpsb
 		je	.Zero
 		js	.Neg
 		mov	eax,1
 		jmp	.Done
-.Zero:
-		sub	eax,eax
+		
+.Zero:		xor	eax,eax
 		jmp	.Done
-.Neg:
-		mov	eax,-1
-.Done:
-		mpop	edi,esi
+		
+.Neg:		mov	eax,-1
+
+.Done:		mpop	edi,esi
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -209,16 +207,17 @@ endp		;---------------------------------------------------------------
 
 		; char *strcpy(char *to, const char *from);
 proc strcpy
+		arg	to, from
 		prologue
 		mpush	esi,edi
-		mov	esi,[12+ebp]
+		mov	esi,[%$from]
 		mov	edi,esi
 		sub	al,al
 		mov	ecx,-1
 		cld
 		repne	scasb
 		not	ecx
-		mov	edi,[8+ebp]
+		mov	edi,[%$to]
 		mov	eax,edi
 		rep	movsb
 		mpop	edi,esi
@@ -258,10 +257,11 @@ endp		;---------------------------------------------------------------
 
 		; size_t strlen(const char *s);
 proc strlen
+		arg	str
 		prologue
 		push	edi
-		mov	edi,[ebp+8]
-		sub	al,al
+		mov	edi,[%$str]
+		xor	al,al
 		mov	ecx,-1
 		cld
 		repne	scasb

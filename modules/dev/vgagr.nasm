@@ -5,8 +5,6 @@
 
 module hw.vgagr
 
-%define extcall near
-
 %include "sys.ah"
 
 

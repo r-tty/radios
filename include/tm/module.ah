@@ -1,0 +1,44 @@
+;-------------------------------------------------------------------------------
+;  module.ah - common module definitions.
+;-------------------------------------------------------------------------------
+
+; In-kernel module descriptor
+struc tModuleDesc
+.ModName	RESB	MODNAMEMAXLEN
+.Type		RESB	1			; Module type
+.Flags		RESB	1			; Misc flags
+.BinFmt		RESD	1			; BinFmt dispatch table addr.
+.Size		RESD	1			; Size of module image
+.CodeSect	RESD	1			; Code section address
+.DataSect	RESD	1			; Data section address
+.BSS_Sect	RESD	1			; BSS section address
+.StackSize	RESD	1			; Stack size
+.EntryPoint	RESD	1			; Start entry point
+.Next		RESD	1
+.Prev		RESD	1
+.Pad		RESD	1
+endstruc
+
+%define	MODTYPE_EXECUTABLE	0
+%define MODTYPE_LIBRARY		1
+%define MODTYPE_KERNEL		2
+
+; Functions exported by binary formats
+struc tBinFmtFunctions
+.Init		RESD	1
+.Shutdown	RESD	1
+.CheckSig	RESD	1
+.GetModSize	RESD	1
+.GetModType	RESD	1
+.LoadModule	RESD	1
+.Relocate	RESD	1
+.GetArchMember	RESD	1
+endstruc
+
+; The macro for calling these functions safely
+%macro callsafe 1
+	cmp	%1,0
+	je	%%NoCall
+	call	%1
+%%NoCall:
+%endmacro

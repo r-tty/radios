@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = string.rdm
+OBJS = string.$(O)
 modnamesfile = .libc_string-modules
 
 # This part shouldn't be changed

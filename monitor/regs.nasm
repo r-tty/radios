@@ -179,7 +179,7 @@ proc ReadReg
 		cmp	al,13			; Don't prompt if input is here
 		jne	.GotInput
 		push	ecx
-		mServPrintStr RegPrompt
+		mPrintString RegPrompt
 		mov	esi,InputBuffer
 		mov	cl,8
 		call	ReadString		; Get input line
@@ -213,7 +213,7 @@ proc PutDword
 		lodsd			; Get pointer to val
 		mov	eax,[eax]	; Get val
 		push	eax
-		mServPrintStr
+		mPrintString
 		pop	eax
 		call	PrintDwordHex	; Print value
 		mPrintChar ' '
@@ -226,7 +226,7 @@ proc PutWord
 		lodsd			; Get pointer to value
 		mov	ax,[eax]	; Get value
 		push	eax
-		mServPrintStr
+		mPrintString
 		pop	eax
 		call	PrintWordHex	; Print value
 		mPrintChar ' '

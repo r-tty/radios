@@ -10,7 +10,7 @@ include ../build/header.mk
 ASFLAGS += -DVERBOSE
 
 # Change variables here
-OBJS = init.rdm
+OBJS = init.$(O)
 modnamesfile = .init-modules
 
 # This part shouldn't be changed

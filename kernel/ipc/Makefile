@@ -7,7 +7,7 @@
 include ../../build/header.mk
 
 # Change variables here
-OBJS = event.rdm msg.rdm
+OBJS = event.$(O) msg.$(O)
 modnamesfile = .ipc-modules
 
 # This part shouldn't be changed

@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = stdio.rdm
+OBJS = stdio.$(O)
 modnamesfile = .libc_stdio-modules
 
 # This part shouldn't be changed

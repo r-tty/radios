@@ -1,0 +1,158 @@
+;-------------------------------------------------------------------------------
+; bootdefs.ah - definitions of structures and services available after boot.
+;-------------------------------------------------------------------------------
+
+%define MAXBMNAMELEN	24
+
+; Boot module descriptor
+struc tBMD
+.ImgStart	RESD	1		; Used by linker (RDOFF image address)
+.Size		RESD	1		; Total size (aligned)
+.Entry		RESD	1		; Entry point
+.VirtAddr	RESD	1		; Virtual address of module
+.CodeStart	RESD	1		; Address of .code
+.CodeLen	RESD	1		; size of .code
+.DataStart	RESD	1		; Address of .data
+.DataLen	RESD	1		; size of .data
+.BSSlen		RESD	1		; size of .bss (follows data)
+.ARGPaddr	RESD	1		; Address of argp area
+.ARGPlen	RESD	1		; size of argp area
+.SymtabAddr	RESD	1		; Address of symtab
+.SymtabLen	RESD	1		; size of symtab
+.Type		RESB	1		; Module type (MODTYPE_*)
+.Name		RESB	MAXBMNAMELEN	; Module name (NULL terminated)
+.Pad		RESB	3		; Pad
+endstruc
+
+; Module types
+%define MODTYPE_EXECUTABLE	0
+%define MODTYPE_LIBRARY		1
+%define MODTYPE_KERNEL		2
+%define MODTYPE_UNKNOWN		0FFh
+
+; Boot parameters structure (created by BTL)
+struc tBootParams
+.ServiceEntry	RESD	1		; Loader services (print, etc)
+.BMDkernel	RESD	1		; Address of BMD for kernel
+.BMDmodules	RESD	1		; Address of first BMD for modules
+.NumModules	RESD	1		; Number of modules
+.MemLower	RESD	1		; Size of lower memory in KB
+.MemUpper	RESD	1		; Size of upper memory in KB
+.MemMapAddr	RESD	1		; BIOS memory map address
+.MemMapSize	RESD	1		; BIOS memory map size
+.BootDevice	RESD	1		; Boot device
+endstruc
+
+%define BOOTPARADDR	700h
+%define BOOTPARM(x) BOOTPARADDR+tBootParams. %+ x
+
+; Structure of "Address Range Descriptor" - element of BIOS memory map 
+; (returned by a function E820h of INT 15h).
+; Note that "Size" parameter is (structure size - 4).
+struc tAddrRangeDesc
+.Size		RESD	1
+.BaseAddrLow	RESD	1
+.BaseAddrHigh	RESD	1
+.LengthLow	RESD	1
+.LengthHigh	RESD	1
+.Type		RESD	1
+endstruc
+
+; This optional header may be present in the module file. It gives the
+; kernel information about module type, CPU type, required OS version etc.
+struc tModInfoTag
+.Signature	RESD	1		; Signature
+.ModVersion	RESD	1		; Module version
+.ModType	RESB	1		; Module type (MODTYPE_*)
+.Flags		RESB	1		; Flags
+.OStype		RESW	1		; Target OS type
+.OSversion	RESD	1		; Target OS version
+.Base		RESD	1		; Base address (for shared libraries)
+endstruc
+
+%define RBM_SIGNATURE	004D4252h
+
+; --- Routines accessible through BTL service entry ---
+
+; Function numbers
+%define	SERVPROC_PRINTCHARRAW	0
+%define	SERVPROC_PRINTCHAR	1
+%define	SERVPROC_PRINTSTR	2
+%define	SERVPROC_PRINTSTRPAD	3
+%define	SERVPROC_PRINT32H	4
+%define	SERVPROC_PRINT16H	5
+%define	SERVPROC_PRINT8H	6
+%define	SERVPROC_PRINTDEC	7
+%define	SERVPROC_READKEY	8
+
+%macro mBTLservice 1
+	pushimm	%1
+	call	dword [BOOTPARM(ServiceEntry)]
+%endmacro
+
+%macro mServPrintCharRaw 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mBTLservice SERVPROC_PRINTCHARRAW
+%endmacro
+
+%macro mServPrintChar 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mBTLservice SERVPROC_PRINTCHAR
+%endmacro
+
+%macro mServPrintStr 0-1
+%if %0 == 1
+	mov	esi,%1
+%endif
+	mBTLservice SERVPROC_PRINTSTR
+%endmacro
+
+%macro mServPrintStrPad 0-2
+	push	ecx
+%if %0>=1
+	mov	esi,%1
+%ifnum %2
+	mov	cl,%2
+%else
+	xor	cl,cl
+%endif
+%endif
+	mBTLservice SERVPROC_PRINTSTRPAD
+	pop	ecx
+%endmacro
+
+%macro mServPrint8h 0-1
+%if %0==1
+	mov	al,%1
+%endif
+	mBTLservice SERVPROC_PRINT8H
+%endmacro
+
+%macro mServPrint16h 0-1
+%if %0==1
+	mov	ax,%1
+%endif
+	mBTLservice SERVPROC_PRINT8H
+%endmacro
+
+%macro mServPrint32h 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	mBTLservice SERVPROC_PRINT32H
+%endmacro
+
+%macro mServPrintDec 0-1
+%if %0==1
+	mov	eax,%1
+%endif
+	mBTLservice SERVPROC_PRINTDEC
+%endmacro
+
+%macro mServReadKey 0
+	mBTLservice SERVPROC_READKEY
+%endmacro

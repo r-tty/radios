@@ -7,7 +7,7 @@
 include ../../build/header.mk
 
 # Change variables here
-OBJS = mt.rdm
+OBJS = mt.$(O)
 modnamesfile = .mt-modules
 
 # This part shouldn't be changed

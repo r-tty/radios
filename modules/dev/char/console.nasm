@@ -5,8 +5,6 @@
 
 module console
 
-%define	extcall near
-
 %include "sys.ah"
 %include "errors.ah"
 %include "driver.ah"
@@ -51,10 +49,10 @@ global DrvConsole
 ; --- Imports ---
 
 library kernel.driver
-extern DRV_CallDriver:extcall
+extern DRV_CallDriver
 
 library kernel.misc
-extern StrEnd:extcall, StrCopy:extcall
+extern StrEnd, StrCopy
 
 library kernel.onboard
 extern SPK_Beep

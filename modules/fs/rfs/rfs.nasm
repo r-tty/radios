@@ -6,8 +6,6 @@
 
 module fs.rfs
 
-%define extcall near
-
 %include "sys.ah"
 %include "errors.ah"
 %include "driver.ah"
@@ -26,14 +24,14 @@ global DrvRFS
 ; --- Imports ---
 
 library kernel.kheap
-extern KH_Alloc:extcall, KH_FillWithFF:extcall
+extern KH_Alloc, KH_FillWithFF
 
 library kernel.mm
-extern AllocPhysMem:extcall
+extern AllocPhysMem
 
 library kernel.misc
-extern StrCopy:extcall, StrEnd:extcall, StrAppend:extcall
-extern DecD2Str:extcall
+extern StrCopy, StrEnd, StrAppend
+extern DecD2Str
 
 
 
@@ -278,7 +276,7 @@ endp		;---------------------------------------------------------------
 %include "asciictl.ah"
 
 library kernel.kconio
-extern PrintChar:extcall, PrintString:extcall, PrintDwordDec:extcall
+extern PrintChar, PrintString, PrintDwordDec
 
 library kernel
 extern DrvId_RD

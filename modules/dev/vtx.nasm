@@ -6,8 +6,6 @@
 
 module hw.vtx
 
-%define extcall near
-
 %include "sys.ah"
 %include "errors.ah"
 %include "biosdata.ah"
@@ -23,7 +21,7 @@ global DrvVTX
 ; --- Imports ---
 
 library kernel.misc
-extern StrCopy:extcall, StrAppend:extcall
+extern StrCopy, StrAppend
 
 
 ; --- Definitions ---

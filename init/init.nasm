@@ -3,23 +3,25 @@
 ;  Copyright (c) 2002 RET & COM research.
 ;*******************************************************************************
 
-module $init
+module $rmk
 
 %include "sys.ah"
 %include "errors.ah"
-%include "initdefs.ah"
-%include "module.ah"
-%include "boot/bootdefs.ah"
-%include "boot/mb_info.ah"
+%include "bootdefs.ah"
 %include "asciictl.ah"
 %include "biosdata.ah"
-%include "x86/descript.ah"
-%include "x86/paging.ah"
+%include "cpu/paging.ah"
+%include "cpu/descript.ah"
+%include "hw/timer.ah"
 
 
 ; --- Exports ---
 
-global Start:export proc
+exportproc Start
+exportdata ModuleInfo
+
+
+; --- Public ---
 publicproc SysReboot
 
 
@@ -27,32 +29,26 @@ publicproc SysReboot
 
 ; Kernel variables and data
 library kernel
-extern GDTaddrLim, ?IDTaddr, TrapHandlersArr
 extern RadiOS_Version, Msg_RVersion, Msg_RCopyright
+extern GDTaddrLim
 
 ; Kernel procedures
-extern CPU_Init, FPU_Init, K_InitMem
+extern K_InitIDT, CPU_Init, FPU_Init, K_InitMem
 extern K_DescriptorAddress
 extern K_GetDescriptorBase, K_GetDescriptorLimit
 extern K_GetDescriptorAR
 extern K_SetDescriptorBase, K_SetDescriptorLimit
-
-library kernel.mm
-extern MM_Init
 
 library kernel.initmem
 extern ?BaseMemSz, ?ExtMemSz
 
 library kernel.paging
 extern PG_Init, PG_StartPaging
+extern PG_AllocContBlock
 
 library kernel.mt
-extern MT_Init, MT_InitKernelProc
+extern MT_Init
 extern MT_CreateThread, MT_ThreadExec
-
-library kernel.module
-extern MOD_InitMem, MOD_RegisterFormat, MOD_InitKernelMod, MOD_Insert
-extern ?ModListHead
 
 library kernel.x86.basedev
 extern PIC_Init, PIC_SetIRQmask, PIC_EnbIRQ
@@ -61,122 +57,43 @@ extern KBC_A20Control, KBC_HardReset
 extern CMOS_EnableInt
 extern ?CPUinfo, ?CPUspeed
 
-library kernel.rdoff
-extern BinFmtRDOFF
-
-%ifdef DEBUG
 library monitor
 extern MonitorInit
-%endif
 
 
 ; --- Data ---
 
 section .data
 
+ModuleInfo: instance tModInfoTag
+    field(Signature,	DD	RBM_SIGNATURE)
+    field(ModVersion,	DD	1)
+    field(ModType,	DB	MODTYPE_KERNEL)
+    field(Flags,	DB	0)
+    field(OStype,	DW	1)
+    field(OSversion,	DD	0)
+    field(Base,		DD	4000h)
+iend
+
 MsgFatalErr	DB	NL,"Fatal error. System will be halted.",0
 MsgDetected	DB	"Detected ",0
 MsgKBRAM	DB	" KB RAM",NL,0
 MsgX86family	DB	"86 family CPU, speed index=",0
-MsgInitBootMods	DB	"Linking system modules:",NL
-		DB	"Module                  Type    Size    .text      .data      .bss",NL,0
-MsgProgress	DB	"System startup in progress...",NL,0
+
 
 ; --- Variables ---
 
 section .bss
 
 IdleTCB		RESD	1				; Idle thread TCB
-IDTaddrLim	RESB	6
-InitStringBuf	RESB	256
 
 
 ; --- Code ---
 
 section .text
 
-%include "buildxdt.nasm"
-
-%ifdef VERBOSE
-%include "verbose.nasm"
-%endif
-
-
-; --- Initialization procedures ---
-
-		; INIT_BinaryFormats - initialize all binary formats
+		; Start - kernel initialization entry point.
 		; Input: none.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc INIT_BinaryFormats
-		mov	edx,BinFmtRDOFF
-		call	MOD_RegisterFormat
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_BootModules - initialize boot-time modules.
-		; Input: none:
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-proc INIT_BootModules
-		mov	ecx,[BootModulesCount]
-		jecxz	.Exit
-	%ifdef VERBOSE
-		mServPrintStr MsgInitBootMods
-	%endif
-		mov	edi,[BootModulesListAddr]
-		xor	esi,esi
-.LoadLoop:	mov	ebx,[edi+tModList.Start]
-		mov	edx,[edi+tModList.End]
-		mov	esi,[edi+tModList.CmdLine]
-		push	edi
-		call	MOD_Insert
-		pop	edi
-		add	edi,byte tModList_size
-		loop	.LoadLoop
-		
-		; Now we have a module list. Walk through it and create
-		; processes/shared libraries.
-		mov	edi,[?ModListHead]
-.ModInitLoop:	or	edi,edi
-		jz	.Exit
-	%ifdef VERBOSE
-		call	INIT_PrintModInfo
-	%endif
-		mov	edi,[edi+tModuleDesc.Next]
-		jmp	.ModInitLoop
-.Exit:		ret
-endp		;---------------------------------------------------------------
-
-
-		; INIT_IdleThread - kernel idle thread.
-		;		    Currently does nothing, only displays its
-		;		    activity.
-		; Input: none.
-		; Output: none.
-proc INIT_IdleThread
-		mov	eax,"\-/|"
-.Infinite:	mov	[0xB8000+158],al
-		ror	eax,8
-		jmp	.Infinite
-endp		;---------------------------------------------------------------
-
-
-		; INIT_Spinup
-proc INIT_Spinup
-extern MT_ThreadSleep:near
-extern ?CurrThread
-	int3
-	mov ebx,[?CurrThread]
-	call MT_ThreadSleep
-		jmp	$
-endp		;---------------------------------------------------------------
-
-
-
-; --- Inititialization entry point ---
-
 proc Start
 		; Initialize GDTR
 		cli
@@ -190,33 +107,27 @@ proc Start
 		mov	gs,ax
 		mov	fs,ax
 		mov	ss,ax
-		mov	edx,[KernelFreeMemEnd]		; EDX=base memory top
+		mov	edx,[BOOTPARM(MemLower)]	; EDX=base memory top
+		shl	edx,10
 		lea	esp,[edx-4]
+		sub	edx,8000h			; Kernel stack size	
 
 		; Initialize global page pool
-		mov	ebx,[KernelFreeMemStart]	; EBX=begin of
-		sub	edx,Init_StackSize		; kernel free memory
-		mov	ecx,[UpperMemSizeKB]		; Upper memory size
+		mov	eax,[BOOTPARM(BMDkernel)]
+		mov	ebx,[eax+tBMD.CodeStart]
+		add	ebx,[eax+tBMD.Size]
+		mov	ecx,[BOOTPARM(MemUpper)]	; Upper memory size
 		call	PG_Init
 
-		; Build IDT
-		call	INIT_BuildIDT
-
-		; Initialize IDTR
-		mov	eax,[?IDTaddr]
-		mov	word [IDTaddrLim],IDT_size-1
-		mov	[IDTaddrLim+2],eax
-		lidt	[IDTaddrLim]
-
-		; Build and initialize LDTs
-		call	INIT_InitLDTs
+		; Build IDT and initialize IDTR
+		call	K_InitIDT
 
 		; Initialize interrupt controllers
 		xor	ah,ah
-		mov	al,IRQ0int
+		mov	al,IRQVECTOR(0)
 		call	PIC_Init
 		inc	ah
-		mov	al,IRQ8int
+		mov	al,IRQVECTOR(8)
 		call	PIC_Init
 		xor	eax,eax
 		mov	al,1				; IRQ0 disabled
@@ -238,10 +149,10 @@ proc Start
 		mServPrintStr Msg_RVersion
 		mServPrintStr RadiOS_Version
 		mServPrintStr Msg_RCopyright
-%ifdef DEBUG
+
 		; Initialize monitor
 		call	MonitorInit
-%endif
+
 		; Initialize CPU and FPU
 		call	CPU_Init
 		call	FPU_Init
@@ -256,8 +167,6 @@ proc Start
 		mServPrintChar NL
 
 		; Initialize memory
-		mov	eax,[KernelFreeMemEnd]
-		shr	eax,10				; Addr -> KB
 		call	K_InitMem
 		
 		; Print how much memory we have
@@ -268,8 +177,7 @@ proc Start
 		mServPrintStr MsgKBRAM
 
 		; Initialize multitasking memory structures
-.InitMT:	mov	eax,Init_MaxNumOfProcesses
-		mov	ecx,Init_MaxNumOfThreads
+.InitMT:	mov	eax,MAXNUMTHREADS
 		call	MT_Init
 		jc	near .Monitor
 
@@ -277,50 +185,19 @@ proc Start
 		call	PG_StartPaging
 		jc	near .Monitor
 
-		; Create kernel process
-		call	MT_InitKernelProc
-		jc	near .Monitor
-
-		; Initialize module table
-		mov	eax,Init_MaxNumLoadedMods
-		call	MOD_InitMem
-		jc	near .Monitor
-
-		; Initialize kernel module
-		mov	ebx,[KernelCodeSect]
-		mov	edx,[KernelDataSect]
-		mov	edi,[KernelBSSsect]
-		call	MOD_InitKernelMod
-		jc	near .Monitor
-		
-		; Initialize binary formats
-		call	INIT_BinaryFormats
-		jc	near .Monitor
-
-		; Initialize memory management
-		call	MM_Init
-		jc	near FatalError
-		
-		; Initialize boot-time modules
-		call	INIT_BootModules
-		jc	near FatalError
-
-		; Create two initial kernel threads
-		; (idle and spin-up).
+		; Create idle thread
 		mov	ebx,INIT_IdleThread
 		xor	ecx,ecx
-		xor	esi,esi
+		mov	edx,cr3
 		call	MT_CreateThread
 		jc	.Monitor
-		mov	[IdleTCB],ebx			; Save launcher TCB
-
-		mov	ebx,INIT_Spinup
-		mov	ecx,16384			; 16KB stack
-		call	MT_CreateThread
+		mov	[IdleTCB],ebx
+		
+		; Check if a task manager is loaded. If yes, create its thread
+		call	INIT_CreateTMthread
 		jc	.Monitor
 
 		; At last, enable timer interrupts and roll the dice.
-		mServPrintStr MsgProgress
 		xor	al,al
 		call	PIC_EnbIRQ
 		mov	ebx,[IdleTCB]
@@ -336,3 +213,20 @@ FatalError:	mServPrintStr MsgFatalErr
 .Halt:		hlt
 		jmp	.Halt
 endp		;---------------------------------------------------------------
+
+
+; --- Initialization procedures ---
+
+		; INIT_IdleThread - kernel idle thread.
+		;		    Currently does nothing, only displays its
+		;		    activity.
+		; Input: none.
+		; Output: none.
+proc INIT_IdleThread
+		mov	eax,"\-/|"
+.Infinite:	mov	[0xB8000+158],al
+		ror	eax,8
+		jmp	.Infinite
+endp		;---------------------------------------------------------------
+
+%include "tmlaunch.nasm"

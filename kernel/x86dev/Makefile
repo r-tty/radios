@@ -7,7 +7,7 @@
 include ../../build/header.mk
 
 # Change variables here
-OBJS = basedev.rdm
+OBJS = basedev.$(O)
 modnamesfile = .x86dev-modules
 
 # This part shouldn't be changed

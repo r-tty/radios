@@ -48,7 +48,11 @@
 		mov	ebp,esp
 %if %0 == 0
   %ifnum %$lc
+    %if %$lc < 128
 		sub	esp,byte %$lc
+    %else
+		sub	esp,%$lc
+    %endif
   %endif
 %elif %1 > 0
   %if %1 < 128
@@ -112,6 +116,28 @@
 %rep %0
     %assign %$lc %$lc+4
     %xdefine %$%1 ebp-%$lc
+    %rotate 1
+%endrep
+%endmacro
+
+; *** For declaring any-size automatic variable ***
+; Parameters: %1 - name, %2 - size.
+%macro locauto 2
+%ifndef %$lc
+    %assign %$lc 0
+%endif
+    %assign %$lc %$lc+%2
+    %xdefine %$%1 ebp-%$lc
+%endmacro
+
+; *** For referencing arguments that were put on the stack
+%macro arg 1-*
+%ifndef %$ac
+    %assign %$ac 4
+%endif
+%rep %0
+    %assign %$ac %$ac+4
+    %xdefine %$%1 ebp+%$ac
     %rotate 1
 %endrep
 %endmacro

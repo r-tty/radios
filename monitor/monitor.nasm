@@ -8,7 +8,7 @@ module monitor
 %include "sys.ah"
 %include "errors.ah"
 %include "asciictl.ah"
-%include "boot/bootdefs.ah"
+%include "bootdefs.ah"
 %include "monitor.ah"
 
 ; --- Exports ---
@@ -37,7 +37,6 @@ MonPrompt	DB NL,"* ",0
 RegPrompt	DB NL,": ",0
 MsgPageFault	DB NL,"Invalid paging",NL,0
 MsgHelp		DB NL,"Monitor commands:",NL
-		DB " %drvname fun",9,"  - call driver function",NL
 		DB " b# addr",9,"  - set a breakpoint",NL
 		DB " d addr[,addr1]",9,"  - dump",NL
 		DB " e addr",9,9,"  - examine address",NL
@@ -95,7 +94,7 @@ endp		;---------------------------------------------------------------
                 ; InputHandler - monitor input handler.
 proc InputHandler
 		sti					; Enable ints
-.WaitCmd:	mServPrintStr MonPrompt
+.WaitCmd:	mPrintString MonPrompt
 		mov	esi,InputBuffer
 		mov	cl,InputBufSize-1
 		call	ReadString			; Read command line
@@ -125,8 +124,6 @@ proc InputHandler
 		je	near MON_Go			; Go
 		cmp	al,'b'
 		je	near MON_Breaks			; Breakpoint
-		cmp	al,'%'
-		je	near MON_CallDriver		; Call driver
 		cmp	al,'?'
 		je	near MON_Help			; Help
 		add     esp,4				; Restore stack
@@ -232,7 +229,7 @@ proc PageTrapped
 		mov	ss,[sstoss]		; Get top of stack
 		mov	esp,[rtoss]		;
 		call	PageTrapUnerr		; Turn page trap off
-		mServPrintStr MsgPageFault	; Print 'trapped' message
+		mPrintString MsgPageFault	; Print 'trapped' message
 		jmp	InputHandler		; Go do more input
 endp		;---------------------------------------------------------------
 
@@ -386,91 +383,7 @@ endp		;---------------------------------------------------------------
 
 		; MON_Help - display short monitor help.
 proc MON_Help
-		mServPrintStr MsgHelp
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; MON_CallDriver - call driver.
-proc MON_CallDriver
-%define	.DrvMajorNum	ebp-4
-%define	.DrvMinorNum	ebp-2
-%define	.DrvFun		ebp-8
-%define	.DrvFunCtrl	ebp-6
-
-		prologue 8
-;		call	WadeSpace
-;		cmp	al,13			; Fun. number present?
-;		je	near .Exit		; No, exit
-;		mov	edi,esi
-;		mov	al,' '			; Search first space
-;		call	StrScan
-;		or	edi,edi
-;		jz	near .Exit
-;		mov	byte [edi],0		; EDI+1=pointer to fun. num.
-
-;		mov	edx,esi			; EDX=pointer to driver name
-;		dec	edx
-;		mov	word [.DrvMinorNum],0
-;		call	ScanDigit
-;		jc	.NoMinorNum
-;		push	esi			; ESI=pointer to first digit
-;		call	ReadNumber
-;		pop	esi
-;		jc	near .Exit
-;		call	BCDW2Dec
-;		cmp	eax,10000h
-;		jae	near .Err
-;		mov	word [.DrvMinorNum],ax
-;		mov	byte [esi],0
-
-;.NoMinorNum:	mov	esi,edx
-;		call	DRV_FindName		; Find driver by name
-;		jnc	.DrvFound
-;		inc	esi			; ESI=error position
-;		inc	esi
-;		jmp	.Err
-
-;.DrvFound:	mov	word [.DrvMajorNum],ax
-;		mov	esi,edi			; Read function number
-;		inc	esi
-;		call	WadeSpace
-;		cmp	al,ASC_CR
-;		je	near .Err
-;		call	ReadNumber
-;		jc	.Exit
-;		call	BCDW2Dec
-;		mov	[.DrvFun],ax
-;		mov	word [.DrvFunCtrl],0
-
-;		call	WadeSpace
-;		cmp	al,ASC_CR		; Does subfunction present?
-;		je	.OK			; No, call driver
-;		call	ReadNumber		; Else read subfunction num.
-;		jc	.Exit
-;		call	BCDW2Dec
-;		mov	word [.DrvFunCtrl],ax
-
-;.OK:		mov	eax,[rEAX]
-;		mov	ebx,[rEBX]
-;		mov	ecx,[rECX]
-;		mov	edx,[rEDX]
-;		mov	esi,[rESI]
-;		mov	edi,[rEDI]
-;		call	DRV_CallDriver
-;		pushfd
-;		pop	dword [rEFLAGS]
-;		mov	[rEAX],eax
-;		mov	[rEBX],ebx
-;		mov	[rECX],ecx
-;		mov	[rEDX],edx
-;		mov	[rESI],esi
-;		mov	[rEDI],edi
-		pop	ebp
-		clc
-		ret
-.Err:		stc
-.Exit:		epilogue
+		mPrintString MsgHelp
 		ret
 endp		;---------------------------------------------------------------
 

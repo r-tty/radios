@@ -1,8 +1,8 @@
 #! /bin/sh
 
 BOOTDIR="/boot/RadiOS"
-KERNEL="radios.rdz"
-MODULES="startup.rdl.gz"
+KERNEL="rmk586.rdm.gz"
+MODULES="libc.rdm taskman.rdx"
 
 DRIVE="x:"
 MTOOLSRC="$HOME/.mtoolsrc"
@@ -11,5 +11,6 @@ MTOOLSRC="$HOME/.mtoolsrc"
 grep -q "drive $DRIVE" $MTOOLSRC && (
     cd $BOOTDIR
     mcopy -o $KERNEL $DRIVE
-    mcopy -o $MODULES $DRIVE
+    cd modules
+    mcopy -o $MODULES $DRIVE/modules
 )

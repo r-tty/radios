@@ -202,7 +202,7 @@ proc MON_Disassembly
 		call	GetCodeLine		; Get a line of text
 		push	esi
 		lea	esi,[ebp-256]		; Print out the text
-		mServPrintStr
+		mPrintString
 		pop	esi
 		mPrintChar NL			; Print a CR/LF
 		mov	eax,esi			; See if done
@@ -245,7 +245,7 @@ proc DisOneLine
 		call	GetCodeLine			; Get a line of code
 		push	esi
 		lea	esi,[ebp-256]			; Display the line
-		mServPrintStr
+		mPrintString
 		pop	esi
 		mPrintChar NL				; CR/LF
 		test	dword [ExtraBytes],-1		; See if more to dump

@@ -9,7 +9,7 @@ module kernel.pool
 %include "errors.ah"
 %include "sema.ah"
 %include "pool.ah"
-%include "x86/paging.ah"
+%include "cpu/paging.ah"
 
 
 ; --- Exports ---

@@ -2,7 +2,7 @@
 ;  except.nasm - exceptions handling.
 ;-------------------------------------------------------------------------------
 
-%include "x86/descript.ah"
+%include "cpu/descript.ah"
 
 ; --- Definitions ---
 
@@ -176,18 +176,18 @@ proc ExceptionHandler
 		cmp	byte [ExcNum],1		; or int 1
 		je	near .DispRegs
 
-		mServPrintStr MsgException	; Else tell it's a exception
+		mPrintString MsgException	; Else tell it's a exception
 		mov	al,[ExcNum]
 		call	PrintByteDec
 		mPrintChar ' '
 		mPrintChar '('
 		movzx	eax,byte [ExcNum]
 		mov	esi,[ExcStrings+eax*4]
-		mServPrintStr
+		mPrintString
 		mPrintChar ')'
 		btr	dword [HasErr],0	; If has error
 		jnc	short .DispRegs
-		mServPrintStr MsgErrorCode	; Say there's an error
+		mPrintString MsgErrorCode	; Say there's an error
 		mov	ax,[ErrNum]		; Say which one
 		call	PrintDwordHex
 		mPrintChar NL

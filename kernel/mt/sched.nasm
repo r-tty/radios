@@ -8,10 +8,9 @@
 
 ; --- Exports ---
 
-global K_SwitchTask
-global MT_Schedule
-global ?CurrThread, ?TicksCounter
-global MT_SuspendCurr, MT_SuspendCurr1ms
+publicproc K_SwitchTask, MT_Schedule
+publicproc MT_SuspendCurr, MT_SuspendCurr1ms
+publicdata ?CurrThread, ?TicksCounter
 
 
 ; --- Constants ---
@@ -24,7 +23,7 @@ global MT_SuspendCurr, MT_SuspendCurr1ms
 library kernel
 extern KernTSS
 %ifdef KPOPUPS
-extern K_PopUp
+ extern K_PopUp
 %endif
 
 library kernel.setjmp
@@ -267,9 +266,8 @@ endp		;---------------------------------------------------------------
 		; Note:  Interrupts are disabled until we enable them
  		;	 explicitly.
 proc K_SwitchTask
-%define	.frame		ebp+8
-		push	ebp
-		mov	ebp,esp
+		arg	frame
+		prologue
 		
 		; If multitasking isn't yet initialized - just leave
 		cmp	dword [?CurrThread],0
@@ -285,7 +283,7 @@ proc K_SwitchTask
 .CntTicks:	inc	dword [?TicksCounter]
 		mov	dword [?SchedInClock],1
 		sti
-		lea	ebx,[.frame]			; EBX=address of frame
+		lea	ebx,[%$frame]			; EBX=address of frame
 		call	MT_BumpTime
 
 		; Increase CPU usage and decrease quantum
@@ -311,7 +309,7 @@ proc K_SwitchTask
 
 .Done		cli
 		mov	dword [?SchedInClock],0
-.Exit:		leave
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 

@@ -1,0 +1,131 @@
+;-------------------------------------------------------------------------------
+;  rdf.ah - Relocatable Dynamic Module (RDF) definitions.
+;-------------------------------------------------------------------------------
+
+; --- Common definitions ---
+%define	RDF_MAXSEGS		64		; Max. number of segments
+
+
+; --- "Master" header ---
+struc tRDFmaster
+.Signature	RESB	5			; "RDOFF"
+.AVersion	RESB	1			; '2' (or 2 for big-endian)
+.ModLen		RESD	1			; Module length
+.HdrLen		RESD	1			; Header length
+endstruc
+
+; --- Record types ---
+RDFREC_Reloc		EQU	1
+RDFREC_Import		EQU	2
+RDFREC_Export		EQU	3
+RDFREC_DLL		EQU	4
+RDFREC_BSS		EQU	5
+RDFREC_SegReloc		EQU	6
+RDFREC_FarImport	EQU	7
+RDFREC_ModName		EQU	8
+RDFREC_Generic		EQU	0
+
+
+; --- Relocation record ---
+struc tRDFreloc
+.Type		RESB	1			; ==1
+.RecLen		RESB	1			; Content length
+.Seg		RESB	1			; Only 0 for code, or 1 for
+						; data supported, but add 64
+						; for relative refs (i.e. do not
+						; require reloc @ loadtime,
+						; only linkage)
+.Ofs		RESD	1			; From start of segment in which
+						; reference is located
+.Len		RESB	1			; 1, 2 or 4 bytes
+.RefSeg		RESW	1			; Segment to which reference
+						; refers to
+endstruc
+
+
+; --- Import record ---
+struc tRDFimport
+.Type		RESB	1			; ==2
+.RecLen		RESB	1			; content length
+.Seg		RESW	1			; Segment number allocated to
+						; the label for reloc records -
+						; label is assumed to be at
+						; offset zero in this segment,
+						; so linker must fix up with
+						; offset of segment and of
+						; offset within segment
+.Lbl		RESB	33			; Zero terminated... should be
+						; written to file until the zero,
+						; but not after it - max len = 32 chars
+endstruc
+
+
+; --- Export record ---
+struc tRDFexport
+.Type		RESB	1			; ==3
+.RecLen		RESB	1			; Content length
+.Flags		RESB	1			; Flags
+.Seg		RESB	1			; Segment referred to (0/1/2)
+.Ofs		RESD	1			; Offset within segment
+.Lbl		RESB	33			; Zero terminated as above.
+endstruc					; (max len = 32 chars)
+
+
+; --- DLL record ---
+struc tRDF_DLL
+.Type		RESB	1			; ==4
+.RecLen		RESB	1			; Content length
+.LibName	RESB	128			; Name of library to link
+endstruc					; with at load time
+
+
+; --- Module name record ---
+struc tRDF_ModName
+.Type		RESB	1			; ==4
+.RecLen		RESB	1			; Content length
+.ModName	RESB	128			; Module name
+endstruc
+
+
+; --- BSS record ---
+struc tRDF_BSS
+.Type		RESB	1			; ==5
+.RecLen		RESB	1			; Content length
+.Amount		RESD	1			; Number of bytes BSS to reserve
+endstruc
+
+
+; --- Generic record ---
+
+struc tRDFgeneric
+.Type		RESB	1
+.RecLen		RESB	1
+.Data		RESB	128
+endstruc
+
+
+; --- Export record flags ---
+%define	RDFEXPORT_DATA		1
+%define	RDFEXPORT_FUNCTION	2
+%define	RDFEXPORT_GLOBAL	4
+
+
+; --- Segment types ---
+%define	RDFSEG_NULL		0
+%define	RDFSEG_Text		1
+%define	RDFSEG_Data		2
+%define	RDFSEG_ObjComment	3
+%define	RDFSEG_LinkedComment	4
+%define	RDFSEG_LoaderComment	5
+%define	RDFSEG_SymDebug		6
+%define	RDFSEG_LineNumDebug	7
+%define	RDFSEG_Bad		0FFFFh
+
+
+; --- Segment header ---
+struc tRDFsegHeader
+.Type		RESW	1
+.Number		RESW	1
+.Reserved	RESW	1
+.Length		RESD	1
+endstruc

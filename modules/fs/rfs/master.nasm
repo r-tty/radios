@@ -11,10 +11,10 @@
 ; --- Imports ---
 
 library kernel.fs
-extern CFS_LPtoDevID:extcall
-extern BUF_ReadBlock:extcall, BUF_Write:extcall, BUF_MarkDirty:extcall
-extern GetNumBlocks:extcall
-extern CFS_GetRootIndex:extcall, CFS_SetRootIndex:extcall
+extern CFS_LPtoDevID
+extern BUF_ReadBlock, BUF_Write, BUF_MarkDirty
+extern GetNumBlocks
+extern CFS_GetRootIndex, CFS_SetRootIndex
 
 
 ; --- Data ---

@@ -7,7 +7,7 @@
 include ../../etc/header.mk
 
 # Change variables here
-OBJS = vstafs.rdm
+OBJS = vstafs.$(O)
 modnamesfile = .vstafs-modules
 
 # This part shouldn't be changed

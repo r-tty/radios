@@ -1,0 +1,76 @@
+;****************
+; RadiOS history
+;****************
+
+Mar 03, 1998	My first attempt to code something very low-level. It called
+		"The Hawk Operating System", though it was only a program
+		running in MS-DOS. Turbo C 2.0 was used to compile. The
+		project died quite soon.
+		
+Sep 23, 1998	Me and Serhiy Danilov <sdaniloff@postmark.net> decided to
+		write our own operating system. I suggested the name -
+		"Radionix".
+
+Oct 25, 1998	Serhiy gave up to continue Radionix, and it was right decision.
+		The OS concept (x86 real-mode, no protection) was wrong
+		from the beginning. So I packed together all Radionix
+		stuff and decided to write a new system from scratch.
+		The main reason for it was an idea of new file system
+		(based on so-called "bad & busy bitmaps" concept). Of course,
+		it would run completely in the protected CPU mode.
+
+Oct 26, 1998	I decided to call a new system "ZealOS". Funny, but real
+		ZealOS project (http://zealos.org) was started by Mark Zealey
+		only two years later :)
+
+Oct 31, 1998	ZealOS protected mode initialization works.
+
+Nov 24, 1998	Some hardware control routines work (keyboard, VGA text mode,
+		PIC and PIT). Device driver infrastructure started.
+
+Nov 26, 1998	This is an "official" date of launching the RadiOS project.
+==*=*==*=*==	I just took a ZealOS snapshot, wrote some Makefiles and
+		changed the name. First version number for RadiOS was d0.01,
+		and it hasn't been changed for quite long time.
+		This historic archive is available here:
+		    http://radios.sf.net/historic/radios0.rar
+
+Jan 28, 1999	Version d0.01-build6: some monitor commands work.
+
+Jul 11, 1999	Version d0.01-PD1.0-build4:
+
+Sep 14, 1999	Version d0.01-PD1.0-build8:
+
+Nov 13, 1999	Transition to NASM and RDOFF2 completed.
+------------
+
+Mar 01, 2000	Version 0.01-00LS: RadiOS builds on Unix (Linux and FreeBSD)
+
+Aug 13, 2000	Version 0.0.1-cvs0: I imported the whole RadiOS tree to local
+		CVS, and decided to change the versioning scheme. Soon I
+		dropped this idea (mostly because of those annoying CVS/
+		directories :), but "-cvsXXX" stuck for more than a year.
+
+Sep 19, 2000	Version 0.0.1-cvs2: first GPLed release of RadiOS
+
+Dec 13, 2000	Version 0.0.1-cvs007: after two weeks of hacking, multitasking
+		primitives are ready. Two kernel threads run simultaneously.
+
+May 29, 2001	Version 0.0.1-cvs012:
+
+Oct 13, 2001	Version 0.0.1-cvs013:
+
+Dec 02, 2001	Version 0.0.1-pre1:
+
+May 02, 2002	Version 0.0.1-mk0: first release available at SourceForge
+
+May 06, 2002	Version 0.0.1-mk1:
+
+May 24, 2002	Version 0.0.1-mk2:
+
+Sep 15, 2002	Version 0.0.1-mk3:
+
+Nov 13, 2002	Version 0.0.1-mk4:
+
+Nov 26, 2002	RadiOS 0.0.1 (final) is ready.
+==*=*==*=*==

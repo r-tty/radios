@@ -5,8 +5,6 @@
 
 module hw.bios32
 
-%define extcall near
-
 %include "sys.ah"
 %include "errors.ah"
 
@@ -19,8 +17,8 @@ global DrvBIOS32
 ; --- Imports ---
 
 library kernel.misc
-extern StrCopy:extcall, StrEnd:extcall
-extern HexD2Str:extcall
+extern StrCopy, StrEnd
+extern HexD2Str
 
 
 ; --- Definitions ---

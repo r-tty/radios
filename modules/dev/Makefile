@@ -1,21 +1,22 @@
 ################################################################################
-# Makefile - universal makefile for RadiOS.
-# Copyright (c) 2000 RET & COM Research.
+# Makefile for device drivers.
+# Copyright (c) 2002 RET & COM Research.
 ################################################################################
 
 # Standard header
-include ../../etc/header.mk
+include ../../build/header.mk
 
 # Change variables here
 export TARGET_LIB = hardware.rdl
-OBJS = vtx.rdm keyboard.rdm \
-       hd.rdm ide.rdm fd.rdm \
-       serport.rdm parport.rdm bios32.rdm vgagr.rdm mouse.rdm
+OBJS = vtx.$(O) keyboard.$(O) \
+       hd.$(O) ide.$(O) fd.$(O) \
+       serport.$(O) parport.$(O) bios32.$(O) vgagr.$(O) mouse.$(O)
 modnamesfile = .hardware-modules
 SUBDIRS = bus net audio
 
 # Make in subdirs
-include ../../etc/subdirs.mk
+LINK = all
+include ../../build/subdirs.mk
 
 # This part shouldn't be changed
-include ../../etc/common.mk
+include ../../build/common.mk

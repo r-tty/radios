@@ -11,7 +11,7 @@ class Rbuild
     def initialize
 	@command = "make"
 	@targets = Array.new
-	@targets << "rmk386.rdx"
+	@targets << "rmk586.rdx"
     end
     
     # Read and parse main configuration file

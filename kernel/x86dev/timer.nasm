@@ -70,7 +70,7 @@ proc TMR_InitCounter
 endp		;---------------------------------------------------------------
 
 
-		; TMR_ReadOnFly - read counter value "on flying"
+		; TMR_ReadOnFly - read counter value "on the fly"
 		; Input: AL=counter number (0..2),
 		;	 CF=0 - read byte,
 		;	 CF=1 - read word.

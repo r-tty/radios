@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = kernsyscall.rdm
+OBJS = kernsyscall.$(O)
 modnamesfile = .libc_misc-modules
 
 # This part shouldn't be changed

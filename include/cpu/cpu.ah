@@ -1,0 +1,126 @@
+;-------------------------------------------------------------------------------
+; cpu.ah - processor definitions (flags, registers, etc.)
+;-------------------------------------------------------------------------------
+
+%ifndef _cpu_ah
+%define _cpu_ah
+
+; --- Flag register masks ---
+%define	FLAG_CF		1		; Carry
+%define	FLAG_PF		4		; Parity
+%define	FLAG_AF		10h		; Auxiliary parity
+%define	FLAG_ZF		40h		; Zero
+%define	FLAG_SF		80h		; Sign
+%define	FLAG_TF		100h		; Trap
+%define	FLAG_IF		200h		; Interrupt
+%define	FLAG_DF		400h		; Direction
+%define	FLAG_OF		800h		; Overflow
+%define	FLAG_IOPL	3000h		; IOPL
+%define	FLAG_NT		4000h		; Nested task
+%define	FLAG_RF		10000h		; Resume
+%define	FLAG_VM		20000h		; VM86 mode
+%define	FLAG_AC		40000h		; Alignment check
+%define FLAG_VIF	80000h		; Virtual Interrupt Flag
+%define FLAG_VIP	100000h		; Virtual Interrupt Pending
+%define	FLAG_ID		200000h		; CPU ID detection flag
+
+
+; --- CR0 register masks ---
+%define	CR0_PE		1		; Enable protected mode
+%define	CR0_MP		2		;
+%define	CR0_EM		4		;
+%define	CR0_TS		8		;
+%define	CR0_ET		10h		;
+%define	CR0_NE		20h		;
+%define	CR0_WP		10000h		;
+%define	CR0_AM		40000h		;
+%define	CR0_NW		20000000h	;
+%define	CR0_CD		40000000h	;
+%define	CR0_PG		80000000h	; Enable paging
+
+
+; --- CR4 register masks ---
+%define CR4_VME		1		; Enable vm86 extensions 
+%define CR4_PVI		2		; Virtual interrupts flag enable 
+%define CR4_TSD		4		; Disable time stamp at ipl 3 
+%define CR4_DE		8		; Enable debugging extensions 
+%define CR4_PSE		10h		; Enable page size extensions 
+%define CR4_PAE		20h		; Enable physical address extensions 
+%define CR4_MCE		40h		; Machine check enable 
+%define CR4_PGE		80h		; Enable global pages 
+%define CR4_PCE		100h		; Enable performance counters at ipl 3 
+
+
+; --- CPU features ---
+%define CPUCAP_FPU	1
+%define CPUCAP_VME	2
+%define CPUCAP_DE	4
+%define CPUCAP_PSE	8
+%define CPUCAP_TSC	10h
+%define CPUCAP_MSR	20h
+%define CPUCAP_PAE	40h
+%define CPUCAP_MCE	80h
+%define CPUCAP_CX8	100h
+%define CPUCAP_APIC	200h
+%define CPUCAP_SEP	800h
+%define CPUCAP_MTRR	1000h
+%define CPUCAP_PGE	2000h
+%define CPUCAP_MCA	4000h
+%define CPUCAP_CMOV	8000h
+%define CPUCAP_PAT	10000h
+%define CPUCAP_PSE36	20000h
+%define CPUCAP_MMX	800000h
+%define CPUCAP_FXSR	1000000h
+
+
+; --- MSRs (Model Specific Registers) ---
+%define	CPU_MSR_SYSENTER_CS	0174h
+%define	CPU_MSR_SYSENTER_ESP	0175h
+%define	CPU_MSR_SYSENTER_EIP	0176h
+
+; --- CPU vendors ---
+%define CPU_VENDOR_INTEL	0
+%define CPU_VENDOR_CYRIX	1
+%define CPU_VENDOR_AMD		2
+%define CPU_VENDOR_UMC		3
+%define CPU_VENDOR_NEXGEN	4
+%define CPU_VENDOR_CENTAUR	5
+%define CPU_VENDOR_RISE		6
+%define CPU_VENDOR_TRANSMETA	7
+%define CPU_VENDOR_UNKNOWN	255
+
+
+; --- CPU information structure ---
+struc tCPUinfo
+.Family		RESW	1
+.Vendor		RESB	1
+.Model		RESB	1
+.Mask		RESB	1
+.Flags		RESB	1
+.Bugs		RESB	1
+.CPUIDlevel	RESB	1
+.Features	RESD	4
+.VendorID	RESB	16
+.ModelID	RESB	64
+.CacheSize	RESD	1
+.PgTblCacheSz	RESD	1
+.lpj		RESD	1				; Loops per jiffy
+endstruc
+
+%define	CPUINFO_FL_WPOK		1			; .Flags in tCPUinfo
+%define CPUINFO_FL_HLTOK	2
+%define CPUINFO_FL_HARDMATH	4
+
+%define CPUBUG_FDIV		1			; .Bugs in tCPUinfo
+%define CPUBUG_F00F		2
+%define CPUBUG_COMA		4
+
+; Values for tCPUinfo.Family
+%define	CPU_386SX	3
+%define	CPU_386DX	0103h
+%define	CPU_486OLD	4
+%define CPU_486		0104h
+%define	CPU_586		5
+%define CPU_686plus	6
+
+%endif

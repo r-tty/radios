@@ -24,6 +24,7 @@
 %define	ERR_MEM_MCBnotFound		0347h
 %define	ERR_MEM_RegionLocked		0348h
 %define	ERR_MEM_BadBlockSize		0349h
+%define	ERR_MEM_InvAreaLoc		034Ah
 
 %define	ERR_PG_NoFreePage		0358h
 %define	ERR_PG_NoFreeDir		0359h
@@ -49,6 +50,14 @@
 %define	ERR_MOD_BadArchMember		0374h
 %define	ERR_MOD_TooManyModules		0375h
 %define	ERR_MOD_BadID			0376h
+
+; Error codes used by individual binary formats
+%define	ERR_RDM_BadSection		03A0h
+%define	ERR_RDM_TooManySections		03A1h
+%define	ERR_RDM_StackNotInBSS		03A2h
+%define	ERR_RDM_InvLibName		03A3h
+%define	ERR_RDM_NoSection		03A4h
+%define	ERR_RDM_16bitReloc		03A5h
 
 ; -- Basic device errors ---
 

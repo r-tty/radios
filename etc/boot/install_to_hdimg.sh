@@ -5,12 +5,12 @@
 
 EMUDIR=~/emu
 HDIMG=hd-30M.img
-MNTDIR=`grep "$HDIMG" /etc/fstab | cut -f2`
+MNTDIR=`grep "$HDIMG" /etc/fstab | awk '{ print $2 }'`
 
-KERNEL="radios.rdz"
-MODULES="startup.rdl.gz"
+KERNEL="rmk586.rdm.gz"
+BLMS="libc.rdm taskman.rdx"
 
 (cd $EMUDIR && mount $HDIMG)
 cp $KERNEL $MNTDIR/boot/radios
-cp $MODULES $MNTDIR/boot/radios
+(cd modules && install $BLMS $MNTDIR/boot/radios/modules)
 (cd $EMUDIR && umount $HDIMG)

@@ -1,0 +1,49 @@
+;-------------------------------------------------------------------------------
+;  memman.ah - memory management definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _memman_ah
+%define _memman_ah
+
+; Memory control block structure
+struc tMCB
+.Signature	RESW	1				; Signature
+.Flags		RESW	1				; Flags
+.Addr		RESD	1				; Region address
+.Len		RESD	1				; Region length
+.Count		RESW	1				; References count
+.Type		RESB	1				; Region type
+.Reserved	RESB	1
+.Next		RESD	1				; Next MCB
+.Prev		RESD	1				; Previous MCB
+.Reserved2	RESD	2
+endstruc
+
+%define	MCBSIZE		32
+%define	MCBSHIFT	5
+
+; MCB signatures
+%define	MCBSIG_PRIVATE	"RP"
+%define	MCBSIG_SHARED	"RS"
+%define	MSBSIG_SUBBLOCK	"BS"
+
+; MCB flags
+%define	MCBFL_LOCKED	1
+%define	MCBFL_REQUESTED	2
+%define	MCBFL_LOADING	4
+%define	MCBFL_READY	8
+
+; Region types
+%define	REGTYPE_KERNEL	0			; Only for kernel
+%define	REGTYPE_TEXT	1			; Text (read-only)
+%define	REGTYPE_DATA	2			; Data
+%define	REGTYPE_BSS	3			; BSS
+%define	REGTYPE_STACK	4			; Stack
+%define	REGTYPE_OTHER	5			; Other read-only data
+
+; Memory block can be allocated in different areas
+%define AREALOC_USER	0
+%define	AREALOC_SHLIB	1
+%define	AREALOC_DRV	2
+
+%endif

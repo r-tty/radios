@@ -2,18 +2,29 @@
 # Cancel all built-in rules
 % : %
 
-# Control variables
-SUFFIXES = .nasm .rdm .rdx .bin
+# Suffixes
+S = nasm
+I = ah
+C = c
+H = h
+O = rdf
+L = rdl
+X = rdx
+M = rdm
+B = bin
 
-# Rule to make RDM from NASM source
-%.rdm : %.nasm macros/sugar.ah
+# Control variables
+SUFFIXES =  .$(S) .$(I) .$(C) .$(H) .$(O) .$(L) .$(X) .$(M) .$(B)
+
+# Rule to make RDF from NASM source
+%.$(O) : %.nasm macros/sugar.ah
 	@echo Assembling $<
 	@$(AS) $(ASFLAGS) -o $(OBJPATH)/$@ $<
 	
 # Rule to compile C source
-%.rdm : %.c
+%.$(O) : %.c
 	@echo Compiling $<
-	@$(CC) -o $(OBJPATH)/$@ $<
+	@$(CC) $(CFLAGS) -o $(OBJPATH)/$@ $<
 	
 # Paths
 RADIOSPATH = @@RADIOSPATH@@
@@ -22,27 +33,26 @@ OBJPATH = @@OBJPATH@@
 LIBPATH = @@LIBPATH@@
 INSTALLPATH = @@INSTALLPATH@@
 
-vpath %.ah $(INCLPATH)
-vpath %.bin $(OBJPATH)
-vpath %.rdm $(OBJPATH)
-vpath %.rdl $(LIBPATH)
-vpath %.rdo $(LIBPATH)
+vpath %.$(I) $(INCLPATH)
+vpath %.$(H) $(INCLPATH)/c
+vpath %.$(O) $(OBJPATH)
+vpath %.$(L) $(LIBPATH)
+vpath %.$(B) $(OBJPATH)
 
 # Commands
 AS = nasm -w+orphan-labels -f rdf
-CC = rncc
+CC = ncc
 LD = ldrdf
 AR = rdflib
 
 # Command flags
+ASFLAGS = -s -I$(INCLPATH)/ -Pmacros/sugar.ah -DMONITOR
+CFLAGS = -I$(INCLPATH)/c -c
+LDFLAGS = -2 -s -j $(OBJPATH)/ -L $(LIBPATH)/
 ifdef DEBUG
- ASFLAGS = -DDEBUG -I$(INCLPATH)/ -Pmacros/sugar.ah -s
- CFLAGS = -N -I$(INCLPATH)/c -c -DDEBUG -g
-else
- ASFLAGS = -I$(INCLPATH)/ -Pmacros/sugar.ah -s
- CFLAGS = -N -I$(INCLPATH)/c -c
+    ASFLAGS += -DDEBUG
+    CFLAGS += -DDEBUG -g
 endif
-LDFLAGS = -2 -xe -s -j $(OBJPATH)/ -L $(LIBPATH)/
 
 # Command to generate dependencies file
 GENDEPS = ndepgen -M

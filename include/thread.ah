@@ -2,7 +2,7 @@
 ;  thread.ah - definitions for scheduler and thread management.
 ;-------------------------------------------------------------------------------
 
-%include "x86/setjmp.ah"
+%include "cpu/setjmp.ah"
 
 ; Thread states
 %define	THRST_FREE	0
@@ -26,8 +26,6 @@
 
 ; Thread control block
 struc tTCB
-.PCB		RESD	1			; PCB address of process which
-						; a thread belongs to
 .PrioClass	RESD	1			; Priority class
 .Priority	RESD	1			; Initial priority value
 .CurrPriority	RESD	1			; Current priority value
@@ -36,15 +34,13 @@ struc tTCB
 .Next		RESD	1			; Thread link
 .Prev		RESD	1
 
-.ProcNext	RESD	1			; Process link
-.ProcPrev	RESD	1
-
 .ReadyNext	RESD	1			; Scheduler link
 .ReadyPrev	RESD	1
 
 .SemNext	RESD	1			; Semaphore link
 .SemPrev	RESD	1
 
+.PageDir	RESD	1			; Page directory address
 .Entry		RESD	1			; Start entry point
 .Stack		RESD	1			; Stack pointer
 .KStack		RESD	1			; Kernel stack pointer
@@ -55,12 +51,12 @@ struc tTCB
 .Quant		RESD	1			; Quantum count
 .Count		RESD	1			; Current count (CPU usage)
 
-.Preempt	RESD	1			;
-.Stamp		RESD	1			;
+.Preempt	RESD	1			; Preemptive flag
+.Stamp		RESD	1			; Timestamp
 
 .Context	RESB	tJmpBuf_size		; Context
 
-.Reserved	RESD	1			; Pad to 2^TCBSHIFT bytes
+.Reserved	RESD	2			; Pad to 2^TCBSHIFT bytes
 endstruc
 
 %define	TCBSHIFT	7			; log2(tTCB_size)

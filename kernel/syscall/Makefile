@@ -7,8 +7,7 @@
 include ../../build/header.mk
 
 # Change variables here
-TARGET_LIB = NONE
-OBJS = syscall.rdm
+OBJS = syscall.$(O)
 modnamesfile = .syscall-modules
 
 # This part shouldn't be changed

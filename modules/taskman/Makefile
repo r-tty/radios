@@ -1,16 +1,25 @@
 ################################################################################
-# Makefile - universal makefile for RadiOS.
-# Copyright (c) 2000 RET & COM Research.
+# Makefile for taskman.
+# Copyright (c) 2002 RET & COM Research.
 ################################################################################
 
-# Change variables here
-OBJS = taskman.rdm
-modnamesfile = .taskman-modules
-
-# Common rules
 include ../../build/header.mk
-include ../../build/common.mk
 
-# Individual dependencies
-all-dep: dep
-all-clean: clean
+# Variables
+modnamesfile = .taskman-modules
+SUBDIRS = mem path proc
+export TARGET_LIB = taskman.$(L)
+TARGET_RDM = taskman.$(X)
+OBJS = taskmaninit.$(O)
+LIBS = $(TARGET_LIB)
+
+# Rules for subdirectories
+LINK = all
+include ../../build/subdirs.mk
+
+# Build module
+include ../../build/module.mk
+
+# Individual rules
+install:
+	install $(OBJPATH)/$(TARGET_RDM) $(INSTALLPATH)/modules

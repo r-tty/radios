@@ -7,7 +7,7 @@
 include ../../etc/header.mk
 
 # Change variables here
-OBJS = rfs.rdm
+OBJS = rfs.$(O)
 modnamesfile = .rfs-modules
 
 # This part shouldn't be changed

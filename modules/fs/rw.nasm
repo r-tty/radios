@@ -8,7 +8,6 @@ module cfs.rw
 %include "sys.ah"
 %include "errors.ah"
 %include "thread.ah"
-%include "process.ah"
 
 
 ; --- Exports ---

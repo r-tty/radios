@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;  portsdef.ah - Hardware ports addresses and PORTDELAY macro.
+; ports.ah - Hardware ports addresses and PORTDELAY macro.
 ;-------------------------------------------------------------------------------
 
 ; --- DMA controller ports ---

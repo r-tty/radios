@@ -1,0 +1,16 @@
+;-------------------------------------------------------------------------------
+; parameters.ah - various adjustable parameters.
+;-------------------------------------------------------------------------------
+
+%ifndef _parameters_ah
+%define _parameters_ah
+
+%include "cpu/paging.ah"
+
+%define	MAXNUMTHREADS	32		; Maximum number of threads
+%define UMINSTACK	PAGESIZE*16	; Initial user stack size
+%define UMAXSTACK	PAGESIZE*256	; Maximum user stack size
+
+%define	HZ		100		; Timer ticks per second
+
+%endif

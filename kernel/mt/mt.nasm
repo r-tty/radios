@@ -7,16 +7,15 @@ module kernel.mt
 
 %include "sys.ah"
 %include "errors.ah"
-%include "x86/tss.ah"
-%include "x86/paging.ah"
-%include "x86/stkframe.ah"
-%include "x86/setjmp.ah"
+%include "cpu/tss.ah"
+%include "cpu/paging.ah"
+%include "cpu/stkframe.ah"
+%include "cpu/setjmp.ah"
 %include "sema.ah"
 %include "pool.ah"
-%include "process.ah"
 
 %ifdef DEBUG
-%include "boot/bootdefs.ah"
+%include "bootdefs.ah"
 %endif
 
 ; --- Exports ---
@@ -28,6 +27,7 @@ global MT_Init
 
 library kernel
 extern KernTSS, DrvTSS
+extern K_DescriptorAddress, K_SetDescriptorBase
 
 library kernel.misc
 extern BZero
@@ -40,9 +40,8 @@ section .bss
 
 ; --- Procedures ---
 
-%include "proc.nasm"				; Process management
-%include "thread.nasm"				; Thread management
-%include "sched.nasm"				; Scheduler
+%include "thread.nasm"
+%include "sched.nasm"
 
 section .text
 
@@ -50,14 +49,13 @@ section .text
 		; Input: none.
 		; Output: none.
 proc MT_InitKTSS
-		mov	ebx,KernTSS
-		mov	eax,esp
-		mov	[ebx+tTSS.ESP0],eax
-		mov	[ebx+tTSS.ESP],eax
-		mov	dword [ebx+tTSS.EIP],.TSSinitOK
-		mov	ax,KTSS
-		ltr	ax
-.TSSinitOK:
+		mov	edi,KernTSS
+		mov	eax,[?KernPageDir]
+		mov	[edi+tTSS.CR3],eax
+		mov	dx,KTSS
+		call	K_DescriptorAddress
+		call	K_SetDescriptorBase
+		ltr	dx
 		ret
 endp		;---------------------------------------------------------------
 
@@ -66,22 +64,19 @@ endp		;---------------------------------------------------------------
 		; Input: none.
 		; Output: none.
 proc MT_InitDTSS
-		mov	ebx,DrvTSS
-		mov	eax,esp
-		mov	[ebx+tTSS.ESP0],eax
+		mov	edi,DrvTSS
+		mov	dx,DTSS
+		call	K_DescriptorAddress
+		call	K_SetDescriptorBase
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; MT_Init - initialize multitasking memory structures.
-		; Input: EAX=maximum number of processes,
-		;	 ECX=maximum number of threads.
+		; Input: EAX=maximum number of threads.
 		; Output: CF=0 - OK;
 		;	  CF=1 - error, AX=error code.
 proc MT_Init
-		call	MT_InitPCBpool
-		jc	short .Done
-		mov	eax,ecx
 		call	MT_InitTCBpool
 		jc	.Done
 		call	MT_InitKTSS		; Initialize PL0 TSS

@@ -7,7 +7,7 @@
 include ../../../build/header.mk
 
 # Change variables here
-OBJS = unistd.rdm
+OBJS = unistd.$(O)
 modnamesfile = .libc_unistd-modules
 
 # This part shouldn't be changed

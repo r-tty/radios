@@ -1,7 +1,11 @@
 ;-------------------------------------------------------------------------------
-; syscall.ah - system call numbers.
+; syscall.ah - system call definitions.
 ;-------------------------------------------------------------------------------
 
+%ifndef _syscall_ah
+%define _syscall_ah
+
+; Syscall numbers
 S_MsgSend		EQU	0Bh
 S_MsgSendnc		EQU	0Ch
 S_MsgError		EQU	0Dh
@@ -65,3 +69,23 @@ S_SchedGet		EQU	58h
 S_SchedSet		EQU	59h
 S_SchedYield		EQU	5Ah
 S_SchedInfo		EQU	5Bh
+
+; Syscall trap
+%define	SYSCALL_TRAP	38h
+
+; Macro for performing a system call
+%macro mDoSyscall 1
+	mov	eax,%1
+%ifdef USE_SYSENTER
+	; Use fast call via SYSENTER
+	mov	ecx,esp
+	mov	edx,%1
+	sysenter
+%%1:
+%else
+	; Do it in old-fashioned way
+	int	SYSCALL_TRAP
+%endif
+%endmacro
+
+%endif

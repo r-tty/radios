@@ -4,10 +4,10 @@
 RADIOSPATH=`pwd`
 INCLPATH=$RADIOSPATH/include
 OBJPATH=$RADIOSPATH/build/obj
-LIBPATH=$RADIOSPATH/build/obj
+LIBPATH=$RADIOSPATH/build/obj/lib
 INSTALLPATH=/boot/RadiOS
 
-# Prompt and read string from the console
+# Prompt and read string from stdin
 ReadData() {
     echo -n $3 "[$2]: "
     read p

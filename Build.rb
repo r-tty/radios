@@ -48,8 +48,6 @@ class Rbuild
     
     # Run
     def run
-	print @command
-	print @targets
     end
     
     # Cleanup

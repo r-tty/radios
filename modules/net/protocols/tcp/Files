@@ -1,3 +1,0 @@
-FILES = tcp_hdr tcp_port sb tcp_input tcp_subr tcp_x tcp_debug tcp_output \
-	tcp_timer
-DIRS =

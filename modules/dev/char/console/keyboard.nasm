@@ -585,7 +585,7 @@ proc KB_InterruptThread
 		ret
 
 		; Attach an interrupt event
-.Attach		lea	eax,[%$ev]
+.Attach:	lea	eax,[%$ev]
 		Ccall	_InterruptAttach, 1, 0, eax, tSigEvent_size, 0
 		test	eax,eax
 		stc

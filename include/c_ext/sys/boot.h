@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 
-#define MAXMODNAMELEN 24
+#define MAXMODNAMELEN 27
 
 /*
  * This describes a module which was created by BTL.
@@ -29,8 +29,8 @@ typedef struct {
     uint  symtablen;		/* size of symtab */
     char  type;			/* Module type (MODTYPE_*) */
     char  name[MAXMODNAMELEN];	/* Module name (NULL terminated) */
+    ulong flags;		/* Module flags */
     /* These fields are used only by a task manager */
-    ulong flags;
     void  *binfmt;
     void  *next, *prev;
 } tBMD;
@@ -75,5 +75,10 @@ typedef struct {
 #define MODTYPE_LIBRARY		1
 #define MODTYPE_KERNEL		2
 #define MODTYPE_RAW		3
+
+/*
+ * Flags
+ */
+#define MODFLAGS_RESMGR		1
 
 #endif

@@ -6,7 +6,7 @@
 %define _module_ah
 
 ; Module descriptor
-%define MAXMODNAMELEN	24
+%define MAXMODNAMELEN	27
 
 ; Module descriptor
 struc tModule
@@ -25,7 +25,6 @@ struc tModule
 .SymtabLen	RESD	1		; size of symtab
 .Type		RESB	1		; Module type (MODTYPE_*)
 .Name		RESB	MAXMODNAMELEN	; Module name (NULL terminated)
-.Pad		RESB	3		; Pad
 .Flags		RESD	1		; Flags
 .BinFmt		RESD	1		; Address of binary format driver
 .Next		RESD	1		; List link
@@ -39,13 +38,16 @@ endstruc
 %define MODTYPE_RAW		3
 %define MODTYPE_UNKNOWN		0FFh
 
+; Flags
+%define MODFLAGS_RESMGR		1
+
 ; This optional header may be present in the module file. It gives the
 ; information about module type, CPU type, required OS version etc.
 struc tModInfoTag
 .Signature	RESD	1		; Must be RBM_SIGNATURE
 .ModVersion	RESD	1		; Module version
 .ModType	RESB	1		; Module type (MODTYPE_*)
-.Flags		RESB	1		; Flags
+.Flags		RESB	1		; Flags (MODFLAGS_*)
 .OStype		RESW	1		; Target OS type
 .OSversion	RESD	1		; Target OS version
 .Base		RESD	1		; Base address (for shared libraries)

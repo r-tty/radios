@@ -145,6 +145,7 @@ static void modhdr_pass1(tURDFrec *hdrstart, uint hdrlen, tBMD *btlp)
 		    if (mtag->Signature != RBM_SIGNATURE)
 		    	panic("%s: invalid %s signature (%#x)", btlp->name, infotagmsg, mtag->Signature);
 		    btlp->type = mtag->ModType;
+		    btlp->flags = mtag->Flags;
 		    if (mtag->Base == -1)
 			/* Special case - for kernel extension modules */
 		    	btlp->virtaddr = btlp->codeaddr;
@@ -478,7 +479,7 @@ void print_module_info(const tBMD *btlp)
 	default:
 	    t = '?';
     }
-    printf("%-24s%c\t%-8d", btlp->name, t, btlp->size);
+    printf("%-27s%c\t%-8d", btlp->name, t, btlp->size);
     if (btlp->codeaddr) printf("%#-9X", btlp->codeaddr);
     else printf("%-9s", none);
     if (btlp->dataaddr) printf("%#-9X", btlp->dataaddr);

@@ -72,14 +72,16 @@ ModuleInfo: instance tModInfoTag
     field(Signature,	DD	RBM_SIGNATURE)
     field(ModVersion,	DD	1)
     field(ModType,	DB	MODTYPE_EXECUTABLE)
-    field(Flags,	DB	0)
+    field(Flags,	DB	MODFLAGS_RESMGR)
     field(OStype,	DW	1)
     field(OSversion,	DD	0)
     field(Base,		DD	0)
     field(Entry,	DD	CON_Main)
 iend
 
+TxtRegistering	DB	"Registering "
 ConDevPath	DB	"%console",0
+Txt~IOpriv	DB	"Unable to get I/O privileges",0
 Txt~InitVideo	DB	"Video device init error",NL,0
 Txt~InitKbd	DB	"Keyboard device init error",NL,0
 Txt~AllocDesc	DB	"Unable to allocate descriptor",NL,0
@@ -102,12 +104,14 @@ proc CON_Main
 		locals	dpp, id
 		prologue
 
+		mServPrintStr TxtRegistering
+
 		mov	byte [?ConParmTable+tConParm.VidParms+tConVidParm.PrintAttr],7
 
-		; Get I/O privilege
+		; Get I/O privileges
 		Ccall	_ThreadCtl, TCTL_IO, 0
 		test	eax,eax
-		js	near .Exit
+		js	near .ErrIOpriv
 
 		; Initialize video device and keyboard
 		call	VTX_Init
@@ -164,8 +168,10 @@ proc CON_Main
 		jmp	.Loop
 
 .Exit:		epilogue
-		retf
+		ret
 
+.ErrIOpriv:	mServPrintStr Txt~IOpriv
+		jmp	.Exit
 .ErrVidInit:	mServPrintStr Txt~InitVideo
 		jmp	.Exit
 .ErrKbdInit:	mServPrintStr Txt~InitKbd

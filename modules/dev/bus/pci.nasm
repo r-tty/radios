@@ -9,7 +9,7 @@ module $pci
 
 section .text
 
-		; PCI_Init - initialize controller.
+		; PCI_Init - initialize a PCI router.
 		; Input: none.
 		; Output: CF=0 - OK:
 		;		  DL=number of buses,

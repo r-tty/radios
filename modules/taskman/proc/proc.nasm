@@ -16,6 +16,7 @@ module tm.proc
 
 publicproc TM_InitProc
 publicproc TM_NewProcess, TM_DelProcess
+publicproc TM_ProcAttachThread, TM_ProcDetachThread
 publicproc TM_CopyConnections
 publicdata ?ProcessPool, ?ProcListPtr, ?MaxNumOfProc
 publicdata ProcMsgHandlers

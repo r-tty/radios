@@ -8,6 +8,7 @@ module tm.main
 %include "msg.ah"
 %include "errors.ah"
 %include "parameters.ah"
+%include "thread.ah"
 %include "module.ah"
 %include "serventry.ah"
 %include "tm/process.ah"
@@ -16,7 +17,7 @@ module tm.main
 publicproc TM_Main, TM_SetMsgHandler, TM_GetMsgHandler, TM_SetMHfromTable
 
 externproc TM_InitMemman, TM_InitModules, TM_InitPathman
-externproc TM_RegisterBinFmt, TM_IterateModList
+externproc TM_RegisterBinFmt, TM_IterateModList, TM_GetModIdByName
 externproc TM_NewProcess, TM_CopyConnections
 externproc MapArea, MM_AllocPagesAt, CopyFromAct, PoolInit
 externdata ProcMsgHandlers
@@ -39,6 +40,7 @@ mMHTabEnt 0
 TxtTaskmanInit	DB	"Task manager initialization:",10,0
 TxtDfltConsMgr	DB	"$console",0
 TxtDfltConsDev	DB	"/dev/console",0
+TxtDfltSpinoff	DB	"$tinit",0
 Txt~CreateChan	DB	"Unable to create channel",0
 TxtFatalErr	DB	"Fatal error (code ",0
 TxtHalt		DB	", halting", 0
@@ -53,7 +55,8 @@ TxtPulseVal	DB	", value=",0
 
 section .bss
 
-?SpareChannel	RESD	1
+?ConsModDesc	RESD	1			; Console module descriptor addr
+?SpareChannel	RESD	1			; ID of spare channel
 ?MsgHandlers	RESD	SYSMSG_MAX+1
 
 
@@ -124,9 +127,17 @@ proc TM_Main
 		test	eax,eax
 		js	near .Fatal
 
-		; Create boot processes. They will start running immediately!
-		mov	edx,CreateBootProc
+		; Start a console server
+		call	TM_StartConsole
+		jc	near .Fatal
+
+		; Start other resource manager sequentially
+		mov	edx,RunResmgr
 		call	TM_IterateModList
+		jc	near .Fatal
+
+		; Start spin-off process
+		call	TM_RunSpinoff
 		jc	near .Fatal
 
 		; Main loop: wait for a message and process it.
@@ -193,6 +204,10 @@ proc CreateBootProc
 		prologue
 		mpush	ebx,ecx,edx,edi
 
+		; Don't run a console server many times
+		cmp	ebx,[?ConsModDesc]
+		je	.Exit
+
 		; If a module is not executable - nothing to do.
 		cmp	byte [ebx+tModule.Type],MODTYPE_EXECUTABLE
 		clc
@@ -231,7 +246,7 @@ proc CreateBootProc
 		; Create first thread
 		Ccall	_ThreadCreate, dword [esi+tProcDesc.PID], \
 			dword [ebx+tModule.Entry], 0, 0
-		or	eax,eax
+		test	eax,eax
 		jns	.Exit
 		stc
 
@@ -292,6 +307,67 @@ proc MapShLib
 		ret
 endp		;---------------------------------------------------------------
 
+
+		; Start a resource manager and wait until it all its threads
+		; will enter RECEIVE state.
+		; Input: EBX=module descriptor address.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+		; Note:	can be used as an iterator.
+proc RunResmgr
+		push	ebx
+
+		test	byte [ebx+tModule.Flags],MODFLAGS_RESMGR
+		jz	.Exit
+		call	CreateBootProc
+		jc	.Exit
+		
+.1:		mov	ebx,[esi+tProcDesc.ThreadList]
+		or	ebx,ebx
+		stc
+		jz	.Exit
+.ThrLoop:	cmp	byte [ebx+tTCB.State],THRSTATE_RECEIVE
+		jne	.1
+		mov	ebx,[ebx+tTCB.ProcNext]
+		or	ebx,ebx
+		je	.Exit
+		cmp	ebx,[esi+tProcDesc.ThreadList]
+		jne	.ThrLoop
+
+.Exit:		pop	ebx
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Start a console server.
+		; Input: none.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+proc TM_StartConsole
+		mov	esi,TxtDfltConsMgr
+		call	TM_GetModIdByName
+		jc	.Exit
+		mov	ebx,edi
+		call	RunResmgr
+		jc	.Exit
+		mov	[?ConsModDesc],edi
+.Exit		ret
+endp		;---------------------------------------------------------------
+
+
+		; Start a spin-off process.
+		; Input: none.
+		; Output: CF=0 - OK;
+		;	  CF=1 - error.
+proc TM_RunSpinoff
+		mov	esi,TxtDfltSpinoff
+		call	TM_GetModIdByName
+		jc	.Exit
+		mov	ebx,edi
+		call	CreateBootProc
+		jc	.Exit
+.Exit		ret
+endp		;---------------------------------------------------------------
 
 		; Install a system message handler.
 		; Input: AX=message type,

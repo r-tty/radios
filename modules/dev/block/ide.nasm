@@ -5,9 +5,13 @@
 
 module $eide
 
-%include "sys.ah"
+%include "rmk.ah"
 %include "errors.ah"
+%include "module.ah"
+%include "thread.ah"
 %include "hw/ports.ah"
+
+%include "ide.ah"
 %include "hd.ah"
 
 externproc HD_Open, HD_Close
@@ -15,70 +19,8 @@ externproc HD_Read, HD_Write
 externproc HD_GetPartParams, HD_GetPartInfoStr
 externproc HD_LBA2CHS
 
-
-; --- Definitions ---
-
-; HDD controller registers
-%define	REG_DATA	0		; Data register
-%define	REG_PRECOMP	1		; Start of write precompensation
-%define	REG_COUNT	2		; Sectors to transfer
-%define	REG_SECTOR	3		; Sector number
-%define	REG_CYL_LO	4		; Low byte of cylinder number
-%define	REG_CYL_HI	5		; High byte of cylinder number
-%define	REG_LDH		6		; LBA, drive and head
-%define	REG_COMMAND	7		; Command register
-%define	REG_STATUS	7		; Status register
-%define	REG_ERROR	1		; Error code register
-%define	REG_CTL		206h		; Control register
-
-; LBA, drive and head values
-%define	LDH_DEFAULT	0A0h		; ECC enable, 512 bytes per sector
-%define	LDH_LBA		40h		; Use LBA addressing
-
-; Status register values
-%define	STATUS_BSY	80h		; controller busy
-%define	STATUS_RDY	40h		; drive ready
-%define	STATUS_WF	20h		; write fault
-%define	STATUS_SC	10h		; seek complete (obsolete)
-%define	STATUS_DRQ	08h		; data transfer request
-%define	STATUS_CRD	04h		; corrected data
-%define	STATUS_IDX	02h		; index pulse
-%define	STATUS_ERR	01h		; error
-
-; Error register values
-%define	ERROR_BB	80h		; bad block
-%define	ERROR_ECC	40h		; bad ecc bytes
-%define	ERROR_ID	10h		; ID not found
-%define	ERROR_AC	04h		; aborted command
-%define	ERROR_TK	02h		; track zero error
-%define	ERROR_DM	01h		; no data address mark
-
-; Commands
-%define	CMD_IDLE	00h		; Drive idle
-%define	CMD_RECALIBRATE	10h		; Recalibrate drive
-%define	CMD_READ	20h		; Read data
-%define	CMD_WRITE	30h		; Write data
-%define	CMD_READVERIFY	40h		; Read verify
-%define	CMD_FORMAT	50h		; Format track
-%define	CMD_SEEK	70h		; Seek cylinder
-%define	CMD_DIAG	90h		; Execute device diagnostics
-%define	CMD_SPECIFY	91h		; Specify parameters
-
-%define	ATA_IDENTIFY	0ECh		; Identify drive
-%define	ATA_READMULT	0C4h		; Read multiple
-%define	ATA_WRITEMULT	0C5h		; Write multiple
-%define	ATA_SETMULTMODE	0C6h		; Set multiple mode
-%define	ATA_READDMA	0C8h		; Read through DMA
-%define	ATA_WRITEDMA	0CAh		; Write through DMA
-%define	ATA_READBUF	0E4h		; Read buffer
-%define	ATA_WRITEBUF	0E8h		; Write buffer
-
-; Device control register values
-%define	CTL_NORETRY	80h		; Disable access retry
-%define	CTL_NOECC	40h		; Disable ECC retry
-%define	CTL_EIGHTHEADS	08h		; More than eight heads
-%define	CTL_RESET	04h		; Reset controller
-%define	CTL_INTDISABLE	02h		; Disable interrupts
+library $libc
+importproc _ThreadCtl, _ThreadCreate
 
 ; Interrupt request lines
 %define	IRQ_IDE1	14		; Default IRQ for interface 1
@@ -101,17 +43,6 @@ externproc HD_LBA2CHS
 %define	IDE_INTELLIGENT		4	; Intelligent ATA IDE drive
 %define	IDE_BLOCKMODEON		8	; Block mode turned on
 
-; Structure of common command block
-struc	tIDE_Command
-.Precomp	RESB	1		; REG_PRECOMP, etc.
-.Count		RESB	1
-.Sector		RESB	1
-.Cyl_Lo		RESB	1
-.Cyl_Hi		RESB	1
-.LDH		RESB	1
-.Command	RESB	1
-endstruc
-
 ; Structure of IDE device parameters
 struc tIDEdev
 .BasePort	RESW	1	; Interface base port
@@ -131,112 +62,62 @@ struc tIDEdev
 .DriveNum	RESB	1	; Drive number
 .SecPerInt	RESB	1	; Sectors per interrupt (R/W multiple)
 .CommonDesc	RESD	1	; Common HD descriptor (for DIHD routines)
-.LockSem	RESB	tSemaphore_size
-.BusySem	RESB	tSemaphore_size
 .ModelStr	RESB	40
 .Reserved	RESB	41	; Pad to 128 bytes
 endstruc
 
-; Structure of identify drive information
-struc tIDE_IDinfo
-.Flags		RESW	1
-.NumHardCyls	RESW	1
-.Reserved1	RESW	1
-.NumHeads	RESW	1
-.UnformBPT	RESW	1
-.UnformBPS	RESW	1
-.Sectors	RESW	1
-.Reserved2	RESW	3
-.SerNumber	RESW	10
-.BufType	RESW	1
-.BufSize	RESW	1
-.NumECCbytes	RESW	1
-.Revision	RESW	4
-.ModelStr	RESW	20
-.RWMultiSecs	RESW	1
-.DoubleWordIO	RESW	1
-.Capabilities	RESW	1
-.Reserved3	RESW	1
-.PIOdataCTM	RESW	1
-.DMAdataCTM	RESW	1
-.Reserved4	RESW	7
-.LBAtotalSecs	RESD	1
-.Reserved5	RESW	194
-endstruc
-
-
-; --- Data ---
 
 section .data
 
-; HD driver main structure
-DrvIDE		DB	"%hd"
-		TIMES	16-$+DrvIDE DB 0
-		DD	DrvIDEET
-		DW	DRVFL_Block
+ModuleInfo: instance tModInfoTag
+    field(Signature,	DD	RBM_SIGNATURE)
+    field(ModVersion,	DD	1)
+    field(ModType,	DB	MODTYPE_EXECUTABLE)
+    field(Flags,	DB	MODFLAGS_RESMGR)
+    field(OStype,	DW	1)
+    field(OSversion,	DD	0)
+    field(Base,		DD	0)
+    field(Entry,	DD	IDE_Main)
+iend
 
-; Driver entry points table
-DrvIDEET	DD	IDE_Init
-		DD	IDE_HandleEvent
-		DD	IDE_Open
-		DD	IDE_Close
-		DD	IDE_Read
-		DD	IDE_Write
-		DD	0
-		DD	DrvIDE_Ctrl
+TxtRegistering	DB	"Registering "
+HdDevPath	DB	"%hd",0
 
-; Driver control functions
-DrvIDE_Ctrl	DD	IDE_GetInitStatStr
-		DD	IDE_GetParameters
-
-; Init status string pieces
-IDE_InitStatStr	DB	9,9,": IDE ATA, 0 channel(s), 0 drive(s)",0
-IDE_MBstr	DB	" MB",0
-IDE_LBAstr	DB	", LBA",0
-IDE_CHSstr	DB	", CHS=",0
-IDE_MaxMultStr	DB	", MaxMult=",0
-
-
-; --- Variables ---
 
 section .bss
 
-IDE_DevTable	RESB	tIDEdev_size*IDE_MAXDRIVES		; IDE devices table
+?DevTable	RESB	tIDEdev_size*IDE_MAXDRIVES		; IDE devices table
 
-IDE_BasePorts	RESW	IDE_MAXCHANNELS	; Controller base ports
+?BasePorts	RESW	IDE_MAXCHANNELS	; Controller base ports
 
-IDE_IRQlines	RESB	IDE_MAXCHANNELS	; IRQ lines
+?IRQlines	RESB	IDE_MAXCHANNELS	; IRQ lines
 
-IDE_Command	RESB	IDE_MAXCHANNELS	; Current command in execution
+?CurrCommand	RESB	IDE_MAXCHANNELS	; Current command in execution
 
-IDE_Status	RESB	IDE_MAXCHANNELS	; Status after interrupt
+?CurrStatus	RESB	IDE_MAXCHANNELS	; Status after interrupt
 
-IDE_NumInstDevs	RESB	1		; Number of found hard disk drives
-IDE_NumChannels	RESB	1		; Number of found IDE channels
+?NumInstDevs	RESB	1		; Number of found hard disk drives
+?NumChannels	RESB	1		; Number of found IDE channels
 
-?WaiterThread	RESD	1
-
-
-; --- Interface procedures ---
 
 section .text
 
-		; IDE_Init - driver initialization.
-		; Input: DL=maximum number of devices to search,
-		;	 ESI=pointer to buffer for init status string.
-		; Output: CF=0 - OK:
-		;		  DH=number of interfaces found,
-		;		  DL=number of drives found.
-		;	  CF=1 - error.
-		; Action: 1. if memory blocks not allocated, allocate them;
-		;	  2. initialize IDE interfaces;
-		;	  3. search for drives and fill in their
-		;	     parameter structures.
-proc IDE_Init
+		; IDE_Main - resource manager initialization.
+proc IDE_Main
+		; Get I/O privileges
+		Ccall	_ThreadCtl, TCTL_IO, 0
+		test	eax,eax
+		js	near .ErrIOpriv
+
+		; Create the interrupt handling thread
+		Ccall	_ThreadCreate, 0, IDE_InterruptThread, 0, 0
+		test	eax,eax
+		js	near .ErrIntThr
+
 		; Initialize port addresses and IRQs
-		mov	dword [IDE_BasePorts],PORT_HDC_IDE1 + (PORT_HDC_IDE2 << 16)
-		mov	dword [IDE_BasePorts+4],PORT_HDC_IDE3 + (PORT_HDC_IDE4 << 16)
-		mov	dword [IDE_IRQlines],IRQ_IDE1 + (IRQ_IDE2 << 8) + (IRQ_IDE3 << 16) + (IRQ_IDE4 << 24)
+		mov	dword [?BasePorts],PORT_HDC_IDE1 + (PORT_HDC_IDE2 << 16)
+		mov	dword [?BasePorts+4],PORT_HDC_IDE3 + (PORT_HDC_IDE4 << 16)
+		mov	dword [?IRQlines],IRQ_IDE1 + (IRQ_IDE2 << 8) + (IRQ_IDE3 << 16) + (IRQ_IDE4 << 24)
 
 		push	ebx
 		mov	dh,dl
@@ -244,7 +125,7 @@ proc IDE_Init
 		xor	bh,bh
 
 .Loop:		call	IDE_Probe
-		jc	short .1
+		jc	.1
 		inc	dl
 .1:		inc	bh
 		inc	bh			; Kluge
@@ -256,51 +137,39 @@ proc IDE_Init
 		; Count number of IDE channels
 		xor	dh,dh
 		xor	ecx,ecx
-.CountChannels:	cmp	byte [ecx+IDE_Status],0
-		je	short .NextChan
+.CountChannels:	cmp	byte [ecx+?CurrStatus],0
+		je	.NextChan
 		inc	dh
 .NextChan:	inc	cl
 		cmp	cl,IDE_MAXCHANNELS
-		jne	short .CountChannels
+		jne	.CountChannels
 		mov	[IDE_NumChannels],dh
-
-		movzx	edx,dx
-		call	IDE_GetInitStatStr
 		clc
+
 		pop	ebx
 		ret
 endp		;---------------------------------------------------------------
 
 
 		; IDE_HandleEvent - handle all hardware interrupts.
-		; Input: EAX=event code (EV_IRQ<<16 + IRQ#)
+		; Input: none.
 		; Output: none.
 proc IDE_HandleEvent
-		ror	eax,16
-		cmp	ax,EV_IRQ
-		je	short .HandleIRQ
-		stc
-		ret
-.HandleIRQ:	mpush	ebx,ecx,edx
+		mpush	ebx,ecx,edx
 		shr	eax,16				; AL=IRQ#
 		
 		xor	ecx,ecx
 .FindChannel:	cmp	al,[IDE_IRQlines+ecx]
-		je	short .GotChannel
+		je	.GotChannel
 		inc	ecx
 		cmp	ecx,IDE_MAXCHANNELS
 		jne	.FindChannel
-		jmp	short .Exit			; No channel found
+		jmp	.Exit			; No channel found
 		
-.GotChannel:	mov	dx,[IDE_BasePorts+ecx*2]
+.GotChannel:	mov	dx,[?BasePorts+ecx*2]
 		add	dx,REG_STATUS
 		in	al,dx
-		mov	[IDE_Status+ecx],al
-.OK:		mov	ebx,[?WaiterThread]
-		or	ebx,ebx
-		jz	short .Exit
-		call	MT_ThreadWakeup
-		mov	dword [?WaiterThread],0
+		mov	[?CurrStatus+ecx],al
 .Exit:		mpop	edx,ecx,ebx
 		clc
 		ret
@@ -313,25 +182,25 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc IDE_Open
 		test	edx,0FF000000h			; Subminor given?
-		jz	short .Do			; No, all right
+		jz	.Do			; No, all right
 		mov	ax,ERR_DRV_BadMinor		; Else error
 		stc					; (bad minor number)
 		ret
 .Do:		mpush	ebx,edx,edi
 		call	IDE_Minor2HDN			; Get disk number
-		jc	short .Exit			; and structure address
+		jc	.Exit			; and structure address
 		cmp	byte [edi+tIDEdev.OpenCount],0	; Already opened?
-		jne	short .Err
+		jne	.Err
 		mov	dx,DRVID_HDIDE			; Major number of driver
 		push	edi
 		mov	edi,IDE_Operation
 		call	HD_Open				; Partition disk
 		pop	edi
-		jc	short .Exit
+		jc	.Exit
 		mov	[edi+tIDEdev.CommonDesc],eax	; Store disk descriptor
 		inc	byte [edi+tIDEdev.OpenCount]
 		xor	eax,eax
-		jmp	short .Exit
+		jmp	.Exit
 
 .Err:		mov	ax,ERR_DRV_AlreadyOpened
 		stc
@@ -346,19 +215,19 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc IDE_Close
 		test	edx,0FF000000h			; Subminor given?
-		jz	short .Do			; No, all right
+		jz	.Do			; No, all right
 		mov	ax,ERR_DRV_BadMinor		; Else error
 		stc					; (bad minor number)
 		ret
 .Do:		mpush	ebx,edx,edi
 		call	IDE_Minor2HDN			; Get disk number
-		jc	short .Exit			; and structure address
+		jc	.Exit			; and structure address
 		mov	eax,[edi+tIDEdev.CommonDesc]	; Major number of driver
 		call	HD_Close			; "Close" disk
-		jc	short .Exit
+		jc	.Exit
 		xor	eax,eax
 		cmp	byte [edi+tIDEdev.OpenCount],0
-		je	short .Exit
+		je	.Exit
 		dec	byte [edi+tIDEdev.OpenCount]
 		xor	al,al
 .Exit:		mpop	edi,edx,ebx
@@ -377,18 +246,18 @@ endp		;---------------------------------------------------------------
 		; Note: number of sectors to read absolute is limited to 255.
 proc IDE_Read
 		test	edx,0FF000000h			; Check subminor
-		jz	short .Absolute
+		jz	.Absolute
 		push	edi
 		push	ebx
 		call	IDE_Minor2HDN
 		pop	ebx
-		jc	short .ExitRel
+		jc	.ExitRel
 		cmp	byte [edi+tIDEdev.OpenCount],0	; Device opened?
-		je	short .Err
+		je	.Err
 		mov	eax,[edi+tIDEdev.CommonDesc]
 		mov	edi,IDE_Operation
 		call	HD_Read
-		jmp	short .ExitRel
+		jmp	.ExitRel
 .Err:		mov	ax,ERR_DRV_NotOpened
 		stc
 .ExitRel:	pop	edi
@@ -398,7 +267,7 @@ proc IDE_Read
 		mov	al,cl			; Keep count
 		mov	ecx,ebx			; ECX=absolute sector
 		call	IDE_Minor2HDN		; BH=drive
-		jc	short .Exit
+		jc	.Exit
 		mov	bl,al			; BL=count
 		mov	ah,HD_opREADSEC		; Operation code
 		call	IDE_Operation
@@ -417,18 +286,18 @@ endp		;---------------------------------------------------------------
 		;	  CF=1 - error, AX=error code.
 proc IDE_Write
 		test	edx,0FF000000h			; Check subminor
-		jz	short .Absolute
+		jz	.Absolute
 		push	edi
 		push	ebx
 		call	IDE_Minor2HDN
 		pop	ebx
-		jc	short .ExitRel
+		jc	.ExitRel
 		cmp	byte [edi+tIDEdev.OpenCount],0	; Device opened?
-		je	short .Err
+		je	.Err
 		mov	eax,[edi+tIDEdev.CommonDesc]
 		mov	edi,IDE_Operation
 		call	HD_Read
-		jmp	short .ExitRel
+		jmp	.ExitRel
 .Err:		mov	ax,ERR_DRV_NotOpened
 		stc
 .ExitRel:	pop	edi
@@ -438,133 +307,11 @@ proc IDE_Write
 		mov	al,cl			; Keep count
 		mov	ecx,ebx			; ECX=absolute sector
 		call	IDE_Minor2HDN		; BH=drive
-		jc	short .Exit
+		jc	.Exit
 		mov	bl,al			; BL=count
 		mov	ah,HD_opWRITESEC	; Operation code
 		call	IDE_Operation
 .Exit:		pop	ecx
-		ret
-endp		;---------------------------------------------------------------
-
-
-		; IDE_GetInitStatStr - get initialization status string.
-		; Input: ESI=buffer for string.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error.
-		; Note: if the minor number is given, forms string with
-		;	hard disk model, else forms string with controller
-		;	information and number of drives found.
-proc IDE_GetInitStatStr
-		mpush	eax,ebx,esi,edi
-		
-		mov	edi,esi		
-		mov	esi,DrvIDE			; Copy "%hd"
-		call	StrCopy
-		call	StrEnd
-		mov	esi,edi
-		
-		test	edx,0FF0000h			; Minor present?
-		jz	short .NoMinor
-
-		; Check whether the device is initialized
-		call	IDE_Minor2HDN
-		jc	near .Exit
-		cmp	word [edi+tIDEdev.BasePort],0
-		jne	short .ChkSubMinor
-		stc
-		jmp	.Exit
-
-.NoMinor:	mov	esi,IDE_InitStatStr
-		call	StrCopy
-		mov	ah,[IDE_NumChannels]
-		mov	al,[IDE_NumInstDevs]
-		add	ax,3030h
-		mov	[edi+13],ah
-		mov	[edi+27],al
-                jmp	.Exit
-
-.ChkSubMinor:	mov	edi,esi
-		cld
-		or	bl,bl
-		jz	short .DriveModel
-		mov	ebx,edx
-		shr	ebx,16
-		mov	eax,ebx
-		add	ax,3030h
-		stosb					; Store minor number,
-		mov	al,'.'				; dot and
-		stosw					; subminor number
-		mov	eax," 	: "
-		stosd
-		xchg	bh,bl				; BL=partition number
-		dec	bh				; BH=disk number
-		push	edi				; Keep buffer address
-		call	IDE_GetDPSaddr
-		mov	eax,[edi+tIDEdev.CommonDesc]
-		pop	edi
-		jc	near .Exit
-		mov	esi,edi
-		call	HD_GetPartInfoStr
-		jmp	.Exit
-
-.DriveModel:	mov	ebx,edx
-		shr	ebx,8
-		mov	al,bh
-		add	al,30h
-		cld
-		stosb					; Store minor number
-		dec	bh
-		push	edi				; Keep buffer address
-		call	IDE_GetDPSaddr
-		mov	ebx,edi
-		pop	edi
-		jc	near .Exit
-		lea	esi,[ebx+tIDEdev.ModelStr]	; ESI=pointer to model
-		mov	eax,"		: "
-		stosd
-		call	StrCopy
-
-		call	StrEnd				; Store size string
-		mov	ax,", "
-		stosw
-		mov	esi,edi
-		mov	eax,[ebx+tIDEdev.TotalSectors]
-		shr	eax,11
-		call	DecD2Str
-		mov	esi,IDE_MBstr
-		call	StrAppend
-
-		test	byte [ebx+tIDEdev.LDHpref],LDH_LBA	; LBA?
-		jz	short .CHS
-		mov	esi,IDE_LBAstr
-		call	StrAppend
-.CHS:		mov	esi,IDE_CHSstr
-		call	StrAppend
-		call	StrEnd
-		mov	esi,edi
-		movzx	eax,word [ebx+tIDEdev.LCyls]
-		call	DecD2Str
-		call	StrEnd
-		mov	byte [edi],'/'
-		lea	esi,[edi+1]
-		mov	ax,[ebx+tIDEdev.LHeads]
-		call	DecD2Str
-		call	StrEnd
-		mov	byte [edi],'/'
-		lea	esi,[edi+1]
-		mov	ax,[ebx+tIDEdev.LSectors]
-		call	DecD2Str
-
-		mov	al,[ebx+tIDEdev.SecPerInt]
-		cmp	al,1
-		je	short .Exit
-		mov	esi,IDE_MaxMultStr
-		call	StrAppend
-		call	StrEnd
-		mov	esi,edi
-		call	DecD2Str
-.OK:		clc
-.Exit:		mpop	edi,esi,ebx,eax
 		ret
 endp		;---------------------------------------------------------------
 
@@ -583,12 +330,12 @@ endp		;---------------------------------------------------------------
 proc IDE_GetParameters
 		mpush	ebx,edi
 		call	IDE_Minor2HDN
-		jc	short .Exit
+		jc	.Exit
 		or	bl,bl				; Subminor given?
-		jz	short .NoSubMinor
+		jz	.NoSubMinor
 		mov	eax,[edi+tIDEdev.CommonDesc]
 		call	HD_GetPartParams
-                jc	short .Exit
+                jc	.Exit
 
 .NoSubMinor:	mov	cx,[edi+tIDEdev.LCyls]
 		mov	dl,[byte edi+tIDEdev.LSectors]
@@ -610,7 +357,7 @@ proc IDE_Probe
 %define	.secbuf	ebp-512
 
 		cmp	bh,IDE_MAXDRIVES
-		jb	short .Do
+		jb	.Do
 		stc
 		ret
 
@@ -623,8 +370,8 @@ proc IDE_Probe
 		xor	eax,eax
 		mov	al,bh
 		shr	al,1				; AL=channel number
-		mov	cl,[IDE_IRQlines+eax]
-		mov	dx,[IDE_BasePorts+eax*2]
+		mov	cl,[?IRQlines+eax]
+		mov	dx,[?BasePorts+eax*2]
 
 		; Check if the one of the registers exists
 		add	dx,REG_CYL_LO
@@ -677,13 +424,13 @@ proc IDE_Probe
 		mov	[edi+tIDEdev.LSectors],ax
 		mov	al,[byte esi+tIDE_IDinfo.RWMultiSecs]
 		or	al,al					; Block mode
-		jnz	short .SecPerInt			; enabled?
+		jnz	.SecPerInt			; enabled?
 		inc	al
 .SecPerInt:	mov	[edi+tIDEdev.SecPerInt],al
 
 		mov	ax,[esi+tIDE_IDinfo.Capabilities]
 		test	ah,2					; LBA?
-		jz	short .Model
+		jz	.Model
 		or	byte [edi+tIDEdev.LDHpref],LDH_LBA
 		mov	eax,[esi+tIDE_IDinfo.LBAtotalSecs]	; Total sectors
 		mov	[edi+tIDEdev.TotalSectors],eax
@@ -695,9 +442,9 @@ proc IDE_Probe
 .ModelLoop:	lodsw					; Copy model string
 		dec	cl
 		dec	cl
-		jz	short .Term
+		jz	.Term
 		cmp	ax,2020h
-		je	short .Term
+		je	.Term
 		xchg	al,ah				; Convert
 		stosw					; to little-endian
 		jmp	.ModelLoop
@@ -710,7 +457,7 @@ proc IDE_Probe
 		mov	ax,[edi+tIDEdev.LCyls]
 		mov	bx,[edi+tIDEdev.LHeads]
 .LogLoop:	cmp	ax,1024				; <=1024 cylinders?
-		jbe	short .StoreLogPar		; Yes, store new values
+		jbe	.StoreLogPar		; Yes, store new values
 		shr	ax,1				; Else cylinders/=2
 		shl	bx,1				; and heads*=2
 		jmp	.LogLoop
@@ -719,19 +466,19 @@ proc IDE_Probe
 
 		; Initialize drive parameters
 		call	IDE_Specify
-		jnc	short .SetBlkMode
+		jnc	.SetBlkMode
 		call	IDE_Specify
-		jc	short .NotExist
+		jc	.NotExist
 
 		; Initialize block mode
 .SetBlkMode:	mov	dl,[edi+tIDEdev.SecPerInt]
 		cmp	dl,1
-		je	short .OK
+		je	.OK
 		call	IDE_SetBlockMode
-		jmp	short .Exit
+		jmp	.Exit
 
 .OK:		clc
-		jmp	short .Exit
+		jmp	.Exit
 .NotExist:	stc
 .Exit:		mpop	edi,esi,edx,ecx,ebx,eax
 		epilogue
@@ -747,9 +494,9 @@ proc IDE_Specify
 		mpush	eax,ebx,ecx,edi
 
 		test	byte [edi+tIDEdev.State],IDE_DEAF	; Need reset?
-		jz	short .NoRes
+		jz	.NoRes
 		call	IDE_Reset
-		jc	short .Exit
+		jc	.Exit
 
 .NoRes:		mov	bl,[byte edi+tIDEdev.Precomp]
 		mov	bh,[edi+tIDEdev.LDHpref]
@@ -760,7 +507,7 @@ proc IDE_Specify
 		mov	cl,[byte edi+tIDEdev.PSectors]
 		mov	ah,CMD_SPECIFY
 		call	IDE_OutCmdSimple
-		jc	short .Exit
+		jc	.Exit
 		or	byte [edi+tIDEdev.State],IDE_INITIALIZED
 
 .Exit:		mpop	edi,ecx,ebx,eax
@@ -807,9 +554,9 @@ proc IDE_OutCommand
 
 		; Out CTL byte
 		cmp	byte [edi+tIDEdev.PHeads],8
-		jae	short .G8heads
+		jae	.G8heads
 		xor	al,al
-		jmp	short .OutCTL
+		jmp	.OutCTL
 .G8heads:	mov	al,CTL_EIGHTHEADS
 .OutCTL:	add	dx,REG_CTL
 		out	dx,al
@@ -818,7 +565,7 @@ proc IDE_OutCommand
 		mov	edx,esi
 		inc	dl			; DX=REG_PRECOMP
 		or	bl,bl			; Precomp. cyl. given?
-		jz	short .NoPrecomp
+		jz	.NoPrecomp
 		mov	al,bl
 		out	dx,al
 .NoPrecomp:	inc	dl
@@ -849,8 +596,8 @@ proc IDE_OutCommand
 		shr	eax,24
 		cli
 		out	dx,al
-		mov	[ebx+IDE_Command],al
-		mov	byte [ebx+IDE_Status],STATUS_BSY
+		mov	[ebx+?CurrCommand],al
+		mov	byte [ebx+?CurrStatus],STATUS_BSY
 		sti
 		pop	ebx
 
@@ -871,14 +618,14 @@ endp		;---------------------------------------------------------------
 		; Output: same as IDE_OutCommand.
 proc IDE_OutCmdSimple
 		call	IDE_OutCommand
-		jc	short .CmdErr
+		jc	.CmdErr
 		call	IDE_WaitIntr
 .CmdErr:	pushfd					; Keep flags
 		push	eax				; Keep error code
 		xor	eax,eax
 		mov	al,[edi+tIDEdev.DriveNum]	; Get controller number
 		shr	al,1				; in EAX
-		mov	byte [eax+IDE_Command],CMD_IDLE
+		mov	byte [eax+?CurrCommand],CMD_IDLE
 		pop	eax
 		popfd
 		ret
@@ -900,13 +647,13 @@ proc IDE_WaitFor
 .Loop:		in	al,dx
 		and	al,bl
 		cmp	al,ah
-		je	short .OK
+		je	.OK
 		call	MT_SuspendCurr1ms		; Suspend on 1 ms
 		dec	ecx
 		jnz	.Loop
 		call	IDE_NeedReset			; Controller gone deaf
 		stc
-		jmp	short .Exit
+		jmp	.Exit
 .OK:		clc
 .Exit:		mpop	edx,ecx,ebx,eax
 		ret
@@ -923,9 +670,9 @@ proc IDE_NeedReset
 		xor	eax,eax
 		mov	al,tIDEdev_size
 		test	byte [edi+tIDEdev.DriveNum],1
-		jnz	short .Slave
+		jnz	.Slave
 		add	edi,eax
-		jmp	short .1
+		jmp	.1
 .Slave:		sub	edi,eax
 .1:		call	.SetFlags
 		mpop	edi,eax
@@ -960,7 +707,7 @@ proc IDE_Reset
 		; Wait for controller ready
 		mov	ax,256*STATUS_RDY+STATUS_BSY+STATUS_RDY
 		call	IDE_WaitFor
-		jc	short .Err1
+		jc	.Err1
 
 		; Clear DEAF flags for all drives on this controller
 		mov	dl,~IDE_DEAF
@@ -968,13 +715,13 @@ proc IDE_Reset
 		xor	eax,eax
 		mov	al,tIDEdev_size
 		test	byte [edi+tIDEdev.DriveNum],1		; Slave?
-		jnz	short .Slave
+		jnz	.Slave
 		add	edi,eax
-		jmp	short .1
+		jmp	.1
 .Slave:		sub	edi,eax
 .1:		and	[edi+tIDEdev.State],dl			; Another drive
 		xor	ax,ax
-		jmp	short .Exit
+		jmp	.Exit
 
 .Err1:		mov	ax,ERR_IDE_ResFailed
 .Error:		stc
@@ -990,7 +737,7 @@ endp		;---------------------------------------------------------------
 proc IDE_Recalibrate
 		mpush	ebx,ecx,edx,edi
 		call	IDE_GetDPSaddr
-		jc	short .Exit
+		jc	.Exit
 		shr	bh,4
 		or	bh,[edi+tIDEdev.LDHpref]
 		xor	bl,bl
@@ -1017,15 +764,15 @@ proc IDE_WaitIntr
 		cli
 		mov	edx,[?CurrThread]
 		or	edx,edx
-		jz	short .SkipThrSleep
+		jz	.SkipThrSleep
 		call	MT_ThreadSleep			; Sleep current thread
 		popfd
 		pop	ebx
 		call	MT_Schedule
-		jmp	short .ChkStatus
+		jmp	.ChkStatus
 .SkipThrSleep:	popfd
 		pop	ebx		
-.ChkStatus:	mov	al,[ebx+IDE_Status]
+.ChkStatus:	mov	al,[ebx+?CurrStatus]
 		test	al,STATUS_BSY
 		jnz	.Loop
 
@@ -1033,20 +780,20 @@ proc IDE_WaitIntr
 		mov	ah,al
 		and	al,STATUS_BSY+STATUS_RDY+STATUS_WF+STATUS_ERR
 		cmp	al,STATUS_RDY
-		je	short .OK
+		je	.OK
 		test	ah,STATUS_ERR
-		jz	short .GeneralErr
+		jz	.GeneralErr
 		mov	dx,[edi+tIDEdev.BasePort]
 		add	dx,REG_ERROR
 		in	al,dx
 		and	al,ERROR_BB
-		jz	short .GeneralErr
+		jz	.GeneralErr
 		mov	ax,ERR_IDE_BadSector		; BadSector  error
-		jmp	short .Err
+		jmp	.Err
 
-.OK:		or	byte [ebx+IDE_Status],STATUS_BSY
+.OK:		or	byte [ebx+?CurrStatus],STATUS_BSY
 		xor	ax,ax
-		jmp	short .Exit
+		jmp	.Exit
 .GeneralErr:	mov	ax,ERR_IDE_General		; General error
 .Err:		stc
 .Exit:		sti
@@ -1063,17 +810,17 @@ proc IDE_Timeout
 		xor	ebx,ebx
 		mov	bl,[edi+tIDEdev.DriveNum]
 		shr	bl,1
-		mov	al,[ebx+IDE_Command]		; Last command
+		mov	al,[ebx+?CurrCommand]		; Last command
 		cmp	al,CMD_IDLE
-		je	short .Exit
+		je	.Exit
 		cmp	al,CMD_READ
-		jne	short .Other
+		jne	.Other
 		cmp	al,CMD_WRITE
-		jne	short .Other
+		jne	.Other
 
-		jmp	short .Exit
+		jmp	.Exit
 .Other:		call	IDE_NeedReset
-		mov	byte [ebx+IDE_Status],0
+		mov	byte [ebx+?CurrStatus],0
 .Exit:		mpop	ebx,eax
 		ret
 endp		;---------------------------------------------------------------
@@ -1090,12 +837,12 @@ proc IDE_SetBlockMode
 		xor	ecx,ecx
 		mov	cl,dl
 		or	cl,cl				; Enable block mode?
-		jnz	short .Enable
+		jnz	.Enable
 		and	byte [edi+tIDEdev.State],~IDE_BLOCKMODEON
-		jmp	short .NoCorr
+		jmp	.NoCorr
 .Enable:	mov	dl,[edi+tIDEdev.SecPerInt]
 		cmp	dl,cl
-		jae	short .NoCorr
+		jae	.NoCorr
 		mov	cl,dl
 
 .NoCorr:	mov	bh,[edi+tIDEdev.DriveNum]
@@ -1104,9 +851,9 @@ proc IDE_SetBlockMode
 		xor	bl,bl
 		mov	ah,ATA_SETMULTMODE
 		call	IDE_OutCmdSimple
-		jc	short .Exit
+		jc	.Exit
 		or	cl,cl
-		jz	short .OK
+		jz	.OK
 		or	byte [edi+tIDEdev.State],IDE_BLOCKMODEON
 .OK:		clc
 .Exit:		mpop	edx,ecx,ebx
@@ -1135,7 +882,7 @@ proc IDE_Operation
 
 		; If not LBA - count cylinder, head and sector
 		test	byte [edi+tIDEdev.LDHpref],LDH_LBA
-		jnz	short .LBA
+		jnz	.LBA
 		mov	eax,ebx				; Keep drive & count
 		mov	ebx,ecx
 		mov	dl,[byte edi+tIDEdev.LSectors]
@@ -1147,7 +894,7 @@ proc IDE_Operation
 		shl	ah,4				; LDH =head
 		or	bh,ah				; LDH |=drive
 		or	bh,LDH_DEFAULT
-		jmp	short .1
+		jmp	.1
 
 .LBA:		ror	ecx,16
 		test	ch,0F0h				; LBA correct?
@@ -1163,7 +910,7 @@ proc IDE_Operation
 
 		; More than 1 sector?
 		cmp	cl,1
-		je	short .Single
+		je	.Single
 
 		; Check device Multiple R/W capability
 		mov	al,[edi+tIDEdev.SecPerInt]
@@ -1178,76 +925,76 @@ proc IDE_Operation
 
 		; Read or write?
 		cmp	ah,HD_opREADSEC
-		je	short .ReadMult
+		je	.ReadMult
 		cmp	ah,HD_opWRITESEC
-		jne	short .Err3
+		jne	.Err3
 
 		; Write multiple
 ;		mov	ah,ATA_WRITEMULT
 ;		call	IDE_OutCommand
-;		jc	short .Exit
+;		jc	.Exit
 ;		call	IDE_WaitIntr
-;		jc	short .Exit
+;		jc	.Exit
 ;		mov	dx,[edi+tIDEdev.BasePort]
 ;		and	ecx,0FFh
 ;		shl	ecx,8
 ;		rep	outsw
-		jmp	short .OK
+		jmp	.OK
 
 		; Read multiple
 .ReadMult:	mov	ah,ATA_READMULT
 		call	IDE_OutCommand
-		jc	short .Exit
+		jc	.Exit
 		call	IDE_WaitIntr
-		jc	short .Exit
+		jc	.Exit
 		mov	dx,[edi+tIDEdev.BasePort]
 		and	ecx,0FFh
 		shl	ecx,8
 		mov	edi,esi
 		rep	insw
-		jmp	short .OK
+		jmp	.OK
 
 
 		; R/W single sector
 .Single:	cmp	ah,HD_opREADSEC
-		je	short .ReadOne
+		je	.ReadOne
 		cmp	ah,HD_opWRITESEC
-		jne	short .Err3
+		jne	.Err3
 
 		; Write one sector
 ;		mov	ah,CMD_WRITE
 ;		call	IDE_OutCommand
-;		jc	short .Exit
+;		jc	.Exit
 ;		call	IDE_WaitIntr
-;		jc	short .Exit
+;		jc	.Exit
 ;		mov	dx,[edi+tIDEdev.BasePort]
 ;		mov	ecx,256
 ;		rep	outsw
-		jmp	short .OK
+		jmp	.OK
 
 		; Read one sector
 .ReadOne:	mov	ah,CMD_READ
 		call	IDE_OutCommand
-		jc	short .Exit
+		jc	.Exit
 		call	IDE_WaitIntr
-		jc	short .Exit
+		jc	.Exit
 		mov	dx,[edi+tIDEdev.BasePort]
 		mov	edi,esi
 		mov	ecx,256
 		rep	insw
-		jmp	short .OK
+		jmp	.OK
 
 .OK:		xor	ax,ax
-		jmp	short .Exit
+		jmp	.Exit
 
 .Err1:		mov	ax,ERR_IDE_BadDriveNum
-		jmp	short .Error
+		jmp	.Error
 .Err2:		mov	ax,ERR_IDE_BadLBA
-		jmp	short .Error
+		jmp	.Error
 .Err3:		mov	ax,ERR_HD_NoDiskOp
-		jmp	short .Error
+		jmp	.Error
 .Err4:		mov	ax,ERR_IDE_TooManySectors
-		jmp	short .Error
+		jmp	.Error
 .Err5:		mov	ax,ERR_IDE_NoBlockMode
 .Error:		stc
 .Exit:		mpop	edi,esi,edx,ecx,ebx
@@ -1262,9 +1009,9 @@ endp		;---------------------------------------------------------------
 proc IDE_GetDPSaddr
 		cmp	bh,IDE_MAXDRIVES
 		cmc
-		jc	short .Exit
+		jc	.Exit
 		push	eax
-		mov	edi,IDE_DevTable
+		mov	edi,?DevTable
 		xor	eax,eax
 		mov	al,bh
 		shl	eax,7			; Size of tIDEdev=128 bytes
@@ -1288,15 +1035,15 @@ proc IDE_Minor2HDN
 		mov	ebx,edx
 		shr	ebx,16
 		or	bl,bl			; Minor number nonzero?
-		jz	short .Err1
+		jz	.Err1
 		xchg	bl,bh
 		dec	bh			; Get disk number
 		call	IDE_GetDPSaddr		; Get structure address
-		jc	short .Err2
+		jc	.Err2
 		clc
 		ret
 .Err1:		mov	ax,ERR_DRV_NoMinor
-		jmp	short .Error
+		jmp	.Error
 .Err2:		mov	ax,ERR_DRV_BadMinor
 .Error:		stc
 		ret

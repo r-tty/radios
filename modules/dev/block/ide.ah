@@ -1,0 +1,108 @@
+;-------------------------------------------------------------------------------
+; ide.ah - IDE ATA definitions.
+;-------------------------------------------------------------------------------
+
+%ifndef _ide_ah
+%define _ide_ah
+
+; HDD controller registers
+REG_DATA	EQU	0		; Data register
+REG_PRECOMP	EQU	1		; Start of write precompensation
+REG_COUNT	EQU	2		; Sectors to transfer
+REG_SECTOR	EQU	3		; Sector number
+REG_CYL_LO	EQU	4		; Low byte of cylinder number
+REG_CYL_HI	EQU	5		; High byte of cylinder number
+REG_LDH		EQU	6		; LBA, drive and head
+REG_COMMAND	EQU	7		; Command register
+REG_STATUS	EQU	7		; Status register
+REG_ERROR	EQU	1		; Error code register
+REG_CTL		EQU	206h		; Control register
+
+; LBA, drive and head values
+LDH_DEFAULT	EQU	0A0h		; ECC enable, 512 bytes per sector
+LDH_LBA		EQU	40h		; Use LBA addressing
+
+; Status register values
+STATUS_BSY	EQU	80h		; controller busy
+STATUS_RDY	EQU	40h		; drive ready
+STATUS_WF	EQU	20h		; write fault
+STATUS_SC	EQU	10h		; seek complete (obsolete)
+STATUS_DRQ	EQU	08h		; data transfer request
+STATUS_CRD	EQU	04h		; corrected data
+STATUS_IDX	EQU	02h		; index pulse
+STATUS_ERR	EQU	01h		; error
+
+; Error register values
+ERROR_BB	EQU	80h		; bad block
+ERROR_ECC	EQU	40h		; bad ecc bytes
+ERROR_ID	EQU	10h		; ID not found
+ERROR_AC	EQU	04h		; aborted command
+ERROR_TK	EQU	02h		; track zero error
+ERROR_DM	EQU	01h		; no data address mark
+
+; Commands
+CMD_IDLE	EQU	00h		; Drive idle
+CMD_RECALIBRATE	EQU	10h		; Recalibrate drive
+CMD_READ	EQU	20h		; Read data
+CMD_WRITE	EQU	30h		; Write data
+CMD_READVERIFY	EQU	40h		; Read verify
+CMD_FORMAT	EQU	50h		; Format track
+CMD_SEEK	EQU	70h		; Seek cylinder
+CMD_DIAG	EQU	90h		; Execute device diagnostics
+CMD_SPECIFY	EQU	91h		; Specify parameters
+
+ATA_IDENTIFY	EQU	0ECh		; Identify drive
+ATA_READMULT	EQU	0C4h		; Read multiple
+ATA_WRITEMULT	EQU	0C5h		; Write multiple
+ATA_SETMULTMODE	EQU	0C6h		; Set multiple mode
+ATA_READDMA	EQU	0C8h		; Read through DMA
+ATA_WRITEDMA	EQU	0CAh		; Write through DMA
+ATA_READBUF	EQU	0E4h		; Read buffer
+ATA_WRITEBUF	EQU	0E8h		; Write buffer
+
+; Device control register values
+CTL_NORETRY	EQU	80h		; Disable access retry
+CTL_NOECC	EQU	40h		; Disable ECC retry
+CTL_EIGHTHEADS	EQU	08h		; More than eight heads
+CTL_RESET	EQU	04h		; Reset controller
+CTL_INTDISABLE	EQU	02h		; Disable interrupts
+
+; Structure of common command block
+struc	tIDE_Command
+.Precomp	RESB	1		; REG_PRECOMP, etc.
+.Count		RESB	1
+.Sector		RESB	1
+.Cyl_Lo		RESB	1
+.Cyl_Hi		RESB	1
+.LDH		RESB	1
+.Command	RESB	1
+endstruc
+
+; Structure of identify drive information
+struc tIDE_IDinfo
+.Flags		RESW	1
+.NumHardCyls	RESW	1
+.Reserved1	RESW	1
+.NumHeads	RESW	1
+.UnformBPT	RESW	1
+.UnformBPS	RESW	1
+.Sectors	RESW	1
+.Reserved2	RESW	3
+.SerNumber	RESW	10
+.BufType	RESW	1
+.BufSize	RESW	1
+.NumECCbytes	RESW	1
+.Revision	RESW	4
+.ModelStr	RESW	20
+.RWMultiSecs	RESW	1
+.DoubleWordIO	RESW	1
+.Capabilities	RESW	1
+.Reserved3	RESW	1
+.PIOdataCTM	RESW	1
+.DMAdataCTM	RESW	1
+.Reserved4	RESW	7
+.LBAtotalSecs	RESD	1
+.Reserved5	RESW	194
+endstruc
+
+%endif

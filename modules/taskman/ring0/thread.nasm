@@ -9,12 +9,14 @@ module tm.kern.thread
 %include "thread.ah"
 %include "perm.ah"
 %include "tm/kern.ah"
+%include "tm/process.ah"
 
 publicdata ThreadSyscallTable
 
 externproc R0_Pid2PCBaddr
 
 importproc K_PoolChunkAddr, MT_CreateThread
+importproc K_SemV, K_SemP
 
 section .data
 
@@ -48,14 +50,18 @@ proc sys_ThreadCreate
 		call	R0_Pid2PCBaddr
 		jc	.Exit
 
-		; Fast and lazy.
+		; Create the thread and attach it to the process.
+		; Take care about PCB locking too.
 .Create:	mov	ebx,[%$func]
 		xor	ecx,ecx
 		call	MT_CreateThread
 		jc	.Again
+		mLockCB	esi, tProcDesc
+		mEnqueue dword [esi+tProcDesc.ThreadList], ProcNext, ProcPrev, ebx, tTCB, ecx
+		mUnlockCB esi, tProcDesc
 
 		; Return TID
-		mov	eax,[esi+tTCB.TID]
+		mov	eax,[ebx+tTCB.TID]
 
 .Exit:		epilogue
 		ret

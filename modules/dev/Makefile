@@ -7,7 +7,7 @@
 include ../../Build/header.mk
 
 # Change variables here
-SUBDIRS = char #block #bus
+SUBDIRS = char block #bus
 
 # Build in subdirs
 include ../../Build/subdirs.mk

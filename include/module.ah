@@ -23,9 +23,10 @@ struc tModule
 .ARGPlen	RESD	1		; size of argp area
 .SymtabAddr	RESD	1		; Address of symtab
 .SymtabLen	RESD	1		; size of symtab
+.Flags		RESD	1		; Flags
 .Type		RESB	1		; Module type (MODTYPE_*)
 .Name		RESB	MAXMODNAMELEN	; Module name (NULL terminated)
-.Flags		RESD	1		; Flags
+.Pad		RESB	3
 .BinFmt		RESD	1		; Address of binary format driver
 .Next		RESD	1		; List link
 .Prev		RESD	1

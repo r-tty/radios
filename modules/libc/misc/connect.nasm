@@ -10,7 +10,7 @@ module libc.connect
 %include "rm/fcntl.ah"
 %include "connect.ah"
 
-publicproc ConnectControl, Vopen
+publicproc ConnectEntry, ConnectControl, Vopen
 
 externproc _memset
 externproc _MsgSendv, _MsgSendvnc

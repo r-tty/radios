@@ -89,4 +89,10 @@ S_SchedInfo		EQU	5Bh
 %endif
 %endmacro
 
+; Trap for entering a kernel debugger
+%define KDEBUG_TRAP	20h
+
+; Trap for printing with the kernel debugger
+%define	KDOUTPUT_TRAP	21h
+
 %endif

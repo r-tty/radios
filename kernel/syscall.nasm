@@ -11,8 +11,6 @@ module kernel.syscall
 %include "bootdefs.ah"
 %include "cpu/stkframe.ah"
 
-; --- Definitions ---
-
 ; Entry in the system call table.
 ; Parameters:	%1 = function address,
 ;		%2 = number of parameters.
@@ -33,16 +31,14 @@ externproc sys_%1
 
 %define	NRSYSCALLS	64h			; Number of syscalls
 
-; --- Public ---
 
-publicproc K_Sysenter, K_SysInt, K_ServEntry
+publicproc K_Sysenter, K_SysInt, K_ServEntry, DebugKDOutput
 exportproc K_InstallSyscallHandler, K_CurrentSyscallHandler
 
-; --- Extern ---
 
-extern K_CopyIn, K_CopyOut
+externproc K_CopyIn, K_CopyOut
+externproc PrintChar
 
-; --- Data ---
 
 section .data
 
@@ -176,8 +172,11 @@ endp		;---------------------------------------------------------------
 
 		; K_SysInt - system interrupt handler.
 		; User parameters are in the stack frame.
-		; Note: the address of user stack frame is passed in EDX
+		; Note:	the address of user stack frame is passed in EDX
 		;	to each system call.
+		;	Arguments in the user stack are followed by one
+		;	additional dword, which is ignored. This is useful
+		;	when building C library.
 proc K_SysInt
 		arg	frame
 		prologue
@@ -199,6 +198,7 @@ proc K_SysInt
 		lea	ecx,[ecx*4]
 		sub	esp,ecx
 		mov	esi,[edx+tStackFrame.ESP]
+		add	esi,byte 4
 		mov	edi,esp
 		call	K_CopyIn
 		jc	.Err
@@ -237,6 +237,31 @@ proc K_ServEntry
 		call	dword [BOOTPARM(ServiceEntry)]
 		add	esp,byte 4
 		mov	[esp+4+tStackFrame.EAX],eax
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; DebugKDOutput interrupt handler.
+		; Note: as in the system interrupt, there is one additional
+		;	dword pushed in the user stack.
+proc DebugKDOutput
+		arg	str, size
+		push	ebp
+		mov	ebp,[esp+8+tStackFrame.ESP]
+		add	ebp,USERAREASTART
+		cmp	ebp,-8
+		ja	.Exit
+		mov	esi,[%$str]
+		add	esi,USERAREASTART
+		jc	.Exit
+		mov	ecx,[%$size]
+.Loop:		jecxz	.Exit
+		mov	al,[esi]
+		call	PrintChar
+		inc	esi
+		jc	.Exit
+		loop	.Loop
+.Exit:		pop	ebp
 		ret
 endp		;---------------------------------------------------------------
 

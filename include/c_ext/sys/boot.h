@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 
-#define MAXMODNAMELEN 27
+#define MAXMODNAMELEN 24
 
 /*
  * This describes a module which was created by BTL.
@@ -27,9 +27,10 @@ typedef struct {
     uint  argplen;		/* size of argp area */
     ulong symtabaddr;		/* Address of symtab */
     uint  symtablen;		/* size of symtab */
+    ulong flags;		/* Module flags */
     char  type;			/* Module type (MODTYPE_*) */
     char  name[MAXMODNAMELEN];	/* Module name (NULL terminated) */
-    ulong flags;		/* Module flags */
+    char  pad[3];
     /* These fields are used only by a task manager */
     void  *binfmt;
     void  *next, *prev;

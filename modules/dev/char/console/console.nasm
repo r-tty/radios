@@ -100,6 +100,7 @@ section .text
 
 		; CON_Main - initialization and main loop.
 proc CON_Main
+		arg	argc, argv
 		locauto	rmattr, tResMgrAttr_size
 		locals	dpp, id
 		prologue

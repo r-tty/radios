@@ -74,10 +74,10 @@ K_ISR%1:
 	mTrapLeave
 %endmacro
 
-; *** Macro for service traps (used by some syscalls)
-; *** Parameters: %1=trap number, %2=procedure name.
-%macro mServTrapHandler 2
-ServTrap%1Handler:
+; *** Macro for software interrupts
+; *** Parameters: %1=interrupt number, %2=procedure name.
+%macro mSoftIntHandler 2
+SoftInt%1Handler:
 	mTrapEntry %1
 	call	%2
 	mTrapLeave

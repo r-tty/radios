@@ -13,6 +13,7 @@ module kernel.interrupt
 %include "hw/pic.ah"
 %include "macros/trap.ah"
 
+exportproc K_CurrentSoftIntHandler, K_InstallSoftIntHandler
 publicproc K_InitInterrupts
 
 publicproc sys_InterruptAttach, sys_InterruptDetach
@@ -22,7 +23,7 @@ publicdata IDTlimAddr
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkAddr, K_PoolChunkNumber
 externproc PG_Alloc, K_SetupExceptions
-externproc K_SysInt, K_ServEntry, K_Ring0
+externproc DebugKDOutput, K_SysInt, K_ServEntry, K_Ring0
 externproc MT_ThreadSleep, MT_ThreadWakeup
 externproc PIC_EnableIRQ, PIC_DisableIRQ
 externproc K_SwitchTask, MT_Schedule
@@ -47,8 +48,8 @@ section .data
 
 IntHandlers:
 %assign i 32
-%rep 16						; Service traps
-		mDefineOffset ServTrap,i,Handler
+%rep 16						; Software interrupts
+		mDefineOffset SoftInt,i,Handler
 %assign i i+1
 %endrep
 
@@ -62,8 +63,8 @@ IntHandlers:
 IDTlimAddr	DW	IDT_limit		; IDT address and limit
 		DD	0
 
-ServTrapFunct	DD	0			; INT 20h
-		DD	0			; INT 21h
+SoftIntFunct	DD	0			; INT 20h
+		DD	DebugKDOutput		; INT 21h
 		DD	0			; INT 22h
 		DD	0			; INT 23h
 		DD	0			; INT 24h
@@ -110,23 +111,23 @@ mAISR i,K_HandleIRQ
 %assign i i+1
 %endrep
 
-; Service trap handlers (used by some syscalls)
-mServTrapHandler 32,K_ServTrap
-mServTrapHandler 33,K_ServTrap
-mServTrapHandler 34,K_ServTrap
-mServTrapHandler 35,K_ServTrap
-mServTrapHandler 36,K_ServTrap
-mServTrapHandler 37,K_ServTrap
-mServTrapHandler 38,K_ServTrap
-mServTrapHandler 39,K_ServTrap
-mServTrapHandler 40,K_ServTrap
-mServTrapHandler 41,K_ServTrap
-mServTrapHandler 42,K_ServTrap
-mServTrapHandler 43,K_ServTrap
-mServTrapHandler 44,K_ServTrap
-mServTrapHandler 45,K_ServTrap
-mServTrapHandler 46,K_ServTrap
-mServTrapHandler 47,K_ServTrap
+; Software interrupt handlers
+mSoftIntHandler 32,K_SoftInt
+mSoftIntHandler 33,K_SoftInt
+mSoftIntHandler 34,K_SoftInt
+mSoftIntHandler 35,K_SoftInt
+mSoftIntHandler 36,K_SoftInt
+mSoftIntHandler 37,K_SoftInt
+mSoftIntHandler 38,K_SoftInt
+mSoftIntHandler 39,K_SoftInt
+mSoftIntHandler 40,K_SoftInt
+mSoftIntHandler 41,K_SoftInt
+mSoftIntHandler 42,K_SoftInt
+mSoftIntHandler 43,K_SoftInt
+mSoftIntHandler 44,K_SoftInt
+mSoftIntHandler 45,K_SoftInt
+mSoftIntHandler 46,K_SoftInt
+mSoftIntHandler 47,K_SoftInt
 
 
 		; K_InitInterrupts - build IDT, initialize IDTR and initialize
@@ -244,16 +245,52 @@ proc K_ISR8
 endp		;---------------------------------------------------------------
 
 
-		; Service trap handler. It gets a trap number on the stack
-		; (like hardware interrupt handler gets its IRQ).
-proc K_ServTrap
-		mov	eax,[esp+4+tStackFrame.Err]	; EAX=trap number
+		; Software interrupt handler. It gets an interrupt number on
+		; the stack (like hardware interrupt handler gets its IRQ).
+proc K_SoftInt
+		mov	eax,[esp+4+tStackFrame.Err]	; EAX=interrupt number
 		sub	eax,SOFTINTSTART
-		mov	eax,[ServTrapFunct+eax*4]	; EAX=function number
+		mov	eax,[SoftIntFunct+eax*4]	; EAX=function number
 		or	eax,eax
 		jz	.Done
 		jmp	eax
 .Done:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Get an address of current software interrupt handler.
+		; Input: AL=interrupt number.
+		; Output: CF=0 - OK, EBX=handler address;
+		;	  CF-1 - error.
+proc K_CurrentSoftIntHandler
+		sub	al,SOFTINTSTART
+		jc	.Exit
+		cmp	al,NUMSOFTINTS
+		cmc
+		jc	.Exit
+		movzx	eax,al
+		mov	ebx,[SoftIntFunct+eax*4]
+		clc
+.Exit:		ret
+endp		;---------------------------------------------------------------
+
+
+		; Install a new software interrupt handler.
+		; Input: AX=syscall number,
+		;	 EBX=function address,
+		;	 CL=number of parameters.
+		; Output: CF=0 - OK;
+		;	  CF-1 - error.
+proc K_InstallSoftIntHandler
+		sub	al,SOFTINTSTART
+		jc	.Exit
+		cmp	al,NUMSOFTINTS
+		cmc
+		jc	.Exit
+		movzx	eax,al
+		mov	[SoftIntFunct+eax*4],ebx
+		clc
+.Exit:		ret
 endp		;---------------------------------------------------------------
 
 

@@ -81,9 +81,9 @@ section .text
 		;	displays cursor only if it's inside a visible area.
 proc MoveCursor
 		cmp	dl,MODE3TXTCOLS
-		jae	short .Err
+		jae	.Err
 		cmp	dh,MODE3TXTROWS
-		jae	short .Err
+		jae	.Err
 		mpush	eax,ebx,ecx,edx
 
 		xor	ebx,ebx
@@ -107,7 +107,7 @@ proc MoveCursor
 		inc	dx
 		in	al,dx
 		test	al,40h
-		jnz	short .Hidden
+		jnz	.Hidden
 		dec	dx
 		mov	al,CRTC(14)
 		out	dx,ax
@@ -147,14 +147,14 @@ proc MoveCursorNext
 		je	.NL
 		inc	dl
 		call	MoveCursor
-		jmp	short .Exit
+		jmp	.Exit
 
 .NL:		xor	dl,dl
 		cmp	dh,MODE3TXTROWS-1
 		je	.Scrl
 		inc	dh
 		call	MoveCursor
-		jmp	short .Exit
+		jmp	.Exit
 
 .Scrl:		call	MoveCursor
 		mov	dl,1
@@ -222,7 +222,7 @@ proc Scroll
 
 .OK:		mpop	edi,esi,edx,ecx
 		clc
-		jmp	short .Exit
+		jmp	.Exit
 .Err:		mov	ax,ERR_VTX_BadVPage
 		stc
 .Exit:		ret
@@ -302,7 +302,7 @@ proc PrintCharXY
 		ret
 
 .Err1:		mov	ax,ERR_VTX_BadCurPos
-		jmp	short .Err
+		jmp	.Err
 .Err2:		mov	ax,ERR_VTX_BadVPage
 .Err:		popfd
 		stc
@@ -350,9 +350,9 @@ proc HandleControlChar
 		mpush	ebx,edx
 		mov	bh,[BDA(VidPageActive)]
 		cmp	al,ASC_BEL
-		je	short .BEL
+		je	.BEL
 		cmp	al,ASC_BS
-		je	short .BS
+		je	.BS
 		cmp	al,ASC_HT
 		je	near .HT
 		cmp	al,ASC_VT
@@ -369,7 +369,7 @@ proc HandleControlChar
 
 .BS:		call	GetCursorPos
 		or	dl,dl
-		jz      short .BS_Up
+		jz      .BS_Up
 		dec	dl
 		call	MoveCursor
 		jmp	.BS_Delete
@@ -397,14 +397,14 @@ proc HandleControlChar
 .HT_Next:	call	MoveCursor
 		jmp	.Done
 
-.VT:		jmp	short .Done
+.VT:		jmp	.Done
 
 .LF:		call	GetCursorPos
 		cmp	dh,MODE3TXTROWS-1
 		jae	.LF_Scroll
 		inc	dh
 		call	MoveCursor
-		jmp	short .Done
+		jmp	.Done
 
 .LF_Scroll:	mov	dl,1
 		call	Scroll
@@ -414,7 +414,7 @@ proc HandleControlChar
 		stc
 		call	ClearLine
 		pop	eax
-		jmp	short .Done
+		jmp	.Done
 
 .CR:		call	GetCursorPos
 		xor	dl,dl
@@ -437,14 +437,14 @@ endp		;---------------------------------------------------------------
 		; Note: basic control characters (NL, TAB, etc) are recognized.
 proc PrintChar
 		call	HandleControlChar
-		jnc	short .NoCtrl
+		jnc	.NoCtrl
 		cmp	al,ASC_LF
-		jne	short .OK
+		jne	.OK
 		push	eax
 		mov	al,ASC_CR
 		call	HandleControlChar
 		pop	eax
-		jmp	short .OK
+		jmp	.OK
 .NoCtrl:	call	PrintCharRawTTY
 .OK:		clc
 		ret
@@ -668,7 +668,7 @@ proc ServiceEntry
 		push	eax
 		mov	eax,[%$funcnum]
 		cmp	eax,NUMSERVENTRIES
-		jae	short .Done
+		jae	.Done
 		mov	eax,[FunctionTable+eax*4]
 		xchg	eax,[esp]
 		ret					; Call routine
@@ -732,12 +732,14 @@ proc _printlong
 		ret
 endp		;---------------------------------------------------------------
 
+
 		; char getc(void);
 proc _getc
 		call	GetChar
 		and	eax,0FFh
 		ret
 endp		;---------------------------------------------------------------
+
 
 		; void panic(const char *fmt, ...);
 proc _panic

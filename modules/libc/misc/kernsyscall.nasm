@@ -26,36 +26,52 @@ module libc.kernsyscall
 	exportproc %1_r
 %1_r:	mNegate %2
 	mNegate %3
-	pop	edx
 %ifid %4
 	mDoSyscall %4
 %else
 	mDoSyscall S%1
 %endif
-	jmp	edx
+	ret
 
 	exportproc %1
 %1:	mNegate %2
 	mNegate %3
-	pop	edx
 %ifid %4
 	mDoSyscall %4
 %else
 	mDoSyscall S%1
 %endif
-	push	edx
 	test	eax,eax
 	jns	%%ret
 	neg	eax
-	mSetErrno eax,edx
+	push	eax
+	mov	eax,[fs:4+tTLS.ErrPtr]
+	pop	dword [eax]
 	xor	eax,eax
 	not	eax
 %%ret:	ret
 %endmacro
 
-;******* Exports *******
+exportproc _DebugKDBreak, _DebugKDOutput
 
 section .text
+
+		; void DebugKDBreak(void);
+proc _DebugKDBreak
+		int	KDEBUG_TRAP
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; void DebugKDOutput(const char *str, size_t size);
+proc _DebugKDOutput
+		mov	eax,[esp+4]
+		mov	edx,[esp+8]
+		int	KDOUTPUT_TRAP
+		ret
+endp		;---------------------------------------------------------------
+
+;******* Exports *******
 
 ; Interrupt handling
 mSyscall _InterruptAttach
@@ -147,10 +163,3 @@ mSyscall _SchedGet
 mSyscall _SchedSet
 mSyscall _SchedYield
 mSyscall _SchedInfo
-
-publicproc libc_init_syscall
-
-		; Initialization
-proc libc_init_syscall
-		ret
-endp		;---------------------------------------------------------------

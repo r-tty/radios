@@ -82,4 +82,11 @@ DISPATCH_SIGWAIT	EQU	5
 DISPATCH_MAX		EQU	6
 DISPATCH_ERROR		EQU	-1
 
+union tDispatchContext
+	unimemb	tResmgrContext;					
+	unimemb	tMessageContext;					
+	unimemb	tSelectContext;
+	unimemb	tSigwaitContext;
+endunion
+
 %endif

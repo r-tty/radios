@@ -64,7 +64,7 @@ IOM_XFLAG_DIR_EXTRA_HINT	EQU	0100h
 IOM_XFLAG_NONBLOCK		EQU	4000h
 IOM_XFLAG_BLOCK			EQU	8000h
 
-struc _xtype_readcond
+struc tXtypeReadCond
 .min		RESD	1    
 .time		RESD	1    
 .timeout	RESD	1    
@@ -189,6 +189,20 @@ struc tIOMconnectEntry
 .Zero		RESW	3
 endstruc
 
+union tIOMconnGeneric
+	unimemb tIOMconnect
+	unimemb	tIOMconnectLinkReply
+	unimemb tIOMconnectFtypeReply
+endunion
+
+%define tIOMopen	tIOMconnGeneric
+%define tIOMunlink	tIOMconnGeneric
+%define tIOMrename	tIOMconnGeneric
+%define tIOMmknod	tIOMconnGeneric
+%define tIOMreadlink	tIOMconnGeneric
+%define tIOMlink	tIOMconnGeneric
+%define tIOMmount	tIOMconnGeneric
+
 struc tIOresmgrLinkExtra
 .ND		RESD	1
 .PID		RESD	1	    
@@ -223,9 +237,8 @@ endstruc
 ;--- File descriptor based I/O messages ----------------------------------------
 
 ; Common header for combining io messages
-
 struc tIOMcombine
-.type		RESW	1
+.Type		RESW	1
 .CombineLen	RESW	1			; < 8000h
 endstruc
 
@@ -451,5 +464,31 @@ struc tIOMsync
 .CombineLen	RESW	1
 .Flag		RESD	1	; IOM_FLAG_{SYNC,DSYNC,RSYNC}
 endstruc
+
+
+; This union combines all message types
+union tIOMunion
+	unimemb	tPulse
+	unimemb	tIOMconnGeneric	; open,unlink,rename,mknod,readlink,link,mount
+	unimemb	tIOMclose
+	unimemb	tIOMwrite
+	unimemb	tIOMread
+	unimemb	tIOMstat
+	unimemb	tIOMnotify
+	unimemb	tIOMdevctl
+	unimemb	tIOMlseek
+	unimemb	tIOMchmod
+	unimemb	tIOMchown
+	unimemb	tIOMutime
+	unimemb	tIOMopenFD
+	unimemb	tIOMdfdInfo
+	unimemb	tIOMlock
+	unimemb	tIOMspace
+	unimemb	tIOMshutdown
+	unimemb	tIOMmmap
+	unimemb	tIOMdup
+	unimemb	tIOMsync
+	unimemb	tIOMmsg
+endunion
 
 %endif

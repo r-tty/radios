@@ -91,13 +91,14 @@ proc Start
 		jmp	KERNELCODE:.InitSegs
 
 		; Set segment registers and kernel LDTR
-.InitSegs:	mov	ax,KERNELDATA
-		mov	ds,ax
-		mov	es,ax
-		mov	gs,ax
-		mov	fs,ax
-		mov	ss,ax
-		mov	ax,KLDT
+.InitSegs:	xor	eax,eax
+		mov	al,KERNELDATA
+		mov	ds,eax
+		mov	es,eax
+		mov	gs,eax
+		mov	fs,eax
+		mov	ss,eax
+		mov	al,KLDT
 		lldt	ax
 
 		; Store the address of BTL stack

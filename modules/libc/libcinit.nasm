@@ -9,7 +9,6 @@ module $libc
 
 exportdata ModuleInfo
 
-extern libc_init_syscall
 extern libc_init_stdlib
 extern libc_init_string
 
@@ -31,7 +30,6 @@ iend
 section .text
 
 proc libc_initialize
-		call	libc_init_syscall
 		call	libc_init_stdlib
 		call	libc_init_string
 		ret

@@ -11,6 +11,7 @@ exportproc PrintChar, PrintCharRaw, PrintString
 exportproc PrintByteDec, PrintWordDec, PrintDwordDec
 exportproc PrintByteHex, PrintWordHex, PrintDwordHex
 exportproc ReadChar, ReadString
+exportproc DebugKDOutput
 
 
 section .text

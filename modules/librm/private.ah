@@ -1,0 +1,104 @@
+;------------------------------------------------------------------------------
+; private.ah - internal structures and definitions.
+;------------------------------------------------------------------------------
+
+; Dispatch handle
+struc tDispatch
+.OtherFunc	RESP	1
+.NpartsMax	RESD	1
+.MsgMaxSize	RESD	1
+.BlockType	RESD	1
+.Timeout	RESB	tTimeSpec_size	
+.Flags		RESD	1
+.ChID		RESD	1
+.ContextSize	RESD	1
+.ResmgrCtrl	RESP	1
+.MessageCtrl	RESP	1
+.SelectCtrl	RESP	1
+.SigwaitCtrl	RESP	1
+endstruc
+
+; Dispatch block types
+DISPATCH_BLOCK_RECEIVE	EQU	1
+DISPATCH_BLOCK_SIGWAIT	EQU	2
+DISPATCH_BLOCK_TIMEOUT	EQU	3
+
+; Special flags
+DISPATCH_FLAG_RESMGR	EQU	1
+DISPATCH_FLAG_SELECT	EQU	2
+DISPATCH_FLAG_TIMEOUT	EQU	4
+
+; Select control structure
+struc tSelectControl
+.SelectVec	RESP	1
+.NumElements	RESD	1
+.NumEntries	RESD	1
+.ContextSize	RESD	1
+.MsgMaxSize	RESD	1
+.Mutex		RESB	tSync_size
+.CoID		RESD	1
+.Code		RESD	1
+.SerNum		RESD	1
+.Flags		RESD	1
+.RearmFunc	RESP	1
+endstruc
+
+; Resmgr control structure
+struc tResmgrControl
+.OtherFunc	RESP	1
+.NpartsMax	RESD	1
+.MsgMaxSize	RESD	1
+.ContextSize	RESD	1
+.Mutex		RESB	tSync_size
+.Flags		RESD	1
+endstruc
+
+; Message control structure
+struc tMessageControl
+.MessageVec	RESP	1
+.NumElements	RESD	1
+.NumEntries	RESD	1
+.ContextSize	RESD	1
+.MsgMaxSize	RESD	1
+.NpartsMax	RESD	1
+.Mutex		RESB	tSync_size
+.Reserved	RESD	1
+endstruc
+
+; Sigwait control structure
+struc tSigwaitControl
+.SigwaitVec	RESP	1
+.NumElements	RESD	1
+.NumEntries	RESD	1
+.ContextSize	RESD	1
+.Mutex		RESB	tSync_size
+endstruc
+
+RESMGR_LINK_OTHERFUNC	EQU	1
+RESMGR_LINK_DETACHWAIT	EQU	2
+RESMGR_LINK_HALFOPEN	EQU	4
+
+struc tRMlink
+.Next		RESP	1
+.Id		RESD	1	; Numeric id for this item in the linked list
+.LinkId		RESD	1	; FD connection for the pathname to proc
+.ConnectFuncs	RESP	1
+.IOfuncs	RESP	1
+.Handle		RESP	1	; User data handle to provide for connect functions
+.Flags		RESD	1	; RESMGR_LINK_* flags
+.Count		RESD	1	; Reference count on this structure
+endstruc
+
+struc tRMbinding
+.OCB		RESP	1	; User allocated data handle (per open)
+.Funcs		RESP	1	; Functions from the link structure
+.Id		RESD	1	; Numeric id of the link structure
+.Count		RESD	1	; Reference count on this structure
+endstruc
+
+struc tPulseFunc
+.Next		RESP	1
+.Code		RESD	1
+.Func		RESP	1
+.Handle		RESP	1
+endstruc

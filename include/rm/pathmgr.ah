@@ -1,0 +1,30 @@
+;-------------------------------------------------------------------------------
+; pathmgr.ah - definitions for interaction with path manager.
+;-------------------------------------------------------------------------------
+
+%ifndef _pathmgr_ah
+%define _pathmgr_ah
+
+; Use this to connect the path manager
+PATHMGR_PID		EQU	SYSMGR_PID
+PATHMGR_CHID		EQU	SYSMGR_CHID
+PATHMGR_COID		EQU	SYSMGR_COID
+PATHMGR_HANDLE		EQU	SYSMGR_HANDLE
+PATHMGR_HANDLE_REMOTE	EQU	SYSMGR_HANDLE+1
+
+; Flags
+PATHMGR_FLAG_BEFORE	EQU	1	; Force path to be resolved before
+					; others at the same mountpoint
+PATHMGR_FLAG_AFTER	EQU	2	; Force path to be resolved after
+					; others at the same mountpoint
+PATHMGR_FLAG_OPAQUE	EQU	4	; Don't resolve to mountpoints with
+					; shorter pathname matches
+PATHMGR_FLAG_FTYPEONLY  EQU	8	; Matching ftype is required on the path
+PATHMGR_FLAG_FTYPEALL	EQU	10h	; Matching all ftypes (for redirecting
+					; servers)
+PATHMGR_FLAG_STICKY	EQU	20h	; No ID is associated with pathname,
+					; must procmgr_unlink() to remove
+PATHMGR_FLAG_DIR	EQU	100h	; Allow resolving of longer pathnames
+PATHMGR_FLAG_SELF	EQU	200h	; Allow resolving names to itself
+
+%endif

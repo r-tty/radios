@@ -12,7 +12,7 @@ include ../../../Build/header.mk
 
 # Change variables here
 TARGET_RDM = eide.$(X)
-OBJS = ide.$(O) hd.$(O)
+OBJS = ide.$(O)
 
 
 # Build module

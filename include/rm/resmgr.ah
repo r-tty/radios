@@ -8,17 +8,17 @@
 %include "msg.ah"
 
 struc tResMgrContext
-.rcvid		RESD	1
-.info		RESB	tMsgInfo_size
-.msg		RESP	1
-.dpp		RESP	1
-.id		RESD	1
-.tid		RESD	1
+.RcvId		RESD	1
+.Info		RESB	tMsgInfo_size
+.Msg		RESP	1
+.DPP		RESP	1
+.Id		RESD	1
+.TID		RESD	1
 .MsgMaxSize	RESD	1
-.status		RESD	1
-.offset		RESD	1
-.size		RESD	1
-.iov		RESD	1
+.Status		RESD	1
+.Offset		RESD	1
+.Size		RESD	1
+.IOV		RESD	1
 endstruc
 
 struc tResMgrConnectFunctions

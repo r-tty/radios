@@ -62,8 +62,11 @@
 ; To get an interrupt number by IRQ
 %define IRQVECTOR(x)	30h + x			; IRQ0 -> INT 30h
 
-; Software interrupts starts from this vector
+; Software interrupts start from this vector
 %define SOFTINTSTART	20h
+
+; Number of software interrupts which can be used
+%define NUMSOFTINTS	16
 
 ; Structure of ID bitmap descriptor
 struc tIDbmapDesc

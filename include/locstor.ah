@@ -30,7 +30,7 @@ endstruc
 %define tlsptr(x) mov x,[fs:0]
 
 ; Macro to set an errno
-; Parameters:	%1 - new errno value,
+; Parameters:	%1 - new errno value
 ;		%2 - scratch register
 %macro mSetErrno 2
 	mov	%2,[fs:4+tTLS.ErrPtr]

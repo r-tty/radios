@@ -1,0 +1,52 @@
+;-------------------------------------------------------------------------------
+; pthread.ah - definitions and macros for POSIX Threads library.
+;-------------------------------------------------------------------------------
+
+%ifndef _lib_pthread_ah
+%define _lib_pthread_ah
+
+; Structure for pthread_once()
+struc tPthreadOnce
+.Once		RESD	1
+.Mutex		RESB	tSync_size
+endstruc
+
+; Structure of a cancellation-cleanup handler
+struc tCleanupHandler
+.Next		RESP	1
+.Routine	RESP	1
+.Save		RESD	1
+endstruc
+
+
+; Push the cancellation-cleanup handler.
+; Parameters:	%1 - function address,
+;		%2 - function argument,
+;		%3 - scratch register.
+; Notes: stack pointer must remain unchanged until mPopCleanup;
+;	 destroys EAX.
+%macro mPushCleanup 3
+	sub	esp,byte tCleanupHandler_size
+	mov	[esp+tCleanupHandler.Routine],%1
+	mov	[esp+tCleanupHandler.Save],%2
+	tlsptr(%3)
+	Mov32	esp+tCleanupHandler.Next,%3+tTLS.Cleanup
+	mov	[%3+tTLS.Cleanup],esp
+%endmacro
+
+; Pop cancellation-cleanup handler.
+; Parameters:	%1 - constant: 0 to not execute the handler (otherwise execute),
+;		%2 - scratch register.
+; Notes: stack pointer must remain unchanged after mPushCleanup;
+;	 destroys EAX.
+%macro mPopCleanup 2
+	tlsptr(%2)
+	Mov32	%3+tTLS.Cleanup,esp+tCleanupHandler.Next
+%if %1 != 0
+	mov	eax,esp
+	Ccall	dword [eax+tCleanupHandler.Routine], dword [eax+tCleanupHandler.Save]
+%endif
+	add	esp,byte tCleanupHandler_size
+%endmacro
+
+%endif

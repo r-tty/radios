@@ -7,9 +7,7 @@ module librm.resmgr
 %include "errors.ah"
 %include "locstor.ah"
 %include "rm/resmgr.ah"
-%include "rm/iomsg.ah"
 %include "rm/dispatch.ah"
-%include "lib/defs.ah"
 %include "private.ah"
 
 exportproc _resmgr_attach, _resmgr_block, _resmgr_unblock, _resmgr_handler
@@ -22,9 +20,6 @@ importproc _pathmgr_link
 externproc DISP_Attach, DISP_SetContextSize
 externproc _message_attach
 externproc _dispatch_context_alloc
-
-MSG_MAX_SIZE	EQU	tIOMconnectLinkReply_size + \
-			tIOMconnectEntry*SYMLOOP_MAX + PATH_MAX + 1
 
 section .text
 
@@ -39,6 +34,7 @@ proc _resmgr_attach
 		prologue
 		savereg	ebx,edx,ecx,esi,edi
 
+		; Use default attributes if attr==0
 		mov	edx,[%$attr]
 		test	edx,edx
 		jnz	.ChkCtrlFun
@@ -104,7 +100,7 @@ proc _resmgr_attach
 			RM_MsgHandler, byte 0
 		test	eax,eax
 		js	near .Exit
-
+int 20h
 		; Attach pulse types
 		or	dword [edi+tMessageAttr.Flags],MSG_FLAG_TYPE_PULSE
 		mov	eax,PULSE_CODE_DISCONNECT
@@ -353,6 +349,40 @@ endp		;---------------------------------------------------------------
 		; Output: CF=0 - OK, EDI=address of allocated structure;
 		;	  CF=1 - error.
 proc RM_LinkAlloc
+static pthread_once_t	_resmgr_key_once =  PTHREAD_ONCE_INIT;	
+
+static void key_once_func(void) {
+	pthread_key_create(&_resmgr_thread_key, NULL);
+}
+
+struct link *_resmgr_link_alloc(void) {
+	register struct link				*p, **pp;
+	register int						id;
+
+	/*
+	 We do the key initialization here for a couple of reasons.
+	 First it is a low bandwidth call, so we don't waste our
+	 time checking that it has been called before.
+	 Second it is called by the name attach functions of both
+	 the dispatch library and the historical resmgr code so
+	 we only do this if the client is attaching a name.
+	*/
+	pthread_once(&_resmgr_key_once, key_once_func);
+
+	pthread_mutex_lock(&_resmgr_io_table.mutex);
+	for(id = 0, pp = &_resmgr_link_list; (p = *pp) && p->id == id; pp = &p->next, id++);
+	if(!(p = calloc(sizeof *p, 1))) {
+		pthread_mutex_unlock(&_resmgr_io_table.mutex);
+		return 0;
+	}
+	p->id = id;
+	p->link_id = -1;
+	p->flags = _RESMGR_LINK_HALFOPEN;
+	p->next = *pp;
+	*pp = p;
+	pthread_mutex_unlock(&_resmgr_io_table.mutex);
+	return p;
+}
 		ret
 endp		;---------------------------------------------------------------
 

@@ -8,7 +8,7 @@ module libc.stdlib
 %include "locstor.ah"
 %include "lib/stdlib.ah"
 
-exportproc _ldiv, _malloc, _calloc, _free
+exportproc _ldiv, _malloc, _calloc, _realloc, _free
 
 publicproc libc_init_stdlib
 
@@ -164,6 +164,23 @@ proc _calloc
 		cld
 		rep	stosb
 		mov	eax,edx
+.Exit:		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; void *realloc(void *ptr, size_t size);
+proc _realloc
+		arg	ptr, size
+		prologue
+		mov	eax,[%$ptr]
+		or	eax,eax
+		jz	.Alloc
+		Ccall	_free, eax
+.Alloc:		Ccall	_malloc, dword [%$size]
+		or	eax,eax
+		jz	.Exit
+		mov	[%$ptr],eax
 .Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------

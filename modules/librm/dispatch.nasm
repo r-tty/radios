@@ -17,7 +17,7 @@ exportproc _dispatch_create, _dispatch_destroy
 exportproc _dispatch_context_alloc, _dispatch_context_free
 exportproc _dispatch_block, _dispatch_unblock
 exportproc _dispatch_handler, _dispatch_timeout
-publicproc DISP_Attach, DISP_SetContextSize
+publicproc DISP_Attach, DISP_SetContextSize, DISP_VectorFind
 
 importproc _malloc, _calloc, _free
 
@@ -346,4 +346,22 @@ proc DISP_SetContextSize
 
 .Error:		stc
 		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; Find a free message vector element.
+		; Input: EDI=vector address,
+		;	 ECX=number of elements.
+		; Output: CF=0 - OK, EDI=element address;
+		;	  CF=1 - element not found.
+proc DISP_VectorFind
+		push	ecx
+.Loop:		test	dword [edi+tMessageVec.Flags],VEC_VALID
+		jz	.Exit
+		add	edi,tMessageVec_size
+		loop	.Loop
+		stc
+
+.Exit:		pop	ecx
+		ret
 endp		;---------------------------------------------------------------

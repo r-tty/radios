@@ -28,7 +28,7 @@ externproc PG_Init, PG_StartPaging
 externproc MT_Init, MT_GetNumThreads, MT_CreateThread
 externproc MT_ThrEnqueue, MT_ThreadExec
 externproc K_InitTime, K_InitHashPool, K_SyncInit
-externproc IPC_ChanInit, IPC_PulseInit
+externproc IPC_ChanInit, IPC_ConnInit, IPC_PulseInit
 externdata GDTlimAddr
 externdata ?CPUinfo, ?CPUspeed
 externdata ?LowerMemSize, ?UpperMemSize
@@ -198,6 +198,8 @@ proc Start
 
 		; Initialize IPC structures
 		call	IPC_ChanInit
+		jc	near ExitKernel
+		call	IPC_ConnInit
 		jc	near ExitKernel
 		mov	eax,MAXPULSES
 		call	IPC_PulseInit

@@ -21,6 +21,15 @@ externproc _SyncMutexLock_r, _SyncMutexUnlock_r
 externproc _SyncCondvarWait_r, _SyncCondvarSignal_r
 externproc _TimerTimeout_r
 
+KEY_NONE	EQU	-1
+
+section .data
+
+@key_count	DD	0
+@key_destructor	DD	0
+@key_mutex	DD	MUTEX_INITIALIZER
+
+
 section .text
 
 		; Convert time specification into the number of nanoseconds.
@@ -36,8 +45,8 @@ proc Timespec2nsec
 endp		;---------------------------------------------------------------
 
 
-		;int pthread_mutex_init(pthread_mutex_t *mutex, 
-		;			const pthread_mutexattr_t *attr);
+		; int pthread_mutex_init(pthread_mutex_t *mutex, 
+		;			 const pthread_mutexattr_t *attr);
 proc _pthread_mutex_init
 		arg	mutex, attr
 		prologue
@@ -147,7 +156,30 @@ endp		;---------------------------------------------------------------
 proc _pthread_mutex_unlock
 		arg	mutex
 		prologue
-		epilogue
+		savereg	ebx,edx,esi
+
+		mov	esi,[%$mutex]
+		mov	ebx,[esi+tSync.Owner]
+		and	ebx,~SYNC_WAITING
+		tlsptr(edx)
+		cmp	ebx,[edx+tTLS.Owner]
+		mov	eax,EPERM
+		jne	.Exit
+
+		xor	eax,eax
+		dec	dword [esi+tSync.Count]
+		jle	.1
+		test	dword [esi+tSync.Count],SYNC_COUNTMASK
+		jnz	.Exit
+.1:		xchg	eax,[esi+tSync.Owner]
+		test	eax,SYNC_WAITING
+		jnz	.Unlock
+		test	dword [esi+tSync.Count],SYNC_PRIOCEILING
+		jz	.OK
+.Unlock:	Ccall	_SyncMutexUnlock_r, esi
+
+.OK:		xor	eax,eax
+.Exit:		epilogue
 		ret
 endp		;---------------------------------------------------------------
 
@@ -247,6 +279,7 @@ endp		;---------------------------------------------------------------
 proc _pthread_cond_signal
 		arg	cond
 		prologue
+		; XXX
 		epilogue
 		ret
 endp		;---------------------------------------------------------------
@@ -256,6 +289,146 @@ endp		;---------------------------------------------------------------
 proc _pthread_cond_broadcast
 		arg	cond
 		prologue
+		; XXX
 		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int pthread_key_create(pthread_key_t *key,
+		;				void (*destructor)(void *));
+proc _pthread_key_create
+		arg	key, destr
+		prologue
+		savereg	edx
+
+		Ccall	_pthread_mutex_lock, dword @key_mutex
+		or	eax,eax
+		jnz	.Exit
+
+		; Allocate destructor table
+		mov	eax,[@key_destructor]
+		or	eax,eax
+		jnz	.ChkDestructor
+		Ccall	_malloc, Dword
+	if(!_key_destructor) {
+		if(!(_key_destructor = malloc(sizeof *_key_destructor * PTHREAD_KEYS_MAX))) {
+			pthread_mutex_unlock(&_key_mutex);
+			return ENOMEM;
+		}
+		memset(_key_destructor, (int)_KEY_NONE, sizeof *_key_destructor * PTHREAD_KEYS_MAX);
+	}
+
+	// is destructor valid?
+.ChkDestructor:	cmp	dword [%$destr],KEY_NONE
+	if(destructor == _KEY_NONE ) {
+		pthread_mutex_unlock(&_key_mutex);
+		return EINVAL;
+	}
+
+	// are there enough keys?
+	if(_key_count >= PTHREAD_KEYS_MAX) {
+		pthread_mutex_unlock(&_key_mutex);
+		return EAGAIN;
+	}
+
+	// find first free key
+	for(k = 0; k < PTHREAD_KEYS_MAX; k++) {
+		if(_key_destructor[k] == _KEY_NONE) {
+			break;
+		}
+	}
+
+	// this should never happen!
+	if(k >= PTHREAD_KEYS_MAX) {
+		pthread_mutex_unlock(&_key_mutex);
+		return EAGAIN;
+	}
+
+	_key_destructor[k] = destructor;
+	*key = k;
+	_key_count++;
+
+	pthread_mutex_unlock(&_key_mutex);
+	return EOK;
+}
+.Exit:		epilogue
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; int pthread_key_delete(pthread_key_t key);
+proc _pthread_key_delete
+		arg	key
+		prologue
+		savereg	ebx,edx
+
+		Ccall	_pthread_mutex_lock, dword @key_mutex
+		or	eax,eax
+		jnz	.Exit
+
+		mov	edx,[%$key]
+		test	edx,edx
+		jc	.Invalid
+		mov	ebx,[@key_destructor]
+		or	ebx,ebx
+		jz	.Invalid
+		cmp	dword [ebx+edx*4],KEY_NONE
+		je	.Invalid
+
+		; Destructor functions are called in pthread_exit
+		mov	dword [ebx+edx*4],KEY_NONE
+		dec	@key_count
+		Ccall	_pthread_mutex_unlock, dword @key_mutex
+
+		xor	eax,eax
+
+.Exit:		epilogue
+		ret
+
+.Invalid:	Ccall	_pthread_mutex_unlock, dword @key_mutex
+		mov	eax,EINVAL
+		jmp	.Exit
+endp		;---------------------------------------------------------------
+
+
+		; int pthread_once(pthread_once_t *once_control,
+		;			void (*init_routine)(void));
+proc _pthread_once
+		arg	ctrl, initfunc
+		prologue
+		savereg	edx,esi
+
+		mov	edx,[%$ctrl]
+		cmp	dword [edx+tPthreadOnce.Once],0
+		jne	.OK
+
+		lea	esi,[edx+tPthreadOnce.Mutex]
+		Ccall	_pthread_mutex_lock, esi
+		or	eax,eax
+		jz	.CheckFirst
+		cmp	dword [edx+tPthreadOnce.Once],0
+		jne	.OK
+		jmp	.Exit
+
+.CheckFirst:	cmp	dword [edx+tPthreadOnce.Once],0
+		jne	.Unlock
+		Ccall	_pthread_cleanup_push, .CancelFunc, esi
+		call	dword [%$initfunc]
+		Ccall	_pthread_cleanup_pop, 0
+		inc	dword [edx+tPthreadOnce.Once]
+
+.Unlock:	lea	esi,[edx+tPthreadOnce.Mutex]
+		Ccall	_pthread_mutex_unlock, esi
+		or	eax,eax
+		jnz	.OK
+		Ccall	_pthread_mutex_destroy, esi
+
+.OK:		xor	eax,eax
+.Exit:		epilogue
+		ret
+
+		; Cancellation sub-routine
+.CancelFunc:	Ccall	_pthread_mutex_unlock, dword [esp+4]
 		ret
 endp		;---------------------------------------------------------------

@@ -17,7 +17,6 @@ module tm.proc
 publicproc TM_InitProc
 publicproc TM_NewProcess, TM_DelProcess
 publicproc TM_ProcAttachThread, TM_ProcDetachThread
-publicproc TM_CopyConnections
 publicdata ?ProcessPool, ?ProcListPtr, ?MaxNumOfProc
 publicdata ProcMsgHandlers
 
@@ -236,49 +235,6 @@ proc TM_FreeLDT
 		ret
 endp		;---------------------------------------------------------------
 
-
-		; TM_CopyConnections - copy connection descriptors from one
-		;		       process to another (and hash them).
-		; Input: ESI=source PCB address,
-		;	 EDI=destination PCB address.
-		; Output: CF=0 - OK;
-		;	  CF=1 - error, AX=error code.
-		; Note: target connection pool must be already initialized,
-		;	modifies EBX,ECX,EDX,ESI and EDI.
-proc TM_CopyConnections
-		mov	edx,[esi+tProcDesc.ConnList]
-		mov	ebx,edi
-		xor	ecx,ecx
-
-		; Allocate a descriptor and copy the data
-.Loop:		or	edx,edx
-		jz	.Exit
-		push	ebx
-		mov	ebx,?ConnPool
-		call	PoolAllocChunk
-		pop	ebx
-		jc	.Exit
-		mov	edi,esi
-		mov	esi,edx
-		mov	cl,tConnDesc_size
-		push	edi
-		rep	movsb
-		pop	edi
-
-		; Put it into the list and hash
-		mEnqueue dword [ebx+tProcDesc.ConnList], Next, Prev, edi, tConnDesc, esi
-		mov	eax,[edi+tConnDesc.ID]
-		mov	esi,[?ConnHash]
-		call	HashAdd
-		jc	.Exit
-
-		mov	eax,edx
-		mov	edx,[edx+tConnDesc.Next]
-		cmp	edx,eax
-		jne	.Loop
-
-.Exit:		ret
-endp		;---------------------------------------------------------------
 
 
 ; --- Message handlers ---------------------------------------------------------

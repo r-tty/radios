@@ -19,7 +19,8 @@ publicproc TM_Main, TM_SetMsgHandler, TM_GetMsgHandler, TM_SetMHfromTable
 
 externproc TM_InitMemman, TM_InitModules, TM_InitPathman
 externproc TM_RegisterBinFmt, TM_IterateModList, TM_GetModIdByName
-externproc TM_NewProcess, TM_CopyConnections
+externproc TM_NewProcess
+externproc CloneConnections
 externproc MapArea, MM_AllocPagesAt, CopyFromAct, PoolInit
 externdata ProcMsgHandlers
 externdata ?BootModsArr, ?ProcListPtr
@@ -201,7 +202,7 @@ proc CreateBootProc
 		mpush	ebx,esi
 		mov	edi,esi
 		mov	esi,[?ProcListPtr]
-		call	TM_CopyConnections
+		call	CloneConnections
 		mpop	esi,ebx
 		jc	.Exit
 

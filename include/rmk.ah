@@ -108,6 +108,8 @@ struc tIOV
 .Len		RESD	1
 endstruc
 
+%define tIOV_shift 3					; log2(tIOV_size)
+
 ; Macro to set an IOV.
 ; Parameters:	%1 - address of IOV (register),
 ;		%2 - IOV number (starting from 0),

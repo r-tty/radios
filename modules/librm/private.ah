@@ -2,6 +2,13 @@
 ; private.ah - internal structures and definitions.
 ;------------------------------------------------------------------------------
 
+%ifndef _resmgr_private_ah
+%define _resmgr_private_ah
+
+
+%include "rm/iomsg.ah"
+%include "lib/defs.ah"
+
 ; Dispatch handle
 struc tDispatch
 .OtherFunc	RESP	1
@@ -27,10 +34,19 @@ DISPATCH_BLOCK_TIMEOUT	EQU	3
 DISPATCH_FLAG_RESMGR	EQU	1
 DISPATCH_FLAG_SELECT	EQU	2
 DISPATCH_FLAG_TIMEOUT	EQU	4
-DISPATCH_CONTEXT_ALLOCED EQU	80000000h
+
+DISPATCH_CHANNEL_COIDDEATH	EQU	40000000h
+DISPATCH_CONTEXT_ALLOCED	EQU	80000000h
 
 ; Vector flags
-VEC_VALID		EQU	80000000h
+VEC_VALID	EQU	80000000h
+
+; Number of message vectors to grow
+GROW_VEC	EQU	4
+
+; Maximal message size
+MSG_MAX_SIZE	EQU	tIOMconnectLinkReply_size + \
+			tIOMconnectEntry*SYMLOOP_MAX + PATH_MAX + 1
 
 ; Select control structure
 struc tSelectControl
@@ -78,6 +94,8 @@ struc tMessageVec
 .Handle		RESP	1
 endstruc
 
+%define tMessageVec_shift 4
+
 ; Sigwait control structure
 struc tSigwaitControl
 .SigwaitVec	RESP	1
@@ -115,3 +133,25 @@ struc tPulseFunc
 .Func		RESP	1
 .Handle		RESP	1
 endstruc
+
+
+; Free a message vector
+; Parameters:	%1 - vector address,
+;		%2 - element index.
+; Note: clobbers %2.
+%macro mDispVecFree 2
+	shl	%2,tMessageVec_shift
+	and	dword [%1+%2+tMessageVec.Flags],~VEC_VALID
+%endmacro
+
+
+; Grow a message vector
+; Parameters:	%1 - vector address,
+;		%2 - new number of elements.
+; Note: clobbers %2.
+%macro mDispVecGrow 2
+	shl	%2,tMessageVec_shift
+	Ccall	_realloc, %1, %2
+%endmacro
+
+%endif

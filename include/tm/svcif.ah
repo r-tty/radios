@@ -21,8 +21,9 @@ SVCF_CopyFromAct	EQU	0Ah
 SVCF_CopyToAct		EQU	0Bh
 SVCF_RegisterLDT	EQU	0Ch
 SVCF_UnregisterLDT	EQU	0Dh
+SVCF_CloneConnections	EQU	0Eh
 
-SVCF_MAX		EQU	0Dh
+SVCF_MAX		EQU	0Eh
 
 %macro mRing0call 1
 %ifnum %1

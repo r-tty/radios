@@ -21,6 +21,9 @@ proc _clock_nanosleep
 		mov	ecx,[%$flags]
 		and	ecx,TIMER_ABSTIME
 		or	edx,TIMEOUT_NANOSLEEP
+
+		;XXX
+
 		mpop	edx,ecx
 		epilogue
 		ret

@@ -54,7 +54,7 @@ IntHandlers:
 %endrep
 
 %assign i 0
-%rep 64						; IRQ handlers
+%rep MAXIRQ					; IRQ handlers
 		mDefineOffset K_ISR,i
 %assign i i+1
 %endrep

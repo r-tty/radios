@@ -4,6 +4,8 @@
 
 module librm.message
 
+%include "errors.ah"
+%include "locstor.ah"
 %include "rm/resmgr.ah"
 %include "rm/dispatch.ah"
 %include "private.ah"
@@ -13,8 +15,9 @@ exportproc _pulse_attach, _pulse_detach
 exportproc _message_connect, _message_block, _message_unblock
 
 importproc _ConnectAttach, _ConnectDetach
-importproc _pthread_mutex_lock, _pthread_mutex_unlock
-externproc _dispatch_block
+importproc _pthread_mutex_init, _pthread_mutex_lock, _pthread_mutex_unlock
+importproc _calloc, _realloc, _free
+externproc _dispatch_block, DISP_Attach, DISP_VectorFind
 
 section .text
 
@@ -26,8 +29,209 @@ section .text
 proc _message_attach
 		arg	dpp, attr, low, high, func, handle
 		prologue
-		epilogue
+		savereg	ebx,ecx,edx,esi,edi
+
+		; Is the message control structure already initialized?
+		mov	edx,[%$attr]
+		mov	ebx,[%$dpp]
+		mov	esi,[ebx+tDispatch.MessageCtrl]
+		test	esi,esi
+		jnz	near .CtrlAllocated
+
+		; Initialize message control structure
+		Ccall	_calloc, byte 1, byte tMessageControl_size
+		test	eax,eax
+		jz	near .NoMemory
+		mov	esi,eax
+
+		; Calculate number of parts
+		xor	eax,eax
+		inc	al
+		test	edx,edx
+		jz	.1
+		mov	ecx,[edx+tMessageAttr.NpartsMax]
+		cmp	eax,ecx
+		jae	.1
+		mov	eax,ecx
+.1:		mov	[esi+tMessageControl.NpartsMax],eax
+
+		; Calculate MsgMaxSize
+	%if MSG_MAX_SIZE > tIOMunion_size
+		mov	ecx,MSG_MAX_SIZE
+	%else
+		mov	ecx,tIOMunion_size
+	%endif
+		test	edx,edx
+		jz	.2
+		mov	eax,[edx+tMessageAttr.MsgMaxSize]
+		cmp	ecx,eax
+		jae	.2
+		mov	ecx,eax
+.2:		mov	[esi+tMessageControl.MsgMaxSize],ecx
+
+		; Calculate ContextSize
+		mov	eax,[esi+tMessageControl.NpartsMax]
+		shl	eax,tIOV_shift
+		add	eax,byte tMessageContext_size
+		add	eax,ecx
+		mov	[esi+tMessageControl.ContextSize],eax
+
+		; Attach the message
+		mov	ebx,[%$dpp]
+		mov	dl,DISPATCH_MESSAGE
+		call	DISP_Attach
+		jnc	.InitMutex
+		Ccall	_free, esi
+		jmp	.Failed
+
+.InitMutex:	lea	eax,[esi+tMessageControl.Mutex]
+		Ccall	_pthread_mutex_init, eax, 0
+
+.CtrlAllocated:	lea	eax,[esi+tMessageControl.Mutex]
+		Ccall	_pthread_mutex_lock, eax
+
+		; Attach message type to message vector
+		mov	ecx,[esi+tMessageControl.NumElements]
+		mov	edi,[esi+tMessageControl.MessageVec]
+		or	edi,edi
+		jz	.GrowVec
+		cmp	ecx,[esi+tMessageControl.NumEntries]
+		jne	.FindVec
+
+		; Grow the vector array
+.GrowVec:	add	ecx,GROW_VEC
+		shl	ecx,tMessageVec_shift
+		Ccall	_realloc, edi, ecx
+		test	eax,eax
+		jz	near .NoMemory
+		mov	edi,eax
+		mov	eax,[esi+tMessageControl.NumElements]
+		shl	eax,tMessageVec_shift
+		push	edi
+		add	edi,eax
+		mov	ecx,GROW_VEC*tMessageVec_size/4
+		xor	eax,eax
+		cld
+		rep	stosd
+		pop	edi
+		mov	[esi+tMessageControl.MessageVec],edi
+		mov	ecx,[esi+tMessageControl.NumElements]
+		add	ecx,GROW_VEC
+		mov	[esi+tMessageControl.NumElements],ecx
+
+		; Find a vector
+.FindVec:	call	DISP_VectorFind
+		jc	near .NoMemory
+
+		; Do we have to allocate a pulse code?
+		mov	edx,[%$attr]
+		test	edx,edx
+		jz	near .FillVec
+		mov	eax,[edx+tMessageAttr.Flags]
+		test	eax,MSG_FLAG_TYPE_PULSE
+		jz	near .FillVec
+		test	eax,MSG_FLAG_ALLOC_PULSE
+		jz	.ChkPcodeLoHi
+
+		; Yes, we need to allocate a pulse code
+		mov	edx,PULSE_CODE_MINAVAIL
+.PulseCodeLoop:	cmp	edx,PULSE_CODE_MAXAVAIL
+		jg	near .ErrAgain
+		mov	ebx,edx
+		mov	ecx,[esi+tMessageControl.NumElements]
+		mov	edi,[esi+tMessageControl.MessageVec]
+.FindPVecLoop:	mov	eax,[edi+tMessageVec.Flags]
+		test	eax,VEC_VALID
+		jz	.NextPVec
+		test	eax,MSG_FLAG_TYPE_PULSE
+		jz	.NextPVec
+		cmp	edx,[edi+tMessageVec.Low]
+		jl	.NextPVec
+		cmp	edx,[edi+tMessageVec.High]
+		jg	.NextPVec
+		inc	edx
+		jmp	.3
+.NextPVec:	add	edi,byte tMessageVec_size
+		loop	.FindPVecLoop
+.3:		cmp	edx,ebx
+		jne	.PulseCodeLoop
+		cmp	edx,PULSE_CODE_MAXAVAIL
+		jg	near .ErrAgain
+		mov	[%$low],edx
+		jmp	.FillVec
+
+		; Check if %$low and %$high are in valid range
+.ChkPcodeLoHi:	mov	edx,[%$low]
+		mov	ebx,[%$high]
+		cmp	edx,-128
+		jge	.ChkCoidDeath
+		cmp	ebx,127
+		jg	near .Invalid
+
+		; Check for coid death
+.ChkCoidDeath:	cmp	edx,PULSE_CODE_COIDDEATH
+		jl	.FillVec
+		cmp	ebx,PULSE_CODE_COIDDEATH
+		jg	.FillVec
+		mov	eax,[%$dpp]
+		test	dword [eax+tDispatch.Flags],DISPATCH_CHANNEL_COIDDEATH
+		jz	near .Busy
+
+		; Fill in the vector
+.FillVec:	Mov32	edi+tMessageVec.Low,%$low
+		Mov32	edi+tMessageVec.High,%$high
+		mov	dword [edi+tMessageVec.Flags],VEC_VALID
+		Mov32	edi+tMessageVec.Handle,%$handle
+		Mov32	edi+tMessageVec.Func,%$func
+		inc	dword [esi+tMessageControl.NumEntries]
+
+		; Initialize vector flags, if necessary
+		mov	edx,[%$attr]
+		test	edx,edx
+		jz	.OK
+		mov	eax,[edx+tMessageAttr.Flags]
+		test	eax,MSG_FLAG_TYPE_RESMGR
+		jz	.ChkSelectFlag
+		or	dword [edi+tMessageVec.Flags],MSG_FLAG_TYPE_RESMGR
+		jmp	.ChkPulseFlag
+
+.ChkSelectFlag:	test	eax,MSG_FLAG_TYPE_SELECT
+		jz	.ChkPulseFlag
+		or	dword [edi+tMessageVec.Flags],MSG_FLAG_TYPE_SELECT | MSG_FLAG_TYPE_PULSE
+
+.ChkPulseFlag:	test	eax,MSG_FLAG_TYPE_PULSE
+		jz	.ChkDefFnFlag
+		or	dword [edi+tMessageVec.Flags],MSG_FLAG_TYPE_PULSE
+
+.ChkDefFnFlag:	test	eax,MSG_FLAG_DEFAULT_FUNC
+		jz	.OK
+		or	dword [edi+tMessageVec.Flags],MSG_FLAG_DEFAULT_FUNC
+		
+.OK:		lea	eax,[esi+tMessageControl.Mutex]
+		Ccall	_pthread_mutex_unlock, eax
+		xor	eax,eax
+
+.Exit:		epilogue
 		ret
+
+.ErrAgain:	mSetErrno EAGAIN,edi
+		jmp	.UnlockAndErr
+
+.NoMemory:	mSetErrno ENOMEM,edi
+		jmp	.UnlockAndErr
+
+.Invalid:	mSetErrno EINVAL,edi
+		jmp	.UnlockAndErr
+
+.Busy:		mSetErrno EBUSY,edi
+		jmp	.UnlockAndErr
+
+.Failed:	mSetErrno eax,edi
+.UnlockAndErr:	lea	edi,[esi+tMessageControl.Mutex]
+		Ccall	_pthread_mutex_unlock, edi
+		xor	eax,eax
+		dec	eax
+		jmp	.Exit
 endp		;---------------------------------------------------------------
 
 

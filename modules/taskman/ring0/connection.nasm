@@ -19,7 +19,7 @@ library $rmk
 importproc K_PoolAllocChunk, K_PoolChunkAddr
 importproc K_HashAdd
 importproc K_AllocateID
-importproc IPC_ChanDescAddr, IPC_ConnDescAddr
+importproc K_ChanDescAddr, K_ConnDescAddr, K_CreateSConnDesc
 importproc K_SemP, K_SemV
 importproc BZero
 importdata ?ConnPool, ?ConnHash
@@ -53,69 +53,6 @@ proc FindConnByNum
 endp		;---------------------------------------------------------------
 
 
-		; Create a server connection descriptor.
-		; Input: EDX=address of channel descriptor,
-		;	 EDI=client PCB address,
-		;	 ECX=ScoId index (base).
-		; Output: CF=0 - OK, EAX=SCoID;
-		;	  CF=1 - error, EAX=errno.
-proc CreateSConnDesc
-		mpush	ebx,esi,edi
-
-		; Allocate a new descriptor and clear it
-		mov	ebx,?ConnPool
-		call	K_PoolAllocChunk
-		jc	near .Again
-		mov	ebx,esi
-		push	ecx
-		mov	ecx,tConnDesc_size
-		call	BZero
-		pop	ecx
-
-		; Allocate an ID from the bitmap, check the index
-		mov	esi,[edx+tChanDesc.PCB]
-		push	ebx
-		lea	ebx,[esi+tProcDesc.MaxConn]
-		call	K_AllocateID
-		pop	ebx
-		jc	near .Again
-		or	ecx,ecx
-		jz	.ScoIndexOK
-		cmp	ecx,SIDE_CHANNEL
-		jne	near .BadIndex
-.ScoIndexOK:	add	eax,ecx
-		mov	[ebx+tConnDesc.ID],eax
-		mov	[ebx+tConnDesc.ClientPCB],edi
-		mov	[ebx+tConnDesc.ChanDesc],edx
-
-		; Use connection ID as identifier and PCB address as hash key
-		mov	edi,ebx
-		mov	ebx,esi
-		mov	esi,[?ConnHash]
-		call	K_HashAdd
-		jc	.Again
-
-		; Put connection descriptor to the list
-.ScoDescFound:	mov	esi,[edx+tChanDesc.PCB]
-		mLockCB esi, tProcDesc
-		mEnqueue dword [edi+tProcDesc.ConnList], Next, Prev, edi, tConnDesc, ebx
-		mUnlockCB esi, tProcDesc
-
-		; Return SCoID
-		mov	eax,[edi+tConnDesc.ID]
-		clc
-
-.Exit:		mpop	edi,esi,ebx
-		ret
-
-.BadIndex:	mov	eax,-EBADF
-		jmp	.Exit
-
-.Again:		mov	eax,-EAGAIN
-		jmp	.Exit
-endp		;---------------------------------------------------------------
-
-
 ; --- System calls -------------------------------------------------------------
 
 		; int ConnectAttach(uint nd, pid_t pid, int chid,
@@ -136,7 +73,7 @@ proc sys_ConnectAttach
 		jc	near .Exit
 		Mov32	%$sconnlist,esi+tProcDesc.ConnList
 		mov	eax,[%$chid]
-		call	IPC_ChanDescAddr
+		call	K_ChanDescAddr
 		jc	near .Exit
 		mov	edx,esi
 
@@ -152,21 +89,23 @@ proc sys_ConnectAttach
 		mov	ecx,tConnDesc_size
 		call	BZero
 
-		; Allocate connection ID
-		lea	ebx,[edi+tProcDesc.MaxConn]
-		call	K_AllocateID
-		jc	near .Again
+		; Check the index
 		mov	ecx,[%$index]
 		or	ecx,ecx
-		jz	.IndexOK
+		jz	.AllocID
 		cmp	ecx,SIDE_CHANNEL
 		jne	near .BadIndex
-.IndexOK:	add	eax,ecx
+
+		; Allocate connection ID
+.AllocID:	lea	ebx,[edi+tProcDesc.MaxConn]
+		call	K_AllocateID
+		jc	near .Again
+		add	eax,ecx
 		mov	[esi+tConnDesc.ID],eax
 
 		; Examine the server's connection list. If there are no
-		; connections from our process - create a new scoid, otherwise
-		; use the existing one.
+		; connections from our process to this channel - create a
+		; new scoid, otherwise use the existing one.
 		mov	ebx,[%$sconnlist]
 .ScoIdLoop:	or	ebx,ebx
 		jz	.NewScoDesc
@@ -181,7 +120,7 @@ proc sys_ConnectAttach
 		jne	.ScoIdLoop
 
 		; Allocate a new server connection descriptor
-.NewScoDesc:	call	CreateSConnDesc
+.NewScoDesc:	call	K_CreateSConnDesc
 		jc	.Exit
 
 		; Update channel information and put the connection to the list
@@ -228,7 +167,7 @@ proc sys_ConnectServerInfo
 		jc	.Exit
 
 .CheckCoid:	mov	eax,[%$coid]
-		call	IPC_ConnDescAddr
+		call	K_ConnDescAddr
 		jc	.Exit
 
 		mov	edx,[%$info]
@@ -264,7 +203,7 @@ proc sys_ConnectFlags
 		jne	.BadPerm
 
 .CheckCoid:	mov	eax,[%$coid]
-		call	IPC_ConnDescAddr
+		call	K_ConnDescAddr
 		jc	.Exit
 		mov	edx,[edi+tConnDesc.Flags]
 		mov	eax,[%$mask]

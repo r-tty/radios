@@ -38,6 +38,8 @@ struc tProcDesc
 .ChanList	RESD	1			; Head of channel list
 .ConnCount	RESD	1			; Number of connections created
 .ConnList	RESD	1			; Head of connection list
+.ServConnCount	RESD	1			; Number of server connections
+.ServConnList	RESD	1			; Head of server connection list
 .MaxChan	RESD	1			; Maximum number of channels
 .ChanIDbmapAddr	RESD	1			; Channel ID bitmap address
 .ChanIDbmap	RESB	MAXCHANNELS / 8		; Channel ID bitmap itself

@@ -21,7 +21,7 @@ publicproc sys_MsgInfo, sys_MsgError, sys_MsgKeyData
 exportproc K_DecodeRcvid, K_SendPulse, AllocPulseDesc, FreePulseDesc
 
 
-externproc IPC_ChanDescAddr, IPC_ConnDescAddr
+externproc K_ChanDescAddr, K_ConnDescAddr
 externproc K_PoolInit, K_PoolAllocChunk, K_PoolFreeChunk
 externproc K_PoolChunkNumber, K_PoolChunkAddr
 externproc K_SemP, K_SemV
@@ -214,7 +214,7 @@ proc sys_MsgSendvnc
 		; Get connection descriptor address
 		mov	eax,[%$coid]
 		mov	esi,[ebx+tTCB.PCB]
-		call	IPC_ConnDescAddr
+		call	K_ConnDescAddr
 		jc	near .Exit
 
 		; Fill in the fields in TCB
@@ -281,7 +281,7 @@ proc sys_MsgReceivev
 		mCurrThread
 		mov	esi,[eax+tTCB.PCB]
 		mov	eax,[%$chid]
-		call	IPC_ChanDescAddr
+		call	K_ChanDescAddr
 		jc	near .Exit
 
 		; If there is a message or pulse pending, we won't block
@@ -488,7 +488,7 @@ proc sys_MsgSendPulse
 		; Get connection descriptor address
 		mov	eax,[%$coid]
 		mov	esi,[ebx+tTCB.PCB]
-		call	IPC_ConnDescAddr
+		call	K_ConnDescAddr
 		jc	.Exit
 
 		; Send the pulse
@@ -515,7 +515,7 @@ proc sys_MsgReceivePulsev
 		mCurrThread
 		mov	esi,[eax+tTCB.PCB]
 		mov	eax,[%$chid]
-		call	IPC_ChanDescAddr
+		call	K_ChanDescAddr
 		jc	near .MkErrno
 
 		; If pulse queue is empty - suspend ourselves

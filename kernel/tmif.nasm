@@ -16,8 +16,9 @@ externproc K_PoolChunkNumber, K_PoolChunkAddr
 externproc PG_Alloc, PG_Dealloc
 externproc K_CopyFromAct, K_CopyToAct
 externproc K_RegisterLDT, K_UnregisterLDT
+externproc K_CloneConnections
 
-%define R0_NUMFUNC	14
+%define R0_NUMFUNC	15
 
 section .data
 
@@ -35,6 +36,7 @@ Ring0functions	DD	K_HashAdd		; 0
 		DD	K_CopyToAct		; 0Bh
 		DD	K_RegisterLDT		; 0Ch
 		DD	K_UnregisterLDT		; 0Dh
+		DD	K_CloneConnections	; 0Eh
 
 section .text
 

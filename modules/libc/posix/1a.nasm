@@ -12,6 +12,7 @@ section .text
 proc _getenv
 		arg	name
 		prologue
+		; XXX
 		epilogue
 		ret
 endp		;---------------------------------------------------------------

@@ -13,6 +13,7 @@ publicproc PoolChunkNumber, PoolChunkAddr
 publicproc PageAlloc, PageDealloc
 publicproc CopyToAct, CopyFromAct
 publicproc RegisterLDT, UnregisterLDT
+publicproc CloneConnections
 
 section .text
 
@@ -137,5 +138,12 @@ endp		;---------------------------------------------------------------
 		; Unregister a LDT.
 proc UnregisterLDT
 		mRing0call SVCF_UnregisterLDT
+		ret
+endp		;---------------------------------------------------------------
+
+
+		; Clone the connection descriptors.
+proc CloneConnections
+		mRing0call SVCF_CloneConnections
 		ret
 endp		;---------------------------------------------------------------
